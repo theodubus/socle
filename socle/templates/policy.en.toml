@@ -1,0 +1,110 @@
+# Autonomy policy — changed by the human only.
+#
+# Protected by CODEOWNERS and the protected branch; the PreToolUse hook refuses
+# that the agent writes it; the CI refuses any change without an approved
+# request that cites its new fingerprint (`socle approve --files
+# .socle/policy.toml` for a change made by the human themselves).
+#
+# The eight rules settled by the brief. Those a script can apply are applied
+# here; the others are written in AGENTS.md.
+#   1. Loosening a guardrail         → ratchet of .socle/guardrails.toml
+#   2. Deleting or weakening a test  → check `tests.attendus`
+#   3. Design decision               → ADR; a request if costly to undo
+#   4. Irreversible or external action → [irreversible] below
+#   5. Writing to the memory         → checks `memoire.*`
+#   6. Scope creep                   → backlog
+#   7. Repeated failure              → max_attempts
+#   8. Approval channel              → memory/requests/, the request contract
+
+version = 1
+
+# Rule 7: beyond it, the Stop hook lets the agent conclude by requiring an escalation.
+max_attempts = 3
+
+# Cap on the agent's questions at initialization (7 proposed, to calibrate).
+init_questions_max = 7
+
+[protected]
+# Only the human changes them; the installer lays the hooks, the CI and the engine.
+paths = [
+  ".socle/policy.toml",
+  ".socle/adapter.toml",
+  ".socle/engine.lock",
+  ".socle/engine/**",
+  ".socle/socle",
+  ".socle/git-hooks/**",
+  ".claude/settings.json",
+  ".claude/skills/socle-*/**",
+  ".github/workflows/socle.yml",
+  ".github/workflows/socle-mutation.yml",
+  ".github/CODEOWNERS",
+  "memory/requests/*.answer.toml",
+]
+
+[irreversible]
+# Rule 4: refused by the PreToolUse hook without human approval. The engine
+# judges each shell command itself, split into simple commands (force push or
+# push to the default branch, publication, remote deletion…); `bash` ADDS
+# patterns, applied to each simple command, and removes nothing. `tools`
+# replaces the engine's list of external tools.
+# bash = ['\bterraform\s+apply\b', ...]
+# tools = ['mcp__github__merge_pull_request', ...]
+
+[agents]
+# Claude Code is the agent equipped with hooks; the other agents stay covered
+# by the git hooks and the CI.
+claude_code = true
+# An agent commit is recognised by these patterns; the CI requires that it
+# carries the trace of its hooks (`Socle-Hooks:`).
+markers = ['(?im)^co-authored-by:.*\bclaude\b', '(?im)^socle-agent:']
+
+[human]
+# The web address of the repository, for the permalinks given to the human
+# (`socle url`). When absent, it is deduced from the `origin` repository; set
+# it when `origin` is a relay or a local folder.
+# repo_url = "https://github.com/organisation/project"
+# Remote branches never proposed for deletion, even when contained in the
+# default branch (another agent's, for example).
+keep_branches = []
+# The human's name, who signs the answers the agent relays (`--by` by
+# default); the installer takes it from git.
+# name = "First name"
+# The lines an end-of-intervention recap must contain; the Stop hook looks for
+# them in the agent's last message (by default "For you:" and "Next:" in an
+# English memory).
+# [human.recap_markers]
+# "For you:" = '(?im)^[\W_]*for you\s*:'
+# "Next:" = '(?im)^[\W_]*next\s*:'
+
+[unattended]
+# Categories of actions allowed in unattended runs (an open question of the
+# brief): none beyond the ordinary rules.
+allowed = []
+
+# Private memory, optional (`memory/private/`, same format as the rest):
+# - "compagnon": a private repository cloned into `memory/private/`, ignored
+#   here; the lock `.socle/private.lock` says which private commit matches each
+#   public commit (`socle private lock`). In CI, the secrets SOCLE_PRIVE_DEPOT
+#   and SOCLE_PRIVE_CLE (deploy key) fetch it. `socle private install --repo
+#   <address>` sets everything up, and says the two steps to take on GitHub.
+# - "chiffre": the private files committed encrypted by a git filter
+#   (git-crypt or similar); `.gitattributes`: `memory/private/** filter=…`.
+# Without access, the private memory is reported unavailable, never skipped.
+# Human review before each publication to the public repository:
+# "aucune" (none), "chaque-push" (each push) or "lots" (batches), at the
+# human's choice.
+# Private requests and answers: `requests = true` (public by default).
+# Language of the memory: the format's keywords, the templates and the
+# engine's messages, "fr" or "en"; reading accepts every language, an existing
+# memory has nothing to rewrite. Without this setting, French.
+# [memory]
+# language = "fr"
+
+# [private]
+# mode = "compagnon"
+# review = "lots"
+# requests = false
+# Layers whose new content is private by default; without this setting, all
+# but the requests. A given entry is placed with `--private` or `--public`, and
+# an existing public entry is moved with `socle private move <ID>`.
+# layers = ["canonique", "backlog", "decisions", "journal"]

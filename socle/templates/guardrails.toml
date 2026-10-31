@@ -1,0 +1,87 @@
+# Garde-fous — seuils et couverture des contrôles.
+#
+# Un cliquet : durcir est libre (baisser un budget, ajouter une
+# correspondance, un plafond de mutation plus bas) ; tout assouplissement
+# comparé à la base fait échouer la CI tant qu'une demande validée ne cite pas
+# la clé assouplie (politique, point 1).
+
+[memory]
+# Du code a changé et la mémoire non : la fin de tour est refusée.
+require_update_on_code_change = true
+# Chemins de code en plus des `sources` de l'adaptateur.
+code = []
+
+# Plafonds de taille, en octets, par motif de chemin. Chaque couche de mémoire
+# et le fichier d'instructions en ont un ; au-delà, archiver dans le journal.
+[budgets]
+"AGENTS.md" = { max_bytes = 16000 }
+"memory/canonical.md" = { max_bytes = 16000 }
+"memory/active.md" = { max_bytes = 6000 }
+"memory/backlog/*.md" = { max_bytes = 8000 }
+"memory/journal/*.md" = { max_bytes = 80000 }
+"memory/decisions/*.md" = { max_bytes = 10000 }
+"memory/requests/*.md" = { max_bytes = 12000 }
+".claude/skills/*/SKILL.md" = { max_bytes = 8000 }
+
+[staleness]
+# Un chantier actif inchangé depuis plus longtemps est signalé (avertissement).
+active_days = 7
+
+[references]
+# Fichiers où chaque identifiant, lien et chemin cité doit exister.
+scan = ["**/*.md"]
+exclude = []
+# Les autres dépôts cités sous la forme `depot:chemin` qu'aucune adresse du
+# projet ne lie (un dépôt lié est connu sans réglage) ; un dépôt inconnu est
+# signalé. En ajouter un est un assouplissement : une décision humaine.
+repos = []
+
+[thirdparty]
+# Les fichiers d'un outil tiers installé dans le projet (ses skills, ses
+# scripts) : aucun contrôle ne les juge, ni ses mises à jour. Un motif qui
+# couvrirait un fichier du socle, de la mémoire ou de la politique est
+# refusé. En ajouter un assouplit : une décision humaine.
+paths = []
+
+[tooling]
+# Tout fichier qui correspond doit être nommé dans un document.
+paths = [".socle/git-hooks/*", ".github/workflows/*.yml", ".claude/settings.json"]
+
+# Correspondance code ↔ doc : si un chemin de `code` change, un chemin de
+# `docs` change aussi, ou un commit porte `Dispense-doc: <raison>`.
+# [[docmap]]
+# code = ["src/parser/**"]
+# docs = ["docs/parser.md"]
+
+# Valeurs citées dans la doc, liées à leur source. Dans la doc :
+# <!-- valeur:nom -->42<!-- /valeur -->
+# [[values]]
+# name = "nom"
+# file = "src/config.rs"
+# regex = 'MAX_RETRIES: u32 = (\d+)'
+
+[nocopy]
+# Un paragraphe d'au moins ce nombre de caractères présent dans deux fichiers
+# est une copie refusée.
+min_chars = 200
+exclude = []
+
+[requests]
+# Motifs d'identifiants internes qu'une demande doit décrire en clair, en plus
+# des identifiants de mémoire, des SHA et des numéros de PR (ex. codes de
+# chantier `A13`).
+internal_id_patterns = []
+
+[tests]
+# Un changement de ces fichiers qui nomme un test justifie qu'on change ses
+# valeurs attendues (changement de spécification).
+spec_paths = ["memory/decisions/**"]
+
+[mutation.caps]
+# Plafond de mutants survivants par module, avec sa raison quand il n'est pas
+# nul. Mesuré, jamais estimé : un module pas encore balayé y entre « à
+# mesurer » (`pending = true`, posé par l'installeur pour le code qui existe
+# déjà), et `socle mutation-run --record` écrit sa valeur (le balayage
+# hebdomadaire l'imprime, à recopier) ;
+# un plafond non nul écrit sans sa raison de mesure assouplit le cliquet.
+# "src/lib.rs" = { max = 0 }

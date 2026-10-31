@@ -1,0 +1,85 @@
+# Guardrails — thresholds and coverage of the checks.
+#
+# A ratchet: tightening is free (lowering a budget, adding a mapping, a lower
+# mutation cap); any loosening compared with the base fails the CI as long as
+# no approved request cites the loosened key (policy, rule 1).
+
+[memory]
+# Code changed and the memory did not: the end of turn is refused.
+require_update_on_code_change = true
+# Code paths in addition to the adapter's `sources`.
+code = []
+
+# Size caps, in bytes, per path pattern. Each memory layer and the
+# instructions file have one; beyond it, archive into the journal.
+[budgets]
+"AGENTS.md" = { max_bytes = 16000 }
+"memory/canonical.md" = { max_bytes = 16000 }
+"memory/active.md" = { max_bytes = 6000 }
+"memory/backlog/*.md" = { max_bytes = 8000 }
+"memory/journal/*.md" = { max_bytes = 80000 }
+"memory/decisions/*.md" = { max_bytes = 10000 }
+"memory/requests/*.md" = { max_bytes = 12000 }
+".claude/skills/*/SKILL.md" = { max_bytes = 8000 }
+
+[staleness]
+# An active work unchanged for longer is reported (warning).
+active_days = 7
+
+[references]
+# Files where each cited identifier, link and path must exist.
+scan = ["**/*.md"]
+exclude = []
+# The other repositories cited as `repo:path` that no address of the project
+# links (a linked repository is known without a setting); an unknown
+# repository is reported. Adding one is a loosening: a human decision.
+repos = []
+
+[thirdparty]
+# The files of a third-party tool installed in the project (its skills, its
+# scripts): no check judges them, nor their updates. A pattern that would
+# cover a file of the socle, of the memory or of the policy is refused.
+# Adding one relaxes: a human decision.
+paths = []
+
+[tooling]
+# Every matching file must be named in a document.
+paths = [".socle/git-hooks/*", ".github/workflows/*.yml", ".claude/settings.json"]
+
+# Code ↔ doc mapping: if a path of `code` changes, a path of `docs` changes
+# too, or a commit carries `Waive-doc: <reason>`.
+# [[docmap]]
+# code = ["src/parser/**"]
+# docs = ["docs/parser.md"]
+
+# Values cited in the doc, tied to their source. In the doc:
+# <!-- valeur:name -->42<!-- /valeur -->
+# [[values]]
+# name = "name"
+# file = "src/config.rs"
+# regex = 'MAX_RETRIES: u32 = (\d+)'
+
+[nocopy]
+# A paragraph of at least this many characters present in two files is a
+# refused copy.
+min_chars = 200
+exclude = []
+
+[requests]
+# Patterns of internal identifiers a request must describe in plain words, in
+# addition to memory identifiers, SHAs and PR numbers (e.g. work codes `A13`).
+internal_id_patterns = []
+
+[tests]
+# A change to these files that names a test justifies changing its expected
+# values (a change of specification).
+spec_paths = ["memory/decisions/**"]
+
+[mutation.caps]
+# Cap on surviving mutants per module, with its reason when it is not zero.
+# Measured, never estimated: a module not yet swept enters it "to measure"
+# (`pending = true`, set by the installer for code that already exists), and
+# `socle mutation-run --record` writes its value (the weekly sweep prints it,
+# to copy over);
+# a non-zero cap written without its measurement reason loosens the ratchet.
+# "src/lib.rs" = { max = 0 }

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Hook git du socle — posé par l'installeur (fichier protégé).
+# Le message d'un commit public ne cite rien de la mémoire privée.
+exec python3 "$(git rev-parse --show-toplevel)/.socle/socle" hook git-commit-msg "$1"

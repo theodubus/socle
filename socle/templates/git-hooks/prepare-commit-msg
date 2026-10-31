@@ -1,0 +1,4 @@
+#!/bin/sh
+# Hook git du socle — posé par l'installeur (fichier protégé).
+# Ajoute à un commit d'agent la trace des hooks qui ont tiré (`Socle-Hooks:`).
+exec python3 "$(git rev-parse --show-toplevel)/.socle/socle" hook git-prepare-commit-msg "$1" "$2"

@@ -1,0 +1,86 @@
+# Adaptateur maintenu : Go, tests sous `go test`, mutation par gremlins.
+#
+# Éprouvé sur un projet jetable (`bench/adapters.py`). gremlins s'installe
+# par `go install github.com/go-gremlins/gremlins/cmd/gremlins@latest`. Une
+# fonction publique est celle dont le nom commence par une majuscule.
+
+language = "go"
+name = "Go (go test, gremlins)"
+maintained = true
+sources = ["**/*.go"]
+
+# Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+ci_setup = """
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+"""
+
+[capabilities.format]
+command = '''test -z "$(gofmt -l .)"'''
+fast = true
+
+[capabilities.lint]
+command = "go vet ./..."
+fast = true
+
+[capabilities.build]
+command = "go build ./..."
+fast = true
+
+[capabilities.tests]
+command = "go test ./..."
+fast = true
+
+[capabilities.mutation]
+# Hebdomadaire, pas à chaque commit. Le rapport JSON est réécrit à chaque
+# balayage.
+tool = "gremlins"
+command = "go install github.com/go-gremlins/gremlins/cmd/gremlins@latest && gremlins unleash --output=gremlins.json"
+modules = ["**/*.go"]
+modules_exclude = ["**/*_test.go", "vendor/**"]
+has_code = '\bfunc\b'
+parser = "gremlins"
+
+[capabilities.coverage]
+absent = "signal secondaire, jamais un garde-fou"
+replacement = "capacité `mutation`"
+
+[capabilities.regression]
+# Un test rejoué sur le commit parent : le paquet de son fichier.
+command = "go test {test_args}"
+test_arg = "./{dir}"
+test_paths = ["**/*_test.go"]
+# Ce qui, dans la sortie, dit que le test ne s'est pas chargé sur le parent (une
+# compilation cassée, un import manquant) : il y échoue pour une autre raison
+# que le défaut corrigé.
+load_error = '\[(?:build|setup) failed\]'
+
+[code]
+paths = ["**/*.go"]
+exclude = ["**/*_test.go", "vendor/**"]
+# Une fonction ou une méthode dont le nom commence par une minuscule est
+# privée au paquet.
+private = '^\s*func\s+(?:\([^)]*\)\s*)?[a-z_]'
+
+[tests]
+paths = ["**/*_test.go"]
+exclude = ["vendor/**"]
+function = '^\s*func\s+(?:\([^)]*\)\s*)?(\w+)\s*(?:\[[^\]]*\])?\s*\('
+comment = '^\s*//'
+# Un commentaire de bloc (une docstring en Python) : un mot qui y figure
+# n'appelle ni n'affirme rien.
+block_comment = '''/\*[\s\S]*?\*/'''
+marker_name = '^(?:Test|Example|Fuzz)'
+block = "braces"
+strings = '''"(?:\\.|[^"\\])*"|`[^`]*`|'(?:\\.|[^'\\])*\''''
+line_comment = '//.*$'
+assertion = '\bt\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)\b|\b(?:assert|require)\.\w+\(|^\s*//\s*Output:'
+# Les lignes qui portent une valeur attendue : en Go, la comparaison qui
+# précède l'erreur (`if got != 4 {`) et les tables (`want: 4`).
+expected = '\bt\.(?:Error|Errorf|Fatal|Fatalf)\b|\b(?:assert|require)\.\w+\(|^\s*if\b.*(?:!=|==|<|>)|\bwant\w*\s*:?='
+ignore = '\bt\.(?:Skip|Skipf|SkipNow)\b'
+ignore_reason = '''\bt\.Skipf?\(\s*"[^"]{3,}"'''
+tautology = [
+  'if\s+([\w.]+(?:\([^()]*\))?)\s*!=\s*\1\s*\{',
+]

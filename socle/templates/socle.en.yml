@@ -1,0 +1,48 @@
+# Written by the socle's installer (protected file): do not edit it by
+# hand, run the installer again.
+#
+# Only the CI cannot be bypassed (principle 3): it runs every capability of
+# the adapter, every check against the base of the pull request, and the
+# socle's self-test by defect injection.
+name: Socle
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  # `mutation.vivante` reads the state of the scheduled sweep and its last
+  # run.
+  actions: read
+
+jobs:
+  socle:
+    name: Socle — verify, checks, self-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The whole history: the checks compare with the base and verify
+          # that every cited commit exists.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+@@ETAPES_ADAPTATEUR@@
+      # Companion mode: the private memory, at the commit of the lock, with a
+      # deploy key. Without the secrets (pull request from a fork), it stays
+      # unavailable and the checks say so. Encrypted mode: the project adds
+      # here the unlocking of its tool (git-crypt unlock…).
+      - name: Private memory
+        if: hashFiles('.socle/private.lock') != ''
+        env:
+          SOCLE_PRIVE_DEPOT: ${{ secrets.SOCLE_PRIVE_DEPOT }}
+          SOCLE_PRIVE_CLE: ${{ secrets.SOCLE_PRIVE_CLE }}
+        run: python3 .socle/socle private recover
+      - name: Socle
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .socle/socle ci --base "$BASE"

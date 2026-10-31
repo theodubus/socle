@@ -1,0 +1,110 @@
+# Politique d'autonomie — ne se modifie que par l'humain.
+#
+# Protégée par CODEOWNERS et la branche protégée ; le hook PreToolUse refuse
+# que l'agent l'écrive ; la CI refuse tout changement sans demande validée qui
+# cite son empreinte nouvelle (`socle approve --files .socle/policy.toml`
+# pour un changement fait par l'humain lui-même).
+#
+# Les huit points arbitrés du cadrage. Ceux qu'un script peut appliquer le
+# sont ici ; les autres sont écrits dans AGENTS.md.
+#   1. Assouplir un garde-fou        → cliquet de .socle/guardrails.toml
+#   2. Supprimer ou affaiblir un test → contrôle `tests.attendus`
+#   3. Décision de conception         → ADR ; demande si coûteuse à défaire
+#   4. Action irréversible ou externe → [irreversible] ci-dessous
+#   5. Écriture en mémoire            → contrôles `memoire.*`
+#   6. Débordement de périmètre       → backlog
+#   7. Échec répété                   → max_attempts
+#   8. Canal de validation            → memory/requests/, contrat des demandes
+
+version = 1
+
+# Point 7 : au-delà, le hook Stop laisse conclure en exigeant une escalade.
+max_attempts = 3
+
+# Plafond des questions de l'agent à l'initialisation (7 proposé, à calibrer).
+init_questions_max = 7
+
+[protected]
+# Seul l'humain les modifie ; l'installeur pose les hooks, la CI et le moteur.
+paths = [
+  ".socle/policy.toml",
+  ".socle/adapter.toml",
+  ".socle/engine.lock",
+  ".socle/engine/**",
+  ".socle/socle",
+  ".socle/git-hooks/**",
+  ".claude/settings.json",
+  ".claude/skills/socle-*/**",
+  ".github/workflows/socle.yml",
+  ".github/workflows/socle-mutation.yml",
+  ".github/CODEOWNERS",
+  "memory/requests/*.answer.toml",
+]
+
+[irreversible]
+# Point 4 : refusés par le hook PreToolUse sans validation humaine. Le moteur
+# juge lui-même chaque commande shell, découpée en commandes simples (push
+# forcé ou sur la branche par défaut, publication, suppression distante…) ;
+# `bash` AJOUTE des motifs, appliqués à chaque commande simple, et ne retire
+# rien. `tools` remplace la liste des outils externes du moteur.
+# bash = ['\bterraform\s+apply\b', ...]
+# tools = ['mcp__github__merge_pull_request', ...]
+
+[agents]
+# Claude Code est l'agent outillé de hooks ; les autres agents restent
+# couverts par les hooks git et la CI.
+claude_code = true
+# Un commit d'agent se reconnaît à ces motifs ; la CI exige qu'il porte la
+# trace de ses hooks (`Socle-Hooks:`).
+markers = ['(?im)^co-authored-by:.*\bclaude\b', '(?im)^socle-agent:']
+
+[human]
+# L'adresse web du dépôt, pour les permaliens donnés à l'humain (`socle url`).
+# Absente, elle se déduit du dépôt `origin` ; à régler quand `origin` est un
+# relais ou un dossier local.
+# repo_url = "https://github.com/organisation/projet"
+# Branches distantes jamais proposées à la suppression, même contenues dans la
+# branche par défaut (celles d'un autre agent, par exemple).
+keep_branches = []
+# Le nom de l'humain, qui signe les réponses que l'agent relaie (`--by` par
+# défaut) ; l'installeur le prend dans git.
+# name = "Prénom"
+# Les lignes qu'un récap de fin d'intervention doit contenir ; le hook Stop
+# les cherche dans le dernier message de l'agent (par défaut « Pour toi : »
+# et « Ensuite : »).
+# [human.recap_markers]
+# "Pour toi :" = '(?im)^[\W_]*pour toi\s*:'
+# "Ensuite :" = '(?im)^[\W_]*ensuite\s*:'
+
+[unattended]
+# Catégories d'actions permises en exécution sans surveillance (question
+# ouverte du cadrage) : aucune au-delà des règles ordinaires.
+allowed = []
+
+# Mémoire privée, au choix (`memory/private/`, même format que le reste) :
+# - "compagnon" : un dépôt privé cloné dans `memory/private/`, ignoré ici ; le
+#   verrou `.socle/private.lock` dit à quel commit privé correspond chaque commit
+#   public (`socle private lock`). En CI, les secrets SOCLE_PRIVE_DEPOT et
+#   SOCLE_PRIVE_CLE (clé de déploiement) le récupèrent. `socle private install
+#   --repo <adresse>` met tout en place, et dit les deux gestes sur GitHub.
+# - "chiffre" : les fichiers privés commités chiffrés par un filtre git
+#   (git-crypt ou équivalent) ; `.gitattributes` : `memory/private/** filter=…`.
+# Sans accès, la mémoire privée est signalée indisponible, jamais sautée.
+# Relecture humaine avant chaque publication vers le dépôt public :
+# "aucune", "chaque-push" ou "lots", au choix de l'humain.
+# Demandes et réponses privées : `requests = true` (publiques par défaut).
+# Langue de la mémoire : les mots-clés du format, les gabarits et les
+# messages du moteur, "fr" ou "en" ; la lecture accepte toutes les langues,
+# une mémoire existante n'a rien à réécrire. Sans ce réglage, le français.
+# [memory]
+# language = "fr"
+
+# [private]
+# mode = "compagnon"
+# review = "lots"
+# requests = false
+# Couches dont le contenu nouveau est privé par défaut ; sans ce réglage,
+# toutes sauf les demandes. Une entrée précise se place par `--private` ou
+# `--public`, et une entrée publique existante se bascule par
+# `socle private move <ID>`.
+# layers = ["canonique", "backlog", "decisions", "journal"]

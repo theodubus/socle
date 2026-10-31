@@ -1,0 +1,121 @@
+# Adaptateur maintenu : C# sous .NET, tests par `dotnet test` (xUnit,
+# NUnit ou MSTest), mutation par Stryker.NET.
+#
+# Éprouvé sur un projet jetable (`bench/adapters.py`). Le dépôt porte une
+# seule solution, ou un seul projet, à sa racine : `dotnet build` et
+# `dotnet test` l'y trouvent seuls ; sinon, la copie du projet
+# (`.socle/adapter.toml`) nomme sa solution dans chaque commande.
+# Stryker.NET est épinglé dans le manifeste d'outils du projet
+# (`dotnet new tool-manifest`, puis
+# `dotnet tool install dotnet-stryker --version 4.16.0`) ; la version 5
+# exige un SDK plus récent que .NET 8. Une fonction publique est une
+# méthode marquée `public`.
+
+language = "csharp"
+name = "C# (dotnet test, Stryker.NET)"
+maintained = true
+sources = ["**/*.cs"]
+
+# Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+# Les deux SDK de support long : le plus récent construit, et les tests
+# d'un projet qui cible .NET 8 trouvent leur environnement d'exécution.
+ci_setup = """
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Dépendances
+        run: dotnet restore && dotnet tool restore
+"""
+
+[capabilities.format]
+# Les blancs seulement, sans construire : le mode dossier prend deux
+# secondes, la solution entière une vingtaine.
+command = "dotnet format whitespace . --folder --verify-no-changes"
+fast = true
+
+[capabilities.lint]
+absent = "aucun analyseur imposé ; un projet qui adopte ses règles de style le déclare ici (`dotnet format style --verify-no-changes`)"
+replacement = "capacité `build` : le compilateur et ses analyseurs par défaut, avec leurs avertissements"
+
+[capabilities.build]
+command = "dotnet build --nologo"
+fast = true
+
+[capabilities.tests]
+command = "dotnet test --nologo"
+fast = true
+
+[capabilities.mutation]
+# Hebdomadaire, pas à chaque commit. Le rapport JSON
+# (`StrykerOutput/reports/mutation-report.json`) est effacé d'abord, pour
+# qu'un balayage qui échoue ne laisse pas passer l'ancien.
+tool = "stryker"
+command = "rm -rf StrykerOutput && dotnet tool restore && dotnet stryker --reporter json --reporter cleartext --output StrykerOutput"
+modules = ["**/*.cs"]
+modules_exclude = ["test/**", "tests/**", "**/*Tests/**", "**/*Test/**", "**/*Tests.cs", "**/*Test.cs",
+                   "**/obj/**", "**/bin/**", "StrykerOutput/**", "**/*.g.cs", "**/*.Designer.cs"]
+# Un corps de méthode ou de constructeur : un fichier qui ne déclare que des
+# types (un `record` sans corps, une interface) n'a rien à muter, et un
+# module du plafond sans résultat casse le verdict.
+has_code = '(?m)\)\s*(?:\{|=>|$)'
+parser = "stryker"
+
+[capabilities.coverage]
+absent = "signal secondaire, jamais un garde-fou"
+replacement = "capacité `mutation`"
+
+[capabilities.regression]
+# Un test rejoué sur le commit parent : sa classe, du nom de son fichier.
+# Le filtre de `dotnet test` en réunit plusieurs par `|`.
+command = 'dotnet test --nologo --filter "{test_args}"'
+test_arg = "FullyQualifiedName~{stem}"
+test_arg_separator = "|"
+test_paths = ["**/*Tests.cs", "**/*Test.cs", "test/**/*.cs", "tests/**/*.cs", "**/*Tests/**/*.cs", "**/*Test/**/*.cs"]
+# Ce qui, dans la sortie, dit que le test ne s'est pas chargé sur le parent (une
+# compilation cassée, un import manquant) : il y échoue pour une autre raison
+# que le défaut corrigé.
+load_error = '\berror (?:CS|MSB|NU)\d+'
+
+[code]
+# Une méthode sans `public` est privée au sens du socle : elle se teste par
+# les méthodes publiques qui l'appellent.
+paths = ["**/*.cs"]
+exclude = ["test/**", "tests/**", "**/*Tests/**", "**/*Test/**", "**/*Tests.cs", "**/*Test.cs",
+           "**/obj/**", "**/bin/**", "StrykerOutput/**", "**/*.g.cs", "**/*.Designer.cs"]
+private = '^(?!\s*(?:\[[^\]]*\]\s*)*(?:(?:static|virtual|override|abstract|sealed|async|extern|unsafe|new|partial|readonly)\s+)*public\b)'
+
+[tests]
+paths = ["**/*Tests.cs", "**/*Test.cs", "test/**/*.cs", "tests/**/*.cs", "**/*Tests/**/*.cs", "**/*Test/**/*.cs"]
+exclude = ["**/obj/**", "**/bin/**"]
+# Une méthode : des attributs sur sa ligne, des modificateurs, un type de
+# retour, un nom, une parenthèse ; la ligne ne finit pas par `;` (un appel ou
+# une déclaration abstraite), sauf un corps en flèche (`=> …;`).
+function = '''^\s*(?:\[[^\]]*\]\s*)*(?:(?:public|protected|private|internal|static|virtual|override|abstract|sealed|async|extern|unsafe|new|partial|readonly)\s+)*(?!(?:if|for|foreach|while|switch|catch|using|lock|return|else|throw|try|do|await|var|yield|fixed|checked|unchecked|case|when|in|out|ref|is|as|delegate|event|operator|class|struct|record|interface|enum|namespace)\b)[\w.]+(?:<[^;=()]*>)?(?:\[[,\s]*\])*\??\s+(\w+)\s*(?:<[^<>()]*>)?\s*\((?:[^;]*$|.*\)\s*=>)'''
+attribute = '^\s*\[\s*[A-Za-z_]'
+comment = '^\s*(?://|/?\*)'
+# Un commentaire de bloc (une docstring en Python) : un mot qui y figure
+# n'appelle ni n'affirme rien.
+block_comment = '''/\*[\s\S]*?\*/'''
+# xUnit (`[Fact]`, `[Theory]`), NUnit (`[Test]`, `[TestCase]`), MSTest
+# (`[TestMethod]`), au-dessus de la méthode ou sur sa ligne.
+marker_attribute = '[\[,]\s*(?:[\w.]+\.)?(?:Fact|Theory|SkippableFact|SkippableTheory|Test|TestCase|TestCaseSource|TestMethod|DataTestMethod)(?:Attribute)?\b'
+marker_line = '^\s*\[\s*(?:[\w.]+\.)?(?:Fact|Theory|SkippableFact|SkippableTheory|Test|TestCase|TestCaseSource|TestMethod|DataTestMethod)(?:Attribute)?\b'
+block = "braces"
+# Une chaîne verbatim (`@"…"`, où `""` échappe), un caractère (`'"'`), une
+# chaîne ordinaire.
+strings = '''@"(?:""|[^"])*"|'(?:\\.|[^'\\])'|"(?:\\.|[^"\\])*"'''
+line_comment = '//.*$'
+# `Assert.Ignore`, `Assert.Inconclusive` et `Assert.Skip` désactivent, ils
+# n'affirment rien.
+assertion = '\b(?:Assert|ClassicAssert|CollectionAssert|StringAssert|FileAssert|DirectoryAssert)\.(?!(?:Ignore|Inconclusive|Skip\w*|Pass|Warn)\b)\w+|\.Should\w*\s*\(|\.Verify\w*\s*\(|\.Received\s*\('
+ignore = '''\b(?:Skip|Ignore)\s*=\s*"|[\[,]\s*(?:[\w.]+\.)?(?:Ignore|Explicit)\b|\bAssert\.(?:Ignore|Inconclusive|Skip\w*)\s*\('''
+# Un test désactivé dit pourquoi : `[Fact(Skip = "…")]`, `[Ignore("…")]`,
+# `Assert.Inconclusive("…")`, en trois caractères au moins.
+ignore_reason = '''\b(?:Skip|Ignore)\s*=\s*"[^"]{3,}"|\b(?:Ignore|Explicit)\s*\(\s*"[^"]{3,}"|\bAssert\.(?:Ignore|Inconclusive|Skip\w*)\s*\([^"]*"[^"]{3,}"'''
+tautology = [
+  'Assert\.(?:Equal|StrictEqual|Same|AreEqual|AreSame)\(\s*([^,()]+(?:\([^()]*\))?)\s*,\s*\1\s*\)',
+  'Assert\.(?:True|IsTrue)\(\s*true\s*\)',
+  '\b([\w.]+)\.Should\(\)\.Be\(\s*\1\s*\)',
+]

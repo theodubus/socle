@@ -1,0 +1,92 @@
+# Adaptateur maintenu : Ruby, tests sous RSpec, mutation par mutant.
+#
+# Éprouvé sur un projet jetable (`bench/adapters.py`). Le `Gemfile` du
+# projet porte `rspec` et `mutant-rspec`. mutant lit la configuration du
+# projet (`mutant.yml`) : `usage` (`opensource` pour un projet ouvert, une
+# licence sinon), `integration: {name: rspec}`, `includes`, `requires` et
+# les sujets (`matcher: {subjects: [Calc*]}`).
+
+language = "ruby"
+name = "Ruby (RSpec, mutant)"
+maintained = true
+sources = ["**/*.rb"]
+
+# Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+ci_setup = """
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+"""
+
+[capabilities.format]
+absent = "aucun formateur imposé ; un projet qui adopte rubocop le déclare ici (`bundle exec rubocop`)"
+replacement = "relecture du diff, et `lint` (`ruby -wc` de chaque fichier)"
+
+[capabilities.lint]
+command = '''find . -name '*.rb' -not -path './vendor/*' -not -path './.bundle/*' -exec ruby -wc {} + > /dev/null'''
+fast = true
+
+[capabilities.build]
+absent = "langage interprété : pas de compilation séparée"
+replacement = "capacité `lint` (`ruby -wc`)"
+
+[capabilities.tests]
+command = "bundle exec rspec"
+fast = true
+
+[capabilities.mutation]
+# Hebdomadaire, pas à chaque commit. mutant garde chaque session sous
+# `.mutant/results/` : le dossier est effacé d'abord, et le lecteur ne lit
+# que la plus récente. mutant sort en échec quand une mutation survit : le
+# verdict, contre le plafond, en juge.
+tool = "mutant"
+command = "rm -rf .mutant; bundle exec mutant run || true"
+modules = ["lib/**/*.rb"]
+has_code = '\bdef\b'
+parser = "mutant"
+
+[capabilities.coverage]
+absent = "signal secondaire, jamais un garde-fou"
+replacement = "capacité `mutation`"
+
+[capabilities.regression]
+# Les dépendances installées, partagées avec le worktree où le test se rejoue.
+shared = ["vendor", ".bundle"]
+command = "bundle exec rspec {test_args}"
+test_arg = "{file}"
+test_paths = ["spec/**/*_spec.rb"]
+# Ce qui, dans la sortie, dit que le test ne s'est pas chargé sur le parent (une
+# compilation cassée, un import manquant) : il y échoue pour une autre raison
+# que le défaut corrigé.
+load_error = '\b(?:LoadError|SyntaxError)\b|An error occurred while loading'
+
+[code]
+# Une méthode déclarée privée (`private def …`, `private_class_method`) est
+# exemptée ; une méthode d'une section `private` sans cette marque ne l'est
+# pas : le motif ne lit que la ligne qui la définit.
+paths = ["lib/**/*.rb", "app/**/*.rb"]
+exclude = ["spec/**", "vendor/**"]
+private = '^\s*(?:private|protected)\s+def\b|^\s*def\s+(?:self\.)?_'
+
+[tests]
+paths = ["spec/**/*_spec.rb"]
+exclude = ["vendor/**"]
+# Une méthode, ou un exemple RSpec, `it "…" do`, dont la description est le nom.
+function = '''^\s*(?:private\s+|protected\s+)?def\s+(?:self\.)?([\w?!=]+)|^\s*(?:it|specify|example|xit|xspecify|fit)\s*\(?\s*['"]([^'"]+)['"]'''
+comment = '^\s*#'
+# Un commentaire de bloc (une docstring en Python) : un mot qui y figure
+# n'appelle ni n'affirme rien.
+block_comment = '''(?m:^=begin\b[\s\S]*?^=end\b)'''
+marker_line = '^\s*(?:it|specify|example|xit|xspecify|fit)\b'
+block = "end"
+strings = '''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*\''''
+line_comment = '#(?!\{).*$'
+assertion = '\bexpect\s*[({]|\.to\b|\.not_to\b|\bis_expected\b|\bshould\b|\bassert\w*\b'
+ignore = '^\s*x(?:it|specify|describe|context)\b|^\s*(?:skip|pending)\b'
+# Un exemple désactivé dit pourquoi : `skip "raison"`, `pending "raison"`.
+ignore_reason = '''^\s*(?:skip|pending)\s*\(?\s*(?:"[^"]{3,}|'[^']{3,})'''
+tautology = [
+  'expect\(\s*([^()]+?)\s*\)\.to\s+eq\(?\s*\1\s*\)?\s*$',
+  'expect\(\s*true\s*\)\.to\s+(?:be|eq)\(?\s*true\s*\)?',
+]

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Hook git du socle — posé par l'installeur (fichier protégé).
+# `git commit --no-verify` le contourne ; la CI, rien ne la contourne.
+exec python3 "$(git rev-parse --show-toplevel)/.socle/socle" hook git-pre-push

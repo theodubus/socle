@@ -1,0 +1,81 @@
+# Adaptateur maintenu : Python.
+#
+# Volontairement sans dépendance par défaut : `unittest` et `compileall` sont
+# dans la bibliothèque standard. Un projet qui utilise pytest, ruff ou mypy
+# remplace les commandes dans sa copie (`.socle/adaptateur.toml`), qui est
+# ensuite protégée.
+
+language = "python"
+name = "Python (unittest)"
+maintained = true
+sources = ["**/*.py"]
+
+ci_setup = ""
+
+[capabilities.format]
+absent = "aucun formateur dans la bibliothèque standard ; un projet qui adopte ruff ou black le déclare ici"
+replacement = "relecture du diff, et `lint` (compilation de chaque fichier)"
+
+[capabilities.lint]
+command = "python3 -m compileall -q -x '(^|/)(\\.git|\\.venv|venv|node_modules)/' ."
+fast = true
+
+[capabilities.build]
+absent = "langage interprété : pas de compilation séparée"
+replacement = "capacité `lint` (compileall)"
+
+[capabilities.tests]
+command = "python3 -m unittest discover -s tests -t . -q"
+fast = true
+# Sans aucun test (pas encore de dossier `tests/`, ou un dossier vide),
+# unittest échoue : un avertissement, pas un échec.
+no_tests = 'NO TESTS RAN|Start directory is not importable'
+
+[capabilities.mutation]
+absent = "pas d'outil de mutation sous unittest : l'adaptateur python-pytest emploie mutmut"
+replacement = "l'auto-test du socle et des tests qui injectent un défaut connu dans chaque garde-fou"
+
+[capabilities.coverage]
+absent = "signal secondaire, jamais un garde-fou"
+replacement = "capacité `mutation`, ou son remplacement"
+
+[capabilities.regression]
+command = "python3 -m unittest {test_args}"
+test_arg = "{module}"
+test_paths = ["tests/test_*.py", "tests/**/test_*.py"]
+# Ce qui, dans la sortie, dit que le test ne s'est pas chargé sur le parent (une
+# compilation cassée, un import manquant) : il y échoue pour une autre raison
+# que le défaut corrigé.
+load_error = '(?m)^(?:ImportError|ModuleNotFoundError|SyntaxError|IndentationError)\b'
+
+[code]
+# Le code dont une fonction publique, ajoutée ou modifiée, doit être nommée
+# par un test (`tests.code-teste`). Une fonction dont la ligne de définition
+# répond à `private` en est exemptée : elle se teste par les fonctions
+# publiques qui l'appellent.
+paths = ["**/*.py"]
+exclude = ["tests/**", "**/test_*.py", "**/*_test.py", "**/conftest.py", "setup.py"]
+private = '^\s*(?:async\s+)?def\s+_'
+
+[tests]
+paths = ["tests/**/test_*.py", "**/test_*.py", "**/*_test.py"]
+function = '^\s*(?:async\s+)?def\s+(\w+)\s*\('
+attribute = '^\s*@'
+comment = '^\s*#'
+# Un commentaire de bloc (une docstring en Python) : un mot qui y figure
+# n'appelle ni n'affirme rien.
+block_comment = "\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''"
+line_comment = '#.*$'
+marker_name = '^test'
+block = "indent"
+# Les littéraux, où un blanc compte dans une assertion (`tests.attendus`).
+strings = '''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*\''''
+assertion = '\bassert\b|\bself\.assert\w+\(|\bself\.fail\(|\bpytest\.raises\b|\bwith\s+self\.assertRaises'
+ignore = '@(?:unittest\.)?skip\b|@(?:unittest\.)?skipIf\b|@(?:unittest\.)?skipUnless\b|@pytest\.mark\.skip(?:if)?\b|@unittest\.expectedFailure'
+ignore_reason = '''@\S*skip\w*\(\s*(?:(?:[^,()]|\([^()]*\))+,\s*)?(?:reason\s*=\s*)?(?:"[^"]{3,}|'[^']{3,})'''
+tautology = [
+  '\bassert\s+(\S+(?:\([^()]*\))?)\s*==\s*\1\s*$',
+  '\bassert\s+True\s*$',
+  'self\.assert(?:Equal|Is)\(\s*([^,]+?)\s*,\s*\1\s*\)',
+  'self\.assertTrue\(\s*True\s*\)',
+]

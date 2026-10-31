@@ -1,0 +1,91 @@
+# Adaptateur maintenu : Java sous Maven, tests JUnit 5, mutation par PIT.
+#
+# Éprouvé sur un projet jetable (`bench/adapters.py`). Le `pom.xml` du
+# projet porte JUnit 5 et le greffon `pitest-maven` avec
+# `pitest-junit5-plugin`, ses rapports en XML sans horodatage
+# (`<outputFormats><param>XML</param></outputFormats>`,
+# `<timestampedReports>false</timestampedReports>`). Un projet sous Gradle
+# remplace les commandes dans sa copie (`.socle/adapter.toml`).
+
+language = "java"
+name = "Java (Maven, JUnit 5, PIT)"
+maintained = true
+sources = ["**/src/main/java/**/*.java", "**/src/test/java/**/*.java"]
+
+# Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+ci_setup = """
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+"""
+
+[capabilities.format]
+absent = "aucun formateur imposé ; un projet qui adopte spotless ou google-java-format le déclare ici"
+replacement = "relecture du diff, et `build` (le compilateur refuse ce qui ne se lit pas)"
+
+[capabilities.lint]
+absent = "aucun linter imposé ; un projet qui adopte checkstyle ou spotbugs le déclare ici"
+replacement = "capacité `build` : `javac` avec ses avertissements"
+
+[capabilities.build]
+command = "mvn -q -B -DskipTests compile test-compile"
+fast = true
+
+[capabilities.tests]
+command = "mvn -q -B test"
+fast = true
+
+[capabilities.mutation]
+# Hebdomadaire, pas à chaque commit. Le rapport `target/pit-reports/mutations.xml`
+# est réécrit à chaque balayage.
+tool = "pit"
+command = "mvn -q -B test-compile org.pitest:pitest-maven:mutationCoverage"
+modules = ["src/main/java/**/*.java"]
+has_code = '\b(?:class|interface|enum|record)\b'
+parser = "pit"
+
+[capabilities.coverage]
+absent = "signal secondaire, jamais un garde-fou"
+replacement = "capacité `mutation`"
+
+[capabilities.regression]
+# Un test rejoué sur le commit parent : sa classe ; plusieurs, séparées par
+# une virgule, que Maven attend dans `-Dtest=`.
+command = "mvn -q -B test -Dsurefire.failIfNoSpecifiedTests=false -Dtest={test_args}"
+test_arg = "{stem}"
+test_arg_separator = ","
+test_paths = ["src/test/java/**/*Test.java", "src/test/java/**/*Tests.java", "src/test/java/**/Test*.java"]
+# Ce qui, dans la sortie, dit que le test ne s'est pas chargé sur le parent (une
+# compilation cassée, un import manquant) : il y échoue pour une autre raison
+# que le défaut corrigé.
+load_error = 'COMPILATION ERROR|Compilation failed|cannot find symbol'
+
+[code]
+# Une méthode sans `public` est privée au sens du socle : elle se teste par
+# les méthodes publiques qui l'appellent.
+paths = ["src/main/java/**/*.java", "**/src/main/java/**/*.java"]
+exclude = []
+private = '^(?!\s*(?:@\w+\s+)*(?:(?:static|final|synchronized|abstract|default)\s+)*public\b)'
+
+[tests]
+paths = ["src/test/java/**/*.java", "**/src/test/java/**/*.java"]
+# Une méthode : des modificateurs, un type de retour, un nom, une parenthèse ;
+# la ligne ne finit pas par `;` (un appel ou une déclaration abstraite).
+function = '''^\s*(?:(?:public|protected|private|static|final|synchronized|abstract|default|native)\s+)*(?:<[^>]+>\s+)?(?!(?:if|for|while|switch|catch|return|new|else|throw|try|do)\b)[\w.$]+(?:<[^;=]*>)?(?:\[\])*\s+(\w+)\s*\([^;]*$'''
+attribute = '^\s*@'
+comment = '^\s*(?://|/?\*)'
+# Un commentaire de bloc (une docstring en Python) : un mot qui y figure
+# n'appelle ni n'affirme rien.
+block_comment = '''/\*[\s\S]*?\*/'''
+marker_attribute = '@(?:org\.junit\.jupiter\.api\.)?(?:Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)\b'
+block = "braces"
+line_comment = '//.*$'
+assertion = '\bassert\w*\s*\(|\bAssertions\.\w+\(|\bassertThat\s*\(|\bfail\s*\(|\bverify\s*\('
+ignore = '@(?:org\.junit\.jupiter\.api\.)?Disabled\b|\bAssumptions\.assume|\bassume(?:True|False)\s*\('
+ignore_reason = '''@Disabled\s*\(\s*"[^"]{3,}"'''
+tautology = [
+  'assertEquals\(\s*([^,()]+(?:\([^()]*\))?)\s*,\s*\1\s*\)',
+  'assertTrue\(\s*true\s*\)',
+]

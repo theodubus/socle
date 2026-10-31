@@ -1,0 +1,97 @@
+# Adaptateur maintenu : JavaScript et TypeScript, tests sous vitest,
+# mutation par Stryker.
+#
+# Éprouvé sur un projet jetable (`bench/adapters.py`). Les dépendances de
+# développement du projet portent vitest, `@stryker-mutator/core` et
+# `@stryker-mutator/vitest-runner` ; `stryker.config.json` nomme le lanceur
+# (`"testRunner": "vitest"`) et le rapport JSON. Un projet sous jest remplace
+# les deux commandes de tests dans sa copie (`.socle/adapter.toml`), qui est
+# ensuite protégée. Les fonctions publiques sont celles qu'un module exporte.
+
+language = "javascript"
+name = "JavaScript / TypeScript (vitest, Stryker)"
+maintained = true
+sources = ["**/*.js", "**/*.mjs", "**/*.cjs", "**/*.jsx", "**/*.ts", "**/*.mts", "**/*.tsx"]
+
+# Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+ci_setup = """
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Dépendances
+        run: npm ci
+"""
+
+[capabilities.format]
+absent = "aucun formateur imposé ; un projet qui adopte prettier le déclare ici (`npx prettier --check .`)"
+replacement = "relecture du diff, et la capacité `tests`, qui charge chaque module testé"
+
+[capabilities.lint]
+absent = "aucun linter imposé ; un projet qui adopte eslint ou tsc le déclare ici (`npx eslint .`, `npx tsc --noEmit`)"
+replacement = "la capacité `tests` : vitest refuse un module qui ne se charge pas"
+
+[capabilities.build]
+absent = "langage interprété ; TypeScript se transpile à la volée par vitest"
+replacement = "capacité `tests`"
+
+[capabilities.tests]
+command = "npx vitest run"
+fast = true
+
+[capabilities.mutation]
+# Hebdomadaire, pas à chaque commit. Le rapport JSON de Stryker
+# (`reports/mutation/mutation.json`) est effacé d'abord, pour qu'un
+# balayage qui échoue ne laisse pas passer l'ancien.
+tool = "stryker"
+command = '''node -e "require('fs').rmSync('reports/mutation', {recursive: true, force: true})"; npx stryker run --reporters json,clear-text'''
+modules = ["src/**/*.js", "src/**/*.ts", "lib/**/*.js"]
+modules_exclude = ["**/*.test.*", "**/*.spec.*"]
+has_code = '\bfunction\b|=>'
+parser = "stryker"
+
+[capabilities.coverage]
+absent = "signal secondaire, jamais un garde-fou"
+replacement = "capacité `mutation`"
+
+[capabilities.regression]
+# Les dépendances installées, partagées avec le worktree où le test se rejoue.
+shared = ["node_modules"]
+command = "npx vitest run {test_args}"
+test_arg = "{file}"
+test_paths = ["**/*.test.js", "**/*.test.ts", "**/*.test.mjs", "**/*.spec.js", "**/*.spec.ts"]
+# Ce qui, dans la sortie, dit que le test ne s'est pas chargé sur le parent (une
+# compilation cassée, un import manquant) : il y échoue pour une autre raison
+# que le défaut corrigé.
+load_error = 'Cannot find module|ERR_MODULE_NOT_FOUND|SyntaxError:|Failed to load url|Test suite failed to run'
+
+[code]
+# Une fonction qu'un module n'exporte pas est privée : elle se teste par les
+# fonctions exportées qui l'appellent.
+paths = ["**/*.js", "**/*.mjs", "**/*.cjs", "**/*.jsx", "**/*.ts", "**/*.mts", "**/*.tsx"]
+exclude = ["**/*.test.*", "**/*.spec.*", "test/**", "tests/**", "node_modules/**", "dist/**", "coverage/**",
+           "reports/**", "*.config.*", ".stryker-tmp/**"]
+private = '^(?!\s*export\b)'
+
+[tests]
+paths = ["**/*.test.js", "**/*.test.ts", "**/*.test.mjs", "**/*.test.jsx", "**/*.test.tsx",
+         "**/*.spec.js", "**/*.spec.ts", "test/**/*.js", "tests/**/*.js", "test/**/*.ts", "tests/**/*.ts"]
+exclude = ["node_modules/**"]
+# Une fonction nommée, une constante qui vaut une fonction, ou un test,
+# `test("…", …)` ou `it("…", …)`, dont la description est le nom.
+function = '''^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s*\*?\s*(\w+)\s*\(|^\s*(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:async\s+)?(?:function\b|\([^)]*\)\s*=>|\w+\s*=>)|^\s*(?:test|it)(?:\.\w+)?\s*\(\s*['"`]([^'"`]+)['"`]'''
+comment = '^\s*//'
+# Un commentaire de bloc (une docstring en Python) : un mot qui y figure
+# n'appelle ni n'affirme rien.
+block_comment = '''/\*[\s\S]*?\*/'''
+marker_line = '^\s*(?:test|it)(?:\.\w+)?\s*\('
+block = "braces"
+strings = '''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`'''
+line_comment = '//.*$'
+assertion = '\bexpect\s*\(|\bassert\w*\s*[.(]|\bexpectTypeOf\s*\('
+ignore = '^\s*(?:test|it|describe)\.(?:skip|todo)\b|^\s*x(?:it|test|describe)\b'
+# Un test désactivé dit pourquoi dans sa description : `test.skip("… — raison : …", …)`.
+ignore_reason = '''\(\s*['"`][^'"`]*(?:raison|reason)\s*:'''
+tautology = [
+  'expect\(\s*([^()]+?)\s*\)\.(?:toBe|toEqual|toStrictEqual)\(\s*\1\s*\)',
+  'expect\(\s*true\s*\)\.toBe\(\s*true\s*\)',
+]

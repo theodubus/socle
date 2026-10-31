@@ -1,0 +1,48 @@
+# Posé par l'installeur du socle (fichier protégé) : ne pas le modifier à la
+# main, relancer l'installeur.
+#
+# Seule la CI est incontournable (principe 3) : elle exécute toutes les
+# capacités de l'adaptateur, tous les contrôles contre la base de la pull
+# request, et l'auto-test du socle par injection de défauts.
+name: Socle
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  # `mutation.vivante` lit l'état du balayage planifié et sa dernière
+  # exécution.
+  actions: read
+
+jobs:
+  socle:
+    name: Socle — verify, contrôles, auto-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Tout l'historique : les contrôles comparent à la base et vérifient
+          # que chaque commit cité existe.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+@@ETAPES_ADAPTATEUR@@
+      # Mode compagnon : la mémoire privée, au commit du verrou, avec une clé
+      # de déploiement. Sans les secrets (pull request d'un fork), elle reste
+      # indisponible et les contrôles le disent. Mode chiffré : le projet
+      # ajoute ici le déverrouillage de son outil (git-crypt unlock…).
+      - name: Mémoire privée
+        if: hashFiles('.socle/private.lock') != ''
+        env:
+          SOCLE_PRIVE_DEPOT: ${{ secrets.SOCLE_PRIVE_DEPOT }}
+          SOCLE_PRIVE_CLE: ${{ secrets.SOCLE_PRIVE_CLE }}
+        run: python3 .socle/socle private recover
+      - name: Socle
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .socle/socle ci --base "$BASE"

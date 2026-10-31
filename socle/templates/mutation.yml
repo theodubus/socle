@@ -1,0 +1,78 @@
+# Posé par l'installeur du socle (fichier protégé) : ne pas le modifier à la
+# main, relancer l'installeur.
+#
+# Le balayage de mutation, chaque semaine. Un mutant survivant est une
+# modification du code que tous les tests acceptent : une ligne dont rien ne
+# vérifie le comportement. Chaque module a son plafond de survivants dans les
+# garde-fous, et le verdict casse à la hausse. Trop lent pour chaque push, et
+# la dérive est lente ; la CI du socle vérifie à chaque push qu'il tourne
+# encore (`mutation.vivante`), parce que GitHub endort les workflows
+# planifiés d'un dépôt public après soixante jours sans activité.
+name: Socle — mutation
+
+on:
+  schedule:
+    # Le mardi à 02:23 UTC : GitHub n'évalue le cron qu'en UTC, et retarde
+    # volontiers les créneaux pleins de l'heure.
+    - cron: "23 2 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # L'alerte ouvre une issue quand le cliquet casse.
+  issues: write
+
+jobs:
+  mutation:
+    name: Socle — balayage de mutation
+    runs-on: ubuntu-latest
+    # Sous le plafond de six heures d'un runner hébergé : au-delà, découper
+    # le balayage plutôt que monter ce délai.
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+@@ETAPES_ADAPTATEUR@@
+@@INSTALLATION@@
+      # La commande de l'adaptateur, module par module quand elle en nomme
+      # un, puis le verdict contre le plafond de chaque module. Un module
+      # « à mesurer » reçoit son plafond mesuré, dans cette copie seulement.
+      - name: Balayage et verdict
+        run: python3 .socle/socle mutation-run --record
+
+      # Les plafonds mesurés ne se poussent pas d'ici : ils se recopient
+      # dans les garde-fous, tels qu'imprimés (le cliquet reconnaît leur
+      # raison, « mesuré le … : N survivant(s) »).
+      - name: Plafonds mesurés, à recopier
+        if: always()
+        run: |
+          git diff -- .socle > plafonds.diff || true
+          if [ -s plafonds.diff ]; then
+            cat plafonds.diff
+            {
+              echo "## Plafonds mesurés, à recopier dans les garde-fous"
+              echo '```diff'
+              cat plafonds.diff
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Un balayage planifié qui casse ouvre une issue, ou commente celle
+      # qui est déjà ouverte : un échec planifié ne se voit pas autrement.
+      - name: Alerte
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          lien="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          n=$(gh issue list --label mutation --state open --json number --jq '.[0].number // empty' 2>/dev/null || true)
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "Le balayage du $(date -u +%F) casse encore : $lien"
+          else
+            gh label create mutation --color B60205 --description "Cliquet de mutation du socle" 2>/dev/null || true
+            gh issue create --label mutation --title "Le cliquet de mutation a cassé" \
+              --body "Le balayage planifié du $(date -u +%F) casse : $lien — des survivants au-delà du plafond d'un module, ou un module que le balayage n'a pas couvert. Le détail est dans le journal de l'étape « Balayage et verdict »."
+          fi

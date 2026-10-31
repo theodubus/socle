@@ -1,0 +1,92 @@
+# Adaptateur maintenu : Rust (cargo).
+#
+# Copié dans `.socle/adapter.toml` à l'installation, puis protégé : le
+# modifier exige une validation humaine.
+# Un projet ajoute ses étapes propres dans `[[steps]]` (critères d'acceptation,
+# bench…).
+
+language = "rust"
+name = "Rust (cargo)"
+maintained = true
+sources = ["**/src/**/*.rs", "src/**/*.rs"]
+
+# Étapes à ajouter au workflow de CI avant le socle (indentation YAML de six).
+ci_setup = """
+      - name: Toolchain Rust
+        run: |
+          rustup show active-toolchain || rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustc --version && cargo --version
+"""
+
+[capabilities.format]
+command = "cargo fmt --all -- --check"
+fast = true
+
+[capabilities.lint]
+command = "cargo clippy --all-targets --all-features -- -D warnings"
+fast = true
+
+[capabilities.build]
+absent = "couverte par `lint` : clippy compile toutes les cibles, tests compris"
+replacement = "capacité `lint`"
+
+[capabilities.tests]
+command = "cargo test --workspace"
+fast = true
+
+[capabilities.mutation]
+# Hebdomadaire en CI, pas à chaque commit : le coût par commit serait absurde,
+# la dérive est lente. `socle mutation-run` lance la commande une fois par
+# module du plafond, chacune dans son dossier `{output}`, puis compare les
+# survivants au plafond des garde-fous ; `install` pose l'outil sur le runner.
+tool = "cargo-mutants"
+command = "cargo mutants --file {module} -j 2 --output {output}"
+install = "cargo install cargo-mutants --locked"
+modules = ["src/*.rs", "*/src/*.rs"]
+has_code = '\bfn\b'
+parser = "cargo-mutants"
+
+[capabilities.coverage]
+absent = "signal secondaire, jamais un garde-fou : la mutation mesure ce que la couverture prétend"
+replacement = "capacité `mutation`"
+
+[capabilities.regression]
+# Un test d'intégration, dans `tests/`, se pose tel quel sur le commit
+# parent. Un test unitaire vit dans le module qu'il teste : sur le parent ne
+# s'appliquent que ses lignes de test (`[tests] test_module` et les
+# fonctions de test), puis `module_command` le lance par son nom.
+command = "cargo test {test_args}"
+test_paths = ["tests/*.rs", "*/tests/*.rs"]
+# Ce qui, dans la sortie, dit que le test ne s'est pas chargé sur le parent (une
+# compilation cassée, un import manquant) : il y échoue pour une autre raison
+# que le défaut corrigé.
+load_error = '(?m)^error\[E\d{4}\]:|^error: could not compile\b'
+module_command = "cargo test --workspace -- {names}"
+
+[code]
+# Le code dont une fonction publique, ajoutée ou modifiée, doit être nommée
+# par un test (`tests.code-teste`) : une fonction sans `pub` est privée, elle
+# se teste par les fonctions publiques qui l'appellent ; les aides d'un
+# module `tests` le sont donc aussi.
+paths = ["**/src/**/*.rs", "src/**/*.rs"]
+private = '^\s*(?:async\s+)?(?:unsafe\s+)?fn\s'
+
+[tests]
+paths = ["**/tests/**/*.rs", "tests/**/*.rs", "**/src/**/*.rs", "src/**/*.rs"]
+function = '^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)'
+attribute = '^\s*#\['
+comment = '^\s*//'
+# Un commentaire de bloc (une docstring en Python) : un mot qui y figure
+# n'appelle ni n'affirme rien.
+block_comment = '''/\*[\s\S]*?\*/'''
+line_comment = '//.*$'
+marker_attribute = '#\[(?:\w+::)*test\b'
+test_module = '^\s*#\[cfg\(test\)\]'
+block = "braces"
+assertion = '\b(?:assert|assert_eq|assert_ne|debug_assert\w*|panic|unreachable|assert_matches)!|#\[should_panic'
+ignore = '#\[ignore\b'
+ignore_reason = '#\[ignore\s*=\s*"[^"]{3,}"\s*\]'
+tautology = [
+  'assert(?:_eq)?!\(\s*([^,()]+(?:\([^()]*\))?)\s*(?:,|==)\s*\1\s*[,)]',
+  'assert!\(\s*true\s*\)',
+]

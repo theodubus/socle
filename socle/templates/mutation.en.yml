@@ -1,0 +1,77 @@
+# Written by the socle's installer (protected file): do not edit it by
+# hand, run the installer again.
+#
+# The mutation sweep, every week. A surviving mutant is a change to the code
+# that every test accepts: a line whose behaviour nothing checks. Each
+# module has its cap of survivors in the guardrails, and the verdict breaks
+# when it rises. Too slow for every push, and the drift is slow; the socle's
+# CI checks at every push that it still runs (`mutation.vivante`), because
+# GitHub puts to sleep the scheduled workflows of a public repository after
+# sixty days without activity.
+name: Socle — mutation
+
+on:
+  schedule:
+    # Tuesday at 02:23 UTC: GitHub only evaluates cron in UTC, and readily
+    # delays the slots at the top of the hour.
+    - cron: "23 2 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # The alert opens an issue when the ratchet breaks.
+  issues: write
+
+jobs:
+  mutation:
+    name: Socle — mutation sweep
+    runs-on: ubuntu-latest
+    # Under the six-hour cap of a hosted runner: beyond it, split the sweep
+    # rather than raise this timeout.
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+@@ETAPES_ADAPTATEUR@@
+@@INSTALLATION@@
+      # The adapter's command, module by module when it names one, then the
+      # verdict against each module's cap. A module "to measure" receives its
+      # measured cap, in this copy only.
+      - name: Sweep and verdict
+        run: python3 .socle/socle mutation-run --record
+
+      # The measured caps are not pushed from here: they are copied into the
+      # guardrails, as printed (the ratchet recognises their reason).
+      - name: Measured caps, to copy
+        if: always()
+        run: |
+          git diff -- .socle > plafonds.diff || true
+          if [ -s plafonds.diff ]; then
+            cat plafonds.diff
+            {
+              echo "## Measured caps, to copy into the guardrails"
+              echo '```diff'
+              cat plafonds.diff
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # A scheduled sweep that breaks opens an issue, or comments on the one
+      # already open: a scheduled failure is not seen otherwise.
+      - name: Alert
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          lien="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          n=$(gh issue list --label mutation --state open --json number --jq '.[0].number // empty' 2>/dev/null || true)
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "The sweep of $(date -u +%F) still breaks: $lien"
+          else
+            gh label create mutation --color B60205 --description "Socle mutation ratchet" 2>/dev/null || true
+            gh issue create --label mutation --title "The mutation ratchet broke" \
+              --body "The scheduled sweep of $(date -u +%F) breaks: $lien — survivors beyond a module's cap, or a module the sweep did not cover. The detail is in the log of the step \"Sweep and verdict\"."
+          fi

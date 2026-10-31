@@ -1,0 +1,100 @@
+# Adaptateur maintenu : Python, tests sous pytest, mutation par mutmut.
+#
+# Éprouvé sur un projet jetable. mutmut exige pytest : un projet
+# sous unittest seul prend l'adaptateur `python`. Les modules soumis à la
+# mutation (`modules`) supposent la disposition `src/` : un projet dont le
+# paquet est à la racine les nomme dans sa copie (`.socle/adaptateur.toml`),
+# qui est ensuite protégée.
+
+language = "python"
+name = "Python (pytest, mutmut)"
+maintained = true
+sources = ["**/*.py"]
+
+# Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+# Les dépendances du projet lui-même s'y ajoutent dans sa copie.
+ci_setup = """
+      - name: pytest et mutmut
+        run: python3 -m pip install pytest mutmut
+"""
+
+[capabilities.format]
+absent = "aucun formateur dans la bibliothèque standard ; un projet qui adopte ruff ou black le déclare ici"
+replacement = "relecture du diff, et `lint` (compilation de chaque fichier)"
+
+[capabilities.lint]
+command = "python3 -m compileall -q -x '(^|/)(\\.git|\\.venv|venv|node_modules)/' ."
+fast = true
+
+[capabilities.build]
+absent = "langage interprété : pas de compilation séparée"
+replacement = "capacité `lint` (compileall)"
+
+[capabilities.tests]
+# `mutants/` est le dossier de travail de mutmut : il contient une copie des
+# tests, que pytest ramasserait.
+command = "python3 -m pytest -q --ignore=mutants"
+fast = true
+# Sans aucun test, pytest rend 5 et le dit : un projet qui commence n'en a
+# pas encore, `verify` en fait un avertissement.
+no_tests = '(?m)^no tests ran\b'
+
+[capabilities.mutation]
+# Hebdomadaire, pas à chaque commit. mutmut lit sa configuration dans
+# `pyproject.toml` (`[tool.mutmut] source_paths`). Son dossier de travail,
+# `mutants/`, est effacé d'abord : mutmut y garde les résultats d'un mutant
+# tant que le code ne change pas, même quand les tests ont changé, et le
+# verdict serait périmé. `--all true` garde les mutants attrapés dans la
+# sortie : sans eux, un module tout attrapé passerait pour jamais balayé. Le
+# verdict compare les survivants au plafond des garde-fous
+# (`socle mutation-verdict .`).
+tool = "mutmut"
+command = '''python3 -c "import shutil; shutil.rmtree('mutants', ignore_errors=True)"; mutmut run; mutmut results --all true > mutmut-results.txt'''
+modules = ["src/**/*.py"]
+has_code = '\bdef\b'
+parser = "mutmut"
+
+[capabilities.coverage]
+absent = "signal secondaire, jamais un garde-fou"
+replacement = "capacité `mutation`, ou son remplacement"
+
+[capabilities.regression]
+command = "python3 -m pytest -q --ignore=mutants {test_args}"
+test_arg = "{file}"
+test_paths = ["tests/test_*.py", "tests/**/test_*.py"]
+# Ce qui, dans la sortie, dit que le test ne s'est pas chargé sur le parent (une
+# compilation cassée, un import manquant) : il y échoue pour une autre raison
+# que le défaut corrigé.
+load_error = '(?m)^(?:E\s+)?(?:ImportError|ModuleNotFoundError|SyntaxError|IndentationError)\b|ERROR collecting'
+
+[code]
+# Le code dont une fonction publique, ajoutée ou modifiée, doit être nommée
+# par un test (`tests.code-teste`). Une fonction dont la ligne de définition
+# répond à `private` en est exemptée : elle se teste par les fonctions
+# publiques qui l'appellent.
+paths = ["**/*.py"]
+exclude = ["tests/**", "**/test_*.py", "**/*_test.py", "**/conftest.py", "setup.py"]
+private = '^\s*(?:async\s+)?def\s+_'
+
+[tests]
+paths = ["tests/**/test_*.py", "**/test_*.py", "**/*_test.py"]
+function = '^\s*(?:async\s+)?def\s+(\w+)\s*\('
+attribute = '^\s*@'
+comment = '^\s*#'
+# Un commentaire de bloc (une docstring en Python) : un mot qui y figure
+# n'appelle ni n'affirme rien.
+block_comment = "\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''"
+line_comment = '#.*$'
+marker_name = '^test'
+block = "indent"
+# Les littéraux, où un blanc compte dans une assertion (`tests.attendus`).
+strings = '''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*\''''
+assertion = '\bassert\b|\bself\.assert\w+\(|\bself\.fail\(|\bpytest\.raises\b|\bwith\s+self\.assertRaises'
+ignore = '@(?:unittest\.)?skip\b|@(?:unittest\.)?skipIf\b|@(?:unittest\.)?skipUnless\b|@pytest\.mark\.(?:skip(?:if)?|xfail)\b|@unittest\.expectedFailure'
+ignore_reason = '''@\S*skip\w*\(\s*(?:(?:[^,()]|\([^()]*\))+,\s*)?(?:reason\s*=\s*)?(?:"[^"]{3,}|'[^']{3,})'''
+tautology = [
+  '\bassert\s+(\S+(?:\([^()]*\))?)\s*==\s*\1\s*$',
+  '\bassert\s+True\s*$',
+  'self\.assert(?:Equal|Is)\(\s*([^,]+?)\s*,\s*\1\s*\)',
+  'self\.assertTrue\(\s*True\s*\)',
+]
