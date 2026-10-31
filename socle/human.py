@@ -71,6 +71,41 @@ def branches_a_supprimer(projet: config.Projet) -> list[str]:
     return sorted(res)
 
 
+# Au-delà, une branche non fusionnée qui ne bouge plus se signale (B-0112).
+JOURS_INACTIVITE = 7
+
+
+def branches_inactives(projet: config.Projet, jours: int = JOURS_INACTIVITE,
+                       maintenant: float | None = None) -> list[tuple[str, int, int]]:
+    """Les branches distantes que la branche par défaut ne contient pas, sans
+    commit depuis `jours` jours : (nom, commits absents, jours d'inactivité).
+    Leur travail est peut-être à livrer, peut-être à abandonner : l'humain en
+    décide. Mêmes exceptions que `branches_a_supprimer` ; calculé sur le
+    dernier fetch."""
+    import time
+
+    racine = projet.racine
+    defaut = outils.branche_par_defaut(racine)
+    if not defaut or not defaut.startswith("origin/"):
+        return []
+    maintenant = time.time() if maintenant is None else maintenant
+    courante = outils.git(racine, "rev-parse", "--abbrev-ref", "HEAD", check=False).strip()
+    garder = projet.pol("human", "keep_branches", defaut=[]) or []
+    res = []
+    refs = outils.git(racine, "for-each-ref", "--format=%(refname:short) %(committerdate:unix)",
+                      "refs/remotes/origin", check=False)
+    for ligne in refs.splitlines():
+        ref, _, date = ligne.partition(" ")
+        nom = ref.removeprefix("origin/")
+        if ref in ("origin", "origin/HEAD", defaut) or nom == courante or outils.correspond(nom, garder):
+            continue
+        absents = int(outils.git(racine, "rev-list", "--count", f"{defaut}..{ref}", check=False).strip() or 0)
+        age = int((maintenant - int(date or maintenant)) // 86400)
+        if absents and age >= jours:
+            res.append((nom, absents, age))
+    return sorted(res)
+
+
 def a_faire(projet: config.Projet) -> list[Element]:
     res = []
     for d in demandes.toutes(projet.racine):
@@ -86,9 +121,16 @@ def a_faire(projet: config.Projet) -> list[Element]:
             # résultats attendus.
             url, _ = liens.lien(projet, e.id)
             res.append(Element("action", f"{e.id} — {e.titre}", url or trad("(pas encore poussé : pas de lien)")))
+    depot = liens.url_depot(projet)
+    page = f"{depot}/branches" if depot else ""
     for b in branches_a_supprimer(projet):
         res.append(Element("action", trad("supprimer la branche distante `{branche}`, déjà contenue dans la branche "
-                                          "par défaut", branche=b)))
+                                          "par défaut", branche=b), page))
+    for b, absents, age in branches_inactives(projet):
+        res.append(Element("action", trad("examiner la branche distante `{branche}` : {n} commit(s) absents de la "
+                                          "branche par défaut, sans activité depuis {jours} jours ; la livrer par "
+                                          "une pull request si son travail sert, sinon la supprimer",
+                                          branche=b, n=absents, jours=age), page))
     return res
 
 

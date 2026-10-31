@@ -490,18 +490,24 @@ MESSAGES: dict[str, str] = {
         "commit then push: `git add -A && git commit -m \"{message}\" && git push`",
     "ouvrir l'agent dans le projet : il lit l'état au démarrage":
         "open the agent in the project: it reads the state at startup",
-    "ouvrir l'agent dans le projet : il lit l'état au démarrage, et te pose les questions de départ dans la "
-    "conversation":
-        "open the agent in the project: it reads the state at startup, and asks you the starting questions in the "
-        "conversation",
+    "ouvrir l'agent dans le projet : il lit l'état au démarrage, et te donne le lien des questions de départ, une "
+    "demande à laquelle tu réponds dans la conversation":
+        "open the agent in the project: it reads the state at startup, and gives you the link of the starting "
+        "questions, a request you answer in the conversation",
     "après ce premier push, protéger la branche par défaut : un ensemble de règles qui y exige la CI « {ci} » "
     "({page}) ; sans lui, une CI rouge n'empêche pas de fusionner, et `socle state` le signale. La revue des "
     "propriétaires du code ne s'y ajoute que si un autre humain relit : l'auteur d'une pull request ne peut pas "
-    "l'approuver, et l'agent ouvre les siennes au nom de l'humain":
+    "l'approuver, et l'agent ouvre les siennes au nom de l'humain. Dans les réglages généraux, cocher "
+    "« Automatically delete head branches » : une branche fusionnée s'efface alors seule":
         "after this first push, protect the default branch: a ruleset that requires the CI “{ci}” there ({page}); "
         "without it, a red CI does not prevent merging, and `socle state` reports it. The code owners' review is "
         "added only if another human reviews: the author of a pull request cannot approve it, and the agent opens "
-        "its own under the human's name",
+        "its own under the human's name. In the general settings, tick “Automatically delete head branches”: a "
+        "merged branch then deletes itself",
+    "examiner la branche distante `{branche}` : {n} commit(s) absents de la branche par défaut, sans activité "
+    "depuis {jours} jours ; la livrer par une pull request si son travail sert, sinon la supprimer":
+        "examine the remote branch `{branche}`: {n} commit(s) missing from the default branch, no activity for "
+        "{jours} days; deliver it through a pull request if its work is useful, otherwise delete it",
     "écrire ton nom dans `{politique}` (`[human] name`) avant de fusionner l'installation : il signe les réponses "
     "que l'agent relaie. En session cloud, l'identité git est celle de l'agent, que l'installeur ne prend pas ; "
     "`--human <nom>` le donne à l'installation":

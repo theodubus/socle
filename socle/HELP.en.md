@@ -45,6 +45,10 @@ Right after the installation:
    Without it, a red CI does not prevent merging. The code owners' review
    is added only if another human reviews: the author of a pull request
    cannot approve it, and the agent opens its own under the human's name.
+   In the general settings, tick "Automatically delete head branches": a
+   merged branch then deletes itself. The state reports the others: those
+   the default branch already contains, to delete, and those that have not
+   moved for a week without being merged, to deliver or to delete.
 5. Open the agent in the project. It reads the state at start-up, then
    gives the link of the starting questions, a request that `socle init`
    put: answer it in the conversation, `approve` to apply all the defaults,

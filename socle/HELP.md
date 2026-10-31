@@ -46,7 +46,11 @@ Juste après l'installation :
    toute fusion. Sans cela, une CI rouge n'empêche pas de fusionner. La
    revue des propriétaires du code ne s'y ajoute que si un autre humain
    relit : l'auteur d'une pull request ne peut pas l'approuver, et l'agent
-   ouvre les siennes au nom de l'humain.
+   ouvre les siennes au nom de l'humain. Dans les réglages généraux, cocher
+   « Automatically delete head branches » : une branche fusionnée s'efface
+   alors seule. L'état signale les autres : celles que la branche par
+   défaut contient déjà, à supprimer, et celles qui ne bougent plus depuis
+   une semaine sans avoir été fusionnées, à livrer ou à supprimer.
 5. Ouvrir l'agent dans le projet. Il lit l'état au démarrage, puis donne le
    lien des questions de départ, une demande que `socle init` a posée : y
    répondre dans la conversation, `valider` pour appliquer tous les

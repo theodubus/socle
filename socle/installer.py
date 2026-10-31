@@ -919,8 +919,8 @@ def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str]) -> list[str
     etapes.append(trad('commiter puis pousser : `git add -A && git commit -m "{message}" && git push`',
                        message=message))
     etapes.append(trad("ouvrir l'agent dans le projet : il lit l'état au démarrage") if mise_a_jour
-                  else trad("ouvrir l'agent dans le projet : il lit l'état au démarrage, et te pose les questions "
-                            "de départ dans la conversation"))
+                  else trad("ouvrir l'agent dans le projet : il lit l'état au démarrage, et te donne le lien des questions "
+                          "de départ, une demande à laquelle tu réponds dans la conversation"))
     if not mise_a_jour and not str(projet.pol("human", "name", defaut="") or "").strip():
         # Sans lui, chaque réponse relayée doit nommer l'humain (`--by`).
         etapes.append(trad("écrire ton nom dans `{politique}` (`[human] name`) avant de fusionner l'installation : "
@@ -937,7 +937,8 @@ def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str]) -> list[str
                            "exige la CI « {ci} » ({page}) ; sans lui, une CI rouge n'empêche pas de fusionner, et "
                            "`socle state` le signale. La revue des propriétaires du code ne s'y ajoute que si un "
                            "autre humain relit : l'auteur d'une pull request ne peut pas l'approuver, et l'agent "
-                           "ouvre les siennes au nom de l'humain",
+                           "ouvre les siennes au nom de l'humain. Dans les réglages généraux, cocher « Automatically "
+                           "delete head branches » : une branche fusionnée s'efface alors seule",
                            ci=etat.nom_de_la_ci(projet), page=page or trad("réglages du dépôt")))
     etapes.append(trad("ensuite, tes gestes, chacun avec sa commande : `python3 .socle/socle help`"))
     return etapes
