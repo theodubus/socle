@@ -3,7 +3,8 @@
 This guide follows the human's path in a project equipped with the socle,
 from the end of the installation to everyday use. Commands run at the
 project root: `python3 .socle/socle <command>`; this guide is shown by
-`python3 .socle/socle help`.
+`python3 .socle/socle help`. Without a terminal, in a cloud session, the
+agent runs them: just ask it to.
 
 The path in short:
 
@@ -16,12 +17,14 @@ The path in short:
 
 ## 1. Getting started
 
-A cloud session that added the socle's repository to install it is not
-resumed: a session with two repositories starts outside the project root,
-without the agent's hooks. It opens a pull request; once that is merged,
-the rest happens in a new session on the project's repository alone. Not
-before: a new session starts from the default branch, which does not have
-the socle yet.
+In a cloud session, the agent installs the socle from its public
+repository, which is cloned without being added to the session. The
+session that installs started before the socle, hence without its hooks:
+it pushes its branch and opens a pull request. Once that is merged, the
+work continues in a new session, which starts from the default branch and
+receives the state as soon as it starts. A session that adds a second
+repository is not resumed: with two repositories, it restarts outside the
+project root, without the agent's hooks.
 
 Right after the installation:
 
@@ -42,8 +45,10 @@ Right after the installation:
    Without it, a red CI does not prevent merging. The code owners' review
    is added only if another human reviews: the author of a pull request
    cannot approve it, and the agent opens its own under the human's name.
-5. Open the agent in the project. It reads the state at start-up, then asks
-   a few starting questions in the conversation.
+5. Open the agent in the project. It reads the state at start-up, then
+   gives the link of the starting questions, a request that `socle init`
+   put: answer it in the conversation, `approve` to apply all the defaults,
+   or one answer per question.
 
 If the project already had its own `SessionStart` hook, the installer
 points it out: remove it from `.claude/settings.json`, otherwise each
@@ -54,6 +59,13 @@ session receives two states.
 Tasks are given to the agent as usual. At the start of each session, it
 receives the project's state; it works, and the checks verify it at each
 step.
+
+**Planning.** From the brief, the agent writes a short specification and a
+short architecture in the project's documentation: each choice as an ADR,
+each open question as a request, each task as a backlog topic, with its
+acceptance criteria and what it waits on (`after`), grouped in milestones.
+It submits each document as a request. Just ask it to; the state then
+gives the next milestone and the ready topics.
 
 Each intervention of the agent that acted ends with two lines:
 

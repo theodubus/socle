@@ -32,7 +32,11 @@ fichiers du projet ne sont jamais écrasés.
 En session cloud de Claude Code, l'agent fait tout, installation comprise :
 ce dépôt, public, se clone sans être ajouté à la session, qui reste ainsi
 sur le seul dépôt du projet. L'installation prend `--human <nom>`, l'identité
-git du conteneur étant celle de l'agent.
+git du conteneur étant celle de l'agent. La session qui installe pousse sa
+branche et ouvre une pull request ; une fois celle-ci fusionnée, le travail
+continue dans une session neuve, qui reçoit l'état du projet et les hooks
+de l'agent dès son démarrage. La suite, étape par étape : [le guide
+d'utilisation](socle/HELP.md).
 
 ## Documentation
 
@@ -44,4 +48,4 @@ git du conteneur étant celle de l'agent.
 
 ## Licence
 
-MIT : voir le fichier `LICENSE` de ce dépôt.
+[MIT](https://github.com/theodubus/socle/blob/main/LICENSE).

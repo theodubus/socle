@@ -3,7 +3,8 @@
 Ce guide suit le parcours de l'humain dans un projet équipé du socle, de la
 fin de l'installation à l'usage courant. Les commandes se lancent à la
 racine du projet : `python3 .socle/socle <commande>` ; ce guide s'affiche
-par `python3 .socle/socle help`.
+par `python3 .socle/socle help`. Sans terminal, en session cloud, l'agent
+les lance : il suffit de les lui demander.
 
 Le parcours en bref :
 
@@ -17,12 +18,14 @@ Le parcours en bref :
 
 ## 1. Démarrer
 
-Une session cloud qui a ajouté le dépôt du socle pour l'installer ne se
-reprend pas : une session à deux dépôts démarre hors de la racine du
-projet, sans les hooks de l'agent. Elle ouvre une pull request ; une fois
-celle-ci fusionnée, la suite se fait dans une session neuve sur le seul
-dépôt du projet. Pas avant : une session neuve part de la branche par
-défaut, qui n'a pas encore le socle.
+En session cloud, l'agent installe le socle depuis son dépôt public, qui se
+clone sans être ajouté à la session. La session qui installe a démarré
+avant le socle, donc sans ses hooks : elle pousse sa branche et ouvre une
+pull request. Une fois celle-ci fusionnée, le travail continue dans une
+session neuve, qui part de la branche par défaut et reçoit l'état dès son
+démarrage. Une session qui ajoute un second dépôt ne se reprend pas : à
+deux dépôts, elle redémarre hors de la racine du projet, sans les hooks de
+l'agent.
 
 Juste après l'installation :
 
@@ -44,8 +47,10 @@ Juste après l'installation :
    revue des propriétaires du code ne s'y ajoute que si un autre humain
    relit : l'auteur d'une pull request ne peut pas l'approuver, et l'agent
    ouvre les siennes au nom de l'humain.
-5. Ouvrir l'agent dans le projet. Il lit l'état au démarrage, puis pose
-   quelques questions de départ dans la conversation.
+5. Ouvrir l'agent dans le projet. Il lit l'état au démarrage, puis donne le
+   lien des questions de départ, une demande que `socle init` a posée : y
+   répondre dans la conversation, `valider` pour appliquer tous les
+   défauts, ou une réponse par question.
 
 Si le projet avait déjà son propre hook `SessionStart`, l'installeur le
 signale : le retirer de `.claude/settings.json`, sans quoi chaque session
@@ -56,6 +61,13 @@ reçoit deux états.
 Les tâches se confient à l'agent comme d'habitude. Au démarrage de chaque
 session, il reçoit l'état du projet ; il travaille, et les contrôles le
 vérifient à chaque étape.
+
+**Planifier.** Depuis le cadrage, l'agent écrit une spécification et une
+architecture courtes dans la documentation du projet : chaque choix en
+ADR, chaque question ouverte en demande, chaque tâche en sujet du backlog,
+avec ses critères d'acceptation et ce qu'elle attend (`après`), groupée en
+jalons. Il soumet chaque document en demande. Il suffit de le lui
+demander ; l'état donne ensuite le prochain jalon et les sujets prêts.
 
 Chaque intervention de l'agent qui a agi se termine par deux lignes :
 

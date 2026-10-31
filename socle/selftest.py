@@ -1349,6 +1349,10 @@ def _cas() -> list[Cas]:
     def _(a, c):
         return etage_stop(a, c, "Voir [la doc](docs/calc.md)." + RECAP)
 
+    @defaut("pr-sans-lien", "pull request à fusionner citée sans son lien", "agent", "liens")
+    def _(a, c):
+        return etage_stop(a, c, "La pull request 2 reste à fusionner." + RECAP)
+
     @defaut("lien-non-pousse", "permalien vers un fichier absent de la version poussée", "agent", "liens")
     def _(a, c):
         ajouter(c, "docs/nouveau.md", "# Nouveau\n")

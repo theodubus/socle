@@ -930,6 +930,10 @@ MESSAGES: dict[str, str] = {
     "question nomme entre accents graves ; le texte exact de l'humain va dans la citation":
         "“{reponse}”: a decision in session is recorded under a base answer ({base}), or under an option the question "
         "names in backticks; the human's exact text goes in the quote",
+    "la pull request {numero} citée sans son lien : donner son adresse, que l'humain ouvre d'un clic":
+        "pull request {numero} cited without its link: give its address, which the human opens in one click",
+    "pull request à fusionner citée sans son lien":
+        "pull request to merge cited without its link",
     "sujet du backlog qui s'attend lui-même (`après`)":
         "backlog topic that waits on itself (`after`)",
     "jalon fait alors que la tâche qu'il attend est ouverte":

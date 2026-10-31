@@ -23,6 +23,9 @@ from socle.messages import trad
 LIEN_MD = re.compile(r"\[[^\]\n]*\]\((?P<cible>[^)\s]+)[^)\n]*\)")
 URL = re.compile(r"https?://[^\s)>\]`\"'<]+")
 CODE = re.compile(r"(?<!`)`(?P<code>[^`\n]+)`(?!`)")
+# Une pull request nommée par son numéro (« la PR #2 », « pull request 14 ») :
+# l'humain doit pouvoir l'ouvrir d'un clic (B-0110).
+PULL_REQUEST = re.compile(r"(?i)\b(?:pull[ -]requests?|PR)\s*(?:n[°o]\s*)?#?(?P<numero>\d+)\b")
 SCHEMA = re.compile(r"^[A-Za-z][\w+.-]*:")
 CHEMIN = re.compile(r"^[\w.@-]+(?:/[\w.@-]+)*/?$")
 LIGNE = re.compile(r":\d+(?:-\d+)?$")
@@ -224,6 +227,11 @@ def problemes(projet: config.Projet, message: str) -> tuple[list[str], list[str]
                               "mène à un 404", code=m['code']))
     depot = url_depot(projet)
     urls = URL.findall(texte)
+    tirees = {m["numero"] for m in PULL_REQUEST.finditer(texte)}
+    for numero in sorted(tirees, key=int):
+        if not any(re.search(rf"/pull/{numero}(?!\d)", u) for u in urls):
+            morts.append(trad("la pull request {numero} citée sans son lien : donner son adresse, que l'humain ouvre "
+                              "d'un clic", numero=numero))
     if depot:
         for u in urls:
             pourquoi = url_morte(racine, depot, u.rstrip(".,;:"))
