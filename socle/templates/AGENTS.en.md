@@ -37,7 +37,7 @@ always keep it, and a new session only has the memory.
 | Active | `memory/active.md` | work in progress, next steps; rewritten, kept short |
 | Decisions | `memory/decisions/` | one ADR per file, the project's only decision register; only its status changes afterwards |
 | Journal | `memory/journal/` | one dated entry per event; append only |
-| Backlog | `@@BACKLOG@@` | topics with status and origin, ordered by `after` and their milestones (the state computes the ready ones); closed with a reference, then filed by `socle archive` |
+| Backlog | `@@BACKLOG@@` | topics with status and origin, ordered by `after` (topics or requests), their milestones and their priority (the state computes the ready ones); done when their “Done when” is checked, closed with a reference, then filed by `socle archive` |
 | Requests | `memory/requests/` | human decisions in a queue, under the contract of the skill `socle-request` |
 
 An entry: `## F-NNNN — title`, then a line `> status : measured · proof : commit:<sha>`.
@@ -114,9 +114,10 @@ the text.
 
 As long as nothing is up to the human, the agent chains the ready topics
 without waiting for a message. It first announces the batch, not
-necessarily everything that is ready (the topics, the milestone they
-serve), then gets going; it stops at the end of the batch, or as soon as
-a decision is up to the human.
+necessarily everything that is ready (the topics, their size, the
+milestone they serve; a low-priority topic if convenient), then gets
+going; it stops at the end of the batch, or as soon as a decision is up
+to the human. It does not change a priority the human gave.
 
 By default, everything happens on one development branch, with only one
 pull request open at a time: each finished batch is added to it, the

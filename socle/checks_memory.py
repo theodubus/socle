@@ -335,9 +335,12 @@ def verifier_ref(ctx, type_: str, cible: str, historique: bool = False) -> str |
     if type_ == "commit":
         if not re.fullmatch(r"[0-9a-f]{7,40}", cible):
             return trad("`commit:{cible}` n'est pas un SHA", cible=cible)
-        if not outils.objet_existe(ctx.racine, cible):
-            return trad("`commit:{cible}` n'existe pas dans ce dépôt (historique complet ? `fetch-depth: 0`)",
-                        cible=cible)
+        # Absent du clone, il peut n'être plus que dans une pull request :
+        # on les récupère avant de le dire absent (B-0117).
+        if not outils.objet_existe(ctx.racine, cible) and not (
+                outils.recuperer_pull_requests(ctx.racine) and outils.objet_existe(ctx.racine, cible)):
+            return trad("`commit:{cible}` n'existe pas dans ce dépôt, ni dans ses pull requests (historique "
+                        "complet ? `fetch-depth: 0`)", cible=cible)
     elif type_ == "fichier":
         chemin = re.split(r"[#]|:(?=\d)", cible, maxsplit=1)[0]
         if not _existe(ctx, chemin, historique) and not _ignore(ctx.racine, chemin):
@@ -595,7 +598,8 @@ def collisions(ctx, r):
 
 @controle("memoire.backlog")
 def backlog(ctx, r):
-    """Chaque sujet a une origine ; un sujet clos a une référence, et il est rangé avec les clos."""
+    """Chaque sujet a une origine ; un sujet clos a une référence, et il est rangé avec les clos ; un sujet
+    fait a coché tout ce que dit sa section « Fait quand »."""
     for e in ctx.memoire.entrees("B"):
         if e.basculee:
             continue
@@ -603,6 +607,12 @@ def backlog(ctx, r):
             r.erreur("memoire.backlog", trad("`{id}` sans `origine` (entrée de journal, commit ou demande)",
                                              id=e.id), e.fichier, e.ligne)
         clos = e.statut in memoire.BACKLOG_CLOS
+        # Fait quand ce que dit sa section « Fait quand » est fait (D-0064).
+        ouverts = [texte for coche, texte in memoire.criteres(e) if not coche]
+        if e.statut == "fait" and ouverts:
+            r.erreur("memoire.backlog", trad("`{id}` est clos « fait » avec un critère de « Fait quand » non coché : "
+                                             "{criteres}", id=e.id, criteres=" ; ".join(ouverts[:3])),
+                     e.fichier, e.ligne)
         if clos and not e.refs("ref"):
             r.erreur("memoire.backlog", trad("`{id}` est clos (« {statut} ») sans `ref` vers ce qui l'a clos",
                                              id=e.id, statut=e.statut), e.fichier, e.ligne)
@@ -618,22 +628,32 @@ def backlog(ctx, r):
 
 @controle("memoire.ordre")
 def ordre(ctx, r):
-    """Un sujet n'attend (`après`) que des sujets du backlog, jamais lui-même
-    de proche en proche, et ne se dit fait qu'une fois clos ce qu'il attend :
-    un jalon ne se clôt pas sur des tâches ouvertes."""
+    """Un sujet n'attend (`après`) que des sujets du backlog ou des demandes,
+    jamais lui-même de proche en proche, et ne se dit fait qu'une fois clos
+    ce qu'il attend : un jalon ne se clôt pas sur des tâches ouvertes, ni un
+    sujet sur une demande sans réponse. Sa priorité, s'il en a une, est
+    haute ou basse."""
     sujets = {e.id: e for e in ctx.memoire.entrees("B") if not e.archivee and not e.basculee}
+    demandes = {e.id: e for e in ctx.memoire.entrees("D") if not e.basculee}
     for e in sujets.values():
+        p = memoire.priorite(e)
+        if p is not None and p not in memoire.PRIORITES:
+            r.erreur("memoire.ordre", trad("`{id}` : `priorité` vaut `haute` ou `basse`, la normale ne s'écrit pas "
+                                           "({valeur})", id=e.id, valeur=e.meta["priorite"]), e.fichier, e.ligne)
         if "apres" not in e.meta:
             continue
         refs = e.refs("apres")
-        if not refs or any(t != "id" or not re.fullmatch(r"P?B-\d{4}", c) for t, c in refs):
-            r.erreur("memoire.ordre", trad("`{id}` : `après` ne nomme que des sujets du backlog ({valeur})",
-                                           id=e.id, valeur=e.meta["apres"]), e.fichier, e.ligne)
+        if not refs or any(t != "id" or not re.fullmatch(r"P?[BD]-\d{4}", c) for t, c in refs):
+            r.erreur("memoire.ordre", trad("`{id}` : `après` ne nomme que des sujets du backlog ou des demandes "
+                                           "({valeur})", id=e.id, valeur=e.meta["apres"]), e.fichier, e.ligne)
         if e.statut == "fait":
             for d in memoire.dependances(e):
                 if d in sujets and sujets[d].statut not in memoire.BACKLOG_CLOS:
                     r.erreur("memoire.ordre", trad("`{id}` est fait avant `{dep}`, qu'il attend, encore « {statut} »",
                                                    id=e.id, dep=d, statut=sujets[d].statut), e.fichier, e.ligne)
+                elif d in demandes and not memoire.demande_close(ctx.memoire, demandes[d]):
+                    r.erreur("memoire.ordre", trad("`{id}` est fait avant `{dep}`, qu'il attend, encore sans réponse",
+                                                   id=e.id, dep=d), e.fichier, e.ligne)
     # Un cycle se dit une fois, depuis le plus petit de ses sujets.
     for depart in sorted(sujets):
         pile = [[depart]]

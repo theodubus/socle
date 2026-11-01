@@ -40,6 +40,7 @@ CHAMPS = {
     "forme": {"fr": "forme", "en": "form"},
     "sujet": {"fr": "sujet", "en": "about"},
     "apres": {"fr": "après", "en": "after"},
+    "priorite": {"fr": "priorité", "en": "priority"},
 }
 
 # Statuts, par type d'entrée : « abandoned » est un sujet abandonné ou une
@@ -57,7 +58,12 @@ STATUTS = {
 
 # Valeurs d'un champ qui se comparent : `pour : humain`.
 VALEURS = {"humain": {"fr": "humain", "en": "human"}, "seance": {"fr": "séance", "en": "session"},
-           "jalon": {"fr": "jalon", "en": "milestone"}}
+           "jalon": {"fr": "jalon", "en": "milestone"}, "haute": {"fr": "haute", "en": "high"},
+           "basse": {"fr": "basse", "en": "low"}}
+
+# La section d'un sujet du backlog qui dit ce qui le rend fait (D-0064) :
+# des cases à cocher, toutes cochées avant de le clore « fait ».
+FAIT_QUAND = {"fr": "Fait quand", "en": "Done when"}
 
 # L'en-tête d'un fichier : `<!-- socle: couche=canonique zone=publique -->`.
 ENTETE = {"couche": {"fr": "couche", "en": "layer"}, "zone": {"fr": "zone", "en": "zone"}}

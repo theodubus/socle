@@ -69,9 +69,18 @@ vérifient à chaque étape.
 **Planifier.** Depuis le cadrage, l'agent écrit une spécification et une
 architecture courtes dans la documentation du projet : chaque choix en
 ADR, chaque question ouverte en demande, chaque tâche en sujet du backlog,
-avec ses critères d'acceptation et ce qu'elle attend (`après`), groupée en
-jalons. Il soumet chaque document en demande. Il suffit de le lui
-demander ; l'état donne ensuite le prochain jalon et les sujets prêts.
+avec ce qu'elle attend (`après` : un autre sujet, ou une demande jusqu'à
+sa réponse) et ce qui la rend faite (une section « Fait quand », en cases
+à cocher, toutes cochées avant de la clore), groupée en jalons. Il soumet
+chaque document en demande. Il suffit de le lui demander ; l'état donne
+ensuite le prochain jalon et les sujets prêts.
+
+**Prioriser.** Un sujet peut porter `priorité : haute` ou
+`priorité : basse` ; la normale ne s'écrit pas. Le dire à l'agent suffit,
+et il ne change pas une priorité que l'humain a donnée. Les sujets prêts
+se rangent par priorité, et ceux de priorité basse restent à part :
+l'agent ne les prend que s'ils sont commodes, et le dit en annonçant le
+lot.
 
 **Livrer.** Par défaut, l'agent fait tout sur une branche de
 développement et garde une seule pull request ouverte, à laquelle chaque

@@ -38,7 +38,7 @@ toujours, et une session neuve n'a que la mémoire.
 | Actif | `memory/active.md` | chantier en cours, prochaines étapes ; réécrit, borné |
 | Décisions | `memory/decisions/` | une ADR par fichier, le seul registre des décisions du projet ; seul son statut change ensuite |
 | Journal | `memory/journal/` | une entrée datée par événement ; ajout seul |
-| Backlog | `@@BACKLOG@@` | sujets avec statut et origine, ordonnés par `après` et leurs jalons (l'état en calcule les prêts) ; clos avec une référence, puis rangés par `socle archive` |
+| Backlog | `@@BACKLOG@@` | sujets avec statut et origine, ordonnés par `après` (sujets ou demandes), leurs jalons et leur priorité (l'état en calcule les prêts) ; faits quand leur « Fait quand » est coché, clos avec une référence, puis rangés par `socle archive` |
 | Demandes | `memory/requests/` | décisions humaines en file, au contrat du skill `socle-request` |
 
 Une entrée : `## F-NNNN — titre`, puis une ligne `> statut : mesuré · preuve : commit:<sha>`.
@@ -116,8 +116,10 @@ se cite dans le texte.
 
 Tant que rien ne revient à l'humain, l'agent enchaîne les sujets prêts
 sans attendre de message. Il annonce d'abord le lot, pas forcément tout ce
-qui est prêt (les sujets, le jalon qu'ils servent), puis s'y met ; il
-s'arrête à la fin du lot, ou dès qu'une décision revient à l'humain.
+qui est prêt (les sujets, leur taille, le jalon qu'ils servent ; un sujet de
+priorité basse s'il est commode), puis s'y met ; il s'arrête à la fin du
+lot, ou dès qu'une décision revient à l'humain. Il ne change pas une
+priorité que l'humain a donnée.
 
 Par défaut, tout se fait sur une branche de développement, avec une seule
 pull request ouverte à la fois : chaque lot fini s'y ajoute, l'humain la

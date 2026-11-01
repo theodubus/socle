@@ -110,6 +110,24 @@ def objet_existe(racine: Path, sha: str) -> bool:
     return git_reussit(racine, "cat-file", "-e", f"{sha}^{{commit}}")
 
 
+# Les dépôts dont les pull requests ont déjà été récupérées par ce processus.
+_PULL_REQUESTS_RECUPEREES: set[str] = set()
+
+
+def recuperer_pull_requests(racine: Path) -> bool:
+    """Les têtes des pull requests de l'origine, une fois par dépôt et par
+    processus. GitHub garde le commit d'une pull request même quand sa
+    branche est supprimée ou fusionnée par écrasement, mais un clone ne
+    récupère que les branches et les étiquettes : un commit que la mémoire
+    cite disparaissait ainsi de la CI (B-0117). Sans origine ou sans
+    réseau, rien n'est récupéré, et rien n'échoue."""
+    cle = str(Path(racine).resolve())
+    if cle in _PULL_REQUESTS_RECUPEREES:
+        return False
+    _PULL_REQUESTS_RECUPEREES.add(cle)
+    return git_reussit(racine, "fetch", "--quiet", "--no-tags", "origin", "+refs/pull/*/head:refs/socle/pull/*")
+
+
 def resoudre(racine: Path, rev: str) -> str:
     return git(racine, "rev-parse", f"{rev}^{{commit}}").strip()
 

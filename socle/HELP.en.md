@@ -67,9 +67,17 @@ step.
 **Planning.** From the brief, the agent writes a short specification and a
 short architecture in the project's documentation: each choice as an ADR,
 each open question as a request, each task as a backlog topic, with its
-acceptance criteria and what it waits on (`after`), grouped in milestones.
-It submits each document as a request. Just ask it to; the state then
-gives the next milestone and the ready topics.
+what it waits on (`after`: another topic, or a request until it is
+answered) and what makes it done (a “Done when” section, as checkboxes,
+all checked before closing it), grouped in milestones. It submits each
+document as a request. Just ask it to; the state then gives the next
+milestone and the ready topics.
+
+**Prioritising.** A topic can carry `priority: high` or `priority: low`;
+the normal one is not written. Telling the agent is enough, and it does
+not change a priority the human gave. The ready topics are sorted by
+priority, and the low-priority ones stay apart: the agent takes them only
+when convenient, and says so when announcing the batch.
 
 **Delivering.** By default, the agent does everything on one development
 branch and keeps only one pull request open, to which each finished batch

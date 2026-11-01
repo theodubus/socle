@@ -437,6 +437,9 @@ class Memoire:
     rev: str | None
     fichiers: dict[str, FichierMemoire] = field(default_factory=dict)
     illisibles: list[str] = field(default_factory=list)  # privés, chiffrés ici
+    # Les demandes qui ont leur réponse, par le chemin de la demande : un sujet
+    # qui en attend une est prêt une fois qu'elle est répondue (D-0064).
+    repondues: set[str] = field(default_factory=set)
 
     @classmethod
     def charger(cls, racine: Path, rev: str | None = None) -> "Memoire":
@@ -445,6 +448,7 @@ class Memoire:
             chemins = sorted(set(outils.fichiers_courants(racine)) | set(fichiers_compagnon(racine)))
         else:
             chemins = outils.fichiers_a(racine, rev)
+        mem.repondues = {demande_de_reponse(c) for c in chemins if est_reponse(c)}
         chemins = [c for c in chemins if couche_attendue(c) is not None]
         # À une révision, tous les fichiers d'un coup : un `git show` par
         # fichier coûtait l'essentiel de la lecture prouvée.
@@ -553,12 +557,49 @@ def lignes_index(mem: "Memoire", index: str, sauf: set[str] = frozenset()) -> li
 
 
 def dependances(e: Entree) -> list[str]:
-    """Les sujets qu'un sujet du backlog attend (`après : B-0012, B-0014`)."""
+    """Ce qu'un sujet du backlog attend (`après : B-0012, D-0014`) : des
+    sujets, et des demandes, attendues jusqu'à leur réponse (D-0064)."""
     return [c for t, c in e.refs("apres") if t == "id"]
 
 
 def est_jalon(e: Entree) -> bool:
     return langue.valeur(nettoyer(e.meta.get("forme", ""))) == "jalon"
+
+
+PRIORITES = ("haute", "basse")
+
+
+def priorite(e: Entree) -> str | None:
+    """La priorité d'un sujet (`priorité : haute` ou `basse`, D-0062), sous
+    sa clé interne ; `None` pour la priorité normale, qui ne s'écrit pas."""
+    v = nettoyer(e.meta.get("priorite", ""))
+    return langue.valeur(v) if v else None
+
+
+def demande_close(mem: "Memoire", e: Entree) -> bool:
+    """Une demande qui n'est plus attendue : répondue, ou retirée."""
+    return e.fichier in mem.repondues or "retiree" in e.meta
+
+
+SECTION_FAIT_QUAND = re.compile(r"^#{2,4}\s+(?:%s)\s*$" % "|".join(re.escape(x) for x in langue.FAIT_QUAND.values()),
+                                re.M | re.I)
+CASE = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s+(.+?)\s*$")
+
+
+def criteres(e: Entree) -> list[tuple[bool, str]]:
+    """Les critères de la section « Fait quand » d'un sujet (D-0064) :
+    (coché, texte), dans l'ordre ; vide sans section."""
+    m = SECTION_FAIT_QUAND.search(e.corps)
+    if not m:
+        return []
+    res = []
+    for ligne in e.corps[m.end():].splitlines():
+        if ligne.startswith("#"):
+            break
+        c = CASE.match(ligne)
+        if c:
+            res.append((c.group(1) != " ", c.group(2)))
+    return res
 
 
 @dataclass
@@ -571,27 +612,36 @@ class Ordre:
     jalon: Entree | None
     restants: list[str]
     en_attente: int
+    # Les sujets prêts de priorité basse, à part : l'agent les prend quand
+    # c'est commode, et le dit (D-0062).
+    basses: list[Entree] = field(default_factory=list)
 
 
 def ordre(mem: "Memoire") -> Ordre | None:
-    """L'ordre du backlog, s'il en a un : sans `après` ni jalon, rien."""
+    """L'ordre du backlog, s'il en a un : sans `après`, jalon ni priorité, rien."""
     sujets = {e.id: e for e in mem.entrees("B") if not e.archivee and not e.basculee}
-    if not any(dependances(e) or est_jalon(e) for e in sujets.values()):
+    demandes = {e.id: e for e in mem.entrees("D") if not e.basculee}
+    if not any(dependances(e) or est_jalon(e) or priorite(e) for e in sujets.values()):
         return None
 
     def ouvert(i: str) -> bool:
+        """Encore attendu : un sujet non clos, ou une demande sans réponse."""
+        if i in demandes:
+            return not demande_close(mem, demandes[i])
         return i in sujets and sujets[i].statut not in BACKLOG_CLOS
 
     def attendus(i: str) -> set[str]:
-        """Les sujets ouverts qu'un sujet attend, de proche en proche ; un
-        cycle s'arrête (le contrôle de l'ordre le refuse)."""
+        """Les sujets et les demandes encore attendus qu'un sujet attend, de
+        proche en proche ; un cycle s'arrête (le contrôle de l'ordre le
+        refuse)."""
         vus, pile = set(), list(dependances(sujets[i]))
         while pile:
             d = pile.pop()
-            if d in vus or d == i or d not in sujets:
+            if d in vus or d == i or (d not in sujets and d not in demandes):
                 continue
             vus.add(d)
-            pile += dependances(sujets[d])
+            if d in sujets:
+                pile += dependances(sujets[d])
         return {d for d in vus if ouvert(d)}
 
     ouverts = sorted(i for i in sujets if ouvert(i))
@@ -600,10 +650,15 @@ def ordre(mem: "Memoire") -> Ordre | None:
     restants = sorted(attendus(jalon)) if jalon else []
     # Un sujet en cours ou bloqué n'est plus à prendre : l'état le dit à part.
     a_prendre = [i for i in ouverts if sujets[i].statut == "ouvert" and not est_jalon(sujets[i])]
+    # Ceux du prochain jalon d'abord, puis par priorité ; les basses à part.
+    rang = {"haute": 0, None: 1}
     prets = sorted((i for i in a_prendre if not any(ouvert(d) for d in dependances(sujets[i]))),
-                   key=lambda i: (i not in restants, i))
-    attente = len(a_prendre) - len(prets)
-    return Ordre([sujets[i] for i in prets], sujets[jalon] if jalon else None, restants, attente)
+                   key=lambda i: (i not in restants, rang.get(priorite(sujets[i]), 2), i))
+    basses = [i for i in prets if priorite(sujets[i]) == "basse"]
+    prets = [i for i in prets if i not in basses]
+    attente = len(a_prendre) - len(prets) - len(basses)
+    return Ordre([sujets[i] for i in prets], sujets[jalon] if jalon else None, restants, attente,
+                 [sujets[i] for i in basses])
 
 
 def lignes_ordre(mem: "Memoire", plafond: int = 8) -> list[str]:
@@ -615,9 +670,12 @@ def lignes_ordre(mem: "Memoire", plafond: int = 8) -> list[str]:
     if o.jalon:
         res.append(trad("prochain jalon : {id} — {titre} ; reste : {restants}", id=o.jalon.id, titre=o.jalon.titre,
                         restants=", ".join(o.restants) if o.restants else trad("rien, il se clôt")))
-    res += [trad("prêt : {id} — {titre}", id=e.id, titre=e.titre) for e in o.prets[:plafond]]
+    res += [trad("prêt : {id} — {titre} (priorité haute)", id=e.id, titre=e.titre) if priorite(e) == "haute"
+            else trad("prêt : {id} — {titre}", id=e.id, titre=e.titre) for e in o.prets[:plafond]]
     if len(o.prets) > plafond:
         res.append(trad("… et {n} autre(s) prêt(s)", n=len(o.prets) - plafond))
+    if o.basses:
+        res.append(trad("prêts aussi, de priorité basse : {ids}", ids=", ".join(e.id for e in o.basses)))
     if o.en_attente:
         res.append(trad("{n} sujet(s) attendent un sujet ouvert", n=o.en_attente))
     return res

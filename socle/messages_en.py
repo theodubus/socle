@@ -630,8 +630,10 @@ MESSAGES: dict[str, str] = {
         "`x:path` does not suit it",
     "`commit:{cible}` n'est pas un SHA":
         "`commit:{cible}` is not a SHA",
-    "`commit:{cible}` n'existe pas dans ce dépôt (historique complet ? `fetch-depth: 0`)":
-        "`commit:{cible}` does not exist in this repository (full history? `fetch-depth: 0`)",
+    "`commit:{cible}` n'existe pas dans ce dépôt, ni dans ses pull requests (historique complet ? `fetch-depth: "
+    "0`)":
+        "`commit:{cible}` does not exist in this repository, nor in its pull requests (full history? `fetch-depth: "
+        "0`)",
     "`fichier:{cible}` : {chemin} n'existe pas":
         "`file:{cible}`: {chemin} does not exist",
     "`cmd:{cible}` : {premier} n'existe pas":
@@ -913,16 +915,26 @@ MESSAGES: dict[str, str] = {
         "the git hook).",
     "Chaque couche et le fichier d'instructions ont un plafond de taille.":
         "Each layer and the instructions file have a size cap.",
-    "Chaque sujet a une origine ; un sujet clos a une référence, et il est rangé avec les clos.":
-        "Each topic has an origin; a closed topic has a reference, and it is filed with the closed ones.",
-    "Un sujet n'attend (`après`) que des sujets du backlog, jamais lui-même de proche en proche, et ne se dit fait "
-    "qu'une fois clos ce qu'il attend : un jalon ne se clôt pas sur des tâches ouvertes.":
-        "A topic waits (`after`) only on backlog topics, never on itself step by step, and is done only once what it "
-        "waits on is closed: a milestone does not close over open tasks.",
-    "`{id}` : `après` ne nomme que des sujets du backlog ({valeur})":
-        "`{id}`: `after` names only backlog topics ({valeur})",
+    "Chaque sujet a une origine ; un sujet clos a une référence, et il est rangé avec les clos ; un sujet fait a "
+    "coché tout ce que dit sa section « Fait quand ».":
+        "Each topic has an origin; a closed topic has a reference, and it is filed with the closed ones; a done topic "
+        "has checked everything its “Done when” section says.",
+    "Un sujet n'attend (`après`) que des sujets du backlog ou des demandes, jamais lui-même de proche en proche, et "
+    "ne se dit fait qu'une fois clos ce qu'il attend : un jalon ne se clôt pas sur des tâches ouvertes, ni un sujet "
+    "sur une demande sans réponse.":
+        "A topic waits (`after`) only on backlog topics or requests, never on itself step by step, and is done only "
+        "once what it waits on is closed: a milestone does not close over open tasks, nor a topic over an unanswered "
+        "request.",
+    "`{id}` : `après` ne nomme que des sujets du backlog ou des demandes ({valeur})":
+        "`{id}`: `after` names only backlog topics or requests ({valeur})",
     "`{id}` est fait avant `{dep}`, qu'il attend, encore « {statut} »":
         "`{id}` is done before `{dep}`, which it waits on, still “{statut}”",
+    "`{id}` est fait avant `{dep}`, qu'il attend, encore sans réponse":
+        "`{id}` is done before `{dep}`, which it waits on, still unanswered",
+    "`{id}` : `priorité` vaut `haute` ou `basse`, la normale ne s'écrit pas ({valeur})":
+        "`{id}`: `priority` is `high` or `low`, the normal one is not written ({valeur})",
+    "`{id}` est clos « fait » avec un critère de « Fait quand » non coché : {criteres}":
+        "`{id}` is closed “done” with an unchecked “Done when” criterion: {criteres}",
     "`{id}` s'attend lui-même : {cycle}":
         "`{id}` waits on itself: {cycle}",
     "décision posée à l'humain dans le widget de questions de l'agent":
@@ -969,6 +981,10 @@ MESSAGES: dict[str, str] = {
         "According to the backlog's order:",
     "prêt : {id} — {titre}":
         "ready: {id} — {titre}",
+    "prêt : {id} — {titre} (priorité haute)":
+        "ready: {id} — {titre} (high priority)",
+    "prêts aussi, de priorité basse : {ids}":
+        "also ready, low priority: {ids}",
     "… et {n} autre(s) prêt(s)":
         "… and {n} more ready",
     "{n} sujet(s) attendent un sujet ouvert":
@@ -2246,6 +2262,14 @@ MESSAGES: dict[str, str] = {
         "a memory in English: its entries, written by `socle new`, pass the commit and the CI",
     "une valeur attendue changée sous une demande en attente, poussée : le tour finit, le commit attend":
         "an expected value changed under a pending request, pushed: the turn ends, the commit waits",
+    "sujet du backlog d'une priorité ni haute ni basse":
+        "backlog topic with a priority neither high nor low",
+    "sujet fait alors que la demande qu'il attend est sans réponse":
+        "topic done while the request it waits on is unanswered",
+    "sujet fait avec un critère de « Fait quand » non coché":
+        "topic done with an unchecked “Done when” criterion",
+    "un sujet de priorité haute fait après la réponse qu'il attendait, ses critères cochés, passe le commit et la CI":
+        "a high-priority topic done after the answer it waited for, its criteria checked, passes the commit and the CI",
     "un fichier protégé changé sous une demande en attente, poussée : le tour finit, le commit attend":
         "a protected file changed under a pending request, pushed: the turn ends, the commit waits",
     "un push relu par l'humain, son accord relayé avec son texte exact, passe le hook de l'agent":

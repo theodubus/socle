@@ -1054,6 +1054,29 @@ def _cas() -> list[Cas]:
                          f"après : B-0001 · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
         return etage_git(a, c)
 
+    @defaut("priorite-inconnue", "sujet du backlog d'une priorité ni haute ni basse", "git", "memoire.ordre")
+    def _(a, c):
+        remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : ouvert · priorité : urgente")
+        return etage_git(a, c)
+
+    @defaut("fait-avant-sa-demande", "sujet fait alors que la demande qu'il attend est sans réponse", "git",
+            "memoire.ordre")
+    def _(a, c):
+        ajouter(c, "memory/requests/D-0001-refactor.md", demande_bonne(a, c))
+        ajouter_sujet(c, "\n## B-0002 — Livrer la multiplication\n\n"
+                         f"> statut : fait · origine : {a.journal} · ref : fichier:calc.py · après : D-0001 · "
+                         f"lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
+        return etage_git(a, c)
+
+    @defaut("fait-avec-critere-ouvert", "sujet fait avec un critère de « Fait quand » non coché", "git",
+            "memoire.backlog")
+    def _(a, c):
+        ajouter_sujet(c, "\n## B-0002 — Livrer la multiplication\n\n"
+                         f"> statut : fait · origine : {a.journal} · ref : fichier:calc.py · "
+                         f"lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n\n"
+                         "## Fait quand\n\n- [x] le test passe\n- [ ] le guide le dit\n")
+        return etage_git(a, c)
+
     # Au-delà du tableau du cadrage.
 
     @defaut("titre-d-entree-illisible", "entrée de journal au titre mal formé, que rien ne lit", "git", "memoire.format")
@@ -1528,6 +1551,23 @@ def _temoins() -> list[tuple[str, Callable]]:
                          f"> statut : ouvert · origine : {a.journal} · forme : jalon · après : B-0001 · "
                          f"lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
         maj_memoire(c, "Le jalon de la multiplication posé.")
+        return etage_git(a, c) or etage_ci(a, c)
+
+    @temoin("un sujet de priorité haute fait après la réponse qu'il attendait, ses critères cochés, passe le "
+            "commit et la CI")
+    def _(a, c):
+        (c / "memory/requests/D-0001-refactor.md").write_text(demande_bonne(a, c))
+        pousser(a, c)
+        (c / "citation.txt").write_text("oui")
+        r = a.socle(c, "answer", "D-0001", "valider", "--relayed", "--by", "Théo", "--quote-file", "citation.txt")
+        if r.returncode != 0:
+            return r.stdout + r.stderr
+        (c / "citation.txt").unlink()
+        ajouter_sujet(c, "\n## B-0002 — Livrer la multiplication\n\n"
+                         f"> statut : fait · origine : {a.journal} · ref : fichier:calc.py · après : D-0001 · "
+                         f"priorité : haute · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n\n"
+                         "## Fait quand\n\n- [x] le test passe\n")
+        maj_memoire(c, "La multiplication livrée.")
         return etage_git(a, c) or etage_ci(a, c)
 
     @temoin("durcir un garde-fou est libre")
