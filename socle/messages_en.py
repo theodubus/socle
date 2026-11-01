@@ -257,6 +257,18 @@ MESSAGES: dict[str, str] = {
         "yes, as it is",
     "la politique dit ce que l'agent décide seul et ce qu'il te demande ; toi seul la modifies":
         "the policy says what the agent decides alone and what it asks you; only you change it",
+    "Le travail se livre-t-il par une branche de développement, une seule pull request ouverte à la fois, ou "
+    "par une branche et une pull request par sujet ?":
+        "Is the work delivered through one development branch, with only one pull request open at a time, or "
+        "through one branch and one pull request per topic?",
+    "une branche de développement : chaque lot fini s'ajoute à la pull request ouverte, que tu fusionnes quand "
+    "tu veux":
+        "one development branch: each finished batch is added to the open pull request, which you merge "
+        "whenever you want",
+    "une pull request par sujet se relit sujet par sujet, mais il y en a une à fusionner par sujet ; le choix "
+    "devient un fait de la mémoire, que l'agent suit":
+        "a pull request per topic is reviewed topic by topic, but there is one to merge per topic; the choice "
+        "becomes a fact of the memory, which the agent follows",
     "Des contraintes à respecter (licence, dépendances, plateformes, délais) ?":
         "Any constraints to respect (licence, dependencies, platforms, deadlines)?",
     "aucune connue":
@@ -757,6 +769,9 @@ MESSAGES: dict[str, str] = {
         "before it is merged ({liste})",
     "installation du socle : {n} fichier(s) protégé(s) posé(s) — la politique par défaut est celle du cadrage":
         "socle installation: {n} protected file(s) installed — the default policy is the brief's",
+    "modification en attente de {id} : le tour peut finir, le commit et la CI attendent la réponse de "
+    "l'humain":
+        "change awaiting {id}: the turn may end, the commit and the CI wait for the human's answer",
     "modification validée par {id}":
         "change approved by {id}",
     "fichier protégé modifié sans validation humaine. Une demande validée doit citer `{fichier}` et `{cite}`":
@@ -1825,12 +1840,14 @@ MESSAGES: dict[str, str] = {
         "container may disappear with it.",
     "approuver les fichiers protégés que la mise à jour a changés : en session cloud, l'humain n'a pas de terminal "
     "pour `socle approve` ; poser une demande qui cite chaque fichier protégé changé et son empreinte (`python3 "
-    ".socle/socle check` les donne), que l'humain valide dans la conversation. Une session qui a dû ajouter le dépôt "
-    "du socle ne se reprend pas : y commiter, pousser la branche et ouvrir la pull request, d'une traite et sans rien "
+    ".socle/socle check` les donne), que l'humain valide dans la conversation ; poussée, elle laisse finir le tour, "
+    "les fichiers changés restant dans l'arbre jusqu'à sa réponse, puis se commitant avec elle. Une session qui a dû "
+    "ajouter le dépôt du socle ne se reprend pas : y commiter, pousser la branche et ouvrir la pull request, d'une traite et sans rien "
     "attendre, et poser la demande dans une session neuve sur le seul dépôt du projet, sur cette branche":
         "approve the protected files the update changed: in a cloud session, the human has no terminal for `socle "
         "approve`; put a request that cites each changed protected file and its fingerprint (`python3 .socle/socle "
-        "check` gives them), which the human approves in the conversation. A session that had to add the socle's "
+        "check` gives them), which the human approves in the conversation; once pushed, it lets the turn end, the "
+        "changed files staying in the tree until the answer, then committed with it. A session that had to add the socle's "
         "repository is not resumed: commit there, push the branch and open the pull request, in one go and without "
         "waiting for anything, and put the request in a new session on the project's repository alone, on that "
         "branch",
@@ -2229,6 +2246,8 @@ MESSAGES: dict[str, str] = {
         "a memory in English: its entries, written by `socle new`, pass the commit and the CI",
     "une valeur attendue changée sous une demande en attente, poussée : le tour finit, le commit attend":
         "an expected value changed under a pending request, pushed: the turn ends, the commit waits",
+    "un fichier protégé changé sous une demande en attente, poussée : le tour finit, le commit attend":
+        "a protected file changed under a pending request, pushed: the turn ends, the commit waits",
     "un push relu par l'humain, son accord relayé avec son texte exact, passe le hook de l'agent":
         "a push reviewed by the human, their agreement relayed with their exact text, passes the agent's hook",
     "sans la clé (une CI de fork), la mémoire privée est indisponible et rien n'échoue":

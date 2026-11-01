@@ -112,6 +112,21 @@ est et pourquoi : il n'en recopie rien. Ses commandes, dans des blocs de
 code, sont jugées comme le hook les jugerait ; une commande à ne pas lancer
 se cite dans le texte.
 
+### Livrer le travail
+
+Tant que rien ne revient à l'humain, l'agent enchaîne les sujets prêts
+sans attendre de message. Il annonce d'abord le lot, pas forcément tout ce
+qui est prêt (les sujets, le jalon qu'ils servent), puis s'y met ; il
+s'arrête à la fin du lot, ou dès qu'une décision revient à l'humain.
+
+Par défaut, tout se fait sur une branche de développement, avec une seule
+pull request ouverte à la fois : chaque lot fini s'y ajoute, l'humain la
+fusionne quand il veut, et la branche repart alors de la branche par
+défaut. Une pull request par sujet, seulement si l'humain l'a choisi (un
+fait de la mémoire le dit). Une session neuve qui trouve ouverte la pull
+request d'une autre demande à l'humain de la fusionner d'abord, ou de
+l'autoriser à y continuer.
+
 ### Avant de conclure
 
 - `python3 .socle/socle verify --fast` passe (le hook `Stop` le vérifie) ; `verify` exécute tout.
@@ -120,7 +135,7 @@ se cite dans le texte.
 - Un correctif (sujet `fix:` ou trailer `Corrige: B-NNNN`) livre un test qui échoue sur le commit parent.
 - Une fonction publique ajoutée ou modifiée est nommée par au moins un test, ou un commit la dispense nommément avec sa raison (`Dispense-test: f, g — <raison>`). Du code existant découvert sans test : le test s'écrit tout de suite s'il est dans le périmètre du travail, sinon un sujet va au backlog.
 - Une action que seul l'humain peut faire (refusée par le hook, réglage d'un service, fichier qu'il détient) va au backlog avec `pour : humain`.
-- **Toute intervention qui a agi se termine par un récap, puis deux lignes** : `Pour toi :` — ce qui revient à l'humain, décisions en attente et actions à faire, ou « rien » —, et `Ensuite :` — la suite proposée (prochain jalon, ce qu'il reste à faire avant), et ce que l'agent attend s'il attend quelque chose (une CI, un match : quoi, et jusqu'à quand). L'état calcule ce qui revient à l'humain ; le hook `Stop` refuse de conclure sans les deux lignes.
+- **Toute intervention qui a agi se termine par un récap, puis deux lignes** : `Pour toi :` — ce qui revient à l'humain, décisions en attente et actions à faire, ou « rien » —, chaque point compréhensible sans le raisonnement de l'agent (ce que c'est, pourquoi, ce que change sa réponse), et `Ensuite :` — la suite proposée (prochain jalon, ce qu'il reste à faire avant), et ce que l'agent attend s'il attend quelque chose (une CI, un match : quoi, et jusqu'à quand). L'état calcule ce qui revient à l'humain ; le hook `Stop` refuse de conclure sans les deux lignes.
 - **Un fichier à lire, ou une pull request, se donne par son lien** : l'humain lit dans la conversation ou sur GitHub, pas dans le conteneur de l'agent. `python3 .socle/socle url <chemin|ID>` donne le permalien, une fois le fichier poussé ; une demande en attente citée sans son lien, un lien relatif, ou un chemin entre accents graves qui n'existe pas dans le dépôt font refuser la fin du tour. Un chemin d'un autre dépôt s'écrit `depot:chemin`, le dépôt lié quelque part dans le projet par son adresse (à défaut, déclaré dans `[references] repos` des garde-fous) ; un dépôt inconnu est signalé.
 
 ### Ne jamais
@@ -136,7 +151,7 @@ se cite dans le texte.
 | Où | Quoi |
 | --- | --- |
 | `.claude/settings.json` | hooks de Claude Code : `SessionStart` (état dérivé ; en session cloud, les outils de l'adaptateur), `PreToolUse` (refus), `Stop` (contrôles de fin de tour) |
-| `.socle/git-hooks/` | hooks git : `pre-commit` (contrôles rapides), `prepare-commit-msg` (trailers `Socle-Hooks`, `Socle-Hooks-Since-Commit`), `commit-msg` (fuites de la mémoire privée ; une fonction sans test ni dispense, un correctif sans test, un commit d'agent sans hook de l'agent, en avertissement), `pre-push` (`verify --fast`, la plage qui part jugée comme la CI la jugera, relecture avant publication) |
+| `.socle/git-hooks/` | hooks git : `pre-commit` (contrôles rapides), `prepare-commit-msg` (trailers `Socle-Hooks`, `Socle-Hooks-Since-Commit`), `commit-msg` (fuites de la mémoire privée ; une fonction sans test ni dispense, un correctif sans test, un commit d'agent sans hook de l'agent, en avertissement), `pre-push` (`verify --fast` sur le dernier commit, la plage qui part jugée comme la CI la jugera, relecture avant publication) |
 | `.github/workflows/socle.yml` | CI : capacités de l'adaptateur, tous les contrôles contre la base, auto-test du socle |
 @@LIGNE_MUTATION@@
 | `.git/socle/hooks.log` | trace locale de chaque hook qui tire, non versionnée, commune à tous les worktrees du dépôt |

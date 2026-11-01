@@ -71,6 +71,18 @@ acceptance criteria and what it waits on (`after`), grouped in milestones.
 It submits each document as a request. Just ask it to; the state then
 gives the next milestone and the ready topics.
 
+**Delivering.** By default, the agent does everything on one development
+branch and keeps only one pull request open, to which each finished batch
+is added: merge it whenever you want, once its CI is green. One pull
+request per topic, each to merge, is chosen in the starting questions, or
+later by telling the agent, which writes it as a fact of the memory.
+
+**Chaining.** As long as nothing is up to the human, the agent chains the
+ready topics without waiting for a message. Before starting, it announces
+the batch it will work on: stopping or redirecting it takes one message.
+It stops at the end of the batch, or as soon as a decision is up to the
+human.
+
 Each intervention of the agent that acted ends with two lines:
 
 - **"For you:"** — what is up to the human: a request to read, an action

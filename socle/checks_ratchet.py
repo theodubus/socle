@@ -224,6 +224,23 @@ def cliquet(ctx, r):
                      ctx.projet.chemins.garde_fous)
 
 
+def _en_attente(ctx, *citations: str):
+    """À la fin du tour seulement (étage agent), une demande en attente,
+    poussée telle quelle, qui cite le fichier protégé et son empreinte
+    nouvelle : une mise à jour du socle en session cloud, que l'humain valide
+    dans la conversation, peut rester dans l'arbre en attendant sa réponse
+    (B-0115). Le commit et la CI la refusent toujours."""
+    from socle import requests as demandes
+
+    if ctx.etage != "agent":
+        return None
+    for d in ctx.demandes:
+        if (d.id and d.reponse is None and d.entree is not None and "retiree" not in d.entree.meta
+                and all(c in d.texte for c in citations) and demandes.illisible(ctx.projet, d) is None):
+            return d
+    return None
+
+
 def installation_en_cours(racine) -> bool:
     """La branche par défaut n'a pas encore le socle : la plage, même jugée
     depuis un push qui l'a déjà posé, appartient à la pull request qui
@@ -270,8 +287,12 @@ def proteges(ctx, r):
         else:
             cite = "supprimé"
         d = _valide_par(ctx, c, cite)
+        attente = None if d else _en_attente(ctx, c, cite)
         if d:
             r.avertir("protege.fichiers", trad("modification validée par {id}", id=d.id), c)
+        elif attente:
+            r.avertir("protege.fichiers", trad("modification en attente de {id} : le tour peut finir, le commit "
+                                               "et la CI attendent la réponse de l'humain", id=attente.id), c)
         else:
             r.erreur("protege.fichiers", trad("fichier protégé modifié sans validation humaine. Une demande "
                                               "validée doit citer `{fichier}` et `{cite}`", fichier=c, cite=cite), c)

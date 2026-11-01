@@ -110,6 +110,22 @@ what is and why: it copies nothing from it. Its commands, in code blocks,
 are judged as the hook would judge them; a command not to run is cited in
 the text.
 
+### Delivering the work
+
+As long as nothing is up to the human, the agent chains the ready topics
+without waiting for a message. It first announces the batch, not
+necessarily everything that is ready (the topics, the milestone they
+serve), then gets going; it stops at the end of the batch, or as soon as
+a decision is up to the human.
+
+By default, everything happens on one development branch, with only one
+pull request open at a time: each finished batch is added to it, the
+human merges it whenever they want, and the branch then starts again from
+the default branch. One pull request per topic, only if the human chose
+it (a fact of the memory says so). A new session that finds another
+session's pull request open asks the human to merge it first, or to let
+it continue on it.
+
 ### Before concluding
 
 - `python3 .socle/socle verify --fast` passes (the `Stop` hook checks it); `verify` runs everything.
@@ -118,7 +134,7 @@ the text.
 - A fix (subject `fix:` or trailer `Fixes: B-NNNN`) delivers a test that fails on the parent commit.
 - A public function added or changed is named by at least one test, or a commit waives it by name with its reason (`Waive-test: f, g — <reason>`). Existing code found without tests: the test is written right away if it is within the scope of the work, otherwise a topic goes to the backlog.
 - An action only the human can take (refused by the hook, a service setting, a file they hold) goes to the backlog with `for : human`.
-- **Every intervention that acted ends with a recap, then two lines**: `For you:` — what is up to the human, pending decisions and actions to take, or "nothing" —, and `Next:` — the proposed next step (next milestone, what remains before it), and what the agent is waiting for if it is waiting for something (a CI run, a match: what, and until when). The state computes what is up to the human; the `Stop` hook refuses to conclude without the two lines.
+- **Every intervention that acted ends with a recap, then two lines**: `For you:` — what is up to the human, pending decisions and actions to take, or "nothing" —, each item understandable without the agent's reasoning (what it is, why, what their answer changes), and `Next:` — the proposed next step (next milestone, what remains before it), and what the agent is waiting for if it is waiting for something (a CI run, a match: what, and until when). The state computes what is up to the human; the `Stop` hook refuses to conclude without the two lines.
 - **A file to read, or a pull request, is given by its link**: the human reads in the conversation or on GitHub, not in the agent's container. `python3 .socle/socle url <path|ID>` gives the permalink, once the file is pushed; a pending request cited without its link, a relative link, or a path between backticks that does not exist in the repository make the end of turn refused. A path in another repository is written `repo:path`, the repository linked somewhere in the project by its address (failing that, declared in `[references] repos` of the guardrails); an unknown repository is reported.
 
 ### Never
@@ -134,7 +150,7 @@ the text.
 | Where | What |
 | --- | --- |
 | `.claude/settings.json` | Claude Code hooks: `SessionStart` (derived state; in a cloud session, the adapter's tools), `PreToolUse` (refusals), `Stop` (end-of-turn checks) |
-| `.socle/git-hooks/` | git hooks: `pre-commit` (fast checks), `prepare-commit-msg` (`Socle-Hooks`, `Socle-Hooks-Since-Commit` trailers), `commit-msg` (private memory leaks; a function with neither test nor waiver, a fix without a test, an agent commit without any agent hook, as warnings), `pre-push` (`verify --fast`, the pushed range judged as the CI will judge it, review before publication) |
+| `.socle/git-hooks/` | git hooks: `pre-commit` (fast checks), `prepare-commit-msg` (`Socle-Hooks`, `Socle-Hooks-Since-Commit` trailers), `commit-msg` (private memory leaks; a function with neither test nor waiver, a fix without a test, an agent commit without any agent hook, as warnings), `pre-push` (`verify --fast` on the last commit, the pushed range judged as the CI will judge it, review before publication) |
 | `.github/workflows/socle.yml` | CI: adapter capabilities, all checks against the base, socle self-test |
 @@LIGNE_MUTATION@@
 | `.git/socle/hooks.log` | local trace of every hook that fires, not versioned, shared by all worktrees of the repository |

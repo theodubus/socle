@@ -1814,6 +1814,25 @@ def _temoins() -> list[tuple[str, Callable]]:
             return sortie
         return "" if etage_git(a, c) else "le commit d'une valeur attendue en attente de validation passe"
 
+    @temoin("un fichier protégé changé sous une demande en attente, poussée : le tour finit, le commit attend")
+    def _(a, c):
+        from socle import fingerprint as empreintes
+
+        # Une mise à jour en session cloud (B-0115) : la demande cite le
+        # fichier changé et son empreinte, poussée avant que l'humain réponde.
+        ajouter(c, ".github/CODEOWNERS", "# une ligne de plus\n")
+        nouveau = (c / ".github/CODEOWNERS").read_text()
+        cite = empreintes.courte(empreintes.fichier(c / ".github/CODEOWNERS"))
+        a.git(c, "checkout", "-q", "--", ".github/CODEOWNERS")
+        ajouter(c, "memory/requests/D-0001-refactor.md", demande_bonne(a, c).replace(
+            "## Où regarder", f"- `.github/CODEOWNERS` et `{cite}` — le fichier protégé changé.\n\n## Où regarder", 1))
+        pousser(a, c, "La demande")
+        (c / ".github/CODEOWNERS").write_text(nouveau)
+        sortie = etage_stop(a, c, "J'ai mis le socle à jour en attendant la réponse." + RECAP)
+        if sortie:
+            return sortie
+        return "" if etage_git(a, c) else "le commit d'un fichier protégé en attente de validation passe"
+
     @temoin("un push relu par l'humain, son accord relayé avec son texte exact, passe le hook de l'agent")
     def _(a, c):
         c = a.clone_prive("compagnon")

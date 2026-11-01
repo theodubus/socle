@@ -125,6 +125,14 @@ def questions_de_depart(projet: config.Projet, cadrage: str | None, depot: bool)
                       trad("oui, telle quelle"),
                       trad("la politique dit ce que l'agent décide seul et ce qu'il te demande ; toi seul la "
                            "modifies")))
+    # La livraison (D-0058) : une pull request par sujet en fait une à
+    # fusionner par sujet, d'où une branche de développement par défaut.
+    q.append(Question(trad("Le travail se livre-t-il par une branche de développement, une seule pull request "
+                           "ouverte à la fois, ou par une branche et une pull request par sujet ?"),
+                      trad("une branche de développement : chaque lot fini s'ajoute à la pull request ouverte, "
+                           "que tu fusionnes quand tu veux"),
+                      trad("une pull request par sujet se relit sujet par sujet, mais il y en a une à fusionner "
+                           "par sujet ; le choix devient un fait de la mémoire, que l'agent suit")))
     q.append(Question(trad("Des contraintes à respecter (licence, dépendances, plateformes, délais) ?"),
                       trad("aucune connue"),
                       trad("une contrainte devient un fait « supposé » jusqu'à ce que tu la valides")))

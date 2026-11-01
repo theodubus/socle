@@ -1232,7 +1232,12 @@ def git_pre_push(projet: config.Projet) -> int:
         print(trad("socle — push refusé : {refus}", refus=refus), file=sys.stderr)
         return 1
     base = outils.base_de_travail(projet.racine)
-    ctx = contexte.Contexte(projet, etage="git", base=base, tete=None, rapide=True)
+    # On juge ce qui part : le dernier commit, et non l'arbre, dont un
+    # changement non commité ne part pas. Une mise à jour en session cloud y
+    # laisse ses fichiers protégés en attendant la validation de l'humain,
+    # que la demande poussée ici lui permet de lire (B-0115).
+    tete = outils.git(projet.racine, "rev-parse", "HEAD", check=False).strip() or None
+    ctx = contexte.Contexte(projet, etage="git", base=base, tete=tete, rapide=True)
     rapport = contexte.executer(ctx)
     for constat in plage_poussee(projet, lignes).constats:
         if constat not in rapport.constats:

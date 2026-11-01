@@ -870,7 +870,8 @@ def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str]) -> list[str
         etapes.append(trad("approuver les fichiers protégés que la mise à jour a changés : en session cloud, "
                            "l'humain n'a pas de terminal pour `socle approve` ; poser une demande qui cite chaque "
                            "fichier protégé changé et son empreinte (`python3 .socle/socle check` les donne), que "
-                           "l'humain valide dans la conversation. Une session qui a dû ajouter le dépôt du socle "
+                           "l'humain valide dans la conversation ; poussée, elle laisse finir le tour, les fichiers "
+                           "changés restant dans l'arbre jusqu'à sa réponse, puis se commitant avec elle. Une session qui a dû ajouter le dépôt du socle "
                            "ne se reprend pas : y commiter, pousser la branche et ouvrir la pull request, d'une "
                            "traite et sans rien attendre, et poser la demande dans une session neuve sur le seul "
                            "dépôt du projet, sur cette branche"))
