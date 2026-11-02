@@ -259,6 +259,63 @@ def diff_politique(cible: Path) -> list[str]:
                                      lineterm=""))
 
 
+_ENTETE = re.compile(r"^#?\s*\[\[?([\w.]+)\]\]?\s*$")
+_CLE = re.compile(r"^(#\s*)?([A-Za-z_][\w-]*)\s*=\s*\S")
+
+
+def _reglages(texte: str) -> list[tuple[str, str, str]]:
+    """Les réglages d'un fichier de garde-fous, écrits ou en commentaire :
+    (section, clé, explication), l'explication étant le commentaire qui les
+    précède. Les clés entre guillemets (motifs de budget, modules d'un
+    plafond) sont des données du projet, pas des réglages."""
+    reglages, section, avant_section, courant = [], "", "", []
+    for ligne in texte.splitlines():
+        brute = ligne.strip()
+        entete = _ENTETE.match(brute)
+        cle = _CLE.match(brute)
+        if entete:
+            section, avant_section, courant = entete[1], " ".join(courant), []
+        elif cle:
+            reglages.append((section, cle[2], " ".join(courant) or avant_section))
+            courant = []
+        elif brute.startswith("#"):
+            courant.append(brute.lstrip("#").strip())
+        else:
+            courant = []
+    return reglages
+
+
+def reglages_nouveaux(projet: str, modele: str) -> list[tuple[str, str]]:
+    """Les réglages du gabarit des garde-fous que le fichier du projet
+    n'écrit pas, même en commentaire : (`[section] clé`, ce qu'il fait). Une
+    mise à jour garde les garde-fous du projet ; sans ce relevé, l'agent ne
+    saurait pas qu'un réglage nouveau existe."""
+    connus = {(s, c) for s, c, _ in _reglages(projet)}
+    try:
+        donnees = tomllib.loads(projet)
+    except tomllib.TOMLDecodeError:
+        donnees = {}
+
+    def parcourir(table: dict, chemin: str) -> None:
+        for cle, valeur in table.items():
+            if isinstance(valeur, dict):
+                parcourir(valeur, f"{chemin}.{cle}" if chemin else cle)
+            elif isinstance(valeur, list) and valeur and all(isinstance(v, dict) for v in valeur):
+                for element in valeur:
+                    parcourir(element, f"{chemin}.{cle}" if chemin else cle)
+            else:
+                connus.add((chemin, cle))
+
+    parcourir(donnees, "")
+    nouveaux, vus = [], set()
+    for section, cle, explication in _reglages(modele):
+        if (section, cle) in connus or (section, cle) in vus:
+            continue
+        vus.add((section, cle))
+        nouveaux.append((f"[{section}] {cle}" if section else cle, explication))
+    return nouveaux
+
+
 def _refus_cible(cible: Path) -> str | None:
     """Pourquoi le socle ne s'installe pas là, ou `None`."""
     if not outils.est_depot(cible):
@@ -381,6 +438,19 @@ def _poser_configuration(cible: Path, texte_adaptateur: str, ancien: dict, prive
             if nom == ch.garde_fous and plafonds:
                 journal.append(trad("!! plafonds de {source} non repris : les garde-fous existent déjà",
                                     source=source))
+            # Le pilote les avait déclarés avant que son moteur nouveau soit commité :
+            # l'ancien, qui jugeait la CI, les a pris pour un assouplissement.
+            if nom == ch.garde_fous:
+                nouveaux = reglages_nouveaux(p.read_text(encoding="utf-8"), gabarit("guardrails.toml", lg))
+                if nouveaux:
+                    journal.append(trad(
+                        "!! réglages du gabarit absents de {nom} ({n}) : à déclarer s'ils servent au projet, une "
+                        "fois ce moteur commité (la CI juge avec le moteur commité, et un réglage qu'il ne connaît "
+                        "pas compte pour un assouplissement) ; ce qui durcit est libre, un assouplissement attend "
+                        "une demande validée :\n      {liste}",
+                        nom=nom, n=len(nouveaux),
+                        liste="\n      ".join(f"`{cle}` — {quoi}" if quoi else f"`{cle}`"
+                                              for cle, quoi in nouveaux)))
         else:
             outils.ecrire(p, contenu)
             journal.append(trad("{nom} posé", nom=nom))

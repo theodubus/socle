@@ -128,6 +128,14 @@ def recuperer_pull_requests(racine: Path) -> bool:
     return git_reussit(racine, "fetch", "--quiet", "--no-tags", "origin", "+refs/pull/*/head:refs/socle/pull/*")
 
 
+def etiqueter(commits: list[str]) -> str:
+    """La commande qui garde des commits par une étiquette chacun, poussée :
+    un clone ne récupère que les branches et les étiquettes (B-0116)."""
+    etiquettes = [f"cite/{c}" for c in commits]
+    return " && ".join([f"git tag {e} {c}" for e, c in zip(etiquettes, commits)]
+                       + [f"git push origin {' '.join(etiquettes)}"])
+
+
 def resoudre(racine: Path, rev: str) -> str:
     return git(racine, "rev-parse", f"{rev}^{{commit}}").strip()
 

@@ -371,6 +371,12 @@ MESSAGES: dict[str, str] = {
         "— to review:\n      {ecart}",
     "{nom} existe : conservé (comparer au gabarit à la main si besoin)":
         "{nom} exists: kept (compare it with the template by hand if needed)",
+    "!! réglages du gabarit absents de {nom} ({n}) : à déclarer s'ils servent au projet, une fois ce moteur commité "
+    "(la CI juge avec le moteur commité, et un réglage qu'il ne connaît pas compte pour un assouplissement) ; ce qui "
+    "durcit est libre, un assouplissement attend une demande validée :\n      {liste}":
+        "!! template settings missing from {nom} ({n}): declare them if the project needs them, once this engine is "
+        "committed (CI judges with the committed engine, and a setting it does not know counts as loosening); "
+        "tightening is free, loosening waits for a validated request:\n      {liste}",
     "{nom} posé":
         "{nom} installed",
     "mémoire initiale posée, journal ouvert par {ident}":
@@ -520,6 +526,14 @@ MESSAGES: dict[str, str] = {
     "depuis {jours} jours ; la livrer par une pull request si son travail sert, sinon la supprimer":
         "examine the remote branch `{branche}`: {n} commit(s) missing from the default branch, no activity for "
         "{jours} days; deliver it through a pull request if its work is useful, otherwise delete it",
+    "examiner la branche distante `{branche}` : {n} commit(s) absents de la branche par défaut, sans activité depuis "
+    "{jours} jours, dont {cites}, que la mémoire cite et qu'elle seule garde ; la livrer par une pull request si son "
+    "travail sert, sinon étiqueter d'abord ces commits (`{commande}`), puis la supprimer : sans quoi la CI ne les "
+    "retrouve plus":
+        "examine the remote branch `{branche}`: {n} commit(s) missing from the default branch, no activity for "
+        "{jours} days, including {cites}, which the memory cites and only it keeps; deliver it through a pull request "
+        "if its work is useful, otherwise tag these commits first (`{commande}`), then delete it: otherwise CI no "
+        "longer finds them",
     "écrire ton nom dans `{politique}` (`[human] name`) avant de fusionner l'installation : il signe les réponses "
     "que l'agent relaie. En session cloud, l'identité git est celle de l'agent, que l'installeur ne prend pas ; "
     "`--human <nom>` le donne à l'installation":
@@ -631,9 +645,10 @@ MESSAGES: dict[str, str] = {
     "`commit:{cible}` n'est pas un SHA":
         "`commit:{cible}` is not a SHA",
     "`commit:{cible}` n'existe pas dans ce dépôt, ni dans ses pull requests (historique complet ? `fetch-depth: "
-    "0`)":
+    "0` ; sa branche supprimée sans pull request ? depuis un clone qui l'a encore, `{commande}` le rend)":
         "`commit:{cible}` does not exist in this repository, nor in its pull requests (full history? `fetch-depth: "
-        "0`)",
+        "0`; its branch deleted without a pull request? from a clone that still has it, `{commande}` brings it "
+        "back)",
     "`fichier:{cible}` : {chemin} n'existe pas":
         "`file:{cible}`: {chemin} does not exist",
     "`cmd:{cible}` : {premier} n'existe pas":

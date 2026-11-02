@@ -106,6 +106,43 @@ def branches_inactives(projet: config.Projet, jours: int = JOURS_INACTIVITE,
     return sorted(res)
 
 
+def commits_cites(projet: config.Projet) -> set[str]:
+    """Les SHA que la mémoire cite sous la forme `commit:`."""
+    res = set()
+    for f in memoire.Memoire.charger(projet.racine).fichiers.values():
+        for type_, cible in memoire.references(f.texte):
+            if type_ == "commit" and re.fullmatch(r"[0-9a-f]{7,40}", cible):
+                res.add(cible)
+    return res
+
+
+def commits_cites_seuls(projet: config.Projet, branche: str, cites: set[str] | None = None) -> list[str]:
+    """Les commits que la mémoire cite et que seule la branche distante
+    `branche` garde : ni la branche par défaut, ni une autre branche, ni une
+    étiquette, ni une pull request de l'origine ne les contient. La supprimer
+    les ôterait à la CI, dont le clone ne les retrouverait plus : c'est
+    arrivé à ce dépôt le 1er novembre (B-0116)."""
+    racine = projet.racine
+    defaut = outils.branche_par_defaut(racine)
+    if not defaut:
+        return []
+    ref = f"refs/remotes/origin/{branche}"
+    propres = outils.git(racine, "rev-list", f"{defaut}..{ref}", check=False).split()
+    cites = commits_cites(projet) if cites is None else cites
+    candidats = [(sha, c) for sha in sorted(cites) for c in propres if c.startswith(sha)]
+    if not candidats:
+        return []
+    # Une pull request garde ses commits, que la CI va chercher (B-0117).
+    outils.recuperer_pull_requests(racine)
+    res = []
+    for sha, complet in candidats:
+        gardiens = outils.git(racine, "for-each-ref", "--contains", complet, "--format=%(refname)",
+                              "refs/remotes/origin", "refs/tags", "refs/socle/pull", check=False).split()
+        if not [g for g in gardiens if g not in (ref, "refs/remotes/origin/HEAD")]:
+            res.append(sha)
+    return res
+
+
 # Les réponses qui n'approuvent pas ce qu'une demande soumet.
 NON_APPROBATIONS = ("refuser", "contexte-insuffisant")
 
@@ -149,7 +186,18 @@ def a_faire(projet: config.Projet) -> list[Element]:
     for b in branches_a_supprimer(projet):
         res.append(Element("action", trad("supprimer la branche distante `{branche}`, déjà contenue dans la branche "
                                           "par défaut", branche=b), page))
-    for b, absents, age in branches_inactives(projet):
+    inactives = branches_inactives(projet)
+    cites = commits_cites(projet) if inactives else set()
+    for b, absents, age in inactives:
+        seuls = commits_cites_seuls(projet, b, cites)
+        if seuls:
+            res.append(Element("action", trad(
+                "examiner la branche distante `{branche}` : {n} commit(s) absents de la branche par défaut, sans "
+                "activité depuis {jours} jours, dont {cites}, que la mémoire cite et qu'elle seule garde ; la livrer "
+                "par une pull request si son travail sert, sinon étiqueter d'abord ces commits (`{commande}`), puis "
+                "la supprimer : sans quoi la CI ne les retrouve plus",
+                branche=b, n=absents, jours=age, cites=", ".join(seuls), commande=outils.etiqueter(seuls)), page))
+            continue
         res.append(Element("action", trad("examiner la branche distante `{branche}` : {n} commit(s) absents de la "
                                           "branche par défaut, sans activité depuis {jours} jours ; la livrer par "
                                           "une pull request si son travail sert, sinon la supprimer",

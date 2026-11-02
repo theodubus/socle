@@ -48,7 +48,9 @@ Right after the installation:
    In the general settings, tick "Automatically delete head branches": a
    merged branch then deletes itself. The state reports the others: those
    the default branch already contains, to delete, and those that have not
-   moved for a week without being merged, to deliver or to delete.
+   moved for a week without being merged, to deliver or to delete. If such a
+   branch alone keeps a commit the memory cites, the state first gives the
+   command that tags it: without it, CI would no longer find it.
 5. Open the agent in the project. It reads the state at start-up, then
    gives the link of the starting questions, a request that `socle init`
    put: answer it in the conversation, `approve` to apply all the defaults,
@@ -182,8 +184,11 @@ the diff of the policy is shown. Then approve the changed protected files
 agent puts a request that cites each changed protected file with its
 fingerprint, and the human approves it in the conversation. The engine's
 public repository is cloned without being added to the session. An update
-keeps the project's guardrails as they are: declare its specifications and
-case files there afterwards, if it has some (section 2).
+keeps the project's guardrails as they are, and names the settings that
+have appeared in the template since: the agent declares there the ones the
+project needs, such as its specifications and case files (section 2),
+once the new engine is committed. Before that, CI judges with the old
+engine, which does not know them and counts them as loosening.
 
 **Setting up the private memory** (companion mode). Create an empty private
 repository on GitHub, then

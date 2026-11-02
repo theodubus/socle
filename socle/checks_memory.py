@@ -339,8 +339,11 @@ def verifier_ref(ctx, type_: str, cible: str, historique: bool = False) -> str |
         # on les récupère avant de le dire absent (B-0117).
         if not outils.objet_existe(ctx.racine, cible) and not (
                 outils.recuperer_pull_requests(ctx.racine) and outils.objet_existe(ctx.racine, cible)):
+            # Sa branche supprimée sans pull request, un clone qui l'a encore
+            # le rend par une étiquette (B-0116).
             return trad("`commit:{cible}` n'existe pas dans ce dépôt, ni dans ses pull requests (historique "
-                        "complet ? `fetch-depth: 0`)", cible=cible)
+                        "complet ? `fetch-depth: 0` ; sa branche supprimée sans pull request ? depuis un clone qui "
+                        "l'a encore, `{commande}` le rend)", cible=cible, commande=outils.etiqueter([cible]))
     elif type_ == "fichier":
         chemin = re.split(r"[#]|:(?=\d)", cible, maxsplit=1)[0]
         if not _existe(ctx, chemin, historique) and not _ignore(ctx.racine, chemin):
