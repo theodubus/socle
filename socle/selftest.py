@@ -69,6 +69,21 @@ name = "facteur"
 file = "calc.py"
 regex = '^FACTEUR = (\\d+)'
 '''
+# Un fichier de cas que le projet d'essai déclare (D-0066) : des résultats
+# attendus écrits en données.
+CAS_ESSAI = """[
+  {
+    "id": "c1",
+    "entree": 2,
+    "attendu": 4
+  },
+  {
+    "id": "c2",
+    "entree": 3,
+    "attendu": 6
+  }
+]
+"""
 CANONIQUE_ESSAI = """
 ## F-0001 — `double` multiplie par la constante du module
 
@@ -169,8 +184,10 @@ class Atelier:
         # avant, l'audit d'installation la refuserait, à raison.
         (origine / "docs").mkdir()
         (origine / "docs/calc.md").write_text(DOC_CALC)
+        (origine / "docs/double.cas.json").write_text(CAS_ESSAI)
         gf = origine / ".socle/guardrails.toml"
         texte = gf.read_text().replace('[mutation.caps]\n', '[mutation.caps]\n"calc.py" = { max = 0 }\n')
+        texte = texte.replace("spec_paths = ", 'case_paths = ["docs/*.cas.json"]\nspec_paths = ', 1)
         gf.write_text(texte + GARDE_FOUS_ESSAI)
         journal = sorted((origine / "memory/journal").glob("*.md"))[0]
         ident = journal.read_text().split("## ", 2)[1].split(" ", 1)[0]
@@ -1054,6 +1071,11 @@ def _cas() -> list[Cas]:
                          f"après : B-0001 · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
         return etage_git(a, c)
 
+    @defaut("cas-change", "cas existant d'un fichier de cas changé sans validation humaine", "git", "tests.attendus")
+    def _(a, c):
+        remplacer(c, "docs/double.cas.json", '"attendu": 6', '"attendu": 7')
+        return etage_git(a, c)
+
     @defaut("priorite-inconnue", "sujet du backlog d'une priorité ni haute ni basse", "git", "memoire.ordre")
     def _(a, c):
         remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : ouvert · priorité : urgente")
@@ -1568,6 +1590,13 @@ def _temoins() -> list[tuple[str, Callable]]:
                          f"priorité : haute · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n\n"
                          "## Fait quand\n\n- [x] le test passe\n")
         maj_memoire(c, "La multiplication livrée.")
+        return etage_git(a, c) or etage_ci(a, c)
+
+    @temoin("un cas ajouté à un fichier de cas passe le commit et la CI")
+    def _(a, c):
+        remplacer(c, "docs/double.cas.json", '"attendu": 6\n  }\n]',
+                  '"attendu": 6\n  },\n  {\n    "id": "c3",\n    "entree": 5,\n    "attendu": 10\n  }\n]')
+        maj_memoire(c, "Un cas de plus.")
         return etage_git(a, c) or etage_ci(a, c)
 
     @temoin("durcir un garde-fou est libre")

@@ -1,0 +1,53 @@
+<!-- socle: couche=demandes zone=publique -->
+# {id} — {titre}
+
+> date : {date}
+
+## Décision demandée
+
+Répondre librement aux questions de cadrage ci-dessous : la spécification
+de ce sujet dépend d'une intention que la mémoire ne dit pas.
+
+## Contexte
+
+<Le sujet, ce que la mémoire en dit déjà, et ce qui manque pour le spécifier sans deviner.>
+
+## Questions
+
+1. **<Une question ouverte.>** Hypothèse de l'agent : <ce qu'il supposerait, ou « aucune »>.
+
+## Éléments cités
+
+<Chaque élément cité, décrit en clair sur place : jamais un identifiant seul.>
+
+## Où regarder
+
+<Un lien vers le sujet du backlog, et vers ce que la mémoire en dit.>
+
+Ce qu'il faut vérifier : que chaque question demande ton intention, et
+non un choix que l'agent pourrait trancher seul.
+
+## Options
+
+- **Répondre** : ton texte, en un ou plusieurs messages ; l'agent le consigne tel quel.
+- **Valider les hypothèses** : l'agent s'en tient à ses hypothèses, notées « supposées ».
+- **Refuser** : le sujet attend, sans spécification.
+
+## Conséquences
+
+Si tu réponds, l'agent consigne ton texte exact, puis écrit la
+spécification ou la décision qui en découle, et te la soumet dans une
+demande. Si tu valides les hypothèses, il les applique, notées
+« supposées ». Si tu refuses, le sujet attend. Si les questions ne se
+comprennent pas (`contexte-insuffisant`), l'agent les réécrit.
+
+## Recommandation
+
+<Valider les hypothèses si elles disent ton intention ; sinon répondre, même brièvement. Vérifié : ce que la mémoire établit. Supposé : le reste.>
+
+## Réponses possibles
+
+- `valider` — les hypothèses de l'agent s'appliquent, notées « supposées ».
+- `reponses` — le texte de ta réponse, en un ou plusieurs messages, donne les réponses ; l'agent le consigne tel quel.
+- `refuser` — le sujet attend, sans spécification.
+- `contexte-insuffisant` — la demande revient à l'agent, qui la réécrit en une demande qui la remplace.

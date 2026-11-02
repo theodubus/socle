@@ -106,12 +106,35 @@ def branches_inactives(projet: config.Projet, jours: int = JOURS_INACTIVITE,
     return sorted(res)
 
 
+# Les réponses qui n'approuvent pas ce qu'une demande soumet.
+NON_APPROBATIONS = ("refuser", "contexte-insuffisant")
+
+
+def specifications_non_soumises(projet: config.Projet, toutes: list | None = None) -> list[str]:
+    """Les spécifications que le projet déclare (`[specs] paths` des
+    garde-fous) et qu'aucune demande ne soumet à l'humain : ni en attente,
+    ni approuvée (D-0066). Le pilote avait écrit le code de deux d'entre
+    elles sans que l'humain les ait vues."""
+    motifs = projet.gf("specs", "paths", defaut=[]) or []
+    if not motifs:
+        return []
+    textes = [d.texte for d in (demandes.toutes(projet.racine) if toutes is None else toutes)
+              if d.reponse is None or langue.reponse(str(d.reponse.get("reponse", ""))) not in NON_APPROBATIONS]
+    return [c for c in outils.filtrer(outils.fichiers_courants(projet.racine), motifs)
+            if not any(c in t for t in textes)]
+
+
 def a_faire(projet: config.Projet) -> list[Element]:
     res = []
-    for d in demandes.toutes(projet.racine):
+    toutes = demandes.toutes(projet.racine)
+    for d in toutes:
         if d.reponse is None and d.statut == "en attente" and d.entree:
             url, _ = liens.lien(projet, d.chemin)
             res.append(Element("décision", f"{d.id} — {d.entree.titre}", url or trad("(pas encore poussée : pas de lien)")))
+    for c in specifications_non_soumises(projet, toutes):
+        url, _ = liens.lien(projet, c)
+        res.append(Element("action", trad("approuver la spécification `{chemin}` : aucune demande ne vous l'a "
+                                          "soumise ; l'agent la soumet", chemin=c), url or ""))
     mem = memoire.Memoire.charger(projet.racine)
     for e in mem.entrees("B"):
         if e.archivee or e.statut in memoire.BACKLOG_CLOS:

@@ -145,6 +145,10 @@ def cmd_new(args) -> int:
     mem = memoire.Memoire.charger(racine)
     type_ = TYPES_CLI[args.type]
     jour = date.today().isoformat()
+    questions = getattr(args, "questions", False)
+    if questions and type_ != "D":
+        print(trad("`--questions` ne vaut que pour une demande (`request`)"), file=sys.stderr)
+        return 2
     # Avec une mémoire privée, le contenu nouveau est privé par défaut
     # (cadrage, règles de classement, point 3), couche par couche selon la
     # politique (`[private] layers`). Une demande ne devient privée que
@@ -214,7 +218,9 @@ def cmd_new(args) -> int:
 
         chemin = lieu(ch.demandes) / f"{ident}-{memoire.nom_de_fichier(titre)}.md"
         chemin.parent.mkdir(parents=True, exist_ok=True)
-        texte = gabarit("request.md", lg).format(id=ident, titre=titre, date=jour)
+        # Des questions de cadrage (D-0067) : ouvertes, sur le modèle des
+        # questions de départ, quand l'intention de l'humain manque.
+        texte = gabarit("questions.md" if questions else "request.md", lg).format(id=ident, titre=titre, date=jour)
         entete = texte.split("\n", 1)[0]
         chemin.write_text(texte.replace(entete, langue.entete_fichier("demandes", zone, lg), 1), encoding="utf-8")
     if index:
@@ -775,6 +781,9 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s = sp.add_parser("new", help=trad("ajoute une entrée squelette avec son identifiant"))
     s.add_argument("type", choices=sorted(TYPES_CLI))
     s.add_argument("title")
+    s.add_argument("--questions", action="store_true",
+                   help=trad("avec `request` : des questions de cadrage d'un sujet, ouvertes, auxquelles l'humain "
+                             "répond librement"))
     zone = s.add_mutually_exclusive_group()
     zone.add_argument("--private", action="store_true", help=trad("dans la mémoire privée (défaut quand elle "
                                                                   "existe)"))

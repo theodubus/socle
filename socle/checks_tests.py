@@ -212,11 +212,63 @@ def _ecrite_par_l_humain(ctx, chemin: str, nom: str) -> bool:
     return not any(c["sha"] in touches and est_agent(ctx.projet, c["message"]) for c in ctx.commits)
 
 
+def _ligne_de_cas(ligne: str) -> str:
+    """Une ligne d'un fichier de cas, sans ses blancs ni sa virgule finale :
+    ajouter un cas au bout d'une liste JSON ne change pas la ligne d'avant."""
+    return ligne.strip().rstrip(",").strip()
+
+
+def cas_retires(avant: str, apres: str) -> list[str]:
+    """Les lignes d'un fichier de cas que la nouvelle version n'a plus : un
+    cas changé ou retiré. Ajouter un cas, le déplacer ou remettre le
+    fichier en forme n'en retire aucune (D-0066)."""
+    reste = Counter(_ligne_de_cas(l) for l in apres.splitlines())
+    res = []
+    for l in avant.splitlines():
+        k = _ligne_de_cas(l)
+        if not k:
+            continue
+        if reste[k]:
+            reste[k] -= 1
+        else:
+            res.append(l.strip())
+    return res
+
+
+def _fichiers_de_cas(ctx, r):
+    """Les fichiers de cas que le projet déclare (`[tests] case_paths`) :
+    des données où ses tests lisent leurs résultats attendus. Un cas
+    existant ne change ni ne disparaît sans validation humaine, comme une
+    valeur attendue écrite dans un test (D-0066) ; en ajouter est libre."""
+    motifs = ctx.projet.gf("tests", "case_paths", defaut=[]) or []
+    for c in outils.filtrer(sorted(ctx.changes), motifs) if motifs else []:
+        avant = ctx.lire_base(c)
+        if avant is None:
+            continue  # un fichier de cas neuf : aucun cas n'y change
+        retires = cas_retires(avant, ctx.lire(c) or "")
+        if not retires:
+            continue
+        quoi = trad("cas changé ou retiré dans `{fichier}` : « {ligne} »", fichier=c, ligne=retires[0][:80])
+        pourquoi = _justifie(ctx, c)
+        attente = None if pourquoi else _en_attente(ctx, c)
+        if pourquoi:
+            r.avertir("tests.attendus", f"{quoi} ({pourquoi})", c)
+        elif attente:
+            r.avertir("tests.attendus", trad("{quoi}, en attente de {attente} : le tour peut finir, le commit "
+                                             "et la CI attendent la réponse de l'humain",
+                                             quoi=quoi, attente=attente), c)
+        else:
+            r.erreur("tests.attendus", trad("{quoi} — {n} ligne(s) d'un fichier de cas changée(s) ou retirée(s) : "
+                                            "un cas existant ne change qu'avec une demande validée qui cite ce "
+                                            "fichier (politique, point 2)", quoi=quoi, n=len(retires)), c)
+
+
 @controle("tests.attendus", base=True)
 def attendus(ctx, r):
     """Supprimer un test ou changer une valeur attendue exige une validation
     humaine, ou un changement de spécification qui le nomme, fait par
     l'humain (politique, point 2)."""
+    _fichiers_de_cas(ctx, r)
     cfg = cfg_tests(ctx.projet)
     if cfg is None:
         r.indisponible("tests.attendus", trad("adaptateur sans `[tests]`"))

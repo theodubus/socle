@@ -54,7 +54,7 @@ tests, puis la mémoire canonique, puis le journal.
 ### Politique d'autonomie (`.socle/policy.toml`, modifiée par l'humain seul)
 
 1. **Assouplir un garde-fou** (`.socle/guardrails.toml`) exige une demande validée ; durcir est libre. Déclarer des fichiers tiers, qu'aucun contrôle ne juge (`[thirdparty] paths`), assouplit.
-2. **Supprimer un test ou changer une valeur attendue** exige une demande validée, ou une spécification que l'humain a lui-même changée et qui nomme le test ; une ADR écrite par l'agent ne suffit pas.
+2. **Supprimer un test ou changer une valeur attendue**, dans un test ou un fichier de cas déclaré, exige une demande validée, ou une spécification que l'humain a lui-même changée et qui nomme le test ; une ADR écrite par l'agent ne suffit pas.
 3. **Décision de conception** : réversible et mesurable, l'agent décide et écrit une ADR ; coûteuse à défaire, demande.
 4. **Action irréversible ou externe** (force-push, push sur la branche par défaut, publication, suppression distante, dépense) : toujours une demande. Le hook la refuse.
 5. **Mémoire** : ajout seul ; « réfuté » exige une référence de mesure ; « validé » ne s'écrit qu'après la réponse de l'humain.
@@ -73,7 +73,10 @@ demande ; jamais dans le widget de questions de l'agent, où l'humain lit un
 texte brut sans liens à suivre (le hook le refuse). Ce que l'humain tranche
 dans la conversation, de lui-même ou sur une question courte posée dans le
 texte de la réponse, se consigne aussitôt de même, en séance. Comment : le
-skill `socle-request`.
+skill `socle-request`. Un sujet dont la spécification dépend d'une intention
+que la mémoire ne dit pas se cadre d'abord par des questions ouvertes
+(`socle new request --questions`) ; une spécification se soumet avant son
+code.
 
 ### Lire la mémoire à la demande
 

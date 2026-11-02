@@ -76,6 +76,15 @@ internal_id_patterns = []
 # Un changement de ces fichiers qui nomme un test justifie qu'on change ses
 # valeurs attendues (changement de spécification).
 spec_paths = ["memory/decisions/**"]
+# Les fichiers de cas : des données où des tests lisent leurs résultats
+# attendus. Ajouter un cas est libre ; changer ou retirer un cas existant
+# exige une demande validée qui cite le fichier (politique, point 2).
+# case_paths = ["docs/specs/*.cas.json"]
+
+[specs]
+# Les spécifications du projet : l'état signale à l'humain celle qu'aucune
+# demande ne lui a soumise.
+# paths = ["docs/specs/*.md"]
 
 [mutation.caps]
 # Plafond de mutants survivants par module, avec sa raison quand il n'est pas

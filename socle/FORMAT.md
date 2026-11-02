@@ -243,7 +243,10 @@ révélée impossible à trancher pour l'humain.
   la demande validée. Une décision en séance se consigne de même sous une
   réponse de base, ou sous une option que la question nomme entre accents
   graves. Les questions de départ que pose `socle init` suivent la règle
-  (D-0054) : `valider` y applique tous les défauts.
+  (D-0054) : `valider` y applique tous les défauts. Les questions de cadrage
+  d'un sujet (`socle new request --questions`, D-0067) aussi : `valider` y
+  applique les hypothèses de l'agent, `reponses` porte le texte libre de
+  l'humain.
 
 La réponse vit dans `<demande>.answer.toml`. L'humain répond dans la
 conversation, et l'agent consigne sa réponse avec le texte exact

@@ -43,6 +43,8 @@ REGLES = [
     (("memory", "require_update_on_code_change"), "vrai"),
     (("requests", "internal_id_patterns"), "couvre"),
     (("tests", "spec_paths"), "inclus"),
+    (("tests", "case_paths"), "couvre"),
+    (("specs", "paths"), "couvre"),
     (("adoption", "warn_only"), "inclus"),
     (("thirdparty", "paths"), "inclus"),
 ]

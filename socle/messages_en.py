@@ -771,6 +771,14 @@ MESSAGES: dict[str, str] = {
         "before it is merged ({liste})",
     "installation du socle : {n} fichier(s) protégé(s) posé(s) — la politique par défaut est celle du cadrage":
         "socle installation: {n} protected file(s) installed — the default policy is the brief's",
+    "cas changé ou retiré dans `{fichier}` : « {ligne} »":
+        "case changed or removed in `{fichier}`: “{ligne}”",
+    "{quoi} — {n} ligne(s) d'un fichier de cas changée(s) ou retirée(s) : un cas existant ne change qu'avec une "
+    "demande validée qui cite ce fichier (politique, point 2)":
+        "{quoi} — {n} line(s) of a case file changed or removed: an existing case changes only with an approved "
+        "request that cites this file (policy, rule 2)",
+    "approuver la spécification `{chemin}` : aucune demande ne vous l'a soumise ; l'agent la soumet":
+        "approve the specification `{chemin}`: no request has submitted it to you; the agent submits it",
     "modification en attente de {id} : le tour peut finir, le commit et la CI attendent la réponse de "
     "l'humain":
         "change awaiting {id}: the turn may end, the commit and the CI wait for the human's answer",
@@ -2262,6 +2270,14 @@ MESSAGES: dict[str, str] = {
         "a memory in English: its entries, written by `socle new`, pass the commit and the CI",
     "une valeur attendue changée sous une demande en attente, poussée : le tour finit, le commit attend":
         "an expected value changed under a pending request, pushed: the turn ends, the commit waits",
+    "cas existant d'un fichier de cas changé sans validation humaine":
+        "existing case of a case file changed without human approval",
+    "un cas ajouté à un fichier de cas passe le commit et la CI":
+        "a case added to a case file passes the commit and the CI",
+    "avec `request` : des questions de cadrage d'un sujet, ouvertes, auxquelles l'humain répond librement":
+        "with `request`: framing questions about a topic, open, which the human answers freely",
+    "`--questions` ne vaut que pour une demande (`request`)":
+        "`--questions` applies only to a request (`request`)",
     "sujet du backlog d'une priorité ni haute ni basse":
         "backlog topic with a priority neither high nor low",
     "sujet fait alors que la demande qu'il attend est sans réponse":

@@ -68,12 +68,21 @@ vérifient à chaque étape.
 
 **Planifier.** Depuis le cadrage, l'agent écrit une spécification et une
 architecture courtes dans la documentation du projet : chaque choix en
-ADR, chaque question ouverte en demande, chaque tâche en sujet du backlog,
+ADR, chaque question ouverte en demande (en questions de cadrage quand
+votre intention manque, section 3), chaque tâche en sujet du backlog,
 avec ce qu'elle attend (`après` : un autre sujet, ou une demande jusqu'à
 sa réponse) et ce qui la rend faite (une section « Fait quand », en cases
 à cocher, toutes cochées avant de la clore), groupée en jalons. Il soumet
 chaque document en demande. Il suffit de le lui demander ; l'état donne
 ensuite le prochain jalon et les sujets prêts.
+
+**Spécifications et cas d'essai.** Le projet déclare où vivent ses
+spécifications (`[specs] paths` des garde-fous) : l'état vous signale
+celle qu'aucune demande ne vous a soumise. Il déclare aussi ses fichiers
+de cas (`[tests] case_paths`), des données où ses tests lisent leurs
+résultats attendus : y ajouter un cas est libre, mais changer ou retirer
+un cas existant exige votre validation, comme une valeur attendue écrite
+dans un test.
 
 **Prioriser.** Un sujet peut porter `priorité : haute` ou
 `priorité : basse` ; la normale ne s'écrit pas. Le dire à l'agent suffit,
@@ -82,6 +91,11 @@ se rangent par priorité, et ceux de priorité basse restent à part :
 l'agent ne les prend que s'ils sont commodes, et le dit en annonçant le
 lot.
 
+**Enchaîner.** Tant que rien ne revient à l'humain, l'agent enchaîne les
+sujets prêts sans attendre de message. Avant de s'y lancer, il annonce le
+lot qu'il va traiter : l'arrêter ou le réorienter se fait d'un message.
+Il s'arrête à la fin du lot, ou dès qu'une décision revient à l'humain.
+
 **Livrer.** Par défaut, l'agent fait tout sur une branche de
 développement et garde une seule pull request ouverte, à laquelle chaque
 lot fini s'ajoute : la fusionner quand on veut, une fois sa CI verte. Une
@@ -89,16 +103,14 @@ pull request par sujet, chacune à fusionner, se choisit aux questions de
 départ, ou plus tard en le disant à l'agent, qui l'écrit en fait de la
 mémoire.
 
-**Enchaîner.** Tant que rien ne revient à l'humain, l'agent enchaîne les
-sujets prêts sans attendre de message. Avant de s'y lancer, il annonce le
-lot qu'il va traiter : l'arrêter ou le réorienter se fait d'un message.
-Il s'arrête à la fin du lot, ou dès qu'une décision revient à l'humain.
-
 Chaque intervention de l'agent qui a agi se termine par deux lignes :
 
 - **« Pour toi : »** — ce qui revient à l'humain : une demande à lire, une
   action à faire, ou rien ;
 - **« Ensuite : »** — la suite prévue, et ce que l'agent attend.
+
+Chaque point de « Pour toi » se comprend seul : ce que c'est, pourquoi,
+et ce que change votre réponse.
 
 À tout moment, `python3 .socle/socle state` donne l'état du projet : le
 commit, la CI, le backlog et ce qui vient ensuite (le prochain jalon, les
@@ -131,6 +143,14 @@ consigne aussitôt, mot pour mot, comme une demande. Ce qui demande du
 contexte, approuver un document compris, arrive en demande, avec son
 lien ; jamais dans le widget de questions de l'agent, que le hook refuse.
 
+**Des questions de cadrage.** Quand la spécification d'un sujet dépend
+d'une intention que la mémoire ne dit pas, l'agent pose des questions
+ouvertes, chacune avec son hypothèse, dans une demande dont il donne le
+lien. Y répondre librement, en un ou plusieurs messages (`reponses`), ou
+`valider` ses hypothèses : il consigne le texte tel quel, puis soumet la
+spécification qui en découle. Lui dire « pose-moi tes questions sur ce
+sujet » suffit à en demander.
+
 **Une relecture avant publication**, si la politique l'exige : l'agent
 montre ce qui part vers le dépôt public, l'humain donne son accord dans la
 conversation. Depuis un terminal : `python3 .socle/socle reviewed --by <nom>`.
@@ -144,7 +164,8 @@ sans validation est refusé. Quand le changement vient de l'humain :
 commande est réservée à l'humain.
 
 **Faire ce que l'agent ne peut pas faire.** Pousser sur la branche par
-défaut, publier, régler un service : l'agent l'inscrit au backlog avec son
+défaut, publier, régler un service, supprimer une branche distante, poser
+une étiquette (en session cloud, l'agent ne pousse que sa propre branche) : l'agent l'inscrit au backlog avec son
 mode d'emploi, et l'état le liste dans « ce qui revient à l'humain ».
 
 **Commiter soi-même.** Les mêmes contrôles s'appliquent : une fonction
@@ -159,10 +180,9 @@ diff de la politique est montré. Approuver ensuite les fichiers protégés
 changés (`socle approve`), puis commiter. En session cloud, sans terminal,
 l'agent pose une demande qui cite chaque fichier protégé changé avec son
 empreinte, et l'humain la valide dans la conversation. Le dépôt public du
-moteur se clone sans être ajouté à la session ; une session qui a dû
-ajouter un second dépôt ne se reprend pas : elle installe, commite, pousse
-et ouvre la pull request d'une traite, et la demande se pose dans une
-session neuve sur le seul dépôt du projet.
+moteur se clone sans être ajouté à la session. Une mise à jour garde les
+garde-fous du projet tels quels : y déclarer ensuite ses spécifications et
+ses fichiers de cas, s'il en a (section 2).
 
 **Mettre en place la mémoire privée** (mode compagnon). Créer un dépôt
 privé vide sur GitHub, puis
@@ -178,7 +198,7 @@ Chaque refus dit ce qu'il a vu et comment en sortir. La plupart s'adressent
 | --- | --- | --- |
 | `protege.fichiers` | un fichier protégé a changé sans validation | changement de l'humain : `socle approve` ; de l'agent : il doit le demander |
 | `cliquet.garde-fous` | un seuil a été relâché | le rétablir, ou valider une demande qui le cite |
-| `tests.attendus` | une valeur attendue a changé, ou un test a disparu | valider une demande qui nomme le test, ou rétablir le test |
+| `tests.attendus` | une valeur attendue a changé, dans un test ou un fichier de cas, ou un test a disparu | valider une demande qui nomme le test ou cite le fichier de cas, ou rétablir |
 | `tests.code-teste` | une fonction publique sans test | écrire le test, ou `Dispense-test:` dans le commit |
 | `tests.regression` | un correctif sans test qui le prouve | écrire ce test ; si sa preuve dépend de l'environnement, valider une demande qui nomme le commit |
 | `docs.correspondance` | du code a changé sans sa documentation | mettre la documentation à jour, ou `Dispense-doc:` dans le commit |
@@ -192,8 +212,8 @@ Chaque refus dit ce qu'il a vu et comment en sortir. La plupart s'adressent
 `.socle/policy.toml`, modifiée par l'humain seul :
 
 1. Assouplir un garde-fou exige une demande validée ; le durcir est libre.
-2. Supprimer un test ou changer une valeur attendue exige une demande
-   validée.
+2. Supprimer un test ou changer une valeur attendue, dans un test ou un
+   fichier de cas, exige une demande validée.
 3. L'agent prend les décisions réversibles et mesurables ; il demande
    celles qui sont coûteuses à défaire.
 4. Une action irréversible ou externe est toujours demandée.
@@ -222,5 +242,6 @@ contrôles.
 
 `.socle/guardrails.toml` porte les seuils des contrôles : budgets de taille
 de la mémoire, plafonds de mutation, correspondances entre code et
-documentation, fichiers tiers (ceux d'un outil installé dans le projet). Les durcir est
+documentation, fichiers tiers (ceux d'un outil installé dans le projet),
+fichiers de cas et spécifications du projet. Les durcir est
 libre ; les relâcher exige une demande validée.

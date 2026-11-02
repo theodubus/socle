@@ -66,12 +66,21 @@ step.
 
 **Planning.** From the brief, the agent writes a short specification and a
 short architecture in the project's documentation: each choice as an ADR,
-each open question as a request, each task as a backlog topic, with its
+each open question as a request (as framing questions when your
+intention is missing, section 3), each task as a backlog topic, with its
 what it waits on (`after`: another topic, or a request until it is
 answered) and what makes it done (a “Done when” section, as checkboxes,
 all checked before closing it), grouped in milestones. It submits each
 document as a request. Just ask it to; the state then gives the next
 milestone and the ready topics.
+
+**Specifications and test cases.** The project declares where its
+specifications live (`[specs] paths` in the guardrails): the state tells
+you about any that no request has submitted to you. It also declares its
+case files (`[tests] case_paths`), data where its tests read their
+expected results: adding a case is free, but changing or removing an
+existing case requires your approval, like an expected value written in a
+test.
 
 **Prioritising.** A topic can carry `priority: high` or `priority: low`;
 the normal one is not written. Telling the agent is enough, and it does
@@ -79,23 +88,26 @@ not change a priority the human gave. The ready topics are sorted by
 priority, and the low-priority ones stay apart: the agent takes them only
 when convenient, and says so when announcing the batch.
 
-**Delivering.** By default, the agent does everything on one development
-branch and keeps only one pull request open, to which each finished batch
-is added: merge it whenever you want, once its CI is green. One pull
-request per topic, each to merge, is chosen in the starting questions, or
-later by telling the agent, which writes it as a fact of the memory.
-
 **Chaining.** As long as nothing is up to the human, the agent chains the
 ready topics without waiting for a message. Before starting, it announces
 the batch it will work on: stopping or redirecting it takes one message.
 It stops at the end of the batch, or as soon as a decision is up to the
 human.
 
+**Delivering.** By default, the agent does everything on one development
+branch and keeps only one pull request open, to which each finished batch
+is added: merge it whenever you want, once its CI is green. One pull
+request per topic, each to merge, is chosen in the starting questions, or
+later by telling the agent, which writes it as a fact of the memory.
+
 Each intervention of the agent that acted ends with two lines:
 
 - **"For you:"** — what is up to the human: a request to read, an action
   to take, or nothing;
 - **"Next:"** — what comes next, and what the agent is waiting for.
+
+Each item of "For you" can be understood on its own: what it is, why,
+and what your answer changes.
 
 At any time, `python3 .socle/socle state` gives the project's state: the
 commit, the CI, the backlog and what comes next (the next milestone, the
@@ -131,6 +143,14 @@ at once, word for word, like a request. What needs context, approving a
 document included, comes as a request, with its link; never in the
 agent's question widget, which the hook refuses.
 
+**Framing questions.** When a topic's specification depends on an
+intention the memory does not state, the agent asks open questions, each
+with its assumption, in a request whose link it gives. Answer them
+freely, in one or several messages (`answers`), or `approve` its
+assumptions: it records the text as is, then submits the specification
+that follows from it. Telling it "ask me your questions about this
+topic" is enough to request them.
+
 **A review before publication**, if the policy requires it: the agent
 shows what goes out to the public repository, the human gives their
 agreement in the conversation. From a terminal:
@@ -145,7 +165,8 @@ without approval is refused. When the change comes from the human:
 command is reserved to the human.
 
 **Doing what the agent cannot do.** Pushing to the default branch,
-publishing, setting up a service: the agent records it in the backlog with
+publishing, setting up a service, deleting a remote branch, setting a tag
+(in a cloud session, the agent only pushes its own branch): the agent records it in the backlog with
 how to do it, and the state lists it under what is up to the human.
 
 **Committing oneself.** The same checks apply: a public function added is
@@ -160,10 +181,9 @@ the diff of the policy is shown. Then approve the changed protected files
 (`socle approve`), and commit. In a cloud session, with no terminal, the
 agent puts a request that cites each changed protected file with its
 fingerprint, and the human approves it in the conversation. The engine's
-public repository is cloned without being added to the session; a session
-that had to add a second repository is not resumed: it installs, commits,
-pushes and opens the pull request in one go, and the request is put in a
-new session on the project's repository alone.
+public repository is cloned without being added to the session. An update
+keeps the project's guardrails as they are: declare its specifications and
+case files there afterwards, if it has some (section 2).
 
 **Setting up the private memory** (companion mode). Create an empty private
 repository on GitHub, then
@@ -179,7 +199,7 @@ agent, which fixes them alone. Those that concern the human:
 | --- | --- | --- |
 | `protege.fichiers` | a protected file changed without approval | change by the human: `socle approve`; by the agent: it must ask |
 | `cliquet.garde-fous` | a threshold was loosened | restore it, or approve a request that cites it |
-| `tests.attendus` | an expected value changed, or a test disappeared | approve a request that names the test, or restore the test |
+| `tests.attendus` | an expected value changed, in a test or a case file, or a test disappeared | approve a request that names the test or cites the case file, or restore it |
 | `tests.code-teste` | a public function without a test | write the test, or `Waive-test:` in the commit |
 | `tests.regression` | a fix without a test that proves it | write that test; if its proof depends on the environment, approve a request that names the commit |
 | `docs.correspondance` | code changed without its documentation | update the documentation, or `Waive-doc:` in the commit |
@@ -193,8 +213,8 @@ agent, which fixes them alone. Those that concern the human:
 `.socle/policy.toml`, modified by the human only:
 
 1. Loosening a guardrail requires an approved request; tightening is free.
-2. Deleting a test or changing an expected value requires an approved
-   request.
+2. Deleting a test or changing an expected value, in a test or a case
+   file, requires an approved request.
 3. The agent takes reversible and measurable decisions; it asks for those
    that are costly to undo.
 4. An irreversible or external action is always asked for.
@@ -222,5 +242,6 @@ The other commands serve the agent and the hooks; `python3 .socle/socle
 
 `.socle/guardrails.toml` holds the checks' thresholds: memory size
 budgets, mutation caps, correspondences between code and documentation,
-third-party files (those of a tool installed in the project). Tightening them is free;
+third-party files (those of a tool installed in the project), the
+project's case files and specifications. Tightening them is free;
 loosening them requires an approved request.
