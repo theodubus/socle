@@ -29,9 +29,13 @@ choice the agent could make alone.
 
 ## Options
 
-- **Answer**: your text, in one or several messages; the agent records it as is.
-- **Approve the assumptions**: the agent sticks to its assumptions, marked "assumed".
-- **Reject**: the topic waits, without a specification.
+- **Answer**: a few minutes, your text in one or several messages, which
+  the agent records as is; low risk, the specification follows what you
+  want; reversible.
+- **Approve the assumptions**: no effort; risk, an assumption that does not
+  state your intent, marked "assumed", is corrected later; reversible.
+- **Reject**: no effort; risk, the topic waits, without a specification;
+  reversible.
 
 ## Consequences
 
@@ -39,7 +43,8 @@ If you answer, the agent records your exact text, then writes the
 specification or decision that follows from it, and submits it to you in
 a request. If you approve the assumptions, it applies them, marked
 "assumed". If you reject, the topic waits. If the questions cannot be
-understood (`insufficient-context`), the agent rewrites them.
+understood (`insufficient-context`), the agent rewrites them. Without an
+answer, the topic waits too, and the agent works on something else.
 
 ## Recommendation
 

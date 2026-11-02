@@ -182,7 +182,10 @@ https://github.com/theodubus/socle /tmp/socle`). The project's files are never o
 the diff of the policy is shown. Then approve the changed protected files
 (`socle approve`), and commit. In a cloud session, with no terminal, the
 agent puts a request that cites each changed protected file with its
-fingerprint, and the human approves it in the conversation. The engine's
+fingerprint, and the human approves it in the conversation. If the default
+branch requires the socle CI, the agent commits and pushes these files as
+soon as the request is pushed: the CI stays red until the approval, and the
+human reads them in the pull request before answering. The engine's
 public repository is cloned without being added to the session. An update
 keeps the project's guardrails as they are, and names the settings that
 have appeared in the template since: the agent declares there the ones the

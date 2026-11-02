@@ -226,19 +226,39 @@ def cliquet(ctx, r):
                      ctx.projet.chemins.garde_fous)
 
 
-def _en_attente(ctx, *citations: str):
-    """À la fin du tour seulement (étage agent), une demande en attente,
-    poussée telle quelle, qui cite le fichier protégé et son empreinte
-    nouvelle : une mise à jour du socle en session cloud, que l'humain valide
-    dans la conversation, peut rester dans l'arbre en attendant sa réponse
-    (B-0115). Le commit et la CI la refusent toujours."""
+_FUSION_GARDEE: dict[str, bool] = {}
+
+
+def fusion_gardee(projet: config.Projet) -> bool:
+    """La branche par défaut exige la CI du socle avant toute fusion : une
+    pull request rouge ne s'y fusionne pas. Demandé à GitHub une fois par
+    processus ; inconnu, c'est non."""
+    cle = str(projet.racine)
+    if cle not in _FUSION_GARDEE:
+        from socle import state as etat
+
+        _FUSION_GARDEE[cle] = etat.ci_exigee(projet)[0] is True
+    return _FUSION_GARDEE[cle]
+
+
+def _en_attente(ctx, *citations: str, au_commit: bool = False):
+    """Une demande en attente, poussée telle quelle, qui cite le changement
+    (un fichier protégé et son empreinte nouvelle, un test) : à la fin du
+    tour (étage agent), il peut rester dans l'arbre en attendant la réponse
+    de l'humain, comme une mise à jour du socle en session cloud (B-0115).
+    Avec `au_commit`, il se commite et se pousse aussi (étage git), si la
+    branche par défaut exige la CI du socle, qui le refuse jusqu'à la
+    réponse : l'humain lit les fichiers dans la pull request au lieu de
+    valider des empreintes (D-0071). La CI le refuse toujours."""
     from socle import requests as demandes
 
-    if ctx.etage != "agent":
+    if ctx.etage != "agent" and not (au_commit and ctx.etage == "git"):
         return None
     for d in ctx.demandes:
         if (d.id and d.reponse is None and d.entree is not None and "retiree" not in d.entree.meta
                 and all(c in d.texte for c in citations) and demandes.illisible(ctx.projet, d) is None):
+            if ctx.etage == "git" and not fusion_gardee(ctx.projet):
+                return None
             return d
     return None
 
@@ -289,9 +309,13 @@ def proteges(ctx, r):
         else:
             cite = "supprimé"
         d = _valide_par(ctx, c, cite)
-        attente = None if d else _en_attente(ctx, c, cite)
+        attente = None if d else _en_attente(ctx, c, cite, au_commit=True)
         if d:
             r.avertir("protege.fichiers", trad("modification validée par {id}", id=d.id), c)
+        elif attente and fusion_gardee(ctx.projet):
+            r.avertir("protege.fichiers", trad("modification en attente de {id} : elle se commite et se pousse, "
+                                               "la CI la refuse jusqu'à la réponse de l'humain, qui la lit dans "
+                                               "la pull request", id=attente.id), c)
         elif attente:
             r.avertir("protege.fichiers", trad("modification en attente de {id} : le tour peut finir, le commit "
                                                "et la CI attendent la réponse de l'humain", id=attente.id), c)

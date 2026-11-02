@@ -797,6 +797,10 @@ MESSAGES: dict[str, str] = {
     "modification en attente de {id} : le tour peut finir, le commit et la CI attendent la réponse de "
     "l'humain":
         "change awaiting {id}: the turn may end, the commit and the CI wait for the human's answer",
+    "modification en attente de {id} : elle se commite et se pousse, la CI la refuse jusqu'à la réponse de "
+    "l'humain, qui la lit dans la pull request":
+        "change awaiting {id}: it can be committed and pushed, the CI refuses it until the human's answer, who "
+        "reads it in the pull request",
     "modification validée par {id}":
         "change approved by {id}",
     "fichier protégé modifié sans validation humaine. Une demande validée doit citer `{fichier}` et `{cite}`":
@@ -1879,14 +1883,18 @@ MESSAGES: dict[str, str] = {
         "container may disappear with it.",
     "approuver les fichiers protégés que la mise à jour a changés : en session cloud, l'humain n'a pas de terminal "
     "pour `socle approve` ; poser une demande qui cite chaque fichier protégé changé et son empreinte (`python3 "
-    ".socle/socle check` les donne), que l'humain valide dans la conversation ; poussée, elle laisse finir le tour, "
-    "les fichiers changés restant dans l'arbre jusqu'à sa réponse, puis se commitant avec elle. Une session qui a dû "
+    ".socle/socle check` les donne), que l'humain valide dans la conversation. Poussée, elle laisse commiter et "
+    "pousser ces fichiers si la branche par défaut exige la CI du socle, qui les refuse jusqu'à la réponse et où "
+    "l'humain les lit dans la pull request (D-0071) ; sinon, ils restent dans l'arbre jusqu'à sa réponse, puis se "
+    "commitent avec elle. Une session qui a dû "
     "ajouter le dépôt du socle ne se reprend pas : y commiter, pousser la branche et ouvrir la pull request, d'une traite et sans rien "
     "attendre, et poser la demande dans une session neuve sur le seul dépôt du projet, sur cette branche":
         "approve the protected files the update changed: in a cloud session, the human has no terminal for `socle "
         "approve`; put a request that cites each changed protected file and its fingerprint (`python3 .socle/socle "
-        "check` gives them), which the human approves in the conversation; once pushed, it lets the turn end, the "
-        "changed files staying in the tree until the answer, then committed with it. A session that had to add the socle's "
+        "check` gives them), which the human approves in the conversation. Once pushed, it lets these files be "
+        "committed and pushed if the default branch requires the socle CI, which refuses them until the answer and "
+        "where the human reads them in the pull request (D-0071); otherwise they stay in the tree until the answer, "
+        "then are committed with it. A session that had to add the socle's "
         "repository is not resumed: commit there, push the branch and open the pull request, in one go and without "
         "waiting for anything, and put the request in a new session on the project's repository alone, on that "
         "branch",
@@ -2051,6 +2059,8 @@ MESSAGES: dict[str, str] = {
         "protected file renamed: its old path disappears",
     "fichier protégé changé, commité sans validation":
         "protected file changed, committed without approval",
+    "fichier protégé commité sous une demande en attente, la CI du socle exigée":
+        "protected file committed under a pending request, the socle CI required",
     "demande humaine avec identifiant nu":
         "human request with a bare identifier",
     "demande qui ne dit pas où regarder":
@@ -2303,6 +2313,8 @@ MESSAGES: dict[str, str] = {
         "a high-priority topic done after the answer it waited for, its criteria checked, passes the commit and the CI",
     "un fichier protégé changé sous une demande en attente, poussée : le tour finit, le commit attend":
         "a protected file changed under a pending request, pushed: the turn ends, the commit waits",
+    "un fichier protégé sous une demande en attente, poussée, la CI du socle exigée : il se commite et se pousse":
+        "a protected file under a pending request, pushed, the socle CI required: it is committed and pushed",
     "un push relu par l'humain, son accord relayé avec son texte exact, passe le hook de l'agent":
         "a push reviewed by the human, their agreement relayed with their exact text, passes the agent's hook",
     "sans la clé (une CI de fork), la mémoire privée est indisponible et rien n'échoue":

@@ -182,7 +182,10 @@ https://github.com/theodubus/socle /tmp/socle`). Les fichiers du projet ne sont 
 diff de la politique est montré. Approuver ensuite les fichiers protégés
 changés (`socle approve`), puis commiter. En session cloud, sans terminal,
 l'agent pose une demande qui cite chaque fichier protégé changé avec son
-empreinte, et l'humain la valide dans la conversation. Le dépôt public du
+empreinte, et l'humain la valide dans la conversation. Si la branche par
+défaut exige la CI du socle, l'agent commite et pousse ces fichiers dès la
+demande poussée : la CI reste rouge jusqu'à la validation, et l'humain les
+lit dans la pull request avant de répondre. Le dépôt public du
 moteur se clone sans être ajouté à la session. Une mise à jour garde les
 garde-fous du projet tels quels, et nomme les réglages apparus depuis dans
 le gabarit : l'agent y déclare ceux qui servent au projet, comme ses

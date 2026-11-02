@@ -29,9 +29,13 @@ non un choix que l'agent pourrait trancher seul.
 
 ## Options
 
-- **Répondre** : ton texte, en un ou plusieurs messages ; l'agent le consigne tel quel.
-- **Valider les hypothèses** : l'agent s'en tient à ses hypothèses, notées « supposées ».
-- **Refuser** : le sujet attend, sans spécification.
+- **Répondre** : quelques minutes, ton texte en un ou plusieurs messages,
+  que l'agent consigne tel quel ; risque faible, la spécification suit ce
+  que tu veux ; réversible.
+- **Valider les hypothèses** : effort nul ; risque, une hypothèse qui ne dit
+  pas ton intention, notée « supposée », se corrige plus tard ; réversible.
+- **Refuser** : effort nul ; risque, le sujet attend, sans spécification ;
+  réversible.
 
 ## Conséquences
 
@@ -39,7 +43,8 @@ Si tu réponds, l'agent consigne ton texte exact, puis écrit la
 spécification ou la décision qui en découle, et te la soumet dans une
 demande. Si tu valides les hypothèses, il les applique, notées
 « supposées ». Si tu refuses, le sujet attend. Si les questions ne se
-comprennent pas (`contexte-insuffisant`), l'agent les réécrit.
+comprennent pas (`contexte-insuffisant`), l'agent les réécrit. Sans
+réponse, le sujet attend aussi, et l'agent travaille sur autre chose.
 
 ## Recommandation
 

@@ -286,10 +286,10 @@ class Atelier:
 # --------------------------------------------------------------------------
 
 
-def etage_git(a: Atelier, c: Path) -> str:
+def etage_git(a: Atelier, c: Path, env=None) -> str:
     """Le hook pre-commit, sur un commit réel : rend la sortie s'il refuse."""
     a.git(c, "add", "-A")
-    r = a.run(c, "git", "commit", "-q", "-m", "essai")
+    r = a.run(c, "git", "commit", "-q", "-m", "essai", env=env)
     return "" if r.returncode == 0 else r.stdout + r.stderr
 
 
@@ -302,11 +302,44 @@ def etage_ci(a: Atelier, c: Path, message: str = "essai", env=None) -> str:
     return "" if r.returncode == 0 else r.stdout + r.stderr
 
 
-def etage_push(a: Atelier, c: Path, hooks: bool = True) -> str:
+def etage_push(a: Atelier, c: Path, hooks: bool = True, env=None) -> str:
     """Le hook pre-push, sur un push réel vers l'origine : rend la sortie s'il
     refuse. Chaque clone pousse sur sa branche : l'origine est partagée."""
-    r = a.run(c, "git", "push", "-q", *([] if hooks else ["--no-verify"]), "origin", f"HEAD:refs/heads/essai-{c.name}")
+    r = a.run(c, "git", "push", "-q", *([] if hooks else ["--no-verify"]), "origin", f"HEAD:refs/heads/essai-{c.name}",
+              env=env)
     return "" if r.returncode == 0 else r.stdout + r.stderr
+
+
+def ci_exigee(a: Atelier, c: Path) -> dict:
+    """Un `gh` qui dit la CI du socle exigée avant toute fusion sur la branche
+    par défaut, comme l'installation le conseille : l'environnement à passer
+    aux étages (D-0071)."""
+    from socle import config, state as etat
+
+    ci = etat.nom_de_la_ci(config.Projet.charger(c))
+    regles = json.dumps([{"type": "required_status_checks",
+                          "parameters": {"required_status_checks": [{"context": ci}]}}], ensure_ascii=False)
+    dossier = c.parent / f"{c.name}-gh"
+    dossier.mkdir(exist_ok=True)
+    gh = dossier / "gh"
+    gh.write_text(f"#!/bin/sh\ncase \"$2\" in\n  *rules/branches/*) echo '{regles}' ;;\n  *) echo '{{}}' ;;\nesac\n")
+    gh.chmod(0o755)
+    return {"PATH": f"{dossier}{os.pathsep}{a.env.get('PATH', os.environ.get('PATH', ''))}"}
+
+
+def protege_en_attente(a: Atelier, c: Path) -> None:
+    """Une mise à jour en session cloud (B-0115) : un fichier protégé changé
+    dans l'arbre, et la demande poussée qui le cite avec son empreinte."""
+    from socle import fingerprint as empreintes
+
+    ajouter(c, ".github/CODEOWNERS", "# une ligne de plus\n")
+    nouveau = (c / ".github/CODEOWNERS").read_text()
+    cite = empreintes.courte(empreintes.fichier(c / ".github/CODEOWNERS"))
+    a.git(c, "checkout", "-q", "--", ".github/CODEOWNERS")
+    ajouter(c, "memory/requests/D-0001-refactor.md", demande_bonne(a, c).replace(
+        "## Où regarder", f"- `.github/CODEOWNERS` et `{cite}` — le fichier protégé changé.\n\n## Où regarder", 1))
+    pousser(a, c, "La demande")
+    (c / ".github/CODEOWNERS").write_text(nouveau)
 
 
 def etage_stop(a: Atelier, c: Path, dernier_message: str | None = None) -> str:
@@ -856,6 +889,16 @@ def _cas() -> list[Cas]:
     def _(a, c):
         remplacer(c, ".socle/policy.toml", "max_attempts = 3", "max_attempts = 30")
         return etage_git(a, c)
+
+    @defaut("protege-en-attente-a-la-ci", "fichier protégé commité sous une demande en attente, la CI du socle "
+            "exigée", "ci", "protege.fichiers")
+    def _(a, c):
+        # D-0071 : il se commite et se pousse, mais la CI le refuse jusqu'à la
+        # réponse de l'humain.
+        protege_en_attente(a, c)
+        a.commit(c, "La mise à jour")
+        r = a.socle(c, "check", "--stage", "ci", "--base", "origin/main", env=ci_exigee(a, c))
+        return "" if r.returncode == 0 else r.stdout + r.stderr
 
     @defaut("demande-identifiant-nu", "demande humaine avec identifiant nu", "agent", "demandes.contrat")
     def _(a, c):
@@ -1901,6 +1944,13 @@ def _temoins() -> list[tuple[str, Callable]]:
         if sortie:
             return sortie
         return "" if etage_git(a, c) else "le commit d'un fichier protégé en attente de validation passe"
+
+    @temoin("un fichier protégé sous une demande en attente, poussée, la CI du socle exigée : il se commite et se "
+            "pousse")
+    def _(a, c):
+        protege_en_attente(a, c)
+        env = ci_exigee(a, c)
+        return etage_git(a, c, env=env) or etage_push(a, c, env=env)
 
     @temoin("un push relu par l'humain, son accord relayé avec son texte exact, passe le hook de l'agent")
     def _(a, c):
