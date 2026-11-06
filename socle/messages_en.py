@@ -466,6 +466,12 @@ MESSAGES: dict[str, str] = {
         "budget of CLAUDE.md, kept as a source: {taille} bytes (it can only go down)",
     "budget de {motif} fixé au niveau actuel : {nouveau} octets (il ne pourra que baisser)":
         "budget of {motif} set at the current level: {nouveau} bytes (it can only go down)",
+    "!! {fichier} dépasse son budget : {octets} octets pour {budget}, la section du socle, posée ou régénérée, "
+    "ayant grossi de {ecart} ; resserrer la partie propre au projet, hors de cette section, ou relever le budget par "
+    "une demande validée, puisque le relever assouplit un garde-fou":
+        "!! {fichier} exceeds its budget: {octets} bytes for {budget}, the socle's section, added or regenerated, "
+        "having grown by {ecart}; tighten the project's own part, outside that section, or raise the budget through "
+        "a validated request, since raising it loosens a guardrail",
     "# Contrôles en échec sur l'existant, passés en avertissement. En retirer un\n# durcit (libre) ; en ajouter un "
     "assouplit (demande validée).\n":
         "# Checks failing on the existing code, turned into warnings. Removing one\n# tightens (free); adding one "
@@ -704,8 +710,16 @@ MESSAGES: dict[str, str] = {
         "`{id}` is closed (“{statut}”) without a `ref` to what closed it",
     "{octets} octets pour un budget de {budget} ({motif}) : archiver dans le journal":
         "{octets} bytes for a budget of {budget} ({motif}): archive into the journal",
+    "{octets} octets pour un budget de {budget} ({motif}) : resserrer la partie propre au projet, hors de la section "
+    "du socle, ou relever le budget par une demande validée":
+        "{octets} bytes for a budget of {budget} ({motif}): tighten the project's own part, outside the socle's "
+        "section, or raise the budget through a validated request",
     "{lignes} lignes pour un budget de {budget} ({motif}) : archiver dans le journal":
         "{lignes} lines for a budget of {budget} ({motif}): archive into the journal",
+    "{lignes} lignes pour un budget de {budget} ({motif}) : resserrer la partie propre au projet, hors de la section "
+    "du socle, ou relever le budget par une demande validée":
+        "{lignes} lines for a budget of {budget} ({motif}): tighten the project's own part, outside the socle's "
+        "section, or raise the budget through a validated request",
     "aucun budget ne couvre ce fichier (`[budgets]` des garde-fous)":
         "no budget covers this file (`[budgets]` of the guardrails)",
     "chantier actif inchangé depuis {age} jours (seuil : {jours})":
@@ -1540,6 +1554,39 @@ MESSAGES: dict[str, str] = {
         "agreement given by the human in the conversation",
     "le permalien d'un fichier ou d'une entrée, à donner à l'humain":
         "the permalink of a file or an entry, to give to the human",
+    "le dossier de la revue adversariale d'un lot, pour un relecteur sans contexte":
+        "the brief of a batch's adversarial review, for a reviewer without context",
+    "la base du lot (par défaut : la branche distante, sinon la branche par défaut)":
+        "the base of the batch (by default: the remote branch, otherwise the default branch)",
+    "le plafond du diff montré":
+        "the cap of the diff shown",
+    "# Revue adversariale d'un lot":
+        "# Adversarial review of a batch",
+    "Tu relis le lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce dossier, et tu peux lire le dépôt pour vérifier un constat, mais tu ne modifies rien. "
+    "Ton rôle est de le prendre en défaut. Cherche ce qui casse (un cas limite, une erreur de logique, une "
+    "régression), ce qu'aucun test ne prouve (une branche du code, un message, un cas que rien n'exerce), et ce qui "
+    "contredit un sujet, un critère « Fait quand » ou une décision cités plus bas. Ne juge ni le style, ni ce que les "
+    "contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests. Rends des "
+    "constats numérotés, chacun avec son fichier et sa ligne, ce qui casse et comment le vérifier ; ou « aucun "
+    "constat ».":
+        "You review another agent's batch of work, without its conversation or its reasoning: you have this brief, and you may read the repository to check a finding, but you change "
+        "nothing. Your role is to find fault with it. Look for what breaks (an edge case, a logic error, a "
+        "regression), what no test proves (a code branch, a message, a case nothing exercises), and what contradicts "
+        "a topic, a “Done when” criterion or a decision cited below. Judge neither style nor what the automatic "
+        "checks already judge: the form of the memory, the links, the presence of tests. Return numbered findings, "
+        "each with its file and line, what breaks and how to verify it; or “no finding”.",
+    "(aucune base connue : ni branche distante, ni branche par défaut ; rien à relire)":
+        "(no known base: neither a remote branch nor a default branch; nothing to review)",
+    "## Le diff du lot ({n} fichier(s), depuis {base})":
+        "## The batch's diff ({n} file(s), since {base})",
+    "(aucun changement hors de la mémoire : rien à relire)":
+        "(no change outside the memory: nothing to review)",
+    "(diff tronqué : {n} caractère(s) de plus non montrés ; `git diff {base}` les donne)":
+        "(diff truncated: {n} more character(s) not shown; `git diff {base}` gives them)",
+    "## Les sujets que le lot ferme":
+        "## The topics the batch closes",
+    "## Les décisions et les demandes qu'ils citent":
+        "## The decisions and requests they cite",
     "répondre à une demande ; l'agent y relaie (--relayed) ta réponse donnée dans la conversation":
         "answer a request; the agent relays (--relayed) your answer given in the conversation",
     "réponse donnée par l'humain dans la conversation":

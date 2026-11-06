@@ -96,6 +96,12 @@ the batch it will work on: stopping or redirecting it takes one message.
 It stops at the end of the batch, or as soon as a decision is up to the
 human.
 
+**Having it reviewed.** Before delivering a batch that changes code, a
+specification or a test, the agent has it reviewed by a reviewer without
+context, who tries to find fault with it: what breaks, what no test
+proves, what contradicts a decision. The agent fixes each founded finding
+and dismisses the others; its recap says how many.
+
 **Delivering.** By default, the agent does everything on one development
 branch and keeps only one pull request open, to which each finished batch
 is added: merge it whenever you want, once its CI is green. One pull
@@ -191,7 +197,10 @@ keeps the project's guardrails as they are, and names the settings that
 have appeared in the template since: the agent declares there the ones the
 project needs, such as its specifications and case files (section 2),
 once the new engine is committed. Before that, CI judges with the old
-engine, which does not know them and counts them as loosening.
+engine, which does not know them and counts them as loosening. If the
+socle's section, which is regenerated, makes `AGENTS.md` exceed its budget,
+the installer says so: tighten the project's own part, or raise the budget
+through a validated request, since raising it loosens a guardrail.
 
 **Setting up the private memory** (companion mode). Create an empty private
 repository on GitHub, then

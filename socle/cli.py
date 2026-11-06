@@ -385,6 +385,16 @@ def cmd_url(args) -> int:
     return code
 
 
+def cmd_review(args) -> int:
+    """Le dossier de la revue adversariale d'un lot (ADR-0042) : ce que
+    reçoit le relecteur, qui n'a pas la conversation. Le moteur ne le
+    lance pas : le skill `socle-review` dit comment."""
+    from socle import review as revue
+
+    print(revue.dossier(_projet(args), args.base, args.max_bytes), end="")
+    return 0
+
+
 def _texte_index(mem, index: str) -> str:
     from socle import memory as memoire
 
@@ -697,8 +707,8 @@ def cmd_checks(args) -> int:
 GROUPES = {
     a_traduire("pour l'humain"): ["help", "install", "init", "state", "answer", "decision", "approve", "reviewed",
                                   "private install"],
-    a_traduire("pour l'agent"): ["new", "show", "url", "verify", "check", "next-id", "private", "mutation-verdict", "mutation-run",
-                     "renumber", "archive", "checks"],
+    a_traduire("pour l'agent"): ["new", "show", "url", "review", "verify", "check", "next-id", "private",
+                                 "mutation-verdict", "mutation-run", "renumber", "archive", "checks"],
     a_traduire("internes (hooks, CI, moteur)"): ["hook", "ci", "selftest", "fingerprint"],
 }
 
@@ -819,6 +829,13 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s = sp.add_parser("url", help=trad("le permalien d'un fichier ou d'une entrée, à donner à l'humain"))
     s.add_argument("cibles", nargs="+", metavar="chemin|ID")
     s.set_defaults(f=cmd_url)
+
+    s = sp.add_parser("review", help=trad("le dossier de la revue adversariale d'un lot, pour un relecteur sans "
+                                          "contexte"))
+    s.add_argument("--base", help=trad("la base du lot (par défaut : la branche distante, sinon la branche par "
+                                       "défaut)"))
+    s.add_argument("--max-bytes", type=int, default=60_000, help=trad("le plafond du diff montré"))
+    s.set_defaults(f=cmd_review)
 
     s = sp.add_parser("answer", help=trad("répondre à une demande ; l'agent y relaie (--relayed) ta réponse "
                                           "donnée dans la conversation"))

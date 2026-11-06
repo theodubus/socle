@@ -290,6 +290,7 @@ def references(ctx, r):
     for chemin, texte in sorted(textes.items()):
         dossier = chemin.rsplit("/", 1)[0] if "/" in chemin else ""
         gele = memoire.couche_attendue(chemin) in COUCHES_GELEES
+        demande = memoire.couche_attendue(chemin) == "demandes"
         for ident, ligne in memoire.mentions(texte):
             if ident.startswith("P"):
                 if not est_prive(chemin) or not prive_dispo:
@@ -314,6 +315,8 @@ def references(ctx, r):
             sans_refs = memoire.REF_RE.sub(" ", vivante)
             for m in CODE_EN_LIGNE.finditer(sans_refs):
                 faute = _verifier_chemin_cite(ctx, m.group(1), gele)
+                if faute and demande and protege_cite(ctx, m.group(1)):
+                    faute = None
                 if faute:
                     r.erreur("memoire.references", faute, chemin, i)
                 depot = depot_non_declare(ctx, m.group(1), connus)
@@ -419,6 +422,16 @@ def depot_non_declare(ctx, jeton: str, connus: set[str] | None = None) -> str | 
     if connus is None:
         connus = set(ctx.projet.gf("references", "repos", defaut=[]) or [])
     return None if m.group(1) in connus else m.group(1)
+
+
+def protege_cite(ctx, jeton: str) -> bool:
+    """Un fichier protégé, cité par une demande : elle peut proposer de
+    l'ajouter ou de le retirer, et `protege.fichiers` juge le changement avec
+    son empreinte. Une mise à jour du socle qui pose un fichier protégé
+    nouveau, un skill par exemple, ne se faisait pas valider : sa demande,
+    qui citait un chemin encore absent, était refusée (B-0127)."""
+    j = jeton.strip().strip("/")
+    return bool(j) and bool(outils.filtrer([j], ctx.projet.chemins_proteges()))
 
 
 def _verifier_chemin_cite(ctx, jeton: str, historique: bool = False) -> str | None:
@@ -695,10 +708,23 @@ def budgets(ctx, r):
             texte = ctx.lire(chemin) or ""
             octets = len(texte.encode("utf-8"))
             lignes = texte.count("\n") + (0 if texte.endswith("\n") or not texte else 1)
-            if "max_bytes" in b and octets > b["max_bytes"]:
+            # Rien ne s'archive d'un fichier d'instructions, et la section du
+            # socle s'y régénère à chaque mise à jour (B-0129).
+            instructions_ = chemin in (config.INSTRUCTIONS, "CLAUDE.md")
+            if "max_bytes" in b and octets > b["max_bytes"] and instructions_:
+                r.erreur("memoire.budgets", trad("{octets} octets pour un budget de {budget} ({motif}) : resserrer "
+                                                 "la partie propre au projet, hors de la section du socle, ou "
+                                                 "relever le budget par une demande validée", octets=octets,
+                                                 budget=b['max_bytes'], motif=motif), chemin)
+            elif "max_bytes" in b and octets > b["max_bytes"]:
                 r.erreur("memoire.budgets", trad("{octets} octets pour un budget de {budget} ({motif}) : archiver "
                                                  "dans le journal", octets=octets, budget=b['max_bytes'], motif=motif), chemin)
-            if "max_lines" in b and lignes > b["max_lines"]:
+            if "max_lines" in b and lignes > b["max_lines"] and instructions_:
+                r.erreur("memoire.budgets", trad("{lignes} lignes pour un budget de {budget} ({motif}) : resserrer "
+                                                 "la partie propre au projet, hors de la section du socle, ou "
+                                                 "relever le budget par une demande validée", lignes=lignes,
+                                                 budget=b['max_lines'], motif=motif), chemin)
+            elif "max_lines" in b and lignes > b["max_lines"]:
                 r.erreur("memoire.budgets", trad("{lignes} lignes pour un budget de {budget} ({motif}) : archiver "
                                                  "dans le journal", lignes=lignes, budget=b['max_lines'], motif=motif), chemin)
     # Le fichier d'instructions est AGENTS.md ; tant qu'une adoption garde

@@ -11,7 +11,8 @@ require_update_on_code_change = true
 code = []
 
 # Size caps, in bytes, per path pattern. Each memory layer and the
-# instructions file have one; beyond it, archive into the journal.
+# instructions file have one. Beyond it, a layer is archived into the
+# journal; the instructions file tightens the project's own part.
 [budgets]
 "AGENTS.md" = { max_bytes = 16000 }
 "memory/canonical.md" = { max_bytes = 16000 }

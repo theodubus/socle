@@ -12,7 +12,8 @@ require_update_on_code_change = true
 code = []
 
 # Plafonds de taille, en octets, par motif de chemin. Chaque couche de mémoire
-# et le fichier d'instructions en ont un ; au-delà, archiver dans le journal.
+# et le fichier d'instructions en ont un. Au-delà, une couche s'archive dans
+# le journal ; le fichier d'instructions resserre sa partie propre au projet.
 [budgets]
 "AGENTS.md" = { max_bytes = 16000 }
 "memory/canonical.md" = { max_bytes = 16000 }

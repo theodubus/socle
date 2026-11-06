@@ -100,9 +100,10 @@ must be read again. `socle new` puts in the index fingerprint.
 
 A rare procedure is read in its skill, which the agent loads on its
 description: `socle-request` (writing a request, relaying an answer,
-recording a decision taken in session) and `socle-private-memory` (the
-private memory), in `.claude/skills/`, laid by the installer and protected;
-another agent reads their `SKILL.md` at that path.
+recording a decision taken in session), `socle-private-memory` (the
+private memory) and `socle-review` (the adversarial review of a batch, before its
+delivery), in `.claude/skills/`, laid by the installer and
+protected; another agent reads their `SKILL.md` at that path.
 
 A project procedure that comes back (the journal shows the first time) is
 written as a skill the second time, in `.claude/skills/<name>/SKILL.md`: a
@@ -120,7 +121,10 @@ without waiting for a message. It first announces the batch, not
 necessarily everything that is ready (the topics, their size, the
 milestone they serve; a low-priority topic if convenient), then gets
 going; it stops at the end of the batch, or as soon as a decision is up
-to the human. It does not change a priority the human gave.
+to the human. It does not change a priority the human gave. Before the
+push of a batch that changes code, a specification or a test, it has it
+reviewed by a reviewer without context (the `socle-review` skill), and its
+recap gives the findings.
 
 By default, everything happens on one development branch, with only one
 pull request open at a time: each finished batch is added to it, the
