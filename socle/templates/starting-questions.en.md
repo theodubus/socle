@@ -10,8 +10,17 @@ word.
 
 ## Context
 
-The socle has just been installed on this project, and its initialization
-starts from {entrees}. The agent invents nothing: it does not ask what it can
+**The project.** This repository, {nom}, has just been equipped with the
+socle: a tool that keeps the project's memory in the repository, checks
+what the coding agent produces there, and asks the human, in requests like
+this one, the decisions that belong to them. What the project itself does,
+the agent does not guess: it is one of the questions below.
+
+**The work.** The socle's initialization: describing the project in its
+memory, starting from {entrees}, so that the agent then works without
+guessing. Nothing else is done yet.
+
+**The question.** The agent invents nothing: it does not ask what it can
 read in the repository (the language, the test tools), only what it cannot
 guess, such as the project's goal, confidentiality or the level of autonomy.
 The questions are grouped here, at the start, and capped at {plafond}; the

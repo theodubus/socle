@@ -5,6 +5,10 @@ test, l'agent le fait relire par un relecteur qui n'a pas son contexte, et
 qui cherche à le prendre en défaut. Le moteur ne connaît aucun agent : il
 ne lance pas le relecteur, il prépare ce que celui-ci reçoit, et rien
 d'autre. La procédure vit côté agent, dans le skill `socle-review`.
+
+La relecture à froid d'une demande (ADR-0046) procède de même : un lecteur
+qui n'a que son texte, dans le rôle de l'humain qui revient sur le projet
+après des semaines ; le skill `socle-request` dit quand.
 """
 
 from __future__ import annotations
@@ -58,6 +62,31 @@ def decisions_citees(projet: config.Projet, sujets: list) -> list:
             if e is not None and not memoire.est_prive(e.fichier):
                 res.append(e)
     return res
+
+
+def dossier_demande(projet: config.Projet, ident: str) -> str | None:
+    """Ce que reçoit le lecteur de la relecture à froid d'une demande
+    (ADR-0046) : la consigne, puis le texte de la demande, rien d'autre.
+    `None` si aucune demande ne porte cet identifiant."""
+    from socle import requests as demandes
+
+    trouvees = [d for d in demandes.toutes(projet.racine) if d.entree is not None and d.entree.id == ident]
+    if not trouvees:
+        return None
+    consigne = trad(
+        "Tu es l'humain à qui cette demande s'adresse. Tu n'as pas ouvert ce projet depuis trois semaines : tu ne "
+        "te souviens ni de ce qu'il fait en détail, ni du travail en cours, ni de ce que tu as décidé avant. Tu "
+        "n'as que le texte ci-dessous : n'ouvre aucun lien, ne lis aucun fichier, ne cherche rien. Lis la "
+        "demande, puis rends, sans rien modifier nulle part :\n\n"
+        "1. Le projet et le but du travail en cours, en tes mots, tels que la demande te les apprend ; « je ne "
+        "sais pas » pour ce qu'elle ne dit pas.\n"
+        "2. La décision qu'on te demande, et ce que change chacune des réponses possibles.\n"
+        "3. Chaque mot, nom, sigle ou renvoi que le texte emploie sans te l'expliquer, avec la phrase où il "
+        "apparaît.\n"
+        "4. Ce qu'il te manquerait pour décider sans aller chercher ailleurs.\n\n"
+        "Ne juge pas si la décision est bonne : seulement si le texte seul te permet de la prendre.")
+    return "\n".join([trad("# Relecture à froid d'une demande"), "", consigne, "", trad("## La demande"), "",
+                      trouvees[0].texte.strip(), ""])
 
 
 def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFOND_DIFF) -> str:

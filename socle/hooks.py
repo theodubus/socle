@@ -1205,7 +1205,7 @@ def plage_poussee(projet: config.Projet, lignes: list[str]):
         local, distant = morceaux[1], morceaux[3]
         if set(local) == {"0"} or set(distant) == {"0"} or not outils.rev_existe(projet.racine, distant):
             continue  # une branche neuve, une suppression, ou un distant qu'on n'a pas : rien à comparer
-        ctx = contexte.Contexte(projet, etage="ci", base=distant, tete=local, rapide=True)
+        ctx = contexte.Contexte(projet, etage="ci", base=distant, tete=local, rapide=True, avant_push=True)
         rapport.fusionner(contexte.executer(ctx, ids))
     return rapport
 

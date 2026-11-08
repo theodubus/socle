@@ -58,6 +58,9 @@ class Contexte:
     # Le message du commit en cours d'écriture (hook commit-msg) : il compte
     # comme le dernier commit de la plage, ses trailers avec lui.
     message: str | None = None
+    # La plage qu'un push envoie, jugée comme la CI la jugera, depuis le hook
+    # avant push : ce que l'étage git laisse passer y passe aussi (D-0071).
+    avant_push: bool = False
     _cache: dict = field(default_factory=dict)
 
     @property

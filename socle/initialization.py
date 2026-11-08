@@ -166,7 +166,8 @@ def demande_de_depart(projet: config.Projet, ident: str, questions: list[Questio
         lien = trad("- Les instructions du projet : [{instr}]({lien}), section de la politique d'autonomie.",
                     instr=instr, lien=f"../../{instr}")
     return gabarit("starting-questions.md", langue.du_projet(projet)).format(
-        id=ident, date=date.today().isoformat(), entrees=entrees, n=len(questions), plafond=plafond,
+        id=ident, date=date.today().isoformat(), nom=projet.racine.name, entrees=entrees, n=len(questions),
+        plafond=plafond,
         questions="\n".join(lignes), elements=cite, lien=lien)
 
 

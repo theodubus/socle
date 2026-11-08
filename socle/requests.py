@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from socle import config, language as langue, memory as memoire, utils as outils
-from socle.messages import a_traduire, trad
+from socle.messages import a_traduire, langue as langue_des_messages, trad
 
 # Les sections et les réponses, sous leurs clés internes ; elles s'écrivent
 # dans la langue de la mémoire du projet.
@@ -41,6 +41,12 @@ SECTION_MIN = 15
 # Une demande lue une semaine plus tard, sans le projet en tête : le contexte
 # raconte, il ne résume pas en une ligne.
 MOTS_CONTEXTE_MIN = 60
+# Chacun des trois paragraphes qui ouvrent le contexte (ADR-0046) dit
+# quelque chose : un nom en gras suivi d'une demi-phrase ne remet personne
+# en contexte. Une demande posée avant le moteur qui apporte la règle, ou
+# datée d'avant elle, garde l'ancien contrat.
+MOTS_PARAGRAPHE_MIN = 15
+DATE_PARAGRAPHES = "2026-11-08"
 LIEN = re.compile(r"\]\([^)\s]+\)|https?://\S+")
 # Un trou du gabarit : `<texte avec des espaces>`, hors commentaire HTML ;
 # collé à ses chevrons, pour qu'une comparaison (« < 5 », « a <= b ») n'en
@@ -182,6 +188,57 @@ def identifiants_cites(texte: str, motifs: list[re.Pattern]) -> set[str]:
     return res
 
 
+def posee_avant_le_moteur(projet: config.Projet, chemin: str, texte: str) -> bool:
+    """ADR-0046 : la demande était déjà là, telle quelle, avant la mise à
+    jour du moteur, au dernier commit qui précède celui qui a changé son
+    verrou, ou à `HEAD` tant que la mise à jour n'est pas commitée. Elle a
+    été écrite sous l'ancien contrat. Sans historique lisible, non."""
+    racine, verrou = projet.racine, projet.chemins.lock
+    if outils.git(racine, "status", "--porcelain", "--", verrou, check=False).strip():
+        avant = "HEAD"
+    else:
+        dernier = outils.git(racine, "log", "-1", "--format=%H", "--", verrou, check=False).strip()
+        if not dernier:
+            return False
+        avant = f"{dernier}^"
+    return outils.lire_a(racine, avant, chemin) == texte
+
+
+def paragraphes_du_contexte(contexte: str) -> list[str]:
+    """ADR-0046 : le contexte commence par « Le projet », « Le chantier » et
+    « La question », ses trois premiers paragraphes, dans cet ordre, chacun
+    ouvert par son nom en gras et long d'au moins quinze mots. Les noms se
+    lisent dans les deux langues, et se disent dans celle des messages.
+    Vide : le contexte part du projet."""
+    paragraphes = [p.strip() for p in re.split(r"\n\s*\n", contexte.strip()) if p.strip()]
+
+    def cle(p: str) -> str | None:
+        for k, noms in langue.PARAGRAPHES_CONTEXTE.items():
+            if any(re.match(rf"\*\*\s*{re.escape(n)}\s*[.:]?\s*\*\*", p, re.I) for n in noms.values()):
+                return k
+        return None
+
+    trouves = [(cle(p), p) for p in paragraphes]
+    trouves = [(k, p) for k, p in trouves if k]
+    ordre = list(langue.PARAGRAPHES_CONTEXTE)
+    noms = {k: v.get(langue_des_messages(), v["fr"]) for k, v in langue.PARAGRAPHES_CONTEXTE.items()}
+    manque = [noms[k] for k in ordre if k not in {k for k, _ in trouves}]
+    if manque:
+        return [trad("« Contexte » : il commence par trois paragraphes, chacun ouvert par son nom en gras, pour "
+                     "qui revient sur le projet après des semaines : **Le projet.** (ce que fait le projet), **Le "
+                     "chantier.** (le but du travail en cours, ce qui est fait et ce qui reste), **La question.** "
+                     "(ce qui la pose maintenant) ; il manque : {manque}", manque=", ".join(manque))]
+    fautes = []
+    if [cle(p) for p in paragraphes[:3]] != ordre:
+        fautes.append(trad("« Contexte » : il commence par « Le projet », puis « Le chantier », puis « La "
+                           "question », dans cet ordre"))
+    for k, p in trouves:
+        if len(re.findall(r"[^\W\d_]{2,}", p)) - len(noms[k].split()) < MOTS_PARAGRAPHE_MIN:
+            fautes.append(trad("« Contexte » : le paragraphe « {nom} » fait moins de {n} mots", nom=noms[k],
+                               n=MOTS_PARAGRAPHE_MIN))
+    return fautes
+
+
 def linter(d: Demande, projet: config.Projet) -> list[str]:
     """Les manquements au contrat, en clair. Vide : la demande est conforme."""
     fautes = []
@@ -217,6 +274,9 @@ def linter(d: Demande, projet: config.Projet) -> list[str]:
                                titre=titre, trou=trou[:40]))
 
     contexte = d.sections.get("contexte", "")
+    date_ = d.entree.meta.get("date", "")
+    if contexte and not (date_ and date_ < DATE_PARAGRAPHES) and not posee_avant_le_moteur(projet, d.chemin, d.texte):
+        fautes += paragraphes_du_contexte(contexte)
     if contexte and len(re.findall(r"[^\W\d_]{2,}", contexte)) < MOTS_CONTEXTE_MIN:
         fautes.append(trad("« Contexte » trop court : moins de {n} mots ne suffisent pas à "
                            "quelqu'un qui n'a pas ouvert le projet depuis une semaine",

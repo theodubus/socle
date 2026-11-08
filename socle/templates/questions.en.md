@@ -10,7 +10,11 @@ depends on an intention the memory does not state.
 
 ## Context
 
-<The topic, what the memory already says about it, and what is missing to specify it without guessing.>
+**The project.** <What the project does, and for whom, in one or two sentences, even if the human knows it.>
+
+**The work.** <The goal of the work in progress and why it exists, what is done and what remains; the human's past decisions that lead to it, told by their content and date, not by their number.>
+
+**The question.** <The topic to specify, what the memory already says about it, and what is missing to specify it without guessing.>
 
 ## Questions
 

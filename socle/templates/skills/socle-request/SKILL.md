@@ -15,8 +15,15 @@ réponse mot pour mot, sans jamais la choisir.
    donne l'identifiant.
 2. Remplir les huit champs :
    - **Décision demandée** : en une phrase.
-   - **Contexte** : le problème lui-même, résumé sur place en au moins
-     soixante mots, pas un renvoi.
+   - **Contexte** : pour l'humain qui revient sur le projet après des
+     semaines, trois paragraphes d'abord, chacun ouvert par son nom en
+     gras : **Le projet.** (ce qu'il fait, et pour qui, même si l'humain
+     le sait), **Le chantier.** (le but du travail en cours, ce qui est
+     fait et ce qui reste ; ses décisions passées dites par leur contenu et
+     leur date, pas par leur numéro) et **La question.** (ce qui la pose
+     maintenant). Puis le détail, sur place, pas un renvoi : soixante mots
+     au moins en tout, et chaque terme propre au projet expliqué à sa
+     première apparition.
    - **Éléments cités** : chaque identifiant décrit en clair, avec
      l'empreinte de la version lue (`- B-NNNN@xxxxxxxx — ce que c'est, en
      une phrase`) ; jamais un identifiant seul.
@@ -33,7 +40,17 @@ réponse mot pour mot, sans jamais la choisir.
      une clé des seuils que la demande nomme.
 3. Le lint refuse une demande incomplète ; le hook de l'agent la refuse dès
    l'écriture.
-4. Commiter et pousser la demande telle quelle, puis donner son lien
+4. La faire relire à froid avant de la pousser : un sous-agent (outil
+   `Agent`), du modèle de la session, dont le seul message est le dossier
+   de `python3 .socle/socle review --request D-NNNN`, tel quel. Il lit la
+   demande dans le rôle de l'humain qui n'a pas ouvert le projet depuis
+   trois semaines, sans lien ni fichier, et rend ce qu'il en a compris et
+   ce qui lui manque pour décider. Réécrire ce que l'humain ne
+   comprendrait pas davantage ; écarter, d'une raison, ce qui n'aide pas à
+   décider ou qu'un document lié donne déjà. Le récap le dit : `Relecture
+   à froid : <n> points, <k> corrigés ; écartés : …`. Un agent sans
+   sous-agents saute cette étape, et son récap le dit.
+5. Commiter et pousser la demande telle quelle, puis donner son lien
    (`python3 .socle/socle url D-NNNN`) dans la conversation. Travailler sur
    autre chose en attendant la réponse (politique, point 8).
 

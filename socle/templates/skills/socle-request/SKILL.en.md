@@ -15,8 +15,15 @@ never choosing it.
    and gives the identifier.
 2. Fill in the eight fields:
    - **Decision requested**: in one sentence.
-   - **Context**: the problem itself, summarised on the spot in at least
-     sixty words, not a pointer.
+   - **Context**: for the human who comes back to the project after
+     weeks, three paragraphs first, each led by its name in bold: **The
+     project.** (what it does, and for whom, even if the human knows it),
+     **The work.** (the goal of the work in progress, what is done and
+     what remains; their past decisions told by their content and date,
+     not by their number) and **The question.** (what raises it now).
+     Then the details, on the spot, not a pointer: at least sixty words in
+     all, and each term proper to the project explained where it first
+     appears.
    - **Cited elements**: each identifier described in plain words, with
      the fingerprint of the version read (`- B-NNNN@xxxxxxxx — what it is,
      in one sentence`); never an identifier alone.
@@ -33,7 +40,17 @@ never choosing it.
      authorises changing a test or a threshold key the request names.
 3. The lint refuses an incomplete request; the agent's hook refuses it as
    soon as it is written.
-4. Commit and push the request as is, then give its link
+4. Have it read cold before pushing it: a subagent (the `Agent` tool), of
+   the session's model, whose only message is the brief of
+   `python3 .socle/socle review --request D-NNNN`, as is. It reads the
+   request as the human who has not opened the project for three weeks,
+   with no link and no file, and returns what it understood and what it
+   lacks to decide. Rewrite what the human would not understand either;
+   set aside, with a reason, what does not help to decide or what a linked
+   document already gives. The recap says so: `Cold reading: <n> points,
+   <k> fixed; set aside: …`. An agent without subagents skips this step,
+   and its recap says so.
+5. Commit and push the request as is, then give its link
    (`python3 .socle/socle url D-NNNN`) in the conversation. Work on
    something else while waiting for the answer (policy, point 8).
 

@@ -9,7 +9,13 @@
 
 ## Contexte
 
-<La tâche en cours, et ce qui a déclenché la question.>
+**Le projet.** <Ce que fait le projet, et pour qui, en une ou deux phrases, même si l'humain le sait.>
+
+**Le chantier.** <Le but du travail en cours et pourquoi il existe, ce qui est fait et ce qui reste ; les décisions passées de l'humain qui y mènent, dites par leur contenu et leur date, pas par leur numéro.>
+
+**La question.** <Ce qui la pose maintenant.>
+
+<Le détail, s'il en faut ; chaque terme propre au projet s'explique à sa première apparition.>
 
 ## Éléments cités
 

@@ -10,8 +10,17 @@ défauts d'un mot.
 
 ## Contexte
 
-Le socle vient d'être posé sur ce projet, et son initialisation part de
-{entrees}. L'agent n'invente rien : il ne demande pas ce qu'il peut lire dans
+**Le projet.** Ce dépôt, {nom}, vient d'être équipé du socle : un outil qui
+garde la mémoire du projet dans le dépôt, vérifie ce que l'agent de code y
+produit, et pose à l'humain, en demandes comme celle-ci, les décisions qui
+lui reviennent. Ce que fait le projet lui-même, l'agent ne le devine pas :
+c'est l'une des questions ci-dessous.
+
+**Le chantier.** L'initialisation du socle : décrire le projet dans sa
+mémoire, à partir de {entrees}, pour que l'agent travaille ensuite sans
+deviner. Rien d'autre n'est encore fait.
+
+**La question.** L'agent n'invente rien : il ne demande pas ce qu'il peut lire dans
 le dépôt (le langage, les outils de test), seulement ce qu'il ne peut pas
 deviner, comme le but du projet, la confidentialité ou le niveau
 d'autonomie. Les questions sont groupées ici, au début, et plafonnées à

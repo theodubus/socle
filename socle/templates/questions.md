@@ -10,7 +10,11 @@ de ce sujet dépend d'une intention que la mémoire ne dit pas.
 
 ## Contexte
 
-<Le sujet, ce que la mémoire en dit déjà, et ce qui manque pour le spécifier sans deviner.>
+**Le projet.** <Ce que fait le projet, et pour qui, en une ou deux phrases, même si l'humain le sait.>
+
+**Le chantier.** <Le but du travail en cours et pourquoi il existe, ce qui est fait et ce qui reste ; les décisions passées de l'humain qui y mènent, dites par leur contenu et leur date, pas par leur numéro.>
+
+**La question.** <Le sujet à spécifier, ce que la mémoire en dit déjà, et ce qui manque pour le spécifier sans deviner.>
 
 ## Questions
 

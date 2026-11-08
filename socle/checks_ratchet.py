@@ -249,15 +249,17 @@ def _en_attente(ctx, *citations: str, au_commit: bool = False):
     Avec `au_commit`, il se commite et se pousse aussi (étage git), si la
     branche par défaut exige la CI du socle, qui le refuse jusqu'à la
     réponse : l'humain lit les fichiers dans la pull request au lieu de
-    valider des empreintes (D-0071). La CI le refuse toujours."""
+    valider des empreintes (D-0071). Le hook avant push, qui juge la plage
+    comme la CI, le laisse partir lui aussi. La CI le refuse toujours."""
     from socle import requests as demandes
 
-    if ctx.etage != "agent" and not (au_commit and ctx.etage == "git"):
+    pousse = au_commit and (ctx.etage == "git" or ctx.avant_push)
+    if ctx.etage != "agent" and not pousse:
         return None
     for d in ctx.demandes:
         if (d.id and d.reponse is None and d.entree is not None and "retiree" not in d.entree.meta
                 and all(c in d.texte for c in citations) and demandes.illisible(ctx.projet, d) is None):
-            if ctx.etage == "git" and not fusion_gardee(ctx.projet):
+            if ctx.etage != "agent" and not fusion_gardee(ctx.projet):
                 return None
             return d
     return None

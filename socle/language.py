@@ -89,6 +89,14 @@ SECTIONS = {
     "recommandation": {"fr": "Recommandation", "en": "Recommendation"},
     "reponses-possibles": {"fr": "Réponses possibles", "en": "Possible answers"},
 }
+# Les trois paragraphes qui ouvrent le contexte d'une demande, chacun par
+# son nom en gras (ADR-0046) : l'humain qui revient sur le projet après des
+# semaines y retrouve le projet, le chantier, puis la question.
+PARAGRAPHES_CONTEXTE = {
+    "projet": {"fr": "Le projet", "en": "The project"},
+    "chantier": {"fr": "Le chantier", "en": "The work"},
+    "question": {"fr": "La question", "en": "The question"},
+}
 # La section d'une décision prise en séance : la question telle
 # que l'humain l'a lue dans la conversation.
 SECTIONS_SEANCE = {"question-posee": {"fr": "Question posée", "en": "Question asked"}}

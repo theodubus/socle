@@ -132,8 +132,12 @@ the installer, are protected.
 **A request.** When a decision belongs to the human (loosening a
 threshold, deleting a test, a decision costly to undo, an irreversible
 action), the agent writes a request and gives its link. It reads on its
-own and ends with the list of possible answers. Answer in the
-conversation; the agent records the answer word for word.
+own, even after weeks away from the project: its context opens with the
+project, the work in progress and the question. An agent that has
+subagents has it read cold, by one of them that only has its text, before
+asking you, and its recap gives the outcome. It ends with the list of
+possible answers. Answer in the conversation; the agent records the answer
+word for word.
 
 - The base answers are the same in every request: `approve` (the
   recommendation), `reject`, `insufficient-context`; a choice request adds

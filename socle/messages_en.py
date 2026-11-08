@@ -1562,6 +1562,51 @@ MESSAGES: dict[str, str] = {
         "the cap of the diff shown",
     "# Revue adversariale d'un lot":
         "# Adversarial review of a batch",
+    "# Relecture à froid d'une demande":
+        "# Cold reading of a request",
+    "## La demande":
+        "## The request",
+    "une demande récente, ouverte sur le projet, le chantier et la question, passe le hook de l'agent":
+        "a recent request, opening on the project, the work and the question, passes the agent's hook",
+    "demande dont le contexte ne part pas du projet : l'humain qui y revient après des semaines ne sait plus de "
+    "quoi elle parle":
+        "request whose context does not start from the project: the human coming back to it after weeks no longer "
+        "knows what it is about",
+    "Tu es l'humain à qui cette demande s'adresse. Tu n'as pas ouvert ce projet depuis trois semaines : tu ne te "
+    "souviens ni de ce qu'il fait en détail, ni du travail en cours, ni de ce que tu as décidé avant. Tu n'as que le "
+    "texte ci-dessous : n'ouvre aucun lien, ne lis aucun fichier, ne cherche rien. Lis la demande, puis rends, sans "
+    "rien modifier nulle part :\n\n"
+    "1. Le projet et le but du travail en cours, en tes mots, tels que la demande te les apprend ; « je ne sais pas » "
+    "pour ce qu'elle ne dit pas.\n"
+    "2. La décision qu'on te demande, et ce que change chacune des réponses possibles.\n"
+    "3. Chaque mot, nom, sigle ou renvoi que le texte emploie sans te l'expliquer, avec la phrase où il apparaît.\n"
+    "4. Ce qu'il te manquerait pour décider sans aller chercher ailleurs.\n\n"
+    "Ne juge pas si la décision est bonne : seulement si le texte seul te permet de la prendre.":
+        "You are the human this request is addressed to. You have not opened this project for three weeks: you "
+        "remember neither what it does in detail, nor the work in progress, nor what you decided before. You only "
+        "have the text below: open no link, read no file, look nothing up. Read the request, then return, changing "
+        "nothing anywhere:\n\n"
+        "1. The project and the goal of the work in progress, in your own words, as the request teaches them to "
+        "you; “I don't know” for what it does not say.\n"
+        "2. The decision you are asked for, and what each possible answer changes.\n"
+        "3. Each word, name, acronym or reference the text uses without explaining it, with the sentence where it "
+        "appears.\n"
+        "4. What you would lack to decide without looking anywhere else.\n\n"
+        "Do not judge whether the decision is good: only whether the text alone lets you make it.",
+    "aucune demande {id}":
+        "no request {id}",
+    "le dossier de la relecture à froid de cette demande, pour un lecteur qui n'a que son texte":
+        "the cold-reading brief of this request, for a reader who only has its text",
+    "« Contexte » : il commence par trois paragraphes, chacun ouvert par son nom en gras, pour qui revient sur le "
+    "projet après des semaines : **Le projet.** (ce que fait le projet), **Le chantier.** (le but du travail en "
+    "cours, ce qui est fait et ce qui reste), **La question.** (ce qui la pose maintenant) ; il manque : {manque}":
+        "“Context”: it opens with three paragraphs, each led by its name in bold, for whoever comes back to the "
+        "project after weeks: **The project.** (what the project does), **The work.** (the goal of the work in "
+        "progress, what is done and what remains), **The question.** (what raises it now); missing: {manque}",
+    "« Contexte » : il commence par « Le projet », puis « Le chantier », puis « La question », dans cet ordre":
+        "“Context”: it opens with “The project”, then “The work”, then “The question”, in that order",
+    "« Contexte » : le paragraphe « {nom} » fait moins de {n} mots":
+        "“Context”: the “{nom}” paragraph has fewer than {n} words",
     "Tu relis le lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce dossier, et tu peux lire le dépôt pour vérifier un constat, mais tu ne modifies rien. "
     "Ton rôle est de le prendre en défaut. Cherche ce qui casse (un cas limite, une erreur de logique, une "
     "régression), ce qu'aucun test ne prouve (une branche du code, un message, un cas que rien n'exerce), et ce qui "

@@ -398,6 +398,17 @@ def empreinte(a: Atelier, c: Path, cible: str) -> str:
     return m.group(1)
 
 
+# Les trois paragraphes qui ouvrent le contexte d'une demande récente
+# (ADR-0046).
+PARAGRAPHES_DU_CONTEXTE = (
+    "**Le projet.** Un module de calcul, petit et public, que d'autres projets importent pour doubler et "
+    "multiplier des nombres.\n\n"
+    "**Le chantier.** Le backlog demande d'y ajouter une fonction triple ; rien n'est encore écrit, et aucune "
+    "décision passée ne porte sur la forme du module.\n\n"
+    "**La question.** Ajouter triple sur le modèle de double dupliquerait sa logique, d'où le choix d'une "
+    "refonte avant d'écrire.\n\n")
+
+
 def demande_bonne(a: Atelier, c: Path) -> str:
     return DEMANDE_BONNE.replace("- B-0001 —", f"- B-0001@{empreinte(a, c, 'B-0001')} —")
 
@@ -903,6 +914,15 @@ def _cas() -> list[Cas]:
     @defaut("demande-identifiant-nu", "demande humaine avec identifiant nu", "agent", "demandes.contrat")
     def _(a, c):
         return etage_outil(a, c, "Write", {"file_path": str(c / "memory/requests/D-0001-refactor.md"), "content": DEMANDE_NUE})
+
+    @defaut("demande-sans-le-projet", "demande dont le contexte ne part pas du projet : l'humain qui y revient "
+            "après des semaines ne sait plus de quoi elle parle", "agent", "contexte du projet")
+    def _(a, c):
+        # ADR-0046 : la demande saine, datée d'après la règle, sans les trois
+        # paragraphes qui ouvrent son contexte.
+        recente = demande_bonne(a, c).replace("> date : 2026-10-10", "> date : 2026-11-08")
+        return etage_outil(a, c, "Write", {"file_path": str(c / "memory/requests/D-0001-refactor.md"),
+                                           "content": recente})
 
     @defaut("demande-sans-lien", "demande qui ne dit pas où regarder", "agent", "où regarder")
     def _(a, c):
@@ -1784,6 +1804,14 @@ def _temoins() -> list[tuple[str, Callable]]:
             return r.stdout + r.stderr
         return etage_ci(a, c)
 
+    @temoin("une demande récente, ouverte sur le projet, le chantier et la question, passe le hook de l'agent")
+    def _(a, c):
+        # ADR-0046 : le pendant sain de `demande-sans-le-projet`.
+        recente = demande_bonne(a, c).replace("> date : 2026-10-10", "> date : 2026-11-08").replace(
+            "## Contexte\n\n", "## Contexte\n\n" + PARAGRAPHES_DU_CONTEXTE, 1)
+        return etage_outil(a, c, "Write", {"file_path": str(c / "memory/requests/D-0001-refactor.md"),
+                                           "content": recente})
+
     @temoin("une demande complète passe le hook de l'agent")
     def _(a, c):
         return etage_outil(a, c, "Write", {"file_path": str(c / "memory/requests/D-0001-refactor.md"), "content": demande_bonne(a, c)})
@@ -1950,7 +1978,10 @@ def _temoins() -> list[tuple[str, Callable]]:
     def _(a, c):
         protege_en_attente(a, c)
         env = ci_exigee(a, c)
-        return etage_git(a, c, env=env) or etage_push(a, c, env=env)
+        # La branche existe déjà en face : le hook avant push juge aussi la
+        # plage qui part, comme la CI la jugera.
+        return (etage_push(a, c, hooks=False, env=env) or etage_git(a, c, env=env)
+                or etage_push(a, c, env=env))
 
     @temoin("un push relu par l'humain, son accord relayé avec son texte exact, passe le hook de l'agent")
     def _(a, c):
@@ -2170,6 +2201,7 @@ RAISONS_AGENT = {
     "memoire.peremption": "chantier actif inchangé depuis",
     "réglage de l'agent": "les réglages de Claude Code commandent ses hooks",
     "où regarder": "« Où regarder » doit donner un lien",
+    "contexte du projet": "« Contexte » : il commence par trois paragraphes",
     "récap": "pas Pour toi :",
     "suite": "pas Ensuite :",
     "liens": "liens que l'humain ne pourra pas suivre",

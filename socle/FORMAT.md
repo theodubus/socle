@@ -217,10 +217,19 @@ cités`, `Où regarder`, `Options`, `Conséquences`, `Recommandation`,
 ajouté après qu'une première série de demandes, conformes au lint, s'est
 révélée impossible à trancher pour l'humain.
 
-- « Contexte » raconte, en au moins soixante mots : la tâche, ce qui a
-  déclenché la question, et le problème lui-même — un extrait de code, la
-  règle en cause. Si la décision porte sur un contenu (un inventaire, un
-  format), elle le résume sur place.
+- « Contexte » raconte, en au moins soixante mots, pour l'humain qui
+  revient sur le projet après des semaines. Il commence par trois
+  paragraphes, dans cet ordre, chacun ouvert par son nom en gras et long
+  d'au moins quinze mots (ADR-0046) : `**Le projet.**` (ce que fait le
+  projet), `**Le chantier.**` (le but du travail en cours, ce qui est fait
+  et ce qui reste, les décisions passées dites par leur contenu et leur
+  date) et `**La question.**` (ce qui la pose maintenant). Viennent ensuite
+  le problème lui-même — un extrait de code, la règle en cause — et, si la
+  décision porte sur un contenu (un inventaire, un format), son résumé sur
+  place. Les trois noms se lisent dans les deux langues. En est dispensée
+  une demande posée avant le moteur qui apporte la règle, telle quelle au
+  commit qui précède la mise à jour de son verrou, ou datée d'avant le
+  8 novembre 2026.
 - « Où regarder » donne un lien vers chaque document ou passage à lire
   pour décider, et dit ce qu'il faut y vérifier : le permalien de
   `socle url`, ou, sans adresse de dépôt connue, un lien relatif depuis la
@@ -474,6 +483,9 @@ interne, que `socle show` dit dans la langue du projet.
 | section `consequences` | Conséquences | Consequences |
 | section `recommandation` | Recommandation | Recommendation |
 | section `reponses-possibles` | Réponses possibles | Possible answers |
+| paragraphe `projet` du contexte | Le projet | The project |
+| paragraphe `chantier` du contexte | Le chantier | The work |
+| paragraphe `question` du contexte | La question | The question |
 | réponse `valider` | valider | approve |
 | réponse `refuser` | refuser | reject |
 | réponse `contexte-insuffisant` | contexte-insuffisant | insufficient-context |

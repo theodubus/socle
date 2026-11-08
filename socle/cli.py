@@ -387,10 +387,19 @@ def cmd_url(args) -> int:
 
 def cmd_review(args) -> int:
     """Le dossier de la revue adversariale d'un lot (ADR-0042) : ce que
-    reçoit le relecteur, qui n'a pas la conversation. Le moteur ne le
-    lance pas : le skill `socle-review` dit comment."""
+    reçoit le relecteur, qui n'a pas la conversation. Avec `--request`, celui
+    de la relecture à froid d'une demande (ADR-0046). Le moteur ne lance pas
+    le lecteur : les skills `socle-review` et `socle-request` disent comment."""
     from socle import review as revue
 
+    demande = getattr(args, "request", None)
+    if demande:
+        texte = revue.dossier_demande(_projet(args), demande)
+        if texte is None:
+            print(trad("aucune demande {id}", id=demande), file=sys.stderr)
+            return 2
+        print(texte, end="")
+        return 0
     print(revue.dossier(_projet(args), args.base, args.max_bytes), end="")
     return 0
 
@@ -835,6 +844,8 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("--base", help=trad("la base du lot (par défaut : la branche distante, sinon la branche par "
                                        "défaut)"))
     s.add_argument("--max-bytes", type=int, default=60_000, help=trad("le plafond du diff montré"))
+    s.add_argument("--request", metavar="D-NNNN", help=trad("le dossier de la relecture à froid de cette demande, "
+                                                            "pour un lecteur qui n'a que son texte"))
     s.set_defaults(f=cmd_review)
 
     s = sp.add_parser("answer", help=trad("répondre à une demande ; l'agent y relaie (--relayed) ta réponse "
