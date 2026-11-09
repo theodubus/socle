@@ -3,6 +3,8 @@
 - `.socle/engine.lock`     — version et empreinte du moteur (installeur seul) ;
 - `.socle/policy.toml`     — politique d'autonomie (humain seul) ;
 - `.socle/adapter.toml`    — capacités du langage (validé par l'humain) ;
+- `.socle/adapters/*.toml` — les adaptateurs des autres langages d'un projet
+  qui en a plusieurs, au même format (ADR-0051) ;
 - `.socle/guardrails.toml` — seuils et couverture des contrôles (cliquet :
   durcir est libre, assouplir exige une demande validée).
 
@@ -12,6 +14,7 @@ français.
 
 from __future__ import annotations
 
+import dataclasses
 import re
 import tomllib
 from dataclasses import dataclass, field
@@ -52,6 +55,7 @@ class Chemins:
     adaptateur: str
     prive_lock: str
     moteur: str  # le dossier du moteur installé
+    adaptateurs: str = ".socle/adapters"  # les adaptateurs des autres langages
 
     def dans_prive(self, chemin: str) -> str:
         """Le miroir d'un chemin de la mémoire dans la zone privée."""
@@ -102,6 +106,29 @@ def charger_toml(racine: Path, chemin: str, rev: str | None = None) -> dict:
     return lire_toml(outils.lire_a(racine, rev, chemin))
 
 
+@dataclass(frozen=True)
+class Adaptateur:
+    """Un adaptateur du projet : son nom, le fichier qui le porte, et ce
+    qu'il déclare. Le principal est `.socle/adapter.toml`, nommé par sa clé
+    `language` ; les autres, `.socle/adapters/<nom>.toml`, par leur fichier."""
+
+    nom: str
+    chemin: str
+    donnees: dict
+
+
+def fichiers_adaptateurs(racine: Path, dossier: str, rev: str | None = None) -> list[str]:
+    """Les adaptateurs des autres langages, `<dossier>/<nom>.toml`, triés :
+    l'ordre de leurs constats ne dépend pas du disque."""
+    if rev is None:
+        d = racine / dossier
+        return sorted(f"{dossier}/{f.name}" for f in d.glob("*.toml") if f.is_file()) if d.is_dir() else []
+    if rev == outils.ARBRE_VIDE:
+        return []
+    sortie = outils.git(racine, "ls-tree", "-z", "--name-only", rev, "--", dossier + "/", check=False)
+    return sorted(n for n in sortie.split("\0") if re.fullmatch(re.escape(dossier) + r"/[^/]+\.toml", n))
+
+
 @dataclass
 class Projet:
     racine: Path
@@ -110,7 +137,12 @@ class Projet:
     politique: dict = field(default_factory=dict)
     garde_fous: dict = field(default_factory=dict)
     adaptateur: dict = field(default_factory=dict)
+    # Les adaptateurs des autres langages (`.socle/adapters/*.toml`), dans
+    # l'ordre de leurs fichiers.
+    autres_adaptateurs: list[Adaptateur] = field(default_factory=list)
     erreurs_config: list[tuple[str, str]] = field(default_factory=list)
+    # Dans la vue d'un seul adaptateur (`pour`), tous ceux du projet.
+    _tous: tuple[Adaptateur, ...] | None = None
 
     @classmethod
     def charger(cls, racine: Path | None = None, rev: str | None = None) -> "Projet":
@@ -126,7 +158,57 @@ class Projet:
                 setattr(p, attr, charger_toml(racine, chemin, rev))
             except tomllib.TOMLDecodeError as e:
                 p.erreurs_config.append((chemin, trad("TOML illisible : {erreur}", erreur=e)))
+        for chemin in fichiers_adaptateurs(racine, p.chemins.adaptateurs, rev):
+            try:
+                donnees = charger_toml(racine, chemin, rev)
+            except tomllib.TOMLDecodeError as e:
+                p.erreurs_config.append((chemin, trad("TOML illisible : {erreur}", erreur=e)))
+                continue
+            p.autres_adaptateurs.append(Adaptateur(Path(chemin).stem, chemin, donnees))
         return p
+
+    # --- adaptateurs ----------------------------------------------------
+
+    @property
+    def adaptateurs(self) -> list[Adaptateur]:
+        """Tous les adaptateurs du projet, le principal d'abord : un projet à
+        un seul langage n'a que lui (ADR-0051)."""
+        if self._tous is not None:
+            return list(self._tous)
+        principal = Adaptateur(str(self.adaptateur.get("language") or Path(self.chemins.adaptateur).stem),
+                               self.chemins.adaptateur, self.adaptateur)
+        return [principal, *self.autres_adaptateurs]
+
+    @property
+    def plusieurs_adaptateurs(self) -> bool:
+        return len(self.adaptateurs) > 1
+
+    @property
+    def adaptateur_courant(self) -> Adaptateur:
+        """L'adaptateur de cette vue : le principal hors d'une vue."""
+        tous = self.adaptateurs
+        return next((a for a in tous if a.chemin == self.chemins.adaptateur), tous[0])
+
+    def pour(self, a: Adaptateur) -> "Projet":
+        """Le projet vu par un seul de ses adaptateurs : `adaptateur` est le
+        sien, et `chemins.adaptateur` son fichier. Tout ce qui lit
+        l'adaptateur juge alors avec ses motifs ; `adaptateurs` les garde
+        tous."""
+        return dataclasses.replace(self, adaptateur=a.donnees,
+                                   chemins=dataclasses.replace(self.chemins, adaptateur=a.chemin),
+                                   _tous=tuple(self.adaptateurs))
+
+    def designes(self, a: Adaptateur, fichiers) -> list[str]:
+        """Les fichiers que les motifs d'un adaptateur désignent : ses
+        sources, son code et ses tests, hors de leurs exclusions et du dossier
+        du socle (ADR-0051, point 2)."""
+        d = a.donnees
+        hors = [f"{DOSSIER}/**"]
+        code, tests = d.get("code") or {}, d.get("tests") or {}
+        res = set(outils.filtrer(fichiers, d.get("sources", []), hors))
+        res |= set(outils.filtrer(fichiers, code.get("paths", []), list(code.get("exclude", [])) + hors))
+        res |= set(outils.filtrer(fichiers, tests.get("paths", []), list(tests.get("exclude", [])) + hors))
+        return sorted(res)
 
     @property
     def installe(self) -> bool:
@@ -170,9 +252,9 @@ class Projet:
         return noeud
 
     def chemins_code(self) -> list[str]:
-        """Ce qui compte comme du code : l'adaptateur le déclare, les
+        """Ce qui compte comme du code : les adaptateurs le déclarent, les
         garde-fous peuvent l'étendre."""
-        res = list(self.adaptateur.get("sources", []))
+        res = [s for a in self.adaptateurs for s in a.donnees.get("sources", [])]
         res += list(self.gf("memory", "code", defaut=[]))
         return res
 
@@ -210,9 +292,13 @@ class Projet:
 
     def chemins_proteges(self) -> list[str]:
         res = list(self.pol("protected", "paths", defaut=[]))
+        ch = self.chemins
+        # Les adaptateurs des autres langages sont protégés comme le principal
+        # (ADR-0051), que la politique les nomme ou non.
+        if ch.adaptateurs + "/**" not in res:
+            res.append(ch.adaptateurs + "/**")
         # La zone privée suit les règles de la zone publique : une réponse
         # humaine privée est protégée comme une réponse publique.
-        ch = self.chemins
         res += [ch.dans_prive(m) for m in res if m.startswith(ch.memoire + "/") and not m.startswith(ch.prive + "/")]
         if self.mode == MODE_AMONT:
             # Dans le dépôt amont, le moteur EST la source : le protéger

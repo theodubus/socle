@@ -11,6 +11,8 @@ montré qu'il peut échouer.
                        mutants survivants ;
 - `adaptateur.capacites` : chaque capacité est déclarée, ou absente avec sa
                        raison et son contrôle de remplacement ;
+- `adaptateur.recouvrement` : dans un projet à plusieurs adaptateurs, aucun
+                       fichier n'est désigné par deux d'entre eux ;
 - `tests.code-teste` : une fonction publique ajoutée ou modifiée est nommée
                        par au moins un test, ou dispensée avec sa raison.
 """
@@ -57,7 +59,7 @@ def fichiers_tests(ctx, liste) -> list[str]:
     return outils.filtrer(liste, cfg.get("paths", []), cfg.get("exclude", []))
 
 
-@controle("adaptateur.capacites")
+@controle("adaptateur.capacites", par_adaptateur=True)
 def capacites(ctx, r):
     """Aucune capacité n'est omise en silence : déclarée, ou absente avec sa
     raison et son contrôle de remplacement."""
@@ -79,7 +81,7 @@ def capacites(ctx, r):
                                               "pas être détectés"), ctx.projet.chemins.adaptateur)
 
 
-@controle("tests.creux")
+@controle("tests.creux", par_adaptateur=True)
 def creux(ctx, r):
     """Pas de test sans assertion, d'assertion tautologique, ni de test
     désactivé sans raison écrite. Sur le diff aux étages agent et git ; partout en CI."""
@@ -263,7 +265,7 @@ def _fichiers_de_cas(ctx, r):
                                             "fichier (politique, point 2)", quoi=quoi, n=len(retires)), c)
 
 
-@controle("tests.attendus", base=True)
+@controle("tests.attendus", base=True, par_adaptateur=True)
 def attendus(ctx, r):
     """Supprimer un test ou changer une valeur attendue exige une validation
     humaine, ou un changement de spécification qui le nomme, fait par
@@ -447,7 +449,7 @@ def _externes(fns: list[tests_lecture.Fonction]) -> list[tests_lecture.Fonction]
     return res
 
 
-@controle("tests.code-teste", etages=("agent", "ci"), base=True)
+@controle("tests.code-teste", etages=("agent", "ci"), base=True, par_adaptateur=True)
 def code_teste(ctx, r):
     """Une fonction publique ajoutée ou modifiée est nommée par au moins un
     test — ou une dispense motivée la nomme (`Dispense-test: f — <raison>`).
@@ -509,12 +511,14 @@ def est_correctif(projet, message: str) -> bool:
     return bool(re.search(motif, sujet)) or "corrige" in tr or "fixes" in tr
 
 
-@controle("tests.regression", etages=("ci",), base=True, lent=True)
+@controle("tests.regression", etages=("ci",), base=True, lent=True, par_adaptateur=True)
 def regression(ctx, r):
     """Tout correctif livre un test qui échoue sur le commit parent et passe sur
     le correctif, vérifié en l'exécutant."""
     cap = ctx.projet.adaptateur.get("capabilities", {}).get("regression", {})
     correctifs = [c for c in ctx.commits if len(c["parents"]) == 1 and est_correctif(ctx.projet, c["message"])]
+    if ctx.projet.plusieurs_adaptateurs:
+        correctifs = [c for c in correctifs if corrige_son_code(ctx, c["parents"][0], c["sha"])]
     if not correctifs:
         return
     if "command" not in cap:
@@ -575,6 +579,62 @@ def regression(ctx, r):
         if code != 0:
             r.erreur("tests.regression", trad("{sha} « {sujet} » : son test de régression échoue sur le "
                                               "correctif lui-même", sha=sha[:10], sujet=sujet))
+
+
+def corrige_son_code(ctx, parent: str, sha: str) -> bool:
+    """Dans un projet à plusieurs adaptateurs, un correctif se prouve dans le
+    langage du code qu'il corrige, et dans chacun s'il en corrige plusieurs
+    (ADR-0051, point 3) : il concerne l'adaptateur de la vue s'il touche ses
+    sources. Un correctif qui ne touche les sources d'aucun revient au
+    principal, comme dans un projet à un seul langage."""
+    return concerne(ctx.projet, ctx.projet.hors_tiers(outils.fichiers_changes(ctx.racine, parent, sha)))
+
+
+def concerne(projet, touches: list[str]) -> bool:
+    """Les fichiers qu'un correctif touche concernent l'adaptateur de la vue
+    s'ils comptent de son code (sa section `[code]`, ses sources hors tests
+    à défaut) : un test ajouté dans un autre langage ne fait pas de ce
+    langage celui du code corrigé. Un correctif qui ne touche le code
+    d'aucun concerne ceux dont il touche les sources, ses tests par exemple,
+    sinon le principal."""
+    courant = projet.adaptateur_courant
+    tous = projet.adaptateurs
+    hors = [f"{config.DOSSIER}/**"]
+
+    def code_de(a) -> list[str]:
+        chemins, exclus, _ = config_code(projet.pour(a))
+        return outils.filtrer(touches, chemins, exclus)
+
+    if any(code_de(a) for a in tous):
+        return bool(code_de(courant))
+    if any(outils.filtrer(touches, a.donnees.get("sources", []), hors) for a in tous):
+        return bool(outils.filtrer(touches, courant.donnees.get("sources", []), hors))
+    return courant.chemin == tous[0].chemin
+
+
+@controle("adaptateur.recouvrement")
+def recouvrement(ctx, r):
+    """Aucun fichier n'est désigné par deux adaptateurs : chacun est jugé par
+    celui dont les motifs le désignent, et par lui seul (ADR-0051, point 2)."""
+    tous = ctx.projet.adaptateurs
+    if len(tous) < 2:
+        return
+    par_fichier: dict[str, list[str]] = defaultdict(list)
+    for a in tous:
+        for f in ctx.projet.designes(a, ctx.fichiers):
+            par_fichier[f].append(a.nom)
+    doubles: dict[tuple[str, ...], list[str]] = defaultdict(list)
+    for f, noms in sorted(par_fichier.items()):
+        if len(noms) > 1:
+            doubles[tuple(noms)].append(f)
+    for noms, fichiers in doubles.items():
+        for f in fichiers[:10]:
+            r.erreur("adaptateur.recouvrement", trad("désigné par plusieurs adaptateurs ({noms}) : resserrer les "
+                                                     "motifs d'une copie, par une demande, pour qu'un seul le "
+                                                     "juge", noms=", ".join(noms)), f)
+        if len(fichiers) > 10:
+            r.erreur("adaptateur.recouvrement", trad("… et {n} autre(s) fichier(s) désigné(s) par {noms}",
+                                                     n=len(fichiers) - 10, noms=", ".join(noms)))
 
 
 def _admis_par(ctx, sha: str) -> str | None:
@@ -677,7 +737,7 @@ def _executer_superpose(ctx, rev: str, fichiers: dict[str, str], commande: str, 
         shutil.rmtree(atelier, ignore_errors=True)
 
 
-@controle("mutation.couverture")
+@controle("mutation.couverture", par_adaptateur=True)
 def couverture_mutation(ctx, r):
     """Tout module qui porte du code est dans le cliquet de mutation, et le
     cliquet ne nomme que des modules qui existent."""

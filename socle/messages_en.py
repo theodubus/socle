@@ -1646,9 +1646,10 @@ MESSAGES: dict[str, str] = {
         "without --files: approve without asking for confirmation",
     "installer ou mettre à jour le socle dans un projet":
         "install or update the socle in a project",
-    "`auto`, le défaut (déduit du dépôt), un adaptateur maintenu ({adaptateurs}) ou le chemin d'un .toml":
-        "`auto`, the default (deduced from the repository), a maintained adapter ({adaptateurs}) or the path of a "
-        ".toml",
+    "`auto`, le défaut (un par langage du dépôt), un adaptateur maintenu ({adaptateurs}) ou le chemin d'un .toml ; "
+    "répété, un par langage, le premier nommé étant le principal":
+        "`auto`, the default (one per language of the repository), a maintained adapter ({adaptateurs}) or the path "
+        "of a .toml; repeated, one per language, the first named being the main one",
     "ce que la décision approuve (le chemin du document)":
         "what the decision approves (the document's path)",
     "propriétaire pour CODEOWNERS, ex. @theodubus":
@@ -1682,8 +1683,8 @@ MESSAGES: dict[str, str] = {
         "survivors of a sweep against the caps",
     "écrire le plafond mesuré des modules « à mesurer » dans les garde-fous":
         "write the measured cap of the modules “to measure” into the guardrails",
-    "lance le balayage de mutation de l'adaptateur, puis son verdict":
-        "runs the adapter's mutation sweep, then its verdict",
+    "lance le balayage de mutation de chaque adaptateur, puis son verdict":
+        "runs each adapter's mutation sweep, then its verdict",
     "donne le prochain identifiant libre à une entrée qu'une autre branche a prise aussi":
         "gives the next free identifier to an entry another branch also took",
     "liste des contrôles":
@@ -2023,6 +2024,12 @@ MESSAGES: dict[str, str] = {
         "no linter imposed; a project that adopts checkstyle or spotbugs declares it here",
     "capacité `build` : `javac` avec ses avertissements":
         "capability `build`: `javac` with its warnings",
+    "aucun formateur imposé ; un projet qui adopte ktlint ou ktfmt le déclare ici":
+        "no formatter imposed; a project that adopts ktlint or ktfmt declares it here",
+    "aucun linter imposé ; un projet qui adopte detekt ou ktlint le déclare ici":
+        "no linter imposed; a project that adopts detekt or ktlint declares it here",
+    "capacité `build` : le compilateur Kotlin et ses avertissements":
+        "capability `build`: the Kotlin compiler and its warnings",
     "aucun formateur imposé ; un projet qui adopte prettier le déclare ici (`npx prettier --check .`)":
         "no formatter imposed; a project that adopts prettier declares it here (`npx prettier --check .`)",
     "relecture du diff, et la capacité `tests`, qui charge chaque module testé":
@@ -2574,4 +2581,34 @@ MESSAGES: dict[str, str] = {
     "un correctif dont le test passe sur le parent, admis par une demande validée qui nomme son commit, passe la "
     "CI":
         "a fix whose test passes on the parent, admitted by an approved request that names its commit, passes the CI",
+    "Aucun fichier n'est désigné par deux adaptateurs : chacun est jugé par celui dont les motifs le désignent, et "
+    "par lui seul (ADR-0051, point 2).":
+        "No file is designated by two adapters: each is judged by the one whose patterns designate it, and by it "
+        "alone (ADR-0051, item 2).",
+    "désigné par plusieurs adaptateurs ({noms}) : resserrer les motifs d'une copie, par une demande, pour qu'un seul "
+    "le juge":
+        "designated by several adapters ({noms}): narrow the patterns of one copy, through a request, so that only "
+        "one judges it",
+    "… et {n} autre(s) fichier(s) désigné(s) par {noms}":
+        "… and {n} other file(s) designated by {noms}",
+    "{adaptateur} : {message}":
+        "{adaptateur}: {message}",
+    "adaptateur inconnu : « {nom} » (ceux du projet : {liste})":
+        "unknown adapter: “{nom}” (the project's: {liste})",
+    "dans un projet à plusieurs adaptateurs, celui dont l'outil a écrit ces résultats (le principal sinon)":
+        "in a project with several adapters, the one whose tool wrote these results (the main one otherwise)",
+    "{nom} rafraîchi depuis l'adaptateur maintenu : un changement protégé, à approuver ; une copie dont une demande "
+    "avait resserré les motifs est à remettre":
+        "{nom} refreshed from the maintained adapter: a protected change, to approve; a copy whose patterns a "
+        "request had narrowed is to be restored",
+    "fichier désigné par deux adaptateurs":
+        "file designated by two adapters",
+    "un second adaptateur aux motifs disjoints, posé par l'installeur et approuvé par l'humain, passe la CI":
+        "a second adapter with disjoint patterns, set by the installer and approved by the human, passes the CI",
+    "!! {adaptateur} ne déclare pas `language` : aucun autre adaptateur ne s'ajoute en automatique ({liste}) ; les "
+    "nommer par `--adapter`, ou y déclarer son langage":
+        "!! {adaptateur} does not declare `language`: no other adapter is added automatically ({liste}); name them "
+        "with `--adapter`, or declare its language in it",
+    "plafonds de mutation : {n} module(s) des adaptateurs ajoutés posé(s) à mesurer":
+        "mutation caps: {n} module(s) of the added adapters set to measure",
 }

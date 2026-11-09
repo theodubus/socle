@@ -1297,6 +1297,14 @@ def _cas() -> list[Cas]:
         p.write_text(re.sub(r'(?m)^replacement = "capacité `mutation`.*\n', "", p.read_text()))
         return etage_ci(a, c)
 
+    @defaut("fichier-de-deux-adaptateurs", "fichier désigné par deux adaptateurs", "ci", "adaptateur.recouvrement")
+    def _(a, c):
+        # Un second adaptateur aux motifs du premier : chaque fichier Python
+        # serait jugé deux fois (ADR-0051, point 2).
+        (c / ".socle/adapters").mkdir(exist_ok=True)
+        shutil.copyfile(c / ".socle/adapter.toml", c / ".socle/adapters/doublon.toml")
+        return etage_ci(a, c)
+
     @defaut("reponse-a-une-demande-changee", "demande réécrite après sa réponse", "ci", "demandes.reponses")
     def _(a, c):
         ajouter(c, ".github/CODEOWNERS", "# une ligne de plus\n")
@@ -1767,6 +1775,18 @@ def _temoins() -> list[tuple[str, Callable]]:
     def _(a, c):
         ajouter(c, ".github/CODEOWNERS", "# une ligne de plus\n")
         r = a.socle(c, "approve", "--text", "Une ligne de plus", "--yes")
+        return (r.stdout + r.stderr) if r.returncode != 0 else etage_ci(a, c)
+
+    @temoin("un second adaptateur aux motifs disjoints, posé par l'installeur et approuvé par l'humain, passe la CI")
+    def _(a, c):
+        # La mise à jour qui ajoute Kotlin : son adaptateur, l'outil de sa
+        # CI et son balayage planifié (ADR-0051, point 6).
+        r = a.run(c, sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); from socle.cli import main; "
+                  "sys.exit(main(sys.argv[2:]))", str(a.moteur), "install", "--target", ".", "--adapter", "python",
+                  "--adapter", "kotlin", "--owner", "@essai")
+        if not (c / ".socle/adapters/kotlin.toml").is_file():
+            return r.stdout + r.stderr
+        r = a.socle(c, "approve", "--text", "L'adaptateur Kotlin", "--yes")
         return (r.stdout + r.stderr) if r.returncode != 0 else etage_ci(a, c)
 
     @temoin("une valeur attendue changée sous une demande validée par l'humain passe la CI")

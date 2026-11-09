@@ -249,7 +249,8 @@ révélée impossible à trancher pour l'humain.
   lint refuse un synonyme d'une réponse de base (`approuver`, `oui`…). Une
   demande qui nomme un test du projet ou une clé des seuils ne les change
   que sur `valider`, et les contrôles cherchent leur nom dans le texte de
-  la demande validée. Une décision en séance se consigne de même sous une
+  la demande validée ; un test du projet est celui de l'un de ses
+  adaptateurs, quand il en a plusieurs (ADR-0051). Une décision en séance se consigne de même sous une
   réponse de base, ou sous une option que la question nomme entre accents
   graves. Les questions de départ que pose `socle init` suivent la règle
   (D-0054) : `valider` y applique tous les défauts. Les questions de cadrage

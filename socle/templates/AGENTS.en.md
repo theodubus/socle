@@ -101,8 +101,9 @@ must be read again. `socle new` puts in the index fingerprint.
 A rare procedure is read in its skill, which the agent loads on its
 description: `socle-request` (writing a request, relaying an answer,
 recording a decision taken in session), `socle-private-memory` (the
-private memory) and `socle-review` (the adversarial review of a batch, before its
-delivery), in `.claude/skills/`, laid by the installer and
+private memory), `socle-review` (the adversarial review of a batch, before its
+delivery) and `socle-resume` (in a cloud session, at every turn that
+acts: resuming alone after a usage limit), in `.claude/skills/`, laid by the installer and
 protected; another agent reads their `SKILL.md` at that path.
 
 A project procedure that comes back (the journal shows the first time) is

@@ -70,11 +70,24 @@ MARQUEURS_LANGAGE = (
     (("pyproject.toml", "setup.py", "setup.cfg"), "python"),
     (("go.mod",), "go"),
     (("pom.xml",), "java"),
+    (("build.gradle.kts", "settings.gradle.kts"), "kotlin"),
     (("Gemfile",), "ruby"),
     (("composer.json",), "php"),
     (("*.sln", "*.slnx", "*.csproj"), "csharp"),
     (("package.json",), "javascript"),
 )
+
+
+# Un langage dont le marqueur ne suffit pas : son build Gradle écrit en
+# Kotlin, un projet Java sous Gradle le porte aussi ; il faut encore une
+# source du langage, hors des greffons de construction (`buildSrc/`), qu'un
+# projet Java écrit souvent en Kotlin.
+SOURCE_EXIGEE = {"kotlin": ".kt"}
+HORS_SOURCES = ("buildSrc",)
+
+
+def _source_du_langage(chemin: str, extension: str) -> bool:
+    return chemin.endswith(extension) and not set(HORS_SOURCES) & set(chemin.split("/")[:-1])
 
 
 def langages_presents(fichiers: list[str]) -> dict[str, list[str]]:
@@ -83,6 +96,8 @@ def langages_presents(fichiers: list[str]) -> dict[str, list[str]]:
     qu'il couvre."""
     res: dict[str, list[str]] = {}
     for marqueurs, langage in MARQUEURS_LANGAGE:
+        if langage in SOURCE_EXIGEE and not any(_source_du_langage(f, SOURCE_EXIGEE[langage]) for f in fichiers):
+            continue
         for f in fichiers:
             nom = f.rsplit("/", 1)[-1]
             if any(fnmatch.fnmatchcase(nom, m) for m in marqueurs) and not f.startswith(config.DOSSIER + "/"):
@@ -93,6 +108,10 @@ def langages_presents(fichiers: list[str]) -> dict[str, list[str]]:
 def detecter_langage(cible: Path) -> str | None:
     for fichiers, langage in MARQUEURS_LANGAGE:
         if any(p.is_file() for f in fichiers for p in cible.glob(f)):
+            if langage in SOURCE_EXIGEE and not any(
+                    _source_du_langage(p.relative_to(cible).as_posix(), SOURCE_EXIGEE[langage])
+                    for p in cible.rglob(f"*{SOURCE_EXIGEE[langage]}")):
+                continue
             return langage
     return None
 
@@ -106,11 +125,55 @@ def detecter_adaptateur(cible: Path) -> str | None:
         langage = "python"
     if langage != "python":
         return langage
-    indices = [f for f in fichiers if f.endswith("conftest.py") or f in ("pytest.ini", "tox.ini")]
-    for f in [f for f in fichiers if f in ("pyproject.toml", "setup.cfg") or f.startswith("requirements")]:
+    return _python_ou_pytest(cible, fichiers)
+
+
+def _python_ou_pytest(cible: Path, fichiers: list[str], partout: bool = False) -> str:
+    """`python-pytest` quand le dépôt dit pytest, `python` sinon. Ses fichiers
+    de configuration se lisent à la racine ; `partout`, dans tout dossier :
+    pour un Python qui n'est pas le premier langage, ses outils vivent souvent
+    dans un sous-dossier (revue du lot de B-0095, constat 7)."""
+    def nom(f):
+        return f.rsplit("/", 1)[-1] if partout else f
+
+    indices = [f for f in fichiers if f.endswith("conftest.py") or nom(f) in ("pytest.ini", "tox.ini")]
+    for f in [f for f in fichiers if nom(f) in ("pyproject.toml", "setup.cfg") or nom(f).startswith("requirements")]:
         if "pytest" in (cible / f).read_text(encoding="utf-8", errors="replace"):
             indices.append(f)
     return "python-pytest" if indices else "python"
+
+
+def detecter_adaptateurs(cible: Path) -> list[str]:
+    """Un adaptateur maintenu par langage que le dépôt porte, celui de
+    `detecter_adaptateur` d'abord : il prend `.socle/adapter.toml`
+    (ADR-0051, point 6). Un dépôt à un seul langage n'en a qu'un."""
+    premier = detecter_adaptateur(cible)
+    if premier is None:
+        return []
+    res = [premier]
+    vus = {_langage_de(premier)}
+    # Les fichiers d'un outil tiers n'appellent pas d'adaptateur : l'état ne
+    # signale pas leur langage non plus.
+    fichiers = config.Projet.charger(cible).hors_tiers(
+        [f for f in outils.fichiers_courants(cible) if not f.startswith((config.DOSSIER + "/", ".claude/"))])
+    presents = langages_presents(fichiers)
+    for _, langage in MARQUEURS_LANGAGE:
+        if langage not in presents or langage in vus:
+            continue
+        nom = _python_ou_pytest(cible, fichiers, partout=True) if langage == "python" else langage
+        if (ADAPTATEURS / f"{nom}.toml").is_file():
+            vus.add(langage)
+            res.append(nom)
+    return res
+
+
+def _langage_de(nom: str) -> str:
+    """Le langage qu'un adaptateur couvre : sa clé `language`, son nom à
+    défaut."""
+    try:
+        return str(tomllib.loads(charger_adaptateur(nom)[0]).get("language") or nom)
+    except (SystemExit, tomllib.TOMLDecodeError):
+        return nom
 
 
 def politique_privee(texte: str, mode: str, relecture: str | None, demandes: bool) -> str:
@@ -126,18 +189,23 @@ def politique_privee(texte: str, mode: str, relecture: str | None, demandes: boo
     return texte[:debut] + bloc + texte[fin:]
 
 
-def _balayage_planifie(cible: Path, texte_adaptateur: str) -> tuple[bool, str]:
+def _balayage_planifie(cible: Path, texte_adaptateur: str, autres: list[str] = ()) -> tuple[bool, str]:
     """(poser, ce qu'en dit le journal) : le workflow de mutation se pose
-    quand l'adaptateur déclare un balayage, sauf si un workflow du projet
+    quand un adaptateur déclare un balayage, sauf si un workflow du projet
     le lance déjà ; celui du socle, déjà posé, se met à jour."""
-    cap = tomllib.loads(texte_adaptateur).get("capabilities", {}).get("mutation", {})
-    if "command" not in cap:
+    caps = [c for x in (texte_adaptateur, *autres)
+            if "command" in (c := tomllib.loads(x).get("capabilities", {}).get("mutation", {}))]
+    if not caps:
         return False, ""
     flux = sorted(str(p.relative_to(cible)).replace(os.sep, "/") for p in (cible / ".github/workflows").glob("*")
                   if p.is_file()) if (cible / ".github/workflows").is_dir() else []
     if mutation.WORKFLOW in flux:
         return True, ""
-    autre = mutation.workflow_de_balayage(cap, flux, lambda f: outils.lire_a(cible, None, f), sauf_le_sien=True)
+    # Un workflow du projet qui lance l'outil d'un seul langage ne balaie pas
+    # les autres : celui du socle se pose tant qu'un outil n'a pas le sien.
+    autres = [mutation.workflow_de_balayage(c, flux, lambda f: outils.lire_a(cible, None, f), sauf_le_sien=True)
+              for c in caps]
+    autre = autres[0] if all(autres) else None
     if autre:
         return False, (trad("balayage de mutation : `{autre}` le lance déjà, le socle n'en pose pas un second "
                             "; la CI vérifie qu'il tourne encore", autre=autre))
@@ -179,20 +247,16 @@ def lire_plafonds(fichier: Path) -> dict[str, dict]:
 
 
 def garde_fous_initiaux(cible: Path, texte_adaptateur: str, ch: config.Chemins = config.FORMAT_ACTUEL,
-                        lg: str = "fr", plafonds: dict[str, dict] | None = None, source: str = "") -> str:
+                        lg: str = "fr", plafonds: dict[str, dict] | None = None, source: str = "",
+                        autres: list[str] = ()) -> str:
     """Les garde-fous du gabarit, avec chaque module qui porte déjà du code
     posé « à mesurer » au cliquet de mutation : une installation sur un
     projet existant finit verte, et le premier balayage pose les plafonds
     mesurés. Un module dont `plafonds` donne la mesure, faite ailleurs, la
     reprend au lieu d'attendre ce balayage (B-0009)."""
     texte = gabarit("guardrails.toml", lg)
-    cap = tomllib.loads(texte_adaptateur).get("capabilities", {}).get("mutation", {})
-    if "command" not in cap:
-        return texte
-    porte = re.compile(cap.get("has_code", r"."))
-    fichiers = [f for f in outils.fichiers_courants(cible) if not f.startswith(config.DOSSIER + "/")]
-    modules = [m for m in outils.filtrer(fichiers, cap.get("modules", []), cap.get("modules_exclude", []))
-               if porte.search(outils.lire_a(cible, None, m) or "")]
+    # Chaque adaptateur pose les modules de son langage (ADR-0051, point 5).
+    modules = modules_a_mesurer(cible, [texte_adaptateur, *autres])
     if not modules:
         return texte
     plafonds = plafonds or {}
@@ -390,9 +454,10 @@ def _poser_configuration(cible: Path, texte_adaptateur: str, ancien: dict, prive
                          relecture: str | None, demandes_privees: bool,
                          langue_memoire: str | None, ch: config.Chemins,
                          plafonds: dict[str, dict] | None = None, source: str = "",
-                         humain: str = "") -> tuple[str, list[str]]:
-    """La politique, l'adaptateur et les garde-fous, posés s'ils manquent ;
-    rend la langue de la mémoire."""
+                         humain: str = "", autres: list[tuple[str, str]] = ()) -> tuple[str, list[str]]:
+    """La politique, les adaptateurs et les garde-fous, posés s'ils manquent ;
+    rend la langue de la mémoire. `autres` : (nom, texte) des adaptateurs des
+    autres langages, posés dans `.socle/adapters/` (ADR-0051)."""
     journal = []
     neuf = not (cible / ch.politique).is_file()
     politique = gabarit("policy.toml", langue_memoire if langue_memoire and neuf else "fr")
@@ -430,7 +495,8 @@ def _poser_configuration(cible: Path, texte_adaptateur: str, ancien: dict, prive
     for nom, contenu in (
         (ch.politique, politique),
         (ch.adaptateur, texte_adaptateur),
-        (ch.garde_fous, garde_fous_initiaux(cible, texte_adaptateur, ch, lg, plafonds, source)),
+        (ch.garde_fous, garde_fous_initiaux(cible, texte_adaptateur, ch, lg, plafonds, source,
+                                            [x for _, x in autres])),
     ):
         p = cible / nom
         if p.is_file():
@@ -462,7 +528,75 @@ def _poser_configuration(cible: Path, texte_adaptateur: str, ancien: dict, prive
                 if ecartes:
                     journal.append(trad("!! plafonds de {source} écartés, faute d'un module de ce nom qui porte du "
                                         "code : {liste}", source=source, liste=", ".join(ecartes)))
+    poses, sortie = _poser_autres_adaptateurs(cible, autres, ch)
+    journal += sortie
+    gf = cible / ch.garde_fous
+    if poses and gf.is_file():
+        # Une mise à jour qui ajoute un langage : ses modules entrent « à
+        # mesurer » au cliquet, comme ceux d'une installation neuve (revue du
+        # lot de B-0095, constat 2). Ajouter un plafond durcit.
+        texte = gf.read_text(encoding="utf-8")
+        modules = [m for m in modules_a_mesurer(cible, poses)
+                   if m not in (tomllib.loads(texte).get("mutation", {}).get("caps", {}) or {})]
+        if modules:
+            outils.ecrire(gf, ajouter_a_mesurer(texte, modules))
+            journal.append(trad("plafonds de mutation : {n} module(s) des adaptateurs ajoutés posé(s) à mesurer",
+                                n=len(modules)))
     return lg, journal
+
+
+def modules_a_mesurer(cible: Path, textes: list[str]) -> list[str]:
+    """Les modules qui portent du code, pour chaque adaptateur qui déclare un
+    balayage de mutation."""
+    fichiers = [f for f in outils.fichiers_courants(cible) if not f.startswith(config.DOSSIER + "/")]
+    modules = []
+    for x in textes:
+        cap = tomllib.loads(x).get("capabilities", {}).get("mutation", {})
+        if "command" not in cap:
+            continue
+        porte = re.compile(cap.get("has_code", r"."))
+        modules += [m for m in outils.filtrer(fichiers, cap.get("modules", []), cap.get("modules_exclude", []))
+                    if porte.search(outils.lire_a(cible, None, m) or "") and m not in modules]
+    return sorted(modules)
+
+
+def ajouter_a_mesurer(texte: str, modules: list[str]) -> str:
+    """Les garde-fous, avec ces modules « à mesurer » sous `[mutation.caps]`,
+    la table ajoutée si elle manque."""
+    lignes = "".join(f"{json.dumps(m, ensure_ascii=False)} = {{ pending = true }}\n" for m in modules)
+    m = re.search(r"(?m)^\[mutation\.caps\]\s*\n", texte)
+    if m:
+        return texte[:m.end()] + lignes + texte[m.end():]
+    return texte.rstrip("\n") + "\n\n[mutation.caps]\n" + lignes
+
+
+def _poser_autres_adaptateurs(cible: Path, autres: list[tuple[str, str]],
+                              ch: config.Chemins) -> tuple[list[str], list[str]]:
+    """Les adaptateurs des autres langages, `.socle/adapters/<nom>.toml` :
+    posés s'ils manquent. Une copie d'un adaptateur maintenu se rafraîchit à
+    chaque mise à jour, et l'humain l'approuve comme tout fichier protégé ;
+    un adaptateur propre au projet se garde (ADR-0051, point 6)."""
+    journal, poses = [], []
+    a_poser = dict(autres)
+    for chemin in config.fichiers_adaptateurs(cible, ch.adaptateurs):
+        nom = Path(chemin).stem
+        if nom not in a_poser and (ADAPTATEURS / f"{nom}.toml").is_file():
+            a_poser[nom] = (ADAPTATEURS / f"{nom}.toml").read_text(encoding="utf-8")
+    for nom, texte in a_poser.items():
+        p = cible / ch.adaptateurs / f"{nom}.toml"
+        if not p.is_file():
+            outils.ecrire(p, texte)
+            poses.append(texte)
+            journal.append(trad("{nom} posé", nom=f"{ch.adaptateurs}/{nom}.toml"))
+        elif not (ADAPTATEURS / f"{nom}.toml").is_file():
+            journal.append(trad("{nom} existe : conservé (comparer au gabarit à la main si besoin)",
+                                nom=f"{ch.adaptateurs}/{nom}.toml"))
+        elif p.read_text(encoding="utf-8") != texte:
+            outils.ecrire(p, texte)
+            journal.append(trad("{nom} rafraîchi depuis l'adaptateur maintenu : un changement protégé, à "
+                                "approuver ; une copie dont une demande avait resserré les motifs est à "
+                                "remettre", nom=f"{ch.adaptateurs}/{nom}.toml"))
+    return poses, journal
 
 
 def _poser_memoire(cible: Path, lg: str, nom_adaptateur: str, adoption: bool, ch: config.Chemins) -> list[str]:
@@ -511,8 +645,22 @@ def poser_skills(cible: Path, lg: str = "fr") -> list[str]:
     return [trad("skills du socle posés dans {dossier} : {noms}", dossier=SKILLS, noms=", ".join(noms))]
 
 
+def etapes_de_ci(textes: list[str]) -> str:
+    """Les étapes de CI des adaptateurs, l'une après l'autre ; une étape que
+    deux adaptateurs déclarent à l'identique ne se répète pas (ADR-0051,
+    point 4)."""
+    res = []
+    for x in textes:
+        setup = tomllib.loads(x).get("ci_setup", "")
+        for bloc in re.split(r"(?m)^(?=      - )", setup):
+            if bloc.strip() and bloc not in res:
+                res.append(bloc if bloc.endswith("\n") else bloc + "\n")
+    return "".join(res)
+
+
 def _poser_etages(cible: Path, texte_adaptateur: str, dossier_moteur: str, proprietaire: str,
-                  balayage: bool, motif: str, ch: config.Chemins, lg: str = "fr") -> list[str]:
+                  balayage: bool, motif: str, ch: config.Chemins, lg: str = "fr",
+                  autres: list[tuple[str, str]] = ()) -> list[str]:
     """Les étages d'application : hooks de l'agent, hooks git, CI, balayage
     de mutation, CODEOWNERS, .gitignore. Les workflows sont dans la langue de
     la mémoire."""
@@ -526,7 +674,7 @@ def _poser_etages(cible: Path, texte_adaptateur: str, dossier_moteur: str, propr
         journal.append(trad("hooks git branchés (core.hooksPath)"))
     else:
         journal.append(trad("!! core.hooksPath pointe ailleurs : hooks git NON branchés"))
-    setup = noms_d_etapes_traduits(tomllib.loads(texte_adaptateur).get("ci_setup", ""))
+    setup = noms_d_etapes_traduits(etapes_de_ci([texte_adaptateur, *(x for _, x in autres)]))
     etapes = setup.strip("\n") + "\n" if setup.strip() else ""
     workflow = gabarit("socle.yml", lg).replace("@@ETAPES_ADAPTATEUR@@\n", etapes)
     # Le nom du travail est celui qu'une protection de branche exige : une
@@ -540,10 +688,11 @@ def _poser_etages(cible: Path, texte_adaptateur: str, dossier_moteur: str, propr
                             "peut-être", nom=avant))
     outils.ecrire(cible / ".github/workflows/socle.yml", workflow)
     if balayage:
-        installation = tomllib.loads(texte_adaptateur).get("capabilities", {}).get("mutation", {}).get("install", "")
+        installations = [i for x in (texte_adaptateur, *(y for _, y in autres))
+                         if (i := tomllib.loads(x).get("capabilities", {}).get("mutation", {}).get("install", ""))]
         # En bloc littéral : la commande peut porter ce que YAML lirait autrement.
-        etape = (f"      - name: {trad('Outil de mutation')}\n        run: |\n          {installation}\n"
-                 if installation else "")
+        etape = "".join(f"      - name: {trad('Outil de mutation')}\n        run: |\n          {i}\n"
+                        for i in dict.fromkeys(installations))
         outils.ecrire(cible / mutation.WORKFLOW, gabarit("mutation.yml", lg).replace("@@ETAPES_ADAPTATEUR@@\n", etapes)
                 .replace("@@INSTALLATION@@\n", etape))
     if motif:
@@ -551,6 +700,7 @@ def _poser_etages(cible: Path, texte_adaptateur: str, dossier_moteur: str, propr
     journal += _codeowners(cible, proprietaire)
     journal += _gitignore(cible)
     journal += _non_ignores(cible, [config.LANCEUR, ch.lock, ch.politique, ch.adaptateur, ch.garde_fous,
+                                    *config.fichiers_adaptateurs(cible, ch.adaptateurs),
                                     f"{config.GIT_HOOKS}/pre-commit", ".github/workflows/socle.yml", mutation.WORKFLOW,
                                     ".claude/settings.json", f"{SKILLS}/socle-request/SKILL.md", config.INSTRUCTIONS,
                                     "CLAUDE.md", ch.canonique,
@@ -558,7 +708,7 @@ def _poser_etages(cible: Path, texte_adaptateur: str, dossier_moteur: str, propr
     return journal
 
 
-def installer(cible: Path, adaptateur: str, proprietaire: str = "", adoption: bool = False,
+def installer(cible: Path, adaptateur: str | list[str], proprietaire: str = "", adoption: bool = False,
               mode: str = config.MODE_PROJET, source: Path | None = None, prive: str | None = None,
               relecture: str | None = None, demandes_privees: bool = False, filtre: str = "git-crypt",
               langue_memoire: str | None = None, plafonds: Path | None = None, humain: str = "") -> int:
@@ -579,7 +729,8 @@ def installer(cible: Path, adaptateur: str, proprietaire: str = "", adoption: bo
                           humain)
 
 
-def _installer(cible: Path, adaptateur: str, proprietaire: str, adoption: bool, mode: str, source: Path | None,
+def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adoption: bool, mode: str,
+               source: Path | None,
                prive: str | None, relecture: str | None, demandes_privees: bool, filtre: str,
                langue_memoire: str | None, plafonds: dict[str, dict] | None = None, source_plafonds: str = "",
                humain: str = "") -> int:
@@ -590,25 +741,63 @@ def _installer(cible: Path, adaptateur: str, proprietaire: str, adoption: bool, 
         print(trad("refus : {refus}", refus=refus), file=sys.stderr)
         return 2
     source = source or Path(__file__).resolve().parent.parent
-    if adaptateur == "auto":
-        detecte = detecter_adaptateur(cible)
-        if detecte is None:
+    # Plusieurs `--adapter` : un par langage, le premier nommé prend
+    # `.socle/adapter.toml` ; `auto` en pose un par langage reconnu
+    # (ADR-0051, point 6).
+    demandes_ = [adaptateur] if isinstance(adaptateur, str) else list(adaptateur) or ["auto"]
+    noms, detectes, nommes = [], False, set()
+    for n in demandes_:
+        if n != "auto":
+            noms += [n] if n not in noms else []
+            nommes.add(n)
+            continue
+        trouves = detecter_adaptateurs(cible)
+        if not trouves and not noms and n == demandes_[-1]:
             connus = "|".join(sorted(x.stem for x in ADAPTATEURS.glob("*.toml")))
             print(trad("refus : langage non détecté (aucun de Cargo.toml, pyproject.toml, go.mod, pom.xml, "
                        "Gemfile, composer.json, *.sln, *.csproj, package.json, ni fichier Python) : le demander "
                        "à l'humain, puis `--adapter <{connus}>` ou le chemin d'un .toml", connus=connus), file=sys.stderr)
             return 2
-        adaptateur = detecte
-    texte_adaptateur, nom_adaptateur = charger_adaptateur(adaptateur)
+        detectes = True
+        noms += [x for x in trouves if x not in noms]
+    charges = []
+    for n in noms:
+        texte, nom = charger_adaptateur(n)
+        try:
+            donnees = tomllib.loads(texte)
+        except tomllib.TOMLDecodeError as e:
+            print(trad("refus : adaptateur « {nom} » illisible : {erreur}", nom=nom, erreur=e), file=sys.stderr)
+            return 2
+        charges.append((nom, texte, str(donnees.get("language") or nom), n in nommes))
+    # Le principal : celui que le projet a déjà, sinon le premier nommé. Un
+    # autre adaptateur du même langage que lui ne s'ajoute pas.
+    principal = cible / ch.adaptateur
+    texte_principal = principal.read_text(encoding="utf-8") if principal.is_file() else ""
+    langage_principal = (str(config.lire_toml(texte_principal).get("language") or "") if principal.is_file()
+                         else charges[0][2])
+    texte_adaptateur, nom_adaptateur = charges[0][1], charges[0][0]
+    langages, autres, sans_langage = {langage_principal}, [], []
+    for nom, texte, langage, nomme in charges[1:] if not principal.is_file() else charges:
+        if langage in langages:
+            continue
+        if principal.is_file() and not langage_principal and not nomme:
+            # Un principal qui ne dit pas son langage : un adaptateur détecté
+            # pourrait le doubler (revue du lot de B-0095, constat 9).
+            sans_langage.append(nom)
+            continue
+        langages.add(langage)
+        autres.append((nom, texte))
+    if principal.is_file() and autres and charges[0][2] != langage_principal:
+        # Le premier nommé n'est pas le principal du projet : la CI part du
+        # principal, qui reste (constat 3).
+        texte_adaptateur, nom_adaptateur = texte_principal, langage_principal or Path(ch.adaptateur).stem
     ancien = config.Projet.charger(cible).lock if (cible / config.FORMAT_ACTUEL.lock).is_file() else {}
-    try:
-        tomllib.loads(texte_adaptateur)
-    except tomllib.TOMLDecodeError as e:
-        print(trad("refus : adaptateur « {nom} » illisible : {erreur}", nom=nom_adaptateur, erreur=e),
-              file=sys.stderr)
-        return 2
-    journal = [trad("adaptateur : {nom}", nom=nom_adaptateur)
-               + (trad(" (détecté)") if adaptateur != nom_adaptateur else "")]
+    journal = [trad("adaptateur : {nom}", nom=", ".join([nom_adaptateur, *(n for n, _ in autres)]))
+               + (trad(" (détecté)") if detectes else "")]
+    if sans_langage:
+        journal.append(trad("!! {adaptateur} ne déclare pas `language` : aucun autre adaptateur ne s'ajoute en "
+                            "automatique ({liste}) ; les nommer par `--adapter`, ou y déclarer son langage",
+                            adaptateur=ch.adaptateur, liste=", ".join(sans_langage)))
     if ancien:
         journal.append(trad("mise à jour : moteur {avant} → {version}", avant=ancien.get("version", "amont"),
                             version=VERSION))
@@ -627,20 +816,24 @@ def _installer(cible: Path, adaptateur: str, proprietaire: str, adoption: bool, 
 
     # 2. Les fichiers du projet : posés s'ils manquent, jamais écrasés.
     lg, poses = _poser_configuration(cible, texte_adaptateur, ancien, prive, relecture, demandes_privees,
-                                     langue_memoire, ch, plafonds, source_plafonds, humain)
+                                     langue_memoire, ch, plafonds, source_plafonds, humain, autres)
     journal += poses
 
     # 3. La mémoire initiale.
-    journal += _poser_memoire(cible, lg, nom_adaptateur, adoption, ch)
+    journal += _poser_memoire(cible, lg, ", ".join([nom_adaptateur, *(n for n, _ in autres)]), adoption, ch)
 
     # 4. Les instructions : AGENTS.md fait foi, CLAUDE.md l'importe.
-    balayage, motif = _balayage_planifie(cible, texte_adaptateur)
+    tous_autres = [*autres, *((Path(c).stem, (cible / c).read_text(encoding="utf-8"))
+                              for c in config.fichiers_adaptateurs(cible, ch.adaptateurs)
+                              if Path(c).stem not in dict(autres))]
+    balayage, motif = _balayage_planifie(cible, texte_adaptateur, [x for _, x in tous_autres])
     section_avant = sum(_taille_section((cible / nom).read_text(encoding="utf-8")) for nom in INSTRUCTIONS
                         if (cible / nom).is_file())
     journal += _instructions(cible, dossier_moteur, lg, balayage, ch)
 
     # 5. Les étages d'application.
-    journal += _poser_etages(cible, texte_adaptateur, dossier_moteur, proprietaire, balayage, motif, ch, lg)
+    journal += _poser_etages(cible, texte_adaptateur, dossier_moteur, proprietaire, balayage, motif, ch, lg,
+                             tous_autres)
     if prive:
         journal += _prive(cible, prive, filtre)
 

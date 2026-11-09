@@ -623,7 +623,7 @@ def cmd_install(args) -> int:
 
     return installeur.installer(
         cible=Path(args.target).resolve(),
-        adaptateur=args.adapter,
+        adaptateur=args.adapter or "auto",
         proprietaire=args.owner,
         adoption=args.adoption,
         mode=args.mode,
@@ -671,7 +671,15 @@ def cmd_fingerprint(args) -> int:
 def cmd_mutation_verdict(args) -> int:
     from socle import mutation
 
-    rapport = mutation.verdict(_projet(args), Path(args.results), poser=getattr(args, "poser", False))
+    projet = _projet(args)
+    if getattr(args, "adaptateur", None):
+        a = next((a for a in projet.adaptateurs if a.nom == args.adaptateur), None)
+        if a is None:
+            print(trad("adaptateur inconnu : « {nom} » (ceux du projet : {liste})", nom=args.adaptateur,
+                       liste=", ".join(a.nom for a in projet.adaptateurs)), file=sys.stderr)
+            return 2
+        projet = projet.pour(a)
+    rapport = mutation.verdict(projet, Path(args.results), poser=getattr(args, "poser", False))
     rapport.afficher(trad("socle {version} — verdict de mutation", version=VERSION))
     return 0 if rapport.reussi else 1
 
@@ -884,9 +892,10 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
 
     s = sp.add_parser("install", help=trad("installer ou mettre à jour le socle dans un projet"))
     s.add_argument("--target", default=".")
-    s.add_argument("--adapter", default="auto",
-                   help=trad("`auto`, le défaut (déduit du dépôt), un adaptateur maintenu ({adaptateurs}) ou le "
-                             "chemin d'un .toml", adaptateurs=", ".join(sorted(
+    s.add_argument("--adapter", action="append",
+                   help=trad("`auto`, le défaut (un par langage du dépôt), un adaptateur maintenu ({adaptateurs}) "
+                             "ou le chemin d'un .toml ; répété, un par langage, le premier nommé étant le "
+                             "principal", adaptateurs=", ".join(sorted(
                                  x.stem for x in (Path(__file__).resolve().parent / "adapters").glob("*.toml")))))
     s.add_argument("--owner", default="", help=trad("propriétaire pour CODEOWNERS, ex. @theodubus"))
     s.add_argument("--human", help=trad("le nom de l'humain, qui signe les réponses que l'agent relaie (défaut : son "
@@ -921,12 +930,15 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
 
     s = sp.add_parser("mutation-verdict", help=trad("survivants d'un balayage contre les plafonds"))
     s.add_argument("results")
+    s.add_argument("--adapter", dest="adaptateur",
+                   help=trad("dans un projet à plusieurs adaptateurs, celui dont l'outil a écrit ces résultats "
+                             "(le principal sinon)"))
     s.add_argument("--record", action="store_true", dest="poser",
                    help=trad("écrire le plafond mesuré des modules « à mesurer » dans les garde-fous"))
     s.set_defaults(f=cmd_mutation_verdict)
 
-    s = sp.add_parser("mutation-run", help=trad("lance le balayage de mutation de l'adaptateur, puis son "
-                                                "verdict"))
+    s = sp.add_parser("mutation-run", help=trad("lance le balayage de mutation de chaque adaptateur, puis "
+                                                "son verdict"))
     s.add_argument("--record", action="store_true", dest="poser",
                    help=trad("écrire le plafond mesuré des modules « à mesurer » dans les garde-fous"))
     s.set_defaults(f=cmd_mutation_run)

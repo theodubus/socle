@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from socle import config
+from socle import config, utils as outils
 from socle.messages import a_traduire, trad
 from socle.report import Rapport
 
@@ -141,16 +141,40 @@ def lire_gremlins(dossier: Path) -> dict[str, Counter]:
     return res
 
 
-# PIT (Java) : `target/pit-reports/mutations.xml`. Le fichier se déduit du
+# PIT (Java, Kotlin) : `target/pit-reports/mutations.xml` sous Maven,
+# `build/reports/pitest/mutations.xml` sous Gradle. Le fichier se déduit du
 # paquet de la classe mutée et du nom de son fichier source.
 STATUTS_PIT = {"KILLED": "attrapes", "TIMED_OUT": "expires", "MEMORY_ERROR": "expires",
                "RUN_ERROR": "inviables", "NON_VIABLE": "inviables"}
+# Ce que produit la construction, où un fichier source n'est qu'une copie.
+DOSSIERS_DE_CONSTRUCTION = {"build", "target", ".gradle", "out"}
+
+
+def _source_pit(dossier: Path, paquet: str, source: str, connus: dict) -> str:
+    """Le fichier source d'une mutation de PIT, qui ne connaît que le paquet de
+    la classe et le nom du fichier : celui du dépôt dont le chemin finit par
+    le paquet puis le nom (`src/main/kotlin/essai/Calc.kt`) ; sinon le seul de
+    ce nom qui déclare ce paquet, Kotlin permettant de ne pas ranger un
+    fichier sous son paquet ; à défaut, le chemin de Maven,
+    `src/main/java/<paquet>/<fichier>`."""
+    cle = (paquet, source)
+    if cle not in connus:
+        attendu = f"{paquet}/{source}" if paquet else source
+        trouves = [p for p in dossier.rglob(source)
+                   if p.is_file() and not DOSSIERS_DE_CONSTRUCTION & set(p.relative_to(dossier).parts[:-1])]
+        rangs = [p for p in trouves if p.relative_to(dossier).as_posix().endswith(attendu)]
+        if len(rangs) != 1 and paquet:
+            declare = re.compile(rf"^\s*package\s+{re.escape(paquet.replace('/', '.'))}\s*;?\s*$", re.M)
+            rangs = [p for p in trouves if declare.search(p.read_text(encoding="utf-8", errors="replace"))]
+        connus[cle] = rangs[0].relative_to(dossier).as_posix() if len(rangs) == 1 else f"src/main/java/{attendu}"
+    return connus[cle]
 
 
 def lire_pit(dossier: Path) -> dict[str, Counter]:
     import xml.etree.ElementTree as ET
 
     res: dict[str, Counter] = {}
+    connus: dict = {}
     for f in sorted(dossier.rglob("mutations.xml")):
         try:
             racine = ET.parse(f).getroot()
@@ -159,8 +183,8 @@ def lire_pit(dossier: Path) -> dict[str, Counter]:
         for m in racine.iter("mutation"):
             classe, source = m.findtext("mutatedClass", ""), m.findtext("sourceFile", "")
             paquet = "/".join(classe.split(".")[:-1])
-            chemin = f"src/main/java/{paquet}/{source}" if paquet else f"src/main/java/{source}"
-            _compter(res, chemin, STATUTS_PIT.get(m.get("status", ""), "survivants"))
+            _compter(res, _source_pit(dossier, paquet, source, connus), STATUTS_PIT.get(m.get("status", ""),
+                                                                                    "survivants"))
     return res
 
 
@@ -223,7 +247,7 @@ def verdict(projet: config.Projet, dossier: Path, poser: bool = False) -> Rappor
     if not dossier.is_dir():
         r.erreur(ident, trad("dossier de résultats introuvable : {dossier}", dossier=dossier))
         return r
-    plafonds = projet.gf("mutation", "caps", defaut={}) or {}
+    plafonds = plafonds_de(projet)
     if not plafonds:
         r.erreur(ident, trad("plafond vide : rien à comparer — un vert ici serait silencieux"))
         return r
@@ -257,6 +281,27 @@ def verdict(projet: config.Projet, dossier: Path, poser: bool = False) -> Rappor
                                  "`{fichier}` n'est pas reconnue ; l'écrire à la main",
                                  module=module, fichier=projet.chemins.garde_fous))
     return r
+
+
+def plafonds_de(projet: config.Projet) -> dict:
+    """Les plafonds que juge l'adaptateur de la vue. Dans un projet à
+    plusieurs adaptateurs, ceux de ses seuls modules : deux langages ne se
+    mêlent pas (ADR-0051, point 5). Seul, il les juge tous."""
+    plafonds = projet.gf("mutation", "caps", defaut={}) or {}
+    if not projet.plusieurs_adaptateurs:
+        return plafonds
+
+    def modules_de(a) -> set[str]:
+        cap = a.donnees.get("capabilities", {}).get("mutation", {})
+        return set(outils.filtrer(sorted(plafonds), cap.get("modules", []), cap.get("modules_exclude", [])))
+
+    siens = modules_de(projet.adaptateur_courant)
+    # Un plafond qu'aucun adaptateur ne désigne revient au principal, qui le
+    # jugeait seul avant : un module sans résultat casse toujours.
+    if projet.adaptateur_courant.chemin == projet.adaptateurs[0].chemin:
+        designes = set().union(*(modules_de(a) for a in projet.adaptateurs))
+        siens |= set(plafonds) - designes
+    return {m: p for m, p in plafonds.items() if m in siens}
 
 
 def poser_plafonds(projet: config.Projet, mesures: dict[str, int]) -> list[str]:
@@ -325,19 +370,35 @@ def commandes_de_balayage(projet: config.Projet) -> tuple[list[str], Path | None
         return [], None, (trad("la commande de l'adaptateur balaie module par module sans `{output}` : chaque "
                                "balayage écraserait le précédent ; y ajouter l'option de l'outil qui choisit "
                                "son dossier de sortie, `{output}` en valeur"))
-    modules = sorted(projet.gf("mutation", "caps", defaut={}) or {})
+    modules = sorted(plafonds_de(projet))
     if not modules:
         return [], None, trad("plafond vide : aucun module à balayer")
     dossier = projet.racine / SORTIES
+    if projet.plusieurs_adaptateurs:
+        dossier = dossier / projet.adaptateur_courant.nom
     return [commande.replace("{module}", shlex.quote(m)).replace("{output}", shlex.quote(str(dossier / f"{k:03d}")))
             for k, m in enumerate(modules)], dossier, None
 
 
 def balayer(projet: config.Projet, poser: bool = False, flux=None) -> Rapport:
-    """Lance le balayage de l'adaptateur, puis rend son verdict. Le code de
-    sortie de l'outil ne décide rien (des survivants le font souvent échouer) :
-    le verdict lit ses résultats, et un module sans résultat casse. Sans
-    `flux`, la sortie de l'outil passe telle quelle, au fil du balayage."""
+    """Lance le balayage de chaque adaptateur, puis rend son verdict. Le code
+    de sortie de l'outil ne décide rien (des survivants le font souvent
+    échouer) : le verdict lit ses résultats, et un module sans résultat
+    casse. Sans `flux`, la sortie de l'outil passe telle quelle, au fil du
+    balayage. Dans un projet à plusieurs adaptateurs, chaque constat nomme le
+    sien (ADR-0051, point 5)."""
+    if not projet.plusieurs_adaptateurs:
+        return _balayer(projet, poser, flux)
+    r = Rapport()
+    for a in projet.adaptateurs:
+        siens = _balayer(projet.pour(a), poser, flux)
+        for k in siens.constats:
+            k.message = trad("{adaptateur} : {message}", adaptateur=a.nom, message=k.message)
+        r.fusionner(siens)
+    return r
+
+
+def _balayer(projet: config.Projet, poser: bool, flux) -> Rapport:
     r = Rapport()
     ident = "mutation.balayage"
     r.execute(ident)
@@ -482,10 +543,16 @@ def etat_du_balayage(projet: config.Projet, fichiers: list[str],
     quand il tourne, ou quand l'adaptateur ne déclare pas de mutation."""
     from socle import links as liens
 
-    cap = projet.adaptateur.get("capabilities", {}).get("mutation", {})
-    if "command" not in cap:
+    # Un balayage planifié lance les outils de tous les adaptateurs : un
+    # workflow qui nomme celui de l'un d'eux compte.
+    caps = [c for a in projet.adaptateurs
+            if "command" in (c := a.donnees.get("capabilities", {}).get("mutation", {}))]
+    if not caps:
         return None, "", None, None
-    flux = workflow_de_balayage(cap, fichiers, lire)
+    # Le workflow du socle balaie tous les adaptateurs ; sans lui, chaque
+    # outil doit avoir le sien.
+    trouves = [workflow_de_balayage(c, fichiers, lire) for c in caps]
+    flux = trouves[0] if all(trouves) else None
     if flux is None:
         return "erreur", (trad("aucun workflow ne lance le balayage de mutation : le cliquet ne se mesure "
                                "jamais. Relancer l'installeur, qui pose `{workflow}`", workflow=WORKFLOW)), None, None

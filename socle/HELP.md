@@ -27,6 +27,12 @@ démarrage. Une session qui ajoute un second dépôt ne se reprend pas : à
 deux dépôts, elle redémarre hors de la racine du projet, sans les hooks de
 l'agent.
 
+Un projet écrit en plusieurs langages a un adaptateur par langage :
+l'installeur en pose un par langage qu'il reconnaît, ou ceux qu'on lui
+nomme (`--adapter python-pytest --adapter kotlin`, le premier étant le
+principal), et chaque fichier est jugé par celui de son langage (la
+[spécification des adaptateurs](adapters/README.md)).
+
 Juste après l'installation :
 
 1. Décrire le projet :

@@ -8,6 +8,7 @@ code ↔ doc). Sans base, un tel contrôle le dit au lieu d'être sauté en sile
 
 from __future__ import annotations
 
+import copy
 import re
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -27,6 +28,9 @@ class Controle:
     base: bool
     lent: bool
     doc: str
+    # Un contrôle qui lit l'adaptateur tourne une fois par adaptateur dans un
+    # projet qui en a plusieurs, chaque fois avec ses seuls motifs (ADR-0051).
+    par_adaptateur: bool = False
 
 
 REGISTRE: dict[str, Controle] = {}
@@ -40,9 +44,9 @@ def resume(doc: str) -> str:
     return m.group(0) if m else paragraphe
 
 
-def controle(id_: str, etages=ETAGES, base=False, lent=False):
+def controle(id_: str, etages=ETAGES, base=False, lent=False, par_adaptateur=False):
     def deco(f):
-        REGISTRE[id_] = Controle(id_, f, tuple(etages), base, lent, (f.__doc__ or "").strip())
+        REGISTRE[id_] = Controle(id_, f, tuple(etages), base, lent, (f.__doc__ or "").strip(), par_adaptateur)
         return f
 
     return deco
@@ -66,6 +70,13 @@ class Contexte:
     @property
     def racine(self) -> Path:
         return self.projet.racine
+
+    def pour(self, a: config.Adaptateur) -> "Contexte":
+        """Le même passage, vu par un seul adaptateur : les fichiers, les
+        lectures et l'historique se partagent, seul l'adaptateur change."""
+        vue = copy.copy(self)
+        vue.projet = self.projet.pour(a)
+        return vue
 
     # Les fichiers d'un outil tiers sont hors de ces listes :
     # aucun contrôle ne les voit, ni à la tête ni à la base.
@@ -196,6 +207,49 @@ def charger_controles() -> dict[str, Controle]:
     return REGISTRE
 
 
+def _lancer(c: Controle, ctx: Contexte, rapport):
+    try:
+        c.fonction(ctx, rapport)
+    except Exception as e:  # un contrôle en panne échoue, il ne se tait pas
+        rapport.erreur(c.id, trad("le contrôle a planté : {erreur}", erreur=f"{type(e).__name__}: {e}"))
+
+
+def _par_adaptateur(c: Controle, ctx: Contexte, rapport):
+    """Le contrôle, une fois par adaptateur. Un constat que chacun rend à
+    l'identique se dit une fois : sans nom s'il porte sur un fichier
+    qu'aucun adaptateur ne désigne (un fichier de cas, les garde-fous), avec
+    le nom de tous sinon (deux correctifs refusés de même dans deux
+    langages). Les autres nomment leur adaptateur."""
+    from socle.report import Rapport
+
+    tous = ctx.projet.adaptateurs
+    passages = []
+    for a in tous:
+        r = Rapport()
+        _lancer(c, ctx.pour(a), r)
+        passages.append((a, r.constats))
+
+    def cle(k):
+        return k.gravite, k.message, k.chemin, k.ligne
+
+    communs = set.intersection(*({cle(k) for k in constats} for _, constats in passages))
+    vus = set()
+    for a, constats in passages:
+        for k in constats:
+            if cle(k) in communs:
+                if cle(k) in vus:
+                    continue
+                vus.add(cle(k))
+                if k.chemin and not any(ctx.projet.designes(x, [k.chemin]) for x in tous):
+                    rapport.constats.append(k)
+                    continue
+                noms = ", ".join(x.nom for x in tous)
+            else:
+                noms = a.nom
+            k.message = trad("{adaptateur} : {message}", adaptateur=noms, message=k.message)
+            rapport.constats.append(k)
+
+
 def executer(ctx: Contexte, ids: list[str] | None = None):
     from socle.report import Rapport  # import local : pas de cycle
     from socle.report import AVERTISSEMENT, ERREUR
@@ -219,10 +273,10 @@ def executer(ctx: Contexte, ids: list[str] | None = None):
             rapport.indisponible(c.id, trad("aucune révision de base : contrôle non exécuté"))
             continue
         debut = len(rapport.constats)
-        try:
-            c.fonction(ctx, rapport)
-        except Exception as e:  # un contrôle en panne échoue, il ne se tait pas
-            rapport.erreur(c.id, trad("le contrôle a planté : {erreur}", erreur=f"{type(e).__name__}: {e}"))
+        if c.par_adaptateur and ctx.projet.plusieurs_adaptateurs:
+            _par_adaptateur(c, ctx, rapport)
+        else:
+            _lancer(c, ctx, rapport)
         if c.id in adoption:
             for constat in rapport.constats[debut:]:
                 if constat.gravite == ERREUR:

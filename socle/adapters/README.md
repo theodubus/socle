@@ -38,14 +38,14 @@ mais il ne verrait rien des tests.
 
 ## Ce qu'il contient
 
-Neuf adaptateurs sont maintenus. Le tableau ci-dessous compare les trois
+Dix adaptateurs sont maintenus. Le tableau ci-dessous compare les trois
 premiers ; celui de la section « Cinq langages de plus » compare les cinq
-suivants, et la section « C# » le dernier.
+suivants, et les sections « C# » et « Kotlin » les deux derniers.
 Ce sont des extraits : les fichiers font foi, [rust.toml](rust.toml),
 [python.toml](python.toml), [python-pytest.toml](python-pytest.toml),
 [javascript.toml](javascript.toml), [go.toml](go.toml),
-[java.toml](java.toml), [ruby.toml](ruby.toml), [php.toml](php.toml) et
-[csharp.toml](csharp.toml). Les
+[java.toml](java.toml), [ruby.toml](ruby.toml), [php.toml](php.toml),
+[csharp.toml](csharp.toml) et [kotlin.toml](kotlin.toml). Les
 deux adaptateurs Python ne diffèrent que par le lanceur de tests et la
 mutation : `python` s'en tient à la bibliothèque standard (`unittest`), sans
 mutation ; `python-pytest` prend pytest et mutmut, qui exige pytest.
@@ -116,6 +116,51 @@ fournit).
   Le socle ne marche donc pas que pour Rust : il tourne en Python ici, à
   chaque commit.
 
+## Un projet en plusieurs langages
+
+Un projet peut en écrire plusieurs, une app et ses outils, un serveur et son
+client : il a alors un adaptateur par langage (ADR-0051).
+
+- **Où ils vivent.** Le principal reste `.socle/adapter.toml` ; les autres
+  vont dans `.socle/adapters/<nom>.toml`, au même format. Tous sont
+  protégés, et tous jugent de la même façon : aucun ne passe avant un autre.
+  Chacun déclare son langage (`language`) : l'installeur n'en pose pas deux
+  pour le même, et n'en ajoute aucun en automatique à un principal qui ne
+  dit pas le sien.
+- **Qui juge quel fichier.** Chaque fichier est jugé par l'adaptateur dont
+  les motifs le désignent : ses sources, son code ou ses tests. Le contrôle
+  `adaptateur.recouvrement` refuse un fichier que deux adaptateurs
+  désignent, en les nommant. L'ambiguïté se règle en resserrant les motifs
+  d'une copie, par une demande.
+- **Les règles des tests.** Chaque contrôle qui lit l'adaptateur tourne une
+  fois par adaptateur, avec ses seuls motifs, et ses constats nomment
+  l'adaptateur (`kotlin : test … sans assertion`). Une fonction Kotlin se
+  teste en Kotlin. Un correctif livre un test dans le langage du code qu'il
+  corrige (sa section `[code]`), et dans chacun s'il en corrige plusieurs ;
+  un test ajouté dans un autre langage ne fait pas de lui un langage du
+  code corrigé. Un correctif qui ne touche le code d'aucun revient au
+  langage de ses tests, sinon au principal.
+- **La vérification.** `verify` lance les étapes de chaque adaptateur, l'un
+  après l'autre et jusqu'au bout, chacune nommée `verify.<adaptateur>.<étape>`
+  (`verify.kotlin.tests`). La CI installe les outils de tous.
+- **La mutation.** Chaque adaptateur balaie ses modules avec son outil, et ne
+  juge que leurs plafonds ; un plafond qu'aucun ne désigne revient au
+  principal. Les plafonds restent tenus par module, dans les garde-fous.
+  `socle mutation-verdict <dossier> --adapter <nom>` juge les résultats d'un
+  seul outil. Le balayage planifié du socle se pose tant qu'un outil n'a
+  pas son propre workflow dans le projet.
+- **L'installation.** `socle install --adapter python-pytest --adapter
+  kotlin` : le premier nommé prend `.socle/adapter.toml`. En automatique,
+  l'installeur en pose un par langage qu'il reconnaît, hors des fichiers
+  tiers. Un langage ajouté à un projet déjà équipé voit ses modules entrer
+  « à mesurer » au cliquet de mutation. La mise à jour
+  rafraîchit chaque copie d'un adaptateur maintenu sous `.socle/adapters/`,
+  que l'humain approuve comme tout fichier protégé ; une copie dont une
+  demande avait resserré les motifs est à remettre.
+
+Un projet à un seul langage ne change rien : il n'a que son adaptateur
+principal.
+
 ## Pour un autre langage
 
 On écrit un nouveau fichier, avec les mêmes clés ; le moteur ne change pas.
@@ -133,6 +178,7 @@ Les clés qui décrivent un langage, toutes facultatives sauf `function` :
 | `function` | une fonction ou un test ; le premier groupe trouvé est son nom | `^\s*func\s+(\w+)` |
 | `marker_attribute`, `marker_name`, `marker_line` | ce qui fait un test : un attribut au-dessus, son nom, ou sa ligne | `#[test]`, `^test`, `test("…", …)` |
 | `block` | la forme d'un bloc : `braces`, `indent` ou `end` | `end` pour Ruby |
+| `expression_body` | une fonction écrite en expression, sans bloc : son corps commence au premier groupe, et va jusqu'aux lignes suivantes plus indentées | `fun f(x: Int) = 2 * x` en Kotlin |
 | `strings`, `line_comment` | les littéraux et le commentaire de fin de ligne, où une accolade ne compte pas | chaînes entre accents graves de JavaScript |
 | `block_comment` | un commentaire de bloc, ou une docstring : un mot qui y figure n'affirme ni n'appelle rien | `/\*[\s\S]*?\*/` |
 | `assertion` | ce qui affirme ; un test sans assertion est creux | `\bexpect\s*\(` |
@@ -191,3 +237,33 @@ des types (un `record` sans corps, une interface) n'a rien à muter ; il
 n'entre pas au plafond. La version 5 de Stryker.NET exige un SDK plus récent
 que .NET 8 : le manifeste d'outils épingle la 4.16.0, et la CI pose les
 deux SDK de support long.
+
+## Kotlin
+
+| Ce que le moteur demande | Kotlin |
+| --- | --- |
+| Lancer les tests | `./gradlew test` (kotlin.test ou JUnit 5, sous `useJUnitPlatform()`) |
+| Vérifier le code | `./gradlew testClasses`, le compilateur Kotlin et ses avertissements |
+| Reconnaître un test | `@Test` de kotlin.test, de JUnit 4 ou de JUnit 5, au-dessus de `fun` ou sur sa ligne ; un nom entre accents graves compte ; une fonction en expression (`fun t() = …`) a son corps après le `=` |
+| Reconnaître une assertion | kotlin.test et JUnit (`assert…`, `fail`), MockK et Mockito (`verify`, `coVerify`), kotest (`shouldBe`…) |
+| Reconnaître un test désactivé | `@Ignore` (kotlin.test, JUnit 4), `@Disabled` (JUnit 5) ; la raison, dans `@Disabled("…")`, `@Ignore("…")`, ou un commentaire après l'`@Ignore` de kotlin.test, qui n'en prend pas |
+| Rejouer un test sur le commit d'avant | `./gradlew test --tests '*<Classe>'`, du nom de son fichier |
+| Mesurer la mutation | PIT, par le greffon Gradle `info.solidsoft.pitest`, en XML sans horodatage, dans chaque module où il est appliqué ; un fichier sans corps de fonction (une interface, des `expect`) n'entre pas au plafond |
+| Dire quelles fonctions sont privées | `private` ou `internal` : tout le reste est public, `protected` compris |
+
+L'installeur reconnaît Kotlin à son build Gradle écrit en Kotlin
+(`build.gradle.kts` ou `settings.gradle.kts`), pourvu que le dépôt porte une
+source `.kt` hors de `buildSrc/` : un projet Java sous Gradle porte le même
+build, et souvent des greffons de construction en Kotlin. PIT ne connaît que
+le paquet et le nom du fichier source : son lecteur retrouve le fichier dans
+le dépôt, rangé sous son paquet, sinon le seul de ce nom qui déclare ce
+paquet. Les sources se cherchent sous `src/*/kotlin` comme sous `src/*/java`,
+la disposition d'Android Studio. Un projet à plusieurs modules déclare
+`filter { isFailOnNoMatchingTests = false }` dans ses tâches de test : le
+rejeu filtre par classe à la racine. Le rejeu nomme la classe d'après le
+fichier du test : une classe de test nommée autrement que son fichier ne s'y
+trouve pas, et le correctif est refusé, Gradle ne trouvant aucun test ; et
+le filtre `*CalcTest` lance aussi `BigCalcTest`, sans fausser le verdict,
+qui exige encore le succès sur le correctif. Un projet multiplateforme ou Android,
+dont les tâches de Gradle ont d'autres noms (`testDebugUnitTest`) et dont la
+mutation passe par un autre greffon, adapte les commandes dans sa copie.

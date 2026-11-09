@@ -83,11 +83,19 @@ def sans_code(projet: config.Projet) -> bool:
 
 
 def commandes_ci(projet: config.Projet) -> list[str]:
-    """Les commandes que la CI lance pour les outils de l'adaptateur, avant le
-    socle (ses étapes `ci_setup`) : l'environnement de l'agent en a besoin
-    aussi (B-0090). Un bloc `run: |` donne une commande, ses lignes jointes."""
+    """Les commandes que la CI lance pour les outils des adaptateurs, avant
+    le socle (leurs étapes `ci_setup`) : l'environnement de l'agent en a
+    besoin aussi (B-0090). Un bloc `run: |` donne une commande, ses lignes
+    jointes ; une commande que deux adaptateurs partagent ne se répète pas."""
+    res = []
+    for a in projet.adaptateurs:
+        res += [c for c in _commandes_ci(a.donnees.get("ci_setup") or "") if c not in res]
+    return res
+
+
+def _commandes_ci(texte: str) -> list[str]:
     res, bloc = [], None
-    for ligne in (projet.adaptateur.get("ci_setup") or "").splitlines():
+    for ligne in texte.splitlines():
         if bloc is not None:
             if ligne.strip() and len(ligne) - len(ligne.lstrip()) > bloc[0]:
                 bloc[1].append(ligne.strip())
@@ -106,15 +114,26 @@ def commandes_ci(projet: config.Projet) -> list[str]:
 
 
 def executer_etapes(projet: config.Projet, rapide: bool, rapport: Rapport, flux=None):
+    """Les étapes de chaque adaptateur, l'un après l'autre, jusqu'au bout
+    même après un échec. Dans un projet à plusieurs adaptateurs, chaque
+    étape porte le nom du sien : `verify.kotlin.tests` (ADR-0051, point 4)."""
     env = dict(os.environ)
     env.setdefault("LC_ALL", "C.UTF-8")
     if rapide:
         env[RAPIDE] = "1"
     else:
         env.pop(RAPIDE, None)
+    if not projet.plusieurs_adaptateurs:
+        _executer_etapes_de(projet, "verify", rapide, rapport, flux, env)
+        return
+    for a in projet.adaptateurs:
+        _executer_etapes_de(projet.pour(a), f"verify.{a.nom}", rapide, rapport, flux, env)
+
+
+def _executer_etapes_de(projet: config.Projet, prefixe: str, rapide: bool, rapport: Rapport, flux, env):
     vide = sans_code(projet)
     for nom, c in etapes(projet, rapide):
-        ident = f"verify.{nom}"
+        ident = f"{prefixe}.{nom}"
         rapport.execute(ident)
         if "command" not in c:
             rapport.indisponible(ident, trad("capacité absente : {absent} — remplacement : {remplacement}",
@@ -151,7 +170,7 @@ def executer_etapes(projet: config.Projet, rapide: bool, rapport: Rapport, flux=
             message = trad("`{commande}` a rendu {code}\n        {queue}",
                            commande=c['command'], code=p.returncode, queue=queue)
             if p.returncode == 127 or OUTIL_ABSENT.search(sortie):
-                ci = commandes_ci(projet)
+                ci = _commandes_ci(projet.adaptateur.get("ci_setup") or "")
                 message += "\n        " + (trad("l'outil manque à cet environnement ; la CI l'installe ainsi : {commandes} "
                                                "— l'installer ici ; en session cloud, le hook de démarrage du "
                                                "socle l'installe dans chaque session neuve",

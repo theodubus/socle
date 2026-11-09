@@ -26,6 +26,12 @@ receives the state as soon as it starts. A session that adds a second
 repository is not resumed: with two repositories, it restarts outside the
 project root, without the agent's hooks.
 
+A project written in several languages has one adapter per language: the
+installer sets one per language it recognises, or those it is given
+(`--adapter python-pytest --adapter kotlin`, the first being the main
+one), and each file is judged by the one of its language (the
+[adapters specification](adapters/README.md)).
+
 Right after the installation:
 
 1. Describe the project:

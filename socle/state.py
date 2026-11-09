@@ -218,11 +218,12 @@ def audit_adaptateur(projet: config.Projet) -> list[str]:
     son code échapper aux capacités ; la décision revient à l'humain."""
     from socle import installer as installeur
 
-    couvert = projet.adaptateur.get("language")
-    if not couvert:
+    couverts = [str(a.donnees["language"]) for a in projet.adaptateurs if a.donnees.get("language")]
+    if not couverts:
         return []
+    couvert = ", ".join(couverts)
     presents = installeur.langages_presents(projet.hors_tiers(outils.fichiers_courants(projet.racine)))
-    autres = {l: f for l, f in presents.items() if l != couvert}
+    autres = {l: f for l, f in presents.items() if l not in couverts}
     if not autres:
         return []
     liste = ", ".join(f"{l} ({', '.join(f[:2])}{' …' if len(f) > 2 else ''})" for l, f in sorted(autres.items()))

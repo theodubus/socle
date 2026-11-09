@@ -1113,11 +1113,9 @@ def correctif_sans_test(projet: config.Projet, message: str, amendement: bool | 
 
     if not controles_tests.est_correctif(projet, message) or not outils.a_des_commits(projet.racine):
         return None
-    cap = projet.adaptateur.get("capabilities", {}).get("regression", {})
     arbre = outils.arbre_de_l_index(projet.racine)
-    if "command" not in cap or not arbre:
+    if not arbre:
         return None
-    motifs = cap.get("test_paths") or (controles_tests.cfg_tests(projet) or {}).get("paths", [])
     if amendement is None:
         amendement = amendement_en_cours()
     parent = "HEAD"
@@ -1125,13 +1123,28 @@ def correctif_sans_test(projet: config.Projet, message: str, amendement: bool | 
         parent = "HEAD^" if outils.rev_existe(projet.racine, "HEAD^") else outils.ARBRE_VIDE
     touches = [f for f in outils.git(projet.racine, "diff", "--name-only", "-z", parent, arbre,
                                      check=False).split("\0") if f]
-    if outils.filtrer(touches, motifs):
+    # Dans un projet à plusieurs adaptateurs, un test par langage du code
+    # corrigé (ADR-0051, point 3).
+    vues = [projet.pour(a) for a in projet.adaptateurs] if projet.plusieurs_adaptateurs else [projet]
+    manquants = []
+    for vue in vues:
+        if projet.plusieurs_adaptateurs and not controles_tests.concerne(vue, touches):
+            continue
+        cap = vue.adaptateur.get("capabilities", {}).get("regression", {})
+        if "command" not in cap:
+            continue
+        motifs = cap.get("test_paths") or (controles_tests.cfg_tests(vue) or {}).get("paths", [])
+        if outils.filtrer(touches, motifs):
+            continue
+        code = vue.adaptateur.get("sources", []) if projet.plusieurs_adaptateurs else projet.chemins_code()
+        if "module_command" in cap and outils.filtrer(touches, code):
+            continue  # un test peut vivre dans le module du code : la CI le cherche
+        manquants += [m for m in motifs if m not in manquants]
+    if not manquants:
         return None
-    if "module_command" in cap and outils.filtrer(touches, projet.chemins_code()):
-        return None  # un test peut vivre dans le module du code : la CI le cherche
     return (trad("socle — avertissement : ce correctif n'ajoute ni ne change aucun test ({liste}) : la CI le "
                  "refusera (`tests.regression`), faute d'un test qui échoue sur le commit d'avant. L'ajouter à ce "
-                 "commit (`git commit --amend`), tant qu'il n'est pas poussé.", liste=', '.join(motifs)))
+                 "commit (`git commit --amend`), tant qu'il n'est pas poussé.", liste=', '.join(manquants)))
 
 
 def hooks_absents(projet: config.Projet, message: str) -> str | None:

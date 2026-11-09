@@ -125,7 +125,7 @@ du projet, décrit par un adaptateur, ni l'agent, branché par ses hooks.
 ## Installation
 
 Prérequis : Python 3.11+ et git ; un projet en Rust, Python, JavaScript ou
-TypeScript, Go, Java, Ruby, PHP ou C# (un autre langage se décrit par un
+TypeScript, Go, Java, Kotlin, Ruby, PHP ou C# (un autre langage se décrit par un
 adaptateur) ; les outils de son adaptateur là où l'agent travaille (pytest,
 cargo…), que l'installeur cite ; Claude Code et GitHub pour les trois
 étages de contrôles.

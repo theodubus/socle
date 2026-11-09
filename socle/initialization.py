@@ -73,21 +73,23 @@ def auditer_depot(projet: config.Projet) -> list[Fait]:
         if f in fichiers:
             faits.append(Fait(trad("Le projet est un paquet Python"), f))
             break
-    cfg = projet.adaptateur.get("tests") or {}
-    if cfg.get("function"):
-        from socle import tests_reader as tests_lecture
+    from socle import tests_reader as tests_lecture
 
-        par_fichier = {}
+    par_fichier = {}
+    for a in projet.adaptateurs:
+        cfg = a.donnees.get("tests") or {}
+        if not cfg.get("function"):
+            continue
         for f in outils.filtrer(fichiers, cfg.get("paths", []), cfg.get("exclude", [])):
             texte = outils.lire_a(racine, None, f) or ""
             n = sum(1 for fn in tests_lecture.extraire(texte, f, cfg) if fn.est_test)
             if n:
                 par_fichier[f] = n
-        if par_fichier:
-            premier = sorted(par_fichier)[0]
-            faits.append(Fait(trad("Le dépôt a {n} fonction(s) de test, dans {fichiers} fichier(s), dont "
-                                   "`{premier}`", n=sum(par_fichier.values()), fichiers=len(par_fichier),
-                                   premier=premier), premier))
+    if par_fichier:
+        premier = sorted(par_fichier)[0]
+        faits.append(Fait(trad("Le dépôt a {n} fonction(s) de test, dans {fichiers} fichier(s), dont "
+                               "`{premier}`", n=sum(par_fichier.values()), fichiers=len(par_fichier),
+                               premier=premier), premier))
     # La CI du socle et son balayage de mutation ne sont pas ceux du projet :
     # l'installeur vient de les poser.
     for ci in sorted(f for f in fichiers if f.startswith(".github/workflows/") and f.endswith((".yml", ".yaml"))

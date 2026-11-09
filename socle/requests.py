@@ -362,10 +362,12 @@ def gestes_nommes(d: Demande, projet: config.Projet) -> list[str]:
     from socle import checks_ratchet as cliquet, checks_tests, tests_reader as tests_lecture
 
     nommes = []
-    cfg = checks_tests.cfg_tests(projet)
-    if cfg is not None:
-        for chemin in outils.filtrer(outils.fichiers_courants(projet.racine), cfg.get("paths", []),
-                                     cfg.get("exclude", [])):
+    fichiers = outils.fichiers_courants(projet.racine)
+    for a in projet.adaptateurs:
+        cfg = checks_tests.cfg_tests(projet.pour(a))
+        if cfg is None:
+            continue
+        for chemin in outils.filtrer(fichiers, cfg.get("paths", []), cfg.get("exclude", [])):
             try:
                 texte = (projet.racine / chemin).read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):

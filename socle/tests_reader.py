@@ -72,6 +72,20 @@ def _bloc_accolades(lignes: list[str], i: int, litteraux: str = LITTERAUX,
     return (_couper(lignes[debut:]) if debut is not None else []), len(lignes) - 1
 
 
+def _bloc_expression(lignes: list[str], i: int, debut: str) -> tuple[list[str], int]:
+    """Le corps d'une fonction écrite en expression (`fun f(x: Int) = 2 * x`) :
+    ce qui suit le `=` sur sa ligne, puis les lignes suivantes plus indentées
+    qu'elle. L'adaptateur le dit par `expression_body`, dont le premier
+    groupe est ce début du corps."""
+    marge = len(lignes[i]) - len(lignes[i].lstrip())
+    corps, j = ([debut] if debut.strip() else []), i
+    while j + 1 < len(lignes) and lignes[j + 1].strip() and \
+            len(lignes[j + 1]) - len(lignes[j + 1].lstrip()) > marge:
+        j += 1
+        corps.append(lignes[j])
+    return corps, j
+
+
 def _couper(bloc: list[str]) -> list[str]:
     if not bloc:
         return bloc
@@ -137,6 +151,7 @@ def extraire(texte: str, fichier: str, cfg: dict) -> list[Fonction]:
     marque_attr = re.compile(cfg["marker_attribute"]) if cfg.get("marker_attribute") else None
     marque_nom = re.compile(cfg["marker_name"]) if cfg.get("marker_name") else None
     marque_ligne = re.compile(cfg["marker_line"]) if cfg.get("marker_line") else None
+    expression = re.compile(cfg["expression_body"]) if cfg.get("expression_body") else None
     litteraux, commentaire = cfg.get("strings", LITTERAUX), cfg.get("line_comment", COMMENTAIRE)
     lignes = texte.splitlines()
     dans_une_chaine = _lignes_dans_une_chaine(texte, cfg)
@@ -159,7 +174,10 @@ def extraire(texte: str, fichier: str, cfg: dict) -> list[Fonction]:
                 break
             j -= 1
         bloc = cfg.get("block", "braces")
-        if bloc == "indent":
+        en_expression = expression.search(ligne) if expression else None
+        if en_expression:
+            corps, fin = _bloc_expression(lignes, i, ligne[en_expression.start(1):])
+        elif bloc == "indent":
             corps, fin = _bloc_indentation(lignes, i)
         elif bloc == "end":
             corps, fin = _bloc_fin(lignes, i, litteraux, commentaire)

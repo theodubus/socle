@@ -103,8 +103,9 @@ refusée ; il faut relire l'entrée. `socle new` pose l'empreinte de l'index.
 Une procédure rare se lit dans son skill, que l'agent charge sur sa
 description : `socle-request` (poser une demande, relayer une réponse,
 consigner une décision en séance), `socle-private-memory` (la mémoire
-privée) et `socle-review` (la revue adversariale d'un lot, avant sa
-livraison), dans `.claude/skills/`, posés par l'installeur et
+privée), `socle-review` (la revue adversariale d'un lot, avant sa
+livraison) et `socle-resume` (en session cloud, à chaque tour qui agit :
+reprendre seul après une limite d'usage), dans `.claude/skills/`, posés par l'installeur et
 protégés ; un autre agent lit leur `SKILL.md` à ce chemin.
 
 Une procédure du projet qui se refait (le journal montre la première fois)
