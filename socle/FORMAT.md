@@ -177,7 +177,8 @@ qui attend ses tâches (et le jalon d'avant, s'il y en a un). Un sujet peut
 avoir une priorité, `priorité : haute` ou `priorité : basse` (D-0062) ; la
 normale ne s'écrit pas, et l'agent ne change pas celle que l'humain a
 donnée. L'état en calcule ce qui vient ensuite : le prochain jalon, ouvert,
-qu'aucun jalon ouvert ne précède, avec ce qui lui reste ; les sujets
+qu'aucun jalon ouvert ne précède, de proche en proche à travers les sujets
+et les demandes qu'il attend, avec ce qui lui reste ; les sujets
 prêts, ouverts et pas encore en cours, dont tout ce qu'ils attendent est
 clos ou répondu, ceux du prochain jalon d'abord, puis par priorité ; à
 part, les prêts de priorité basse, que l'agent prend quand c'est commode ;

@@ -55,7 +55,8 @@ Juste après l'installation :
    ouvre les siennes au nom de l'humain. Dans les réglages généraux, cocher
    « Automatically delete head branches » : une branche fusionnée s'efface
    alors seule. L'état signale les autres : celles que la branche par
-   défaut contient déjà, à supprimer, et celles qui ne bougent plus depuis
+   défaut ou la branche de travail poussée contiennent déjà, à supprimer,
+   et celles qui ne bougent plus depuis
    une semaine sans avoir été fusionnées, à livrer ou à supprimer. Si une
    telle branche garde seule un commit que la mémoire cite, l'état donne
    d'abord la commande qui l'étiquette : sans elle, la CI ne le
@@ -225,6 +226,17 @@ pas et les compte pour un assouplissement. Si la section du socle, qui se
 régénère, fait dépasser à `AGENTS.md` son budget, l'installeur le dit :
 resserrer la partie propre au projet, ou relever le budget par une demande
 validée, puisque le relever assouplit un garde-fou.
+
+En session cloud, le prompt à donner à l'agent :
+
+```text
+Mets à jour le socle de ce dépôt depuis son dépôt public, sans ajouter ce dépôt à la session :
+1. Si le clone est superficiel (git rev-parse --is-shallow-repository répond true), complète son historique : git fetch --unshallow.
+2. git clone --depth 1 https://github.com/theodubus/socle /tmp/socle
+3. Sur ta branche de travail, depuis la racine du dépôt : PYTHONPATH=/tmp/socle python3 -m socle install --target . ; si le projet a plusieurs adaptateurs (des copies dans .socle/adapters/), nomme-les tous par --adapter, le principal d'abord, comme à l'installation.
+4. Suis les étapes « Et maintenant » de l'installeur, dont la demande qui cite les fichiers protégés changés, puis pousse et ouvre la pull request.
+5. Dis-moi ce qui me revient.
+```
 
 **Mettre en place la mémoire privée** (mode compagnon). Créer un dépôt
 privé vide sur GitHub, puis

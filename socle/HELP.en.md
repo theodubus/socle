@@ -53,7 +53,8 @@ Right after the installation:
    cannot approve it, and the agent opens its own under the human's name.
    In the general settings, tick "Automatically delete head branches": a
    merged branch then deletes itself. The state reports the others: those
-   the default branch already contains, to delete, and those that have not
+   the default branch or the pushed working branch already contains, to
+   delete, and those that have not
    moved for a week without being merged, to deliver or to delete. If such a
    branch alone keeps a commit the memory cites, the state first gives the
    command that tags it: without it, CI would no longer find it.
@@ -225,6 +226,17 @@ engine, which does not know them and counts them as loosening. If the
 socle's section, which is regenerated, makes `AGENTS.md` exceed its budget,
 the installer says so: tighten the project's own part, or raise the budget
 through a validated request, since raising it loosens a guardrail.
+
+In a cloud session, the prompt to give the agent:
+
+```text
+Update the socle of this repository from its public repository, without adding that repository to the session:
+1. If the clone is shallow (git rev-parse --is-shallow-repository answers true), complete its history: git fetch --unshallow.
+2. git clone --depth 1 https://github.com/theodubus/socle /tmp/socle
+3. On your working branch, from the root of the repository: PYTHONPATH=/tmp/socle python3 -m socle install --target . ; if the project has several adapters (copies in .socle/adapters/), name them all with --adapter, the main one first, as at installation.
+4. Follow the installer's "What now" steps, including the request that cites the changed protected files, then push and open the pull request.
+5. Tell me what is up to me.
+```
 
 **Setting up the private memory** (companion mode). Create an empty private
 repository on GitHub, then

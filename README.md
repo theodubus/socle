@@ -147,6 +147,10 @@ PYTHONPATH=/tmp/socle python3 -m socle install --target . --owner @<propriétair
 | `--human <nom>` | le nom de l'humain, qui signe les réponses que l'agent relaie ; par défaut son nom git, sauf en session cloud, où l'identité git est celle de l'agent |
 
 L'installeur termine par les étapes suivantes, chacune avec sa commande.
+Il rend 0 quand l'installation a réussi, même si un geste de l'humain
+l'attend (l'approbation de ses fichiers protégés, la mise en place d'un
+dépôt privé), 1 quand un autre contrôle échoue, et 2 quand il refuse
+d'installer (un langage qu'il ne reconnaît pas, par exemple).
 Une mise à jour relance les mêmes commandes depuis un clone à jour : les
 fichiers du projet ne sont jamais écrasés, hors une copie d'un adaptateur
 maintenu que le projet n'a pas adaptée. La suite, étape par étape : [le
@@ -161,6 +165,19 @@ installe pousse sa branche et ouvre une pull request ; une fois celle-ci
 fusionnée, le travail continue dans une session neuve, qui reçoit l'état du
 projet et les hooks de l'agent dès son démarrage. La mise à jour sans
 terminal, et la session qui ajoute un second dépôt, sont dans le guide.
+
+Le prompt à donner à l'agent, ses deux noms remplacés :
+
+```text
+Installe le socle dans ce dépôt depuis son dépôt public, sans ajouter ce dépôt à la session :
+1. git clone --depth 1 https://github.com/theodubus/socle /tmp/socle
+2. Sur ta branche de travail, depuis la racine du dépôt : PYTHONPATH=/tmp/socle python3 -m socle install --target . --owner @<ton compte GitHub> --human <ton prénom> (ajoute --adoption si le projet a déjà du code).
+3. Suis les étapes « Et maintenant » de l'installeur, puis commite, pousse et ouvre la pull request.
+4. Dis-moi ce qui me revient : fusionner la pull request, protéger la branche par défaut. Le travail continuera dans une session neuve.
+```
+
+Un autre agent qui a un terminal et git suit le même prompt ; seuls les
+hooks git et la CI le contrôlent alors.
 
 ## État
 

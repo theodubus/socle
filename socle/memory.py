@@ -671,7 +671,9 @@ def ordre(mem: "Memoire") -> Ordre | None:
         return {d for d in vus if ouvert(d)}
 
     ouverts = sorted(i for i in sujets if ouvert(i))
-    jalons = [i for i in ouverts if est_jalon(sujets[i]) and not any(est_jalon(sujets[d]) for d in attendus(i))]
+    # Un attendu peut être une demande, qui n'est jamais un jalon (B-0146).
+    jalons = [i for i in ouverts
+              if est_jalon(sujets[i]) and not any(d in sujets and est_jalon(sujets[d]) for d in attendus(i))]
     jalon = jalons[0] if jalons else None
     restants = sorted(attendus(jalon)) if jalon else []
     # Un sujet en cours ou bloqué n'est plus à prendre : l'état le dit à part.
