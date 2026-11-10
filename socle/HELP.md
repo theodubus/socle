@@ -118,6 +118,17 @@ pull request par sujet, chacune à fusionner, se choisit aux questions de
 départ, ou plus tard en le disant à l'agent, qui l'écrit en fait de la
 mémoire.
 
+Un prototype qu'on ne compte pas fusionner se fait sur une branche
+jetable, nommée `proto/…` (ou d'un autre préfixe déclaré dans
+`[branches] disposable` des garde-fous). La CI du socle ne la juge pas aux
+envois, et les références mortes (liens, identifiants, chemins cités) d'un
+fichier qu'elle ajoute n'y sont qu'un avertissement ; les autres contrôles
+avant commit et ceux de la session de l'agent restent, et la mémoire
+privée reste jugée en entier. Jetée, elle ne laisse rien dans la branche
+par défaut ; poussée, sa suppression sur GitHub vous revient, et l'état
+la liste parmi les branches à examiner après une semaine sans activité.
+Fusionnée, elle passe par une pull request, dont la CI la juge en entier.
+
 Chaque intervention de l'agent qui a agi se termine par deux lignes :
 
 - **« Pour toi : »** — ce qui revient à l'humain : une demande à lire, une
@@ -195,7 +206,10 @@ commit (`Dispense-test: f — <raison>`) ; un correctif apporte un test qui
 **Mettre à jour le socle.** Relancer la commande d'installation depuis un
 clone à jour du moteur (`git clone --depth 1
 https://github.com/theodubus/socle /tmp/socle`). Les fichiers du projet ne sont jamais écrasés ; le
-diff de la politique est montré. Approuver ensuite les fichiers protégés
+diff de la politique est montré. Seule exception, une copie d'un adaptateur
+maintenu que le projet n'a pas adaptée se rafraîchit ; une copie adaptée se
+garde, et l'installeur dit quand son adaptateur maintenu a changé : l'agent
+propose alors d'y reporter les corrections, par une demande. Approuver ensuite les fichiers protégés
 changés (`socle approve`), puis commiter. En session cloud, sans terminal,
 l'agent pose une demande qui cite chaque fichier protégé changé avec son
 empreinte, et l'humain la valide dans la conversation. Si la branche par
@@ -228,7 +242,7 @@ Chaque refus dit ce qu'il a vu et comment en sortir. La plupart s'adressent
 | `cliquet.garde-fous` | un seuil a été relâché | le rétablir, ou valider une demande qui le cite |
 | `tests.attendus` | une valeur attendue a changé, dans un test ou un fichier de cas, ou un test a disparu | valider une demande qui nomme le test ou cite le fichier de cas, ou rétablir |
 | `tests.code-teste` | une fonction publique sans test | écrire le test, ou `Dispense-test:` dans le commit |
-| `tests.regression` | un correctif sans test qui le prouve | écrire ce test ; si sa preuve dépend de l'environnement, valider une demande qui nomme le commit |
+| `tests.regression` | un correctif sans test qui le prouve | écrire ce test ; si sa preuve dépend de l'environnement, ou si le correctif ne touche aucun fichier qu'un adaptateur juge, valider une demande qui nomme le commit |
 | `docs.correspondance` | du code a changé sans sa documentation | mettre la documentation à jour, ou `Dispense-doc:` dans le commit |
 | `mutation.vivante` | le balayage hebdomadaire ne tourne plus | le réactiver dans l'onglet Actions de GitHub |
 | push refusé, relecture | la politique exige une relecture | relire ce qui part, donner son accord |

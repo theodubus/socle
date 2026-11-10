@@ -114,6 +114,17 @@ is added: merge it whenever you want, once its CI is green. One pull
 request per topic, each to merge, is chosen in the starting questions, or
 later by telling the agent, which writes it as a fact of the memory.
 
+A prototype not meant to be merged is done on a disposable branch, named
+`proto/…` (or with another prefix declared in `[branches] disposable` of the
+guardrails). The socle's CI does not judge it on push, and the dead
+references (links, identifiers, cited paths) of a file it adds are only a
+warning there; the other checks before commit and those of the agent's
+session remain, and the private memory is still judged whole. Thrown away,
+it leaves nothing in the default branch; once pushed, deleting it on GitHub
+is up to you, and the state lists it among the branches to examine after a
+week without activity. Merged, it goes through a pull request, whose CI
+judges it whole.
+
 Each intervention of the agent that acted ends with two lines:
 
 - **"For you:"** — what is up to the human: a request to read, an action
@@ -195,7 +206,10 @@ previous commit.
 **Updating the socle.** Run the installation command again from an
 up-to-date clone of the engine (`git clone --depth 1
 https://github.com/theodubus/socle /tmp/socle`). The project's files are never overwritten;
-the diff of the policy is shown. Then approve the changed protected files
+the diff of the policy is shown. The one exception: a copy of a maintained
+adapter that the project has not adapted is refreshed; an adapted copy is
+kept, and the installer says when its maintained adapter has changed: the
+agent then proposes to carry the corrections over, through a request. Then approve the changed protected files
 (`socle approve`), and commit. In a cloud session, with no terminal, the
 agent puts a request that cites each changed protected file with its
 fingerprint, and the human approves it in the conversation. If the default
@@ -228,7 +242,7 @@ agent, which fixes them alone. Those that concern the human:
 | `cliquet.garde-fous` | a threshold was loosened | restore it, or approve a request that cites it |
 | `tests.attendus` | an expected value changed, in a test or a case file, or a test disappeared | approve a request that names the test or cites the case file, or restore it |
 | `tests.code-teste` | a public function without a test | write the test, or `Waive-test:` in the commit |
-| `tests.regression` | a fix without a test that proves it | write that test; if its proof depends on the environment, approve a request that names the commit |
+| `tests.regression` | a fix without a test that proves it | write that test; if its proof depends on the environment, or if the fix touches no file an adapter judges, approve a request that names the commit |
 | `docs.correspondance` | code changed without its documentation | update the documentation, or `Waive-doc:` in the commit |
 | `mutation.vivante` | the weekly sweep no longer runs | re-enable it in GitHub's Actions tab |
 | push refused, review | the policy requires a review | review what goes out, give one's agreement |

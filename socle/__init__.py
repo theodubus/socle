@@ -6,4 +6,4 @@ l'agent vit dans les stubs de hooks. Il n'utilise que la bibliothèque standard
 de Python 3.11+, pour être copié tel quel dans n'importe quel projet.
 """
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"

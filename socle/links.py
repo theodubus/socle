@@ -78,13 +78,29 @@ def ancre(titre: str) -> str:
 
 
 def commit_pousse(racine) -> str | None:
-    """Le dernier commit poussé de la branche courante, sinon celui de la
-    branche par défaut distante."""
+    """Le dernier commit poussé de la branche courante : parmi sa branche
+    distante du même nom, celle qu'elle suit et la branche par défaut
+    distante, la plus récente qui soit un ancêtre de la branche locale ; à
+    défaut, la première qui existe, dans cet ordre. Une branche repartie de
+    `origin/main` suit celle-ci tant qu'on ne l'a pas changé, alors qu'elle
+    se pousse sous son propre nom (B-0134) ; et repartie après une fusion,
+    sa branche distante du même nom garde l'ancien travail jusqu'au push
+    suivant."""
     defaut = outils.branche_par_defaut(racine)
-    for ref in ("@{upstream}", defaut if defaut and defaut.startswith("origin/") else None):
-        if ref and outils.rev_existe(racine, ref):
-            return outils.resoudre(racine, ref)
-    return None
+    branche = outils.git(racine, "rev-parse", "--abbrev-ref", "HEAD", check=False).strip()
+    distant = outils.git(racine, "config", "--get", f"branch.{branche}.remote", check=False).strip()
+    meme_nom = f"{distant if distant not in ('', '.') else 'origin'}/{branche}" \
+        if branche and branche != "HEAD" else None
+    refs = (meme_nom, "@{upstream}", defaut if defaut and defaut.startswith("origin/") else None)
+    shas = list(dict.fromkeys(outils.resoudre(racine, r) for r in refs if r and outils.rev_existe(racine, r)))
+    if not shas:
+        return None
+    ancetres = [s for s in shas if outils.git_reussit(racine, "merge-base", "--is-ancestor", s, "HEAD")]
+    for s in ancetres:
+        # Le plus récent : celui dont tous les autres sont des ancêtres.
+        if all(a == s or outils.git_reussit(racine, "merge-base", "--is-ancestor", a, s) for a in ancetres):
+            return s
+    return (ancetres or shas)[0]
 
 
 def lien(projet: config.Projet, cible: str) -> tuple[str | None, str]:

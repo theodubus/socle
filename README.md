@@ -148,7 +148,8 @@ PYTHONPATH=/tmp/socle python3 -m socle install --target . --owner @<propriétair
 
 L'installeur termine par les étapes suivantes, chacune avec sa commande.
 Une mise à jour relance les mêmes commandes depuis un clone à jour : les
-fichiers du projet ne sont jamais écrasés. La suite, étape par étape : [le
+fichiers du projet ne sont jamais écrasés, hors une copie d'un adaptateur
+maintenu que le projet n'a pas adaptée. La suite, étape par étape : [le
 guide d'utilisation](socle/HELP.md), copié dans le projet et affiché par
 `python3 .socle/socle help`.
 
@@ -163,7 +164,7 @@ terminal, et la session qui ajoute un second dépôt, sont dans le guide.
 
 ## État
 
-Version <!-- valeur:version -->0.1.0<!-- /valeur -->, en développement.
+Version <!-- valeur:version -->0.2.0<!-- /valeur -->, en développement.
 L'étage de l'agent n'existe que pour Claude Code. Ce dépôt ne contient que
 le produit, publié depuis son atelier à chaque changement du moteur.
 

@@ -957,19 +957,30 @@ def installe_pendant(lignes: list[list[str]], session: str) -> bool:
     return premier is not None and premier > 0 and lignes[premier - 1][1] == "Install"
 
 
-def compter_depuis_le_commit(racine: Path, session: str | None = None) -> str:
+def compter_depuis_le_commit(racine: Path, session: str | None = None, tous: bool = False) -> str:
     """`PreToolUse=3` : les passages du filtre de l'agent depuis le commit
-    précédent du dépôt (sa ligne `git-prepare-commit-msg` dans la trace),
-    pour la session donnée ou, à défaut, la plus récente depuis. La commande
-    qui commite passe elle-même par le filtre : des hooks chargés en comptent
+    précédent du même worktree (sa ligne `git-prepare-commit-msg` dans la
+    trace, qui nomme son worktree ; une ligne qui n'en nomme aucun vaut pour
+    tous), pour la session donnée ou, à défaut, la plus récente depuis. La
+    trace est commune aux worktrees : un commit dans un autre ne fait pas du
+    suivant un second commit de la même commande (B-0136). La commande qui
+    commite passe elle-même par le filtre : des hooks chargés en comptent
     toujours au moins un. Le compte de toute la session ne voit pas des hooks
-    qui cessent de tirer en cours de route."""
+    qui cessent de tirer en cours de route. `tous` : depuis le commit
+    précédent de n'importe quel worktree."""
     lignes = [l.split("\t") for l in config.lire_trace(racine)]
+    ici = worktree(racine)
     debut = next((i + 1 for i in range(len(lignes) - 1, -1, -1)
-                  if len(lignes[i]) >= 2 and lignes[i][1] == "git-prepare-commit-msg"), 0)
+                  if len(lignes[i]) >= 2 and lignes[i][1] == "git-prepare-commit-msg"
+                  and (tous or len(lignes[i]) < 4 or lignes[i][3] in ("", ici))), 0)
     filtre = [l for l in lignes[debut:] if len(l) >= 3 and l[1] == "PreToolUse"]
     session = session or next((l[2] for l in reversed(filtre) if l[2]), "")
     return f"PreToolUse={sum(1 for l in filtre if l[2] == session)}"
+
+
+def worktree(racine: Path) -> str:
+    """Le worktree d'un commit, tel que la trace le nomme : sa racine."""
+    return str(Path(racine).resolve())
 
 
 # Des hooks chargés laissent une trace fraîche : `socle state` tourne au
@@ -1007,11 +1018,21 @@ def filtre_absent(projet: config.Projet) -> str | None:
     l'agent depuis le commit précédent : le compte (`PreToolUse=0`), à
     refuser dès le hook avant commit, au lieu du seul avertissement du
     message de commit. `None` sinon. La commande qui commite passe
-    elle-même par le filtre : des hooks chargés en comptent au moins un."""
+    elle-même par le filtre : des hooks chargés en comptent au moins un.
+
+    Le compte part du commit précédent du même worktree (B-0136). Un commit
+    d'un autre worktree depuis le dernier passage du filtre n'excuse que des
+    hooks qui tirent encore : la trace de la session doit être fraîche, sans
+    quoi un worktree neuf compterait toute la session, et ne verrait pas des
+    hooks qui ont cessé de tirer (B-0058)."""
     if not os.environ.get("CLAUDECODE") or not projet.pol("agents", "claude_code", defaut=True):
         return None
-    depuis = compter_depuis_le_commit(projet.racine, os.environ.get("CLAUDE_CODE_SESSION_ID"))
-    return depuis if depuis == "PreToolUse=0" else None
+    session = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    depuis = compter_depuis_le_commit(projet.racine, session)
+    if depuis == "PreToolUse=0":
+        return depuis
+    partout = compter_depuis_le_commit(projet.racine, session, tous=True)
+    return partout if partout == "PreToolUse=0" and hooks_non_charges(projet) else None
 
 
 def sous_un_agent(geste: str) -> bool:
@@ -1031,7 +1052,7 @@ def git_prepare_commit_msg(projet: config.Projet, fichier: str, source: str = ""
     `Socle-Hooks-Since-Commit`."""
     # Le compte depuis le commit précédent se lit avant de tracer celui-ci.
     depuis = compter_depuis_le_commit(projet.racine, os.environ.get("CLAUDE_CODE_SESSION_ID"))
-    tracer(projet.racine, "git-prepare-commit-msg")
+    tracer(projet.racine, "git-prepare-commit-msg", "", worktree(projet.racine))
     if not os.environ.get("CLAUDECODE") or source in ("merge", "squash"):
         return 0
     p = Path(fichier)
@@ -1123,6 +1144,18 @@ def correctif_sans_test(projet: config.Projet, message: str, amendement: bool | 
         parent = "HEAD^" if outils.rev_existe(projet.racine, "HEAD^") else outils.ARBRE_VIDE
     touches = [f for f in outils.git(projet.racine, "diff", "--name-only", "-z", parent, arbre,
                                      check=False).split("\0") if f]
+    # La CI juge un correctif hors de tout adaptateur dans la vue du
+    # principal, et seulement si celui-ci sait rejouer un test.
+    principal = projet.pour(projet.adaptateurs[0]) if projet.plusieurs_adaptateurs else projet
+    rejoue = "command" in principal.adaptateur.get("capabilities", {}).get("regression", {})
+    hors = controles_tests.hors_de_tout_adaptateur(projet, projet.hors_tiers(touches)) if rejoue else []
+    if hors:
+        # Aucun adaptateur ne juge ses fichiers : un test n'y peut rien
+        # (D-0088).
+        return trad("socle — avertissement : ce correctif ne touche aucun fichier qu'un adaptateur juge ({liste}) : "
+                    "la CI le refusera (`tests.regression`), sauf si une demande validée nomme ce commit et "
+                    "l'admet sans test ; sinon, un adaptateur pour leur langage, ou ces fichiers déclarés tiers, par "
+                    "une demande.", liste=", ".join(hors[:5]) + (" …" if len(hors) > 5 else ""))
     # Dans un projet à plusieurs adaptateurs, un test par langage du code
     # corrigé (ADR-0051, point 3).
     vues = [projet.pour(a) for a in projet.adaptateurs] if projet.plusieurs_adaptateurs else [projet]
@@ -1204,7 +1237,8 @@ def plage_poussee(projet: config.Projet, lignes: list[str]):
     commit distant au commit local de chaque référence déjà présente en
     face. C'est la plage que la CI d'un push jugera ; contre la branche par
     défaut, une dispense ou une validation plus anciennes de la branche
-    couvraient ce qu'elle refusera."""
+    couvraient ce qu'elle refusera. Une branche jetable n'a pas de CI aux
+    envois : rien à juger comme elle (D-0087)."""
     from socle import context as contexte
     from socle.report import Rapport
 
@@ -1218,9 +1252,23 @@ def plage_poussee(projet: config.Projet, lignes: list[str]):
         local, distant = morceaux[1], morceaux[3]
         if set(local) == {"0"} or set(distant) == {"0"} or not outils.rev_existe(projet.racine, distant):
             continue  # une branche neuve, une suppression, ou un distant qu'on n'a pas : rien à comparer
+        if projet.branche_jetable(morceaux[2].removeprefix("refs/heads/")):
+            continue  # une branche jetable : la CI ne la juge pas aux envois (D-0087)
         ctx = contexte.Contexte(projet, etage="ci", base=distant, tete=local, rapide=True, avant_push=True)
         rapport.fusionner(contexte.executer(ctx, ids))
     return rapport
+
+
+def branches_envoyees(lignes: list[str]) -> list[str]:
+    """Les références distantes qu'un push met à jour, d'après les lignes
+    que git donne au hook avant push, sans les suppressions ; une étiquette
+    garde son nom complet, qui n'est celui d'aucune branche."""
+    res = []
+    for ligne in lignes:
+        morceaux = ligne.split()
+        if len(morceaux) >= 4 and set(morceaux[1]) != {"0"}:
+            res.append(morceaux[2].removeprefix("refs/heads/"))
+    return res
 
 
 def git_pre_push(projet: config.Projet) -> int:
@@ -1250,7 +1298,10 @@ def git_pre_push(projet: config.Projet) -> int:
     # laisse ses fichiers protégés en attendant la validation de l'humain,
     # que la demande poussée ici lui permet de lire (B-0115).
     tete = outils.git(projet.racine, "rev-parse", "HEAD", check=False).strip() or None
-    ctx = contexte.Contexte(projet, etage="git", base=base, tete=tete, rapide=True)
+    # Ce qui part se juge pour les branches qui le reçoivent : une branche
+    # jetable extraite qu'on pousse ailleurs ne relâche rien (D-0087).
+    ctx = contexte.Contexte(projet, etage="git", base=base, tete=tete, rapide=True,
+                            branches=branches_envoyees(lignes))
     rapport = contexte.executer(ctx)
     for constat in plage_poussee(projet, lignes).constats:
         if constat not in rapport.constats:

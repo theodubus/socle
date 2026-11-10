@@ -8,7 +8,7 @@ name: Socle
 
 on:
   push:
-  pull_request:
+@@BRANCHES_JETABLES@@  pull_request:
 
 permissions:
   contents: read

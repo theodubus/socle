@@ -65,6 +65,10 @@ class Contexte:
     # La plage qu'un push envoie, jugée comme la CI la jugera, depuis le hook
     # avant push : ce que l'étage git laisse passer y passe aussi (D-0071).
     avant_push: bool = False
+    # Les branches pour lesquelles on juge : `None`, la branche extraite ;
+    # le hook avant push donne les branches distantes qu'il envoie, que la
+    # CI jugera sous leur nom (D-0087).
+    branches: list[str] | None = None
     _cache: dict = field(default_factory=dict)
 
     @property

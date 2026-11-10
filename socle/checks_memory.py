@@ -287,6 +287,17 @@ def references(ctx, r):
     autres: dict[str, list[tuple[str, int, str]]] = {}
     textes = textes_scannes(ctx)
     connus = depots_connus(ctx, textes.values())
+    essais = ajoutes_par_une_branche_jetable(ctx, textes)
+
+    def signaler(faute: str, chemin: str, ligne: int):
+        # Sur une branche jetable, hors de la CI, un fichier qu'elle ajoute
+        # n'est qu'averti, quelle que soit la faute de référence ; sa pull
+        # request le rejuge en entier (D-0087).
+        if chemin in essais:
+            r.avertir("memoire.references", trad("{faute} — branche jetable, fichier qu'elle ajoute : averti, sa "
+                                                 "pull request le jugera", faute=faute), chemin, ligne)
+        else:
+            r.erreur("memoire.references", faute, chemin, ligne)
     for chemin, texte in sorted(textes.items()):
         dossier = chemin.rsplit("/", 1)[0] if "/" in chemin else ""
         gele = memoire.couche_attendue(chemin) in COUCHES_GELEES
@@ -296,8 +307,7 @@ def references(ctx, r):
                 if not est_prive(chemin) or not prive_dispo:
                     continue  # fuite : `memoire.prive` ; indisponible : signalé à part
             if ident not in defs:
-                r.erreur("memoire.references", trad("`{ident}` ne désigne aucune entrée de la mémoire",
-                                                    ident=ident), chemin, ligne)
+                signaler(trad("`{ident}` ne désigne aucune entrée de la mémoire", ident=ident), chemin, ligne)
         for i, ligne, code in memoire.lignes_hors_code(texte):
             if code:
                 continue
@@ -306,19 +316,19 @@ def references(ctx, r):
                     continue
                 faute = verifier_ref(ctx, type_, cible, gele)
                 if faute:
-                    r.erreur("memoire.references", faute, chemin, i)
+                    signaler(faute, chemin, i)
             vivante = memoire.sans_barre(ligne)
             for m in LIEN_RE.finditer(vivante):
                 faute = _verifier_lien(ctx, chemin, dossier, m.group(1), gele)
                 if faute:
-                    r.erreur("memoire.references", faute, chemin, i)
+                    signaler(faute, chemin, i)
             sans_refs = memoire.REF_RE.sub(" ", vivante)
             for m in CODE_EN_LIGNE.finditer(sans_refs):
                 faute = _verifier_chemin_cite(ctx, m.group(1), gele)
                 if faute and demande and protege_cite(ctx, m.group(1)):
                     faute = None
                 if faute:
-                    r.erreur("memoire.references", faute, chemin, i)
+                    signaler(faute, chemin, i)
                 depot = depot_non_declare(ctx, m.group(1), connus)
                 if depot:
                     autres.setdefault(depot, []).append((chemin, i, m.group(1)))
@@ -330,6 +340,19 @@ def references(ctx, r):
                                              "lien vers ce dépôt le fait connaître ; sinon ce n'est pas un "
                                              "dépôt, et la forme `x:chemin` ne lui convient pas",
                                              jeton=jeton, depot=depot, n=len(ou)), chemin, i)
+
+
+def ajoutes_par_une_branche_jetable(ctx, chemins) -> set[str]:
+    """Hors de la CI, sur une branche jetable, les fichiers qu'elle ajoute :
+    absents de la base, son point de divergence avec la branche par défaut
+    (D-0087). Un ensemble vide sinon : sans base, rien ne dit ce qu'elle
+    ajoute ; avant un push, chaque branche qui part doit être jetable. La
+    mémoire privée reste jugée : aucune CI ne la relit."""
+    noms = ctx.branches if ctx.branches is not None else [outils.branche_courante(ctx.racine)]
+    if ctx.etage == "ci" or not ctx.base or not noms or not all(ctx.projet.branche_jetable(n) for n in noms):
+        return set()
+    base = set(ctx.fichiers_base)
+    return {c for c in chemins if c not in base and not memoire.est_prive(c)}
 
 
 def verifier_ref(ctx, type_: str, cible: str, historique: bool = False) -> str | None:

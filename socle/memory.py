@@ -533,8 +533,34 @@ INDEX_TYPES = {"decisions": "ADR", "backlog": "B"}
 
 
 def empreinte_entree(e: Entree) -> str:
+    """L'empreinte d'une entrée : son titre et son corps, sans sa ligne de
+    métadonnées (les lignes `>` qui suivent le titre). Changer un statut, ce
+    qu'une entrée attend ou ce qu'elle a lu ne périme plus ses citations, et
+    deux entrées qui se citent dans leurs métadonnées ne se périment plus
+    l'une l'autre (D-0086, ADR-0053)."""
+    lignes = e.texte.strip().splitlines()
+    j = 1
+    while j < len(lignes) and not lignes[j].strip():
+        j += 1
+    k = j
+    while k < len(lignes) and lignes[k].lstrip().startswith(">"):
+        k += 1
+    corps = "\n".join(l.rstrip() for l in lignes[k:]).strip()
+    titre = lignes[0].rstrip() if lignes else ""
+    return outils.sha256(f"{titre}\n{corps}" if corps else titre)[:8]
+
+
+def empreinte_texte_entier(e: Entree) -> str:
+    """L'empreinte du texte entier de l'entrée, métadonnées comprises : celle
+    des citations écrites avant D-0086, qui restent valides tant qu'elles
+    correspondent."""
     texte = "\n".join(l.rstrip() for l in e.texte.strip().splitlines())
     return outils.sha256(texte)[:8]
+
+
+def empreintes_entree(e: Entree) -> set[str]:
+    """Les empreintes qu'une citation de cette version peut porter."""
+    return {empreinte_entree(e), empreinte_texte_entier(e)}
 
 
 def lignes_index(mem: "Memoire", index: str, sauf: set[str] = frozenset()) -> list[str]:

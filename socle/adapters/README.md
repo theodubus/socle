@@ -139,7 +139,12 @@ client : il a alors un adaptateur par langage (ADR-0051).
   corrige (sa section `[code]`), et dans chacun s'il en corrige plusieurs ;
   un test ajouté dans un autre langage ne fait pas de lui un langage du
   code corrigé. Un correctif qui ne touche le code d'aucun revient au
-  langage de ses tests, sinon au principal.
+  langage de ses tests, sinon au principal. Un correctif qui ne touche
+  aucun fichier qu'un adaptateur juge est refusé, en nommant ses fichiers :
+  aucun test ne peut le prouver ; une demande que l'humain valide, qui
+  nomme son commit dans son texte, l'admet sans test (D-0088, ADR-0054).
+  Un correctif qui ne touche que des fichiers déclarés tiers n'est pas
+  jugé.
 - **La vérification.** `verify` lance les étapes de chaque adaptateur, l'un
   après l'autre et jusqu'au bout, chacune nommée `verify.<adaptateur>.<étape>`
   (`verify.kotlin.tests`). La CI installe les outils de tous.
@@ -153,10 +158,17 @@ client : il a alors un adaptateur par langage (ADR-0051).
   kotlin` : le premier nommé prend `.socle/adapter.toml`. En automatique,
   l'installeur en pose un par langage qu'il reconnaît, hors des fichiers
   tiers. Un langage ajouté à un projet déjà équipé voit ses modules entrer
-  « à mesurer » au cliquet de mutation. La mise à jour
-  rafraîchit chaque copie d'un adaptateur maintenu sous `.socle/adapters/`,
-  que l'humain approuve comme tout fichier protégé ; une copie dont une
-  demande avait resserré les motifs est à remettre.
+  « à mesurer » au cliquet de mutation.
+- **La mise à jour.** Elle rafraîchit chaque copie d'un adaptateur
+  maintenu, la principale comprise, que le projet n'a pas adaptée : celle
+  dont le texte est une version de l'adaptateur que le moteur du projet a
+  portée, dans le moteur installé ou dans l'historique git ; l'humain
+  l'approuve comme tout fichier protégé. Une copie adaptée se garde, ses
+  motifs resserrés comme ses commandes : l'installeur dit, en avertissement,
+  quand son adaptateur maintenu a changé depuis le moteur installé, et
+  l'agent propose à l'humain, par une demande, d'y reporter les
+  corrections. La CI se génère des adaptateurs du projet tels qu'ils sont
+  (ADR-0052).
 
 Un projet à un seul langage ne change rien : il n'a que son adaptateur
 principal.
@@ -266,4 +278,5 @@ trouve pas, et le correctif est refusé, Gradle ne trouvant aucun test ; et
 le filtre `*CalcTest` lance aussi `BigCalcTest`, sans fausser le verdict,
 qui exige encore le succès sur le correctif. Un projet multiplateforme ou Android,
 dont les tâches de Gradle ont d'autres noms (`testDebugUnitTest`) et dont la
-mutation passe par un autre greffon, adapte les commandes dans sa copie.
+mutation passe par un autre greffon, adapte les commandes dans sa copie,
+qu'une mise à jour garde.

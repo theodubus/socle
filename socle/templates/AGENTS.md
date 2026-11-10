@@ -134,7 +134,9 @@ fusionne quand il veut, et la branche repart alors de la branche par
 défaut. Une pull request par sujet, seulement si l'humain l'a choisi (un
 fait de la mémoire le dit). Une session neuve qui trouve ouverte la pull
 request d'une autre demande à l'humain de la fusionner d'abord, ou de
-l'autoriser à y continuer.
+l'autoriser à y continuer. Un prototype qu'on ne compte pas fusionner se
+fait sur une branche jetable, nommée d'un préfixe de `[branches] disposable`
+des garde-fous (`proto/` par défaut) : la CI ne la juge pas aux envois.
 
 ### Avant de conclure
 

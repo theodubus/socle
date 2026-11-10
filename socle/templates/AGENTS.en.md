@@ -133,7 +133,9 @@ human merges it whenever they want, and the branch then starts again from
 the default branch. One pull request per topic, only if the human chose
 it (a fact of the memory says so). A new session that finds another
 session's pull request open asks the human to merge it first, or to let
-it continue on it.
+it continue on it. A prototype not meant to be merged is done on a
+disposable branch, named with a prefix of `[branches] disposable` in the
+guardrails (`proto/` by default): the CI does not judge it on push.
 
 ### Before concluding
 

@@ -27,7 +27,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from socle import config, language as langue, utils as outils, tests_reader as tests_lecture
-from socle.messages import trad
+from socle.messages import a_traduire, trad
 from socle.context import controle
 
 CAPACITES = ("format", "lint", "build", "tests", "mutation", "coverage", "regression")
@@ -531,7 +531,27 @@ def regression(ctx, r):
     for c in correctifs:
         sha, parent = c["sha"], c["parents"][0]
         sujet = c["message"].strip().splitlines()[0]
-        touches = ctx.projet.hors_tiers(outils.fichiers_changes(ctx.racine, parent, sha))
+        changes = outils.fichiers_changes(ctx.racine, parent, sha)
+        touches = ctx.projet.hors_tiers(changes)
+        if changes and not touches:
+            # Il ne touche que des fichiers déclarés tiers, qui échappent à
+            # tous les contrôles (ADR-0031) : l'une des issues de D-0088.
+            r.avertir("tests.regression", trad("{sha} « {sujet} » : correctif qui ne touche que des fichiers "
+                                               "tiers : non jugé", sha=sha[:10], sujet=sujet))
+            continue
+        hors = hors_de_tout_adaptateur(ctx.projet, touches)
+        if hors:
+            # Aucun adaptateur ne juge ses fichiers : aucun test ne peut le
+            # prouver ici. Une demande validée qui le nomme l'admet (D-0088).
+            admise = _admis_par(ctx, sha)
+            if admise:
+                r.avertir("tests.regression", trad("{sha} « {sujet} » : correctif hors de tout adaptateur, admis "
+                                                   "sans test par {id}, une demande validée qui nomme ce commit",
+                                                   sha=sha[:10], sujet=sujet, id=admise))
+            else:
+                r.erreur("tests.regression", trad(REFUS_HORS_ADAPTATEUR, sha=sha[:10], sujet=sujet,
+                                                  liste=", ".join(hors[:5]) + (" …" if len(hors) > 5 else "")))
+            continue
         tests = [t for t in outils.filtrer(touches, motifs) if outils.lire_a(ctx.racine, sha, t) is not None]
         if tests:
             fichiers = {t: outils.lire_a(ctx.racine, sha, t) or "" for t in tests}
@@ -579,6 +599,30 @@ def regression(ctx, r):
         if code != 0:
             r.erreur("tests.regression", trad("{sha} « {sujet} » : son test de régression échoue sur le "
                                               "correctif lui-même", sha=sha[:10], sujet=sujet))
+
+
+# Un correctif qui ne touche aucun fichier qu'un adaptateur juge (D-0088).
+REFUS_HORS_ADAPTATEUR = a_traduire(
+    "{sha} « {sujet} » : correctif qui ne touche aucun fichier qu'un adaptateur juge ({liste}) : aucun test ne "
+    "peut le prouver ici. Trois issues : un adaptateur pour leur langage ; ces fichiers déclarés tiers "
+    "(`[thirdparty] paths` des garde-fous, un assouplissement, donc par une demande) ; ou une demande que l'humain "
+    "valide, qui nomme ce commit et l'admet sans test")
+
+
+def hors_de_tout_adaptateur(projet, touches: list[str]) -> list[str]:
+    """Les fichiers d'un correctif quand aucun d'eux n'est désigné par un
+    adaptateur du projet (ni son code, ni ses sources, ni ses tests) ; une
+    liste vide sinon (D-0088). Ceux du dossier du socle, de la mémoire et de
+    la documentation viennent en dernier : le message nomme d'abord ce que
+    le correctif corrige, que la mémoire accompagne."""
+    if not touches or any(projet.designes(a, touches) for a in projet.adaptateurs):
+        return []
+    memoire = projet.chemins.memoire.rstrip("/") + "/"
+
+    def accompagne(f: str) -> bool:
+        return f.startswith((config.DOSSIER + "/", memoire)) or f.endswith(".md")
+
+    return sorted(touches, key=lambda f: (accompagne(f), f))
 
 
 def corrige_son_code(ctx, parent: str, sha: str) -> bool:
@@ -639,10 +683,14 @@ def recouvrement(ctx, r):
 
 def _admis_par(ctx, sha: str) -> str | None:
     """La demande validée dans la plage qui nomme ce correctif par son SHA,
-    sept caractères au moins : l'humain y admet un test dont la preuve dépend
-    de l'environnement (D-0047)."""
+    sept caractères au moins, dans son texte et non dans l'adresse d'un
+    lien : l'humain y admet un test dont la preuve dépend de l'environnement
+    (D-0047), ou un correctif qu'aucun adaptateur ne juge (D-0088). Un
+    permalien porte le SHA du dernier commit poussé : une demande sans
+    rapport ne l'admet pas pour autant."""
     for d in ctx.validations:
-        if any(sha.startswith(m.group(0)) for m in re.finditer(r"\b[0-9a-f]{7,40}\b", d.texte)):
+        texte = re.sub(r"https?://\S+", " ", d.texte)
+        if any(sha.startswith(m.group(0)) for m in re.finditer(r"\b[0-9a-f]{7,40}\b", texte)):
             return d.id
     return None
 

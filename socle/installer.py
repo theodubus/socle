@@ -3,8 +3,10 @@ les mises à jour.
 
 Ce qu'il copie et ce qu'il référence décide de tout :
 - le moteur est remplacé en bloc et son empreinte enregistrée — aucun merge ;
-- la mémoire, la politique, l'adaptateur et les garde-fous appartiennent au
-  projet : posés s'ils manquent, jamais écrasés ;
+- la mémoire, la politique et les garde-fous appartiennent au projet :
+  posés s'ils manquent, jamais écrasés ; une copie d'un adaptateur maintenu
+  se rafraîchit à la mise à jour tant que le projet ne l'a pas adaptée
+  (ADR-0052) ;
 - les hooks, la CI et CODEOWNERS sont régénérés ; leur diff passe par la
   revue humaine (fichiers protégés).
 
@@ -15,6 +17,7 @@ et les contrôles qui échouent sur l'existant passent en avertissement
 
 from __future__ import annotations
 
+import difflib
 import fnmatch
 import json
 import math
@@ -26,6 +29,7 @@ import sys
 import tomllib
 from datetime import date
 from pathlib import Path
+from typing import NamedTuple
 
 from socle import VERSION, config, fingerprint as empreinte, language as langue, messages, mutation, utils as outils
 from socle import verification
@@ -174,6 +178,110 @@ def _langage_de(nom: str) -> str:
         return str(tomllib.loads(charger_adaptateur(nom)[0]).get("language") or nom)
     except (SystemExit, tomllib.TOMLDecodeError):
         return nom
+
+
+class AdaptateursConnus(NamedTuple):
+    """Ce que le projet a porté des adaptateurs maintenus, lu avant que le
+    moteur ne soit remplacé (ADR-0052)."""
+    installes: dict[str, str]  # nom → texte, dans le moteur installé
+    versions: dict[str, set[str]]  # nom → chaque texte que le moteur du projet en a porté
+    moteur: str  # le dossier du moteur installé
+    commit: str = ""  # le dernier commit avant la mise à jour : ce qui a changé se lit depuis lui
+    superficiel: bool = False  # un clone superficiel : l'historique, et ses versions, sont incomplets
+
+
+def versions_maintenues(cible: Path, dossier_moteur: str) -> AdaptateursConnus:
+    """Les adaptateurs maintenus du moteur installé, et chaque version que
+    l'historique git du projet en a eue sous `**/socle/adapters/` : une copie
+    identique à l'une d'elles n'est pas adaptée (ADR-0052, point 2). Le
+    moteur installé est celui du dernier commit, sinon celui de l'arbre :
+    l'installeur relancé avant ce commit trouve déjà le nouveau dans l'arbre
+    (revue du lot d'ADR-0052, constat 1)."""
+    d = cible / dossier_moteur / "socle/adapters"
+    arbre = {p.stem: p.read_text(encoding="utf-8") for p in sorted(d.glob("*.toml"))} if d.is_dir() else {}
+    installes = dict(arbre)
+    commit = outils.git(cible, "rev-parse", "--verify", "-q", "HEAD", check=False).strip()
+    if commit:
+        for chemin in outils.git(cible, "ls-tree", "-z", "--name-only", commit, "--",
+                                 f"{dossier_moteur}/socle/adapters/", check=False).split("\0"):
+            if chemin.endswith(".toml"):
+                installes[Path(chemin).stem] = outils.git(cible, "show", f"{commit}:{chemin}", check=False)
+    versions: dict[str, set[str]] = {}
+    for textes in (arbre, installes):
+        for nom, texte in textes.items():
+            versions.setdefault(nom, set()).add(texte)
+    sortie = outils.git(cible, "log", "--raw", "--no-abbrev", "--format=", "--",
+                        ":(glob)**/socle/adapters/*.toml", check=False)
+    blobs: dict[str, str] = {}
+    for ligne in sortie.splitlines():
+        champs, _, chemins = ligne.partition("\t")
+        champs = champs.split()
+        if len(champs) < 4 or not chemins or set(champs[3]) == {"0"}:
+            continue
+        blobs.setdefault(champs[3], Path(chemins.split("\t")[-1]).stem)
+    for blob, nom in blobs.items():
+        texte = outils.git(cible, "cat-file", "blob", blob, check=False)
+        if texte:
+            versions.setdefault(nom, set()).add(texte)
+    superficiel = outils.git(cible, "rev-parse", "--is-shallow-repository", check=False).strip() == "true"
+    return AdaptateursConnus(installes, versions, dossier_moteur, commit[:12], superficiel)
+
+
+def adaptateur_de_base(texte: str, versions: dict[str, set[str]]) -> str | None:
+    """L'adaptateur maintenu d'où vient la copie principale : celui dont elle
+    porte une version ; adaptée, celui de son langage dont le texte est le
+    plus proche du sien ; `None` si aucun maintenu n'a son langage (ADR-0052,
+    point 3)."""
+    for nom in sorted(versions):
+        if texte in versions[nom]:
+            return nom
+    try:
+        langage = str(config.lire_toml(texte).get("language") or "")
+    except tomllib.TOMLDecodeError:
+        return None
+    candidats = {}
+    for p in sorted(ADAPTATEURS.glob("*.toml")):
+        maintenu = p.read_text(encoding="utf-8")
+        if langage and str(tomllib.loads(maintenu).get("language") or "") == langage:
+            candidats[p.stem] = maintenu
+    if not candidats:
+        return None
+    lignes = texte.splitlines()
+    return max(candidats, key=lambda nom: difflib.SequenceMatcher(None, lignes, candidats[nom].splitlines()).ratio())
+
+
+def rafraichir_copie(cible: Path, chemin: str, base: str | None, connus: AdaptateursConnus) -> list[str]:
+    """Une copie d'adaptateur que le projet a déjà, à la mise à jour : non
+    adaptée, elle prend l'adaptateur maintenu de cette version ; adaptée, elle
+    se garde, et l'installeur dit quand son adaptateur maintenu a changé
+    depuis le moteur installé (ADR-0052)."""
+    p = cible / chemin
+    maintenu = ADAPTATEURS / f"{base}.toml" if base else None
+    if maintenu is None or not maintenu.is_file():
+        return [trad("{nom} existe : conservé (comparer au gabarit à la main si besoin)", nom=chemin)]
+    texte, nouveau = p.read_text(encoding="utf-8"), maintenu.read_text(encoding="utf-8")
+    if texte == nouveau:
+        return []
+    if texte in connus.versions.get(base, ()):
+        outils.ecrire(p, nouveau)
+        return [trad("{nom} rafraîchi depuis l'adaptateur maintenu {base}, que le projet n'avait pas adapté : un "
+                     "changement protégé, à approuver", nom=chemin, base=base)]
+    source = f"{connus.moteur}/socle/adapters/{base}.toml"
+    if base not in connus.installes:
+        # Un `git diff` ne montrerait rien d'un fichier que le moteur installé
+        # n'avait pas (revue du lot d'ADR-0052, constat 4).
+        return [trad("!! {nom} : conservé ; l'adaptateur maintenu {base} n'était pas dans le moteur installé : le "
+                     "comparer à la copie (`diff {nom} {source}`), et proposer à l'humain, par une demande, ce "
+                     "qu'il faut en reprendre", nom=chemin, base=base, source=source)]
+    if connus.installes[base] != nouveau:
+        # Depuis le commit d'avant la mise à jour : la commande montre encore
+        # ce qui a changé une fois la mise à jour commitée.
+        voir = f"git diff {connus.commit} -- {source}" if connus.commit else f"diff {chemin} {source}"
+        return [trad("!! {nom} adapté par le projet : conservé ; l'adaptateur maintenu {base} a changé depuis le "
+                     "moteur installé : proposer à l'humain, par une demande, d'y reporter ses corrections (ce qui "
+                     "a changé : `{voir}`)", nom=chemin, base=base, voir=voir)]
+    return [trad("{nom} adapté par le projet : conservé ; l'adaptateur maintenu {base} n'a pas changé",
+                 nom=chemin, base=base)]
 
 
 def politique_privee(texte: str, mode: str, relecture: str | None, demandes: bool) -> str:
@@ -454,10 +562,13 @@ def _poser_configuration(cible: Path, texte_adaptateur: str, ancien: dict, prive
                          relecture: str | None, demandes_privees: bool,
                          langue_memoire: str | None, ch: config.Chemins,
                          plafonds: dict[str, dict] | None = None, source: str = "",
-                         humain: str = "", autres: list[tuple[str, str]] = ()) -> tuple[str, list[str]]:
+                         humain: str = "", autres: list[tuple[str, str]] = (),
+                         connus: AdaptateursConnus | None = None) -> tuple[str, list[str]]:
     """La politique, les adaptateurs et les garde-fous, posés s'ils manquent ;
     rend la langue de la mémoire. `autres` : (nom, texte) des adaptateurs des
-    autres langages, posés dans `.socle/adapters/` (ADR-0051)."""
+    autres langages, posés dans `.socle/adapters/` (ADR-0051). `connus` : à la
+    mise à jour, ce que le projet a porté des adaptateurs maintenus ; une copie
+    qu'il n'a pas adaptée s'en rafraîchit (ADR-0052)."""
     journal = []
     neuf = not (cible / ch.politique).is_file()
     politique = gabarit("policy.toml", langue_memoire if langue_memoire and neuf else "fr")
@@ -499,7 +610,10 @@ def _poser_configuration(cible: Path, texte_adaptateur: str, ancien: dict, prive
                                             [x for _, x in autres])),
     ):
         p = cible / nom
-        if p.is_file():
+        if p.is_file() and nom == ch.adaptateur and connus is not None:
+            journal += rafraichir_copie(cible, nom, adaptateur_de_base(p.read_text(encoding="utf-8"),
+                                                                       connus.versions), connus)
+        elif p.is_file():
             journal.append(trad("{nom} existe : conservé (comparer au gabarit à la main si besoin)", nom=nom))
             if nom == ch.garde_fous and plafonds:
                 journal.append(trad("!! plafonds de {source} non repris : les garde-fous existent déjà",
@@ -528,7 +642,7 @@ def _poser_configuration(cible: Path, texte_adaptateur: str, ancien: dict, prive
                 if ecartes:
                     journal.append(trad("!! plafonds de {source} écartés, faute d'un module de ce nom qui porte du "
                                         "code : {liste}", source=source, liste=", ".join(ecartes)))
-    poses, sortie = _poser_autres_adaptateurs(cible, autres, ch)
+    poses, sortie = _poser_autres_adaptateurs(cible, autres, ch, connus)
     journal += sortie
     gf = cible / ch.garde_fous
     if poses and gf.is_file():
@@ -570,12 +684,13 @@ def ajouter_a_mesurer(texte: str, modules: list[str]) -> str:
     return texte.rstrip("\n") + "\n\n[mutation.caps]\n" + lignes
 
 
-def _poser_autres_adaptateurs(cible: Path, autres: list[tuple[str, str]],
-                              ch: config.Chemins) -> tuple[list[str], list[str]]:
+def _poser_autres_adaptateurs(cible: Path, autres: list[tuple[str, str]], ch: config.Chemins,
+                              connus: AdaptateursConnus | None = None) -> tuple[list[str], list[str]]:
     """Les adaptateurs des autres langages, `.socle/adapters/<nom>.toml` :
-    posés s'ils manquent. Une copie d'un adaptateur maintenu se rafraîchit à
-    chaque mise à jour, et l'humain l'approuve comme tout fichier protégé ;
-    un adaptateur propre au projet se garde (ADR-0051, point 6)."""
+    posés s'ils manquent. À la mise à jour, une copie d'un adaptateur maintenu
+    que le projet n'a pas adaptée s'en rafraîchit, et l'humain l'approuve comme
+    tout fichier protégé ; une copie adaptée, ou un adaptateur propre au
+    projet, se garde (ADR-0052)."""
     journal, poses = [], []
     a_poser = dict(autres)
     for chemin in config.fichiers_adaptateurs(cible, ch.adaptateurs):
@@ -588,14 +703,11 @@ def _poser_autres_adaptateurs(cible: Path, autres: list[tuple[str, str]],
             outils.ecrire(p, texte)
             poses.append(texte)
             journal.append(trad("{nom} posé", nom=f"{ch.adaptateurs}/{nom}.toml"))
-        elif not (ADAPTATEURS / f"{nom}.toml").is_file():
+        elif connus is not None:
+            journal += rafraichir_copie(cible, f"{ch.adaptateurs}/{nom}.toml", nom, connus)
+        else:
             journal.append(trad("{nom} existe : conservé (comparer au gabarit à la main si besoin)",
                                 nom=f"{ch.adaptateurs}/{nom}.toml"))
-        elif p.read_text(encoding="utf-8") != texte:
-            outils.ecrire(p, texte)
-            journal.append(trad("{nom} rafraîchi depuis l'adaptateur maintenu : un changement protégé, à "
-                                "approuver ; une copie dont une demande avait resserré les motifs est à "
-                                "remettre", nom=f"{ch.adaptateurs}/{nom}.toml"))
     return poses, journal
 
 
@@ -645,6 +757,18 @@ def poser_skills(cible: Path, lg: str = "fr") -> list[str]:
     return [trad("skills du socle posés dans {dossier} : {noms}", dossier=SKILLS, noms=", ".join(noms))]
 
 
+def ignorer_aux_envois(projet: config.Projet) -> str:
+    """Les lignes du workflow de CI qui écartent les branches jetables des
+    envois ; une pull request qui en part la lance toujours (D-0087). Un
+    préfixe n'a aucun caractère de motif (`Projet.branches_jetables`) : `**`
+    le prolonge comme `startswith`. Les étiquettes se nomment, faute de quoi
+    GitHub ne lancerait plus la CI pour elles."""
+    motifs = [p + "**" for p in projet.branches_jetables()]
+    if not motifs:
+        return ""
+    return f"    branches-ignore: [{', '.join(json.dumps(m) for m in motifs)}]\n    tags: [\"**\"]\n"
+
+
 def etapes_de_ci(textes: list[str]) -> str:
     """Les étapes de CI des adaptateurs, l'une après l'autre ; une étape que
     deux adaptateurs déclarent à l'identique ne se répète pas (ADR-0051,
@@ -677,6 +801,7 @@ def _poser_etages(cible: Path, texte_adaptateur: str, dossier_moteur: str, propr
     setup = noms_d_etapes_traduits(etapes_de_ci([texte_adaptateur, *(x for _, x in autres)]))
     etapes = setup.strip("\n") + "\n" if setup.strip() else ""
     workflow = gabarit("socle.yml", lg).replace("@@ETAPES_ADAPTATEUR@@\n", etapes)
+    workflow = workflow.replace("@@BRANCHES_JETABLES@@", ignorer_aux_envois(config.Projet.charger(cible)))
     # Le nom du travail est celui qu'une protection de branche exige : une
     # mise à jour garde celui qui est en place, quelle que soit la langue.
     existant = cible / ".github/workflows/socle.yml"
@@ -810,22 +935,39 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
             journal.append(trad("backlog : {n} sujet(s) clos rangé(s) dans `{dossier}/`", n=len(ranges),
                                 dossier=memoire.DOSSIER_CLOS))
 
+    # Ce que le projet a porté des adaptateurs maintenus se lit avant que le
+    # moteur installé ne soit remplacé (ADR-0052).
+    connus = versions_maintenues(cible, str(ancien.get("engine_dir") or ch.moteur)) if ancien else None
+    if connus is not None and connus.superficiel:
+        journal.append(trad("!! clone superficiel : l'historique du moteur y est incomplet, et une copie d'adaptateur "
+                            "que le projet n'a pas adaptée peut y être prise pour adaptée, et gardée ; "
+                            "`git fetch --unshallow`, puis relancer l'installeur"))
+
     # 1. Le moteur, remplacé en bloc, et son verrou.
     dossier_moteur, poses = _poser_moteur(cible, mode, source, ch)
     journal += poses
 
     # 2. Les fichiers du projet : posés s'ils manquent, jamais écrasés.
     lg, poses = _poser_configuration(cible, texte_adaptateur, ancien, prive, relecture, demandes_privees,
-                                     langue_memoire, ch, plafonds, source_plafonds, humain, autres)
+                                     langue_memoire, ch, plafonds, source_plafonds, humain, autres, connus)
     journal += poses
 
     # 3. La mémoire initiale.
     journal += _poser_memoire(cible, lg, ", ".join([nom_adaptateur, *(n for n, _ in autres)]), adoption, ch)
 
-    # 4. Les instructions : AGENTS.md fait foi, CLAUDE.md l'importe.
-    tous_autres = [*autres, *((Path(c).stem, (cible / c).read_text(encoding="utf-8"))
-                              for c in config.fichiers_adaptateurs(cible, ch.adaptateurs)
-                              if Path(c).stem not in dict(autres))]
+    # 4. Les instructions : AGENTS.md fait foi, CLAUDE.md l'importe. La CI et
+    # le balayage partent des copies telles qu'elles sont désormais : une
+    # copie adaptée, gardée, y garde ses adaptations. Nommer pour le langage
+    # du principal un autre adaptateur maintenu que le sien en fait la CI,
+    # comme avant ; détecté, il ne la fait pas (ADR-0052, point 5). Ceux
+    # qu'il vient de nommer d'abord.
+    if texte_principal and (texte_adaptateur == texte_principal or not charges[0][3] or (
+            connus is not None and adaptateur_de_base(texte_principal, connus.versions) == nom_adaptateur)):
+        texte_adaptateur = principal.read_text(encoding="utf-8")
+    en_place = {Path(c).stem: (cible / c).read_text(encoding="utf-8")
+                for c in config.fichiers_adaptateurs(cible, ch.adaptateurs)}
+    tous_autres = [(nom, en_place[nom]) for nom in dict.fromkeys([*(n for n, _ in autres), *en_place])
+                   if nom in en_place]
     balayage, motif = _balayage_planifie(cible, texte_adaptateur, [x for _, x in tous_autres])
     section_avant = sum(_taille_section((cible / nom).read_text(encoding="utf-8")) for nom in INSTRUCTIONS
                         if (cible / nom).is_file())

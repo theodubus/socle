@@ -37,6 +37,16 @@ exclude = []
 # signalé. En ajouter un est un assouplissement : une décision humaine.
 repos = []
 
+[branches]
+# Les branches jetables, par le début de leur nom (lettres, chiffres, `.`,
+# `_`, `-` et `/` ; un préfixe qui a un autre caractère est ignoré) : des
+# prototypes qu'on ne fusionne pas. La CI du socle ne les juge pas aux
+# envois, et les références mortes d'un fichier qu'elles ajoutent n'y sont
+# qu'un avertissement ; une pull request qui en part les juge en entier. En
+# ajouter un assouplit : une décision humaine. En changer : relancer
+# l'installeur, qui régénère la CI.
+disposable = ["proto/"]
+
 [thirdparty]
 # Les fichiers d'un outil tiers installé dans le projet (ses skills, ses
 # scripts) : aucun contrôle ne les juge, ni ses mises à jour. Un motif qui

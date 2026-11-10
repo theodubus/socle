@@ -47,7 +47,12 @@ REGLES = [
     (("specs", "paths"), "couvre"),
     (("adoption", "warn_only"), "inclus"),
     (("thirdparty", "paths"), "inclus"),
+    (("branches", "disposable"), "inclus"),
 ]
+
+# Une clé qui a une valeur par défaut : absente, elle la vaut, et l'écrire
+# telle quelle ne change rien (D-0087).
+DEFAUTS = {("branches", "disposable"): list(config.BRANCHES_JETABLES)}
 
 
 def _cle(chemin: tuple[str, ...]) -> str:
@@ -105,6 +110,9 @@ def assouplissements(avant: dict, apres: dict, modules_existants: set[str] | Non
     renommes = renommes or {}
     res = []
     a, b = aplatir(avant), aplatir(apres)
+    for chemin, defaut in DEFAUTS.items():
+        a.setdefault(chemin, defaut)
+        b.setdefault(chemin, defaut)
     for chemin in sorted(set(a) | set(b)):
         va, vb = a.get(chemin, ABSENT), b.get(chemin, ABSENT)
         if va == vb:

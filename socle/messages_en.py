@@ -2597,10 +2597,46 @@ MESSAGES: dict[str, str] = {
         "unknown adapter: “{nom}” (the project's: {liste})",
     "dans un projet à plusieurs adaptateurs, celui dont l'outil a écrit ces résultats (le principal sinon)":
         "in a project with several adapters, the one whose tool wrote these results (the main one otherwise)",
-    "{nom} rafraîchi depuis l'adaptateur maintenu : un changement protégé, à approuver ; une copie dont une demande "
-    "avait resserré les motifs est à remettre":
-        "{nom} refreshed from the maintained adapter: a protected change, to approve; a copy whose patterns a "
-        "request had narrowed is to be restored",
+    "{nom} rafraîchi depuis l'adaptateur maintenu {base}, que le projet n'avait pas adapté : un changement protégé, "
+    "à approuver":
+        "{nom} refreshed from the maintained adapter {base}, which the project had not adapted: a protected change, "
+        "to approve",
+    "!! {nom} adapté par le projet : conservé ; l'adaptateur maintenu {base} a changé depuis le moteur installé : "
+    "proposer à l'humain, par une demande, d'y reporter ses corrections (ce qui a changé : `{voir}`)":
+        "!! {nom} adapted by the project: kept; the maintained adapter {base} has changed since the installed engine: "
+        "propose to the human, through a request, to carry its corrections over (what changed: `{voir}`)",
+    "!! {nom} : conservé ; l'adaptateur maintenu {base} n'était pas dans le moteur installé : le comparer à la copie "
+    "(`diff {nom} {source}`), et proposer à l'humain, par une demande, ce qu'il faut en reprendre":
+        "!! {nom}: kept; the maintained adapter {base} was not in the installed engine: compare it with the copy "
+        "(`diff {nom} {source}`), and propose to the human, through a request, what to take from it",
+    "!! clone superficiel : l'historique du moteur y est incomplet, et une copie d'adaptateur que le projet n'a pas "
+    "adaptée peut y être prise pour adaptée, et gardée ; `git fetch --unshallow`, puis relancer l'installeur":
+        "!! shallow clone: the engine's history is incomplete in it, and an adapter copy that the project has not "
+        "adapted may be taken for adapted, and kept; `git fetch --unshallow`, then run the installer again",
+    "{nom} adapté par le projet : conservé ; l'adaptateur maintenu {base} n'a pas changé":
+        "{nom} adapted by the project: kept; the maintained adapter {base} has not changed",
+    "{sha} « {sujet} » : correctif qui ne touche aucun fichier qu'un adaptateur juge ({liste}) : aucun test ne "
+    "peut le prouver ici. Trois issues : un adaptateur pour leur langage ; ces fichiers déclarés tiers "
+    "(`[thirdparty] paths` des garde-fous, un assouplissement, donc par une demande) ; ou une demande que l'humain "
+    "valide, qui nomme ce commit et l'admet sans test":
+        "{sha} “{sujet}”: fix that touches no file an adapter judges ({liste}): no test can prove it here. Three "
+        "ways out: an adapter for their language; these files declared third-party (`[thirdparty] paths` in the "
+        "guardrails, a relaxation, so through a request); or a request the human approves, which names this commit "
+        "and admits it without a test",
+    "{faute} — branche jetable, fichier qu'elle ajoute : averti, sa pull request le jugera":
+        "{faute} — disposable branch, a file it adds: warned, its pull request will judge it",
+    "{sha} « {sujet} » : correctif qui ne touche que des fichiers tiers : non jugé":
+        "{sha} “{sujet}”: fix that touches only third-party files: not judged",
+    "{sha} « {sujet} » : correctif hors de tout adaptateur, admis sans test par {id}, une demande validée qui nomme "
+    "ce commit":
+        "{sha} “{sujet}”: fix outside every adapter, admitted without a test by {id}, an approved request that "
+        "names this commit",
+    "socle — avertissement : ce correctif ne touche aucun fichier qu'un adaptateur juge ({liste}) : la CI le "
+    "refusera (`tests.regression`), sauf si une demande validée nomme ce commit et l'admet sans test ; sinon, un "
+    "adaptateur pour leur langage, ou ces fichiers déclarés tiers, par une demande.":
+        "socle — warning: this fix touches no file an adapter judges ({liste}): the CI will refuse it "
+        "(`tests.regression`), unless an approved request names this commit and admits it without a test; "
+        "otherwise, an adapter for their language, or these files declared third-party, through a request.",
     "fichier désigné par deux adaptateurs":
         "file designated by two adapters",
     "un second adaptateur aux motifs disjoints, posé par l'installeur et approuvé par l'humain, passe la CI":

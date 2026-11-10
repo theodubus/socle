@@ -27,6 +27,12 @@ DOSSIER = ".socle"
 LANCEUR = ".socle/socle"
 GIT_HOOKS = ".socle/git-hooks"
 TRACE = ".socle/trace/hooks.log"  # hors dépôt git seulement
+# Les préfixes des branches jetables quand les garde-fous n'en disent rien
+# (D-0087). Un préfixe se compare littéralement au nom de la branche, et la
+# CI le reçoit en motif : il n'a que des caractères que les motifs de GitHub
+# prennent pour eux-mêmes, sinon il est ignoré des deux côtés.
+BRANCHES_JETABLES = ("proto/",)
+PREFIXE_DE_BRANCHE = re.compile(r"[A-Za-z0-9._/-]+")
 COMPTEUR_STOP = ".socle/trace/stop-echecs"
 INSTRUCTIONS = "AGENTS.md"
 # Ce qui ouvre la section du socle dans le fichier d'instructions : AGENTS.md,
@@ -264,6 +270,25 @@ class Projet:
         return [self.chemins.archives + "/**", self.dossier_moteur.rstrip("/") + "/**"] + list(
             self.gf("references", "exclude", defaut=[])
         )
+
+    def branches_jetables(self) -> list[str]:
+        """Les préfixes des branches jetables, `[branches] disposable` des
+        garde-fous, `proto/` à défaut : des prototypes qu'on ne fusionne pas.
+        La CI du socle ne les juge pas aux envois, les références mortes d'un
+        fichier qu'elles ajoutent n'y sont qu'un avertissement hors de la CI,
+        et une pull request qui en part les juge en entier (D-0087). Un
+        préfixe qui a un autre caractère que lettres, chiffres, `.`, `_`, `-`
+        et `/` est ignoré : la CI le lirait en motif, autrement que lui."""
+        valeur = self.gf("branches", "disposable", defaut=None)
+        if valeur is None:
+            return list(BRANCHES_JETABLES)
+        if not isinstance(valeur, list):
+            return []
+        return [v for v in valeur if isinstance(v, str) and PREFIXE_DE_BRANCHE.fullmatch(v)]
+
+    def branche_jetable(self, nom: str | None) -> bool:
+        """La branche porte-t-elle le préfixe d'une branche jetable ?"""
+        return bool(nom) and any(nom.startswith(p) for p in self.branches_jetables())
 
     def chemins_tiers(self) -> list[str]:
         """Les fichiers d'un outil tiers installé dans le projet (ses skills,
