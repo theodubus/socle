@@ -26,6 +26,13 @@ receives the state as soon as it starts. A session that adds a second
 repository is not resumed: with two repositories, it restarts outside the
 project root, without the agent's hooks.
 
+An agent working in a worktree of the repository (a subagent, for
+instance) cites there the entries it has just created: the pre-tool hook
+reads a reference in the worktree of the file written or of the current
+directory, or in the main copy where the session started. Its refusals
+hold for both trees: refused in either, an action is refused. The
+end-of-turn and start hooks judge the main copy.
+
 A project written in several languages has one adapter per language: the
 installer sets one per language it recognises, or those it is given
 (`--adapter python-pytest --adapter kotlin`, the first being the main

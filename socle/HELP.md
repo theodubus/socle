@@ -27,6 +27,13 @@ démarrage. Une session qui ajoute un second dépôt ne se reprend pas : à
 deux dépôts, elle redémarre hors de la racine du projet, sans les hooks de
 l'agent.
 
+Un agent qui travaille dans un worktree du dépôt (un sous-agent, par
+exemple) y cite les entrées qu'il vient d'y créer : le hook avant outil
+lit une référence dans le worktree du fichier écrit ou du dossier
+courant, ou dans la copie principale où la session a démarré. Ses refus
+valent pour les deux arbres : refusée dans l'un, une action est refusée.
+Les hooks de fin de tour et de démarrage jugent la copie principale.
+
 Un projet écrit en plusieurs langages a un adaptateur par langage :
 l'installeur en pose un par langage qu'il reconnaît, ou ceux qu'on lui
 nomme (`--adapter python-pytest --adapter kotlin`, le premier étant le

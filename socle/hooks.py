@@ -82,6 +82,55 @@ def lire_entree() -> dict:
         return {}
 
 
+def _depot_commun(dossier: Path) -> tuple[Path, Path] | None:
+    """La racine du worktree qui contient `dossier`, et le répertoire git
+    commun de son dépôt ; rien hors de tout dépôt."""
+    r = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"],
+                       cwd=dossier, capture_output=True, text=True)
+    lignes = r.stdout.split("\n")
+    if r.returncode != 0 or len(lignes) < 2 or not lignes[0] or not lignes[1]:
+        return None
+    return Path(lignes[0]).resolve(), Path(lignes[1]).resolve()
+
+
+def arbre_juge(racine: Path, entree: dict) -> Path:
+    """L'arbre où une action de l'agent a lieu (B-0164, ADR-0064). Claude
+    Code lance ses hooks à la racine de sa session (`CLAUDE_PROJECT_DIR`), la
+    copie principale du dépôt ; un sous-agent travaille pourtant dans un
+    worktree, où il crée ses entrées de mémoire. L'arbre est celui du
+    fichier écrit, pour un outil d'écriture, sinon le dossier courant de
+    l'agent (`cwd` de l'entrée), s'il est un autre worktree du même dépôt,
+    équipé du socle ; un autre dépôt, un dossier hors de tout dépôt, ou la
+    racine elle-même, rendent `racine`. Le hook avant outil le juge EN PLUS
+    de la racine, jamais à sa place : le dossier courant ne lève aucun
+    refus."""
+    depart = None
+    args = entree.get("tool_input") or {}
+    if entree.get("tool_name") in OUTILS_ECRITURE and isinstance(args, dict):
+        chemin = args.get("file_path") or args.get("notebook_path") or ""
+        if chemin and Path(chemin).is_absolute():
+            depart = Path(chemin).parent
+    if depart is None and entree.get("cwd"):
+        depart = Path(str(entree["cwd"]))
+    if depart is None:
+        return racine
+    try:
+        # Un fichier nouveau peut être dans un dossier encore absent.
+        while not depart.is_dir() and depart != depart.parent:
+            depart = depart.parent
+        ici, ailleurs = _depot_commun(racine), _depot_commun(depart)
+        if not ici or not ailleurs or ailleurs[0] == ici[0] or ailleurs[1] != ici[1]:
+            return racine
+        if not (ailleurs[0] / ".socle").is_dir():
+            return racine
+    except OSError:
+        # Un dossier que l'agent n'a pas le droit de lire (les réglages d'un
+        # autre utilisateur) n'est pas un worktree du projet ; un hook qui
+        # planterait ici laisserait passer la commande qu'il devait juger.
+        return racine
+    return ailleurs[0]
+
+
 def installer_hooks_git(racine: Path) -> bool:
     """Pointe git vers `.socle/git-hooks` s'il ne pointe nulle part ailleurs.
     Rend vrai si la configuration est en place."""
@@ -660,14 +709,34 @@ QUESTIONS_AGENT = ("AskUserQuestion",)
 
 
 def pre_tool_use(projet: config.Projet, entree: dict) -> int:
+    """Le hook avant outil. Tout se juge contre la racine de la session,
+    comme toujours ; si l'action a lieu dans un autre worktree du même dépôt
+    (`arbre_juge`), elle se juge en plus contre lui : refusée dans l'un des
+    deux arbres, elle est refusée. Seule une référence citée vaut si elle
+    existe dans l'un ou l'autre (B-0164)."""
+    racine = projet.racine
+    outil = entree.get("tool_name", "")
+    tracer(racine, "PreToolUse", entree.get("session_id", ""), outil)
+    arbre = arbre_juge(racine, entree)
+    autre = config.Projet.charger(arbre) if arbre != racine else None
+    raison = _raison_avant_outil(projet, entree, autre)
+    if raison is None and autre is not None:
+        raison = _raison_avant_outil(autre, entree, projet)
+    if raison is None:
+        return 0
+    tracer_refus(racine, "PreToolUse", f"{outil} — {raison}", entree.get("session_id", ""))
+    return _refus(raison)
+
+
+def _raison_avant_outil(projet: config.Projet, entree: dict, autre: config.Projet | None) -> str | None:
+    """Ce que le hook avant outil refuse, jugé contre `projet` ; `autre`, le
+    second arbre jugé, ne sert qu'à lire les références qu'il définit."""
     racine = projet.racine
     outil = entree.get("tool_name", "")
     args = entree.get("tool_input") or {}
-    tracer(racine, "PreToolUse", entree.get("session_id", ""), outil)
 
-    def refus(raison: str) -> int:
-        tracer_refus(racine, "PreToolUse", f"{outil} — {raison}", entree.get("session_id", ""))
-        return _refus(raison)
+    def refus(raison: str) -> str:
+        return raison  # la raison, que `pre_tool_use` trace et rend
 
     if outil in QUESTIONS_AGENT:
         return refus(trad("une question à l'humain ne passe pas par le widget de questions de l'agent : son texte y "
@@ -706,6 +775,12 @@ def pre_tool_use(projet: config.Projet, entree: dict) -> int:
             avant, apres = contenu_apres(racine, outil, args, rel)
             if apres is not None:
                 fautes = references_inventees(projet, rel, avant, apres)
+                if fautes and autre is not None:
+                    # Une référence vaut si elle existe dans l'autre arbre.
+                    rel_autre = _relatif(autre.racine, chemin)
+                    av, ap = contenu_apres(autre.racine, outil, args, rel_autre) if rel_autre else (None, None)
+                    if ap is not None and not references_inventees(autre, rel_autre, av, ap):
+                        fautes = []
                 if fautes:
                     return refus(trad("référence inventée — {fautes}", fautes=" ; ".join(fautes[:5])))
                 faute = statut_valide_ajoute(rel, avant, apres, projet)
@@ -723,7 +798,7 @@ def pre_tool_use(projet: config.Projet, entree: dict) -> int:
     faute = sha_fabrique(racine, json.dumps(args, ensure_ascii=False))
     if faute:
         return refus(faute)
-    return 0
+    return None
 
 
 # --------------------------------------------------------------------------

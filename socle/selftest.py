@@ -373,8 +373,11 @@ def etage_demarrage(a: Atelier, c: Path) -> str:
     return a.socle(c, "hook", "session-start", entree=json.dumps({"session_id": "autotest", "source": "startup"})).stdout
 
 
-def etage_outil(a: Atelier, c: Path, outil: str, args: dict) -> str:
-    r = a.socle(c, "hook", "pre-tool-use", entree=json.dumps({"session_id": "autotest", "tool_name": outil, "tool_input": args}))
+def etage_outil(a: Atelier, c: Path, outil: str, args: dict, cwd: Path | None = None) -> str:
+    entree = {"session_id": "autotest", "tool_name": outil, "tool_input": args}
+    if cwd is not None:
+        entree["cwd"] = str(cwd)
+    r = a.socle(c, "hook", "pre-tool-use", entree=json.dumps(entree))
     if not r.stdout.strip():
         return ""
     sortie = json.loads(r.stdout).get("hookSpecificOutput", {})
@@ -1261,6 +1264,16 @@ def _cas() -> list[Cas]:
     def _(a, c):
         return etage_outil(a, c, "Bash", {"command": "mv .github /tmp/github-de-cote"})
 
+    @defaut("protege-depuis-un-worktree", "fichier protégé de la copie principale écrit depuis un worktree du dépôt",
+            "agent", "écriture protégée")
+    def _(a, c):
+        # Revue de B-0164 : le dossier courant ne lève aucun refus de la
+        # racine de la session.
+        arbre = c / ".claude/worktrees/sous-agent"
+        a.git(c, "worktree", "add", "-q", "-b", "sous-agent", str(arbre))
+        return etage_outil(a, c, "Bash", {"command": f"echo 'max_attempts = 99' >> {c.resolve()}/.socle/policy.toml"},
+                           cwd=arbre)
+
     @defaut("reglage-local-agent", "l'agent coupe ses hooks par un réglage local de Claude Code", "agent",
             "réglage de l'agent")
     def _(a, c):
@@ -1904,6 +1917,20 @@ def _temoins() -> list[tuple[str, Callable]]:
             "## Contexte\n\n", "## Contexte\n\n" + PARAGRAPHES_DU_CONTEXTE, 1)
         return etage_outil(a, c, "Write", {"file_path": str(c / "memory/requests/D-0001-refactor.md"),
                                            "content": recente})
+
+    @temoin("dans un worktree du dépôt, une commande qui cite une entrée créée là passe le hook de l'agent")
+    def _(a, c):
+        # B-0164 : le hook, lancé à la racine de la session, juge l'arbre où
+        # l'action a lieu ; la copie principale n'a pas encore l'entrée.
+        arbre = c / ".claude/worktrees/sous-agent"
+        a.git(c, "worktree", "add", "-q", "-b", "sous-agent", str(arbre))
+        ajouter(arbre, "memory/decisions/ADR-0090-travailler-dans-un-worktree.md",
+                "<!-- socle: couche=decisions zone=publique -->\n# ADR-0090 — Travailler dans un worktree\n\n"
+                "> statut : acceptée · date : 2026-11-11\n\n## Décision\n\nLe sous-agent travaille à part.\n")
+        p = arbre / "docs/calc.md"
+        return (etage_outil(a, c, "Write", {"file_path": str(p), "content": p.read_text() + "\nVoir ADR-0090.\n"},
+                            cwd=arbre)
+                or etage_outil(a, c, "Bash", {"command": "grep -n ADR-0090 docs/calc.md"}, cwd=arbre))
 
     @temoin("une demande complète passe le hook de l'agent")
     def _(a, c):

@@ -2494,6 +2494,10 @@ MESSAGES: dict[str, str] = {
         "a protected file changed by the human, who approves it, passes the CI",
     "une valeur attendue changée sous une demande validée par l'humain passe la CI":
         "an expected value changed under a request approved by the human passes the CI",
+    "fichier protégé de la copie principale écrit depuis un worktree du dépôt":
+        "protected file of the main copy written from a worktree of the repository",
+    "dans un worktree du dépôt, une commande qui cite une entrée créée là passe le hook de l'agent":
+        "in a worktree of the repository, a command citing an entry created there passes the agent's hook",
     "une demande complète passe le hook de l'agent":
         "a complete request passes the agent's hook",
     "une réponse donnée dans la conversation, relayée avec sa citation, passe le hook et la CI":
