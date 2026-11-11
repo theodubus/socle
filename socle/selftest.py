@@ -342,6 +342,14 @@ def protege_en_attente(a: Atelier, c: Path) -> None:
     (c / ".github/CODEOWNERS").write_text(nouveau)
 
 
+def _demande_d_une_mise_a_jour(a: Atelier, c: Path, fichiers: int, prose: str = "") -> None:
+    """La demande qui approuve une mise à jour : chaque fichier protégé sur
+    sa ligne d'empreinte (ADR-0058), ou la même ligne suivie de prose."""
+    liste = "".join(f"- `.socle/engine/socle/module_{i}.py` — `sha256:{i:015x}a`{prose}\n" for i in range(fichiers))
+    ajouter(c, "memory/requests/D-0001-refactor.md",
+            demande_bonne(a, c).replace("## Où regarder", f"{liste}\n## Où regarder", 1))
+
+
 def etage_stop(a: Atelier, c: Path, dernier_message: str | None = None) -> str:
     """Le hook de fin de tour. Avec `dernier_message`, un transcript au format
     de Claude Code lui donne le dernier message de l'agent à lire."""
@@ -959,6 +967,14 @@ def _cas() -> list[Cas]:
     @defaut("budget-depasse", "couche de mémoire au-delà de son budget", "git", "memoire.budgets")
     def _(a, c):
         ajouter(c, "memory/active.md", "\n" + ("Une ligne de remplissage pour dépasser le budget. " * 200) + "\n")
+        return etage_git(a, c)
+
+    @defaut("empreintes-bavardes", "demande au-delà de son budget, ses fichiers protégés cités avec de la prose",
+            "git", "memoire.budgets")
+    def _(a, c):
+        # Une ligne d'empreinte ne dit qu'un chemin et une empreinte : un
+        # mot de plus, et elle compte (ADR-0058).
+        _demande_d_une_mise_a_jour(a, c, 150, ", un fichier du moteur que la mise à jour change.")
         return etage_git(a, c)
 
     @defaut("identifiant-prive", "identifiant privé dans un fichier public", "git", "memoire.prive")
@@ -1770,6 +1786,12 @@ def _temoins() -> list[tuple[str, Callable]]:
         (c / "attic/sondes.patch").write_text("--- /dev/null\n+++ b/attic/sondes/lecteur.py\n@@ -0,0 +1 @@\n+X = 1\n")
         ajouter(c, "docs/calc.md", "Le lecteur `attic/sondes/lecteur.py` vient de la rustine.\n")
         return etage_ci(a, c)
+
+    @temoin("une demande que seules ses lignes d'empreinte portent au-delà de son budget, un fichier protégé et "
+            "son empreinte sur chacune, sans description, se commite")
+    def _(a, c):
+        _demande_d_une_mise_a_jour(a, c, 300)
+        return etage_git(a, c)
 
     @temoin("un fichier protégé changé par l'humain, qui l'approuve, passe la CI")
     def _(a, c):

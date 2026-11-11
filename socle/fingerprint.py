@@ -43,6 +43,19 @@ def fichier(chemin: Path) -> str:
     return "sha256:" + hashlib.sha256(chemin.read_bytes()).hexdigest()
 
 
+# L'empreinte nouvelle qu'une demande cite pour un fichier protégé supprimé,
+# dans la langue du projet. Les deux mots se reconnaissent partout, quelle
+# que soit la langue : la demande de `socle approve` dit `deleted` dans un
+# projet en anglais (B-0163).
+SUPPRIME = {"fr": "supprimé", "en": "deleted"}
+
+
+def supprime(langue: str) -> str:
+    """Le mot d'un fichier supprimé dans la langue donnée, le français à
+    défaut."""
+    return SUPPRIME.get(langue, SUPPRIME["fr"])
+
+
 def courte(empreinte: str) -> str:
     """La forme qu'une demande cite : `sha256:` et seize caractères."""
     return empreinte[: len("sha256:") + 16]

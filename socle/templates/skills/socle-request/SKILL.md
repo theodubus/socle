@@ -11,8 +11,8 @@ réponse mot pour mot, sans jamais la choisir.
 
 ## Poser une demande
 
-1. `python3 .socle/socle new request "<décision>"` pose le squelette et
-   donne l'identifiant.
+1. `python3 .socle/socle new request "<décision>"` pose le squelette,
+   donne l'identifiant, et imprime le contrat que le lint jugera.
 2. Remplir les huit champs :
    - **Décision demandée** : en une phrase.
    - **Contexte** : pour l'humain qui revient sur le projet après des
@@ -26,7 +26,11 @@ réponse mot pour mot, sans jamais la choisir.
      première apparition.
    - **Éléments cités** : chaque identifiant décrit en clair, avec
      l'empreinte de la version lue (`- B-NNNN@xxxxxxxx — ce que c'est, en
-     une phrase`) ; jamais un identifiant seul.
+     une phrase`) ; jamais un identifiant seul. Un fichier protégé à
+     faire approuver, ceux d'une mise à jour, s'y écrit sur sa ligne, son
+     chemin et son empreinte nouvelle, rien d'autre (`python3 .socle/socle
+     check` les donne) : ces lignes n'ont pas à être décrites et ne
+     comptent pas dans le budget de la demande.
    - **Où regarder** : un lien vers chaque document à lire
      (`python3 .socle/socle url <chemin>`), et ce qu'il faut y vérifier.
    - **Options** : pour chacune, l'effort, le risque, la réversibilité.

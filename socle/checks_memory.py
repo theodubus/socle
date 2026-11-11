@@ -729,6 +729,13 @@ def budgets(ctx, r):
         for chemin in sorted(vises):
             couverts.add(chemin)
             texte = ctx.lire(chemin) or ""
+            # Les lignes d'empreinte d'une demande, un fichier protégé et son
+            # empreinte, ne comptent pas : l'humain lit les fichiers dans la
+            # pull request, et la liste d'une mise à jour ne doit rien
+            # coûter au contexte (ADR-0058).
+            demande = miroirs.get(chemin, chemin).startswith(ch.demandes + "/") and not memoire.est_reponse(chemin)
+            if demande:
+                texte = demandes.hors_empreintes(texte, ctx.projet)
             octets = len(texte.encode("utf-8"))
             lignes = texte.count("\n") + (0 if texte.endswith("\n") or not texte else 1)
             # Rien ne s'archive d'un fichier d'instructions, et la section du
@@ -739,6 +746,12 @@ def budgets(ctx, r):
                                                  "la partie propre au projet, hors de la section du socle, ou "
                                                  "relever le budget par une demande validée", octets=octets,
                                                  budget=b['max_bytes'], motif=motif), chemin)
+            elif "max_bytes" in b and octets > b["max_bytes"] and demande:
+                r.erreur("memoire.budgets", trad("{octets} octets pour un budget de {budget} ({motif}), les lignes "
+                                                 "d'empreinte mises à part : resserrer la demande, ou y ramener à "
+                                                 "une ligne d'empreinte, le chemin et l'empreinte sans rien "
+                                                 "d'autre, chaque fichier protégé qu'elle fait approuver",
+                                                 octets=octets, budget=b['max_bytes'], motif=motif), chemin)
             elif "max_bytes" in b and octets > b["max_bytes"]:
                 r.erreur("memoire.budgets", trad("{octets} octets pour un budget de {budget} ({motif}) : archiver "
                                                  "dans le journal", octets=octets, budget=b['max_bytes'], motif=motif), chemin)

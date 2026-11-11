@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import re
 
-from socle import config, fingerprint as empreinte, memory as memoire, utils as outils
+from socle import config, fingerprint as empreinte, language as langue, memory as memoire, utils as outils
 from socle.messages import a_traduire, trad
 from socle.context import controle
 
@@ -313,13 +313,17 @@ def proteges(ctx, r):
             continue
         present = existe(c)
         if present and ctx.tete is None:
-            cite = empreinte.courte(empreinte.fichier(ctx.racine / c))
+            cites = [empreinte.courte(empreinte.fichier(ctx.racine / c))]
         elif present:
-            cite = "sha256:" + outils.sha256(ctx.lire(c))[:16]
+            cites = ["sha256:" + outils.sha256(ctx.lire(c))[:16]]
         else:
-            cite = "supprimé"
-        d = _valide_par(ctx, c, cite)
-        attente = None if d else _en_attente(ctx, c, cite, au_commit=True)
+            # Supprimé : le mot de l'une ou l'autre langue, celui du projet
+            # d'abord, que le refus cite (B-0163).
+            premier = empreinte.supprime(langue.du_projet(ctx.projet))
+            cites = [premier, *(m for m in empreinte.SUPPRIME.values() if m != premier)]
+        cite = cites[0]
+        d = next((v for v in (_valide_par(ctx, c, x) for x in cites) if v), None)
+        attente = None if d else next((a for a in (_en_attente(ctx, c, x, au_commit=True) for x in cites) if a), None)
         if d:
             r.avertir("protege.fichiers", trad("modification validée par {id}", id=d.id), c)
         elif attente and fusion_gardee(ctx.projet):

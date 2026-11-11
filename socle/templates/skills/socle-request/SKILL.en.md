@@ -11,8 +11,8 @@ never choosing it.
 
 ## Writing a request
 
-1. `python3 .socle/socle new request "<decision>"` lays out the skeleton
-   and gives the identifier.
+1. `python3 .socle/socle new request "<decision>"` lays out the skeleton,
+   gives the identifier, and prints the contract the lint will judge.
 2. Fill in the eight fields:
    - **Decision requested**: in one sentence.
    - **Context**: for the human who comes back to the project after
@@ -26,7 +26,11 @@ never choosing it.
      appears.
    - **Cited elements**: each identifier described in plain words, with
      the fingerprint of the version read (`- B-NNNN@xxxxxxxx — what it is,
-     in one sentence`); never an identifier alone.
+     in one sentence`); never an identifier alone. A protected file to
+     have approved, those of an update, is written there on its own line,
+     its path and its new fingerprint, nothing else (`python3 .socle/socle
+     check` gives them): these lines need no description and do not count
+     in the request's budget.
    - **Where to look**: a link to each document to read
      (`python3 .socle/socle url <path>`), and what to check there.
    - **Options**: for each, the effort, the risk, the reversibility.

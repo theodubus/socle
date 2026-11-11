@@ -720,6 +720,43 @@ MESSAGES: dict[str, str] = {
         "`{id}` without `origin` (journal entry, commit or request)",
     "`{id}` est clos (« {statut} ») sans `ref` vers ce qui l'a clos":
         "`{id}` is closed (“{statut}”) without a `ref` to what closed it",
+    "{octets} octets pour un budget de {budget} ({motif}), les lignes d'empreinte mises à part : resserrer la "
+    "demande, ou y ramener à une ligne d'empreinte, le chemin et l'empreinte sans rien d'autre, chaque fichier "
+    "protégé qu'elle fait approuver":
+        "{octets} bytes for a budget of {budget} ({motif}), fingerprint lines set aside: tighten the request, or "
+        "bring down to a fingerprint line, the path and the fingerprint with nothing else, each protected file it "
+        "submits for approval",
+    "- « Questions » pose chaque question ouverte, en gras et numérotée, suivie de l'hypothèse de l'agent (« aucune "
+    "» s'il n'en a pas) ; « Réponses possibles » garde la réponse libre du gabarit, `reponses`, en plus des réponses "
+    "de base ;":
+        "- “Questions” asks each open question, in bold and numbered, followed by the agent's assumption (“none” if it "
+        "has none); “Possible answers” keeps the template's free answer, `answers`, on top of the basic answers;",
+    "Son contrat, que le lint juge dès l'écriture (le skill `socle-request` le détaille) :":
+        "Its contract, which the lint judges as soon as it is written (the `socle-request` skill details it):",
+    "- chaque section du squelette remplie, sans texte du gabarit laissé entre chevrons ;":
+        "- each section of the skeleton filled in, with no template text left between angle brackets;",
+    "- « Contexte » commence par trois paragraphes, chacun ouvert par son nom en gras et long d'au moins {n} mots : "
+    "{noms} ; puis le détail, {total} mots au moins en tout ;":
+        "- “Context” starts with three paragraphs, each opened by its name in bold and at least {n} words long: "
+        "{noms}; then the detail, at least {total} words in all;",
+    "- « Éléments cités » décrit en clair, en au moins {n} mots, chaque identifiant interne (identifiant de mémoire, "
+    "SHA, numéro de pull request) ; un fichier protégé à faire approuver s'y écrit sur sa ligne, son chemin et son "
+    "empreinte nouvelle, rien d'autre (`- .socle/policy.toml sha256:0123456789abcdef`) : ces lignes n'ont pas à être "
+    "décrites et ne comptent pas dans le budget ;":
+        "- “Cited elements” describes in plain words, in at least {n} words, each internal identifier (memory "
+        "identifier, SHA, pull request number); a protected file to have approved is written there on its own line, "
+        "its path and its new fingerprint, nothing else (`- .socle/policy.toml sha256:0123456789abcdef`): these "
+        "lines need no description and do not count in the budget;",
+    "- « Où regarder » donne un lien ; « Options » dit l'effort, le risque et la réversibilité de chacune ; « "
+    "Conséquences », ce qui se passe si l'humain valide, s'il refuse, sans réponse ; « Recommandation » sépare le "
+    "vérifié du supposé ;":
+        "- “Where to look” gives a link; “Options” states the effort, the risk and the reversibility of each; "
+        "“Consequences”, what happens if the human approves, if they reject, without an answer; “Recommendation” "
+        "separates what is verified from what is assumed;",
+    "- « Réponses possibles » propose les réponses de base : {reponses}.":
+        "- “Possible answers” offers the base answers: {reponses}.",
+    "Son budget : {budget} octets, les lignes d'empreinte mises à part.":
+        "Its budget: {budget} bytes, fingerprint lines set aside.",
     "{octets} octets pour un budget de {budget} ({motif}) : archiver dans le journal":
         "{octets} bytes for a budget of {budget} ({motif}): archive into the journal",
     "{octets} octets pour un budget de {budget} ({motif}) : resserrer la partie propre au projet, hors de la section "
@@ -1988,7 +2025,12 @@ MESSAGES: dict[str, str] = {
         "container may disappear with it.",
     "approuver les fichiers protégés que la mise à jour a changés : en session cloud, l'humain n'a pas de terminal "
     "pour `socle approve` ; poser une demande qui cite chaque fichier protégé changé et son empreinte (`python3 "
-    ".socle/socle check` les donne), que l'humain valide dans la conversation. Poussée, elle laisse commiter et "
+    ".socle/socle check` les donne), que l'humain valide dans la conversation. La poser par `python3 .socle/socle "
+    'new request "<décision>"`, qui en dit le contrat, celui du moteur nouveau ; chaque fichier s\'y écrit sur sa '
+    "ligne, son chemin et son empreinte sans rien d'autre : ces lignes ne comptent pas dans le budget de la demande. "
+    "Poussée seule d'abord, la demande est jugée par la CI avec le moteur d'avant, qui peut encore compter ces "
+    "lignes dans son budget et la refuser : ce refus cesse une fois les fichiers protégés commités, avec le moteur "
+    "nouveau. Poussée, elle laisse commiter et "
     "pousser ces fichiers si la branche par défaut exige la CI du socle, qui les refuse jusqu'à la réponse et où "
     "l'humain les lit dans la pull request (D-0071) ; sinon, ils restent dans l'arbre jusqu'à sa réponse, puis se "
     "commitent avec elle. Une session qui a dû "
@@ -1996,7 +2038,12 @@ MESSAGES: dict[str, str] = {
     "attendre, et poser la demande dans une session neuve sur le seul dépôt du projet, sur cette branche":
         "approve the protected files the update changed: in a cloud session, the human has no terminal for `socle "
         "approve`; put a request that cites each changed protected file and its fingerprint (`python3 .socle/socle "
-        "check` gives them), which the human approves in the conversation. Once pushed, it lets these files be "
+        "check` gives them), which the human approves in the conversation. Put it with `python3 .socle/socle new "
+        'request "<decision>"`, which states its contract, the new engine\'s; each file is written there on its own '
+        "line, its path and its fingerprint with nothing else: these lines do not count in the request's budget. "
+        "Pushed alone first, the request is judged by the CI with the previous engine, which may still count these "
+        "lines in its budget and refuse it: that refusal stops once the protected files are committed, with the new "
+        "engine. Once pushed, it lets these files be "
         "committed and pushed if the default branch requires the socle CI, which refuses them until the answer and "
         "where the human reads them in the pull request (D-0071); otherwise they stay in the tree until the answer, "
         "then are committed with it. A session that had to add the socle's "
@@ -2178,6 +2225,8 @@ MESSAGES: dict[str, str] = {
         "request that does not say where to look",
     "demande qui nomme un test sans proposer `valider` : aucune réponse ne l'autoriserait":
         "request that names a test without offering `approve`: no answer would authorise it",
+    "demande au-delà de son budget, ses fichiers protégés cités avec de la prose":
+        "request beyond its budget, its protected files cited with prose",
     "couche de mémoire au-delà de son budget":
         "memory layer beyond its budget",
     "identifiant privé dans un fichier public":
@@ -2376,6 +2425,10 @@ MESSAGES: dict[str, str] = {
         "a mutation sweep under the cap passes the verdict",
     "un garde-fou assoupli par l'humain, qui l'approuve, passe la CI":
         "a guardrail loosened by the human, who approves it, passes the CI",
+    "une demande que seules ses lignes d'empreinte portent au-delà de son budget, un fichier protégé et son "
+    "empreinte sur chacune, sans description, se commite":
+        "a request that only its fingerprint lines take beyond its budget, a protected file and its fingerprint on "
+        "each, with no description, gets committed",
     "un fichier protégé changé par l'humain, qui l'approuve, passe la CI":
         "a protected file changed by the human, who approves it, passes the CI",
     "une valeur attendue changée sous une demande validée par l'humain passe la CI":

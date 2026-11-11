@@ -213,7 +213,12 @@ kept, and the installer says when its maintained adapter has changed: the
 agent then proposes to carry the corrections over, through a request. Then approve the changed protected files
 (`socle approve`), and commit. In a cloud session, with no terminal, the
 agent puts a request that cites each changed protected file with its
-fingerprint, and the human approves it in the conversation. If the default
+fingerprint, and the human approves it in the conversation; each file takes
+one line there, its path and its fingerprint with nothing else, which the
+request's budget does not count. Pushed alone first, the request is judged
+by the CI with the previous engine, which may still count these lines and
+refuse it: that refusal stops once the protected files are committed, with
+the new engine. If the default
 branch requires the socle CI, the agent commits and pushes these files as
 soon as the request is pushed: the CI stays red until the approval, and the
 human reads them in the pull request before answering. The engine's
