@@ -630,6 +630,18 @@ def _clore(c: Path, ident: str):
                         lambda m: "> statut : fait" + (m[1] or "") + " · ref : fichier:calc.py", p.read_text(), count=1))
 
 
+def _declarer_ui_tierce(a: Atelier, c: Path):
+    """L'interface, travaillée par d'autres sessions d'agents, déclarée tierce
+    par l'humain qui l'approuve, dans un commit à lui (B-0169)."""
+    remplacer(c, ".socle/guardrails.toml", TIERS_VIDE, '\npaths = ["ui/**"]\n')
+    r = a.socle(c, "approve", "--keys", "thirdparty.paths", "--text", "L'interface, travaillée ailleurs")
+    if r.returncode != 0:
+        raise RuntimeError(r.stdout + r.stderr)
+    r = a.commit(c, "L'interface déclarée tierce")
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr)
+
+
 def maj_memoire(c: Path, texte: str = "Travail en cours sur l'essai."):
     remplacer(c, "memory/active.md", "## En cours\n\nRien pour l'instant.", f"## En cours\n\n{texte}")
 
@@ -859,6 +871,14 @@ def _cas() -> list[Cas]:
     @defaut("hook-jamais-tire", "hook de l'agent absent ou jamais tiré", "ci", "hooks.trace")
     def _(a, c):
         maj_memoire(c, "Commit d'agent sans hooks.")
+        return etage_ci(a, c, "Travail d'agent\n\nCo-Authored-By: Claude <noreply@anthropic.com>")
+
+    @defaut("hook-absent-hors-tiers", "commit d'agent sans trace des hooks qui touche un chemin déclaré tiers et "
+            "un fichier du projet", "ci", "hooks.trace")
+    def _(a, c):
+        _declarer_ui_tierce(a, c)
+        ajouter(c, "ui/app.py", "def rendu(x):\n    return x\n")
+        maj_memoire(c, "L'interface et la mémoire.")
         return etage_ci(a, c, "Travail d'agent\n\nCo-Authored-By: Claude <noreply@anthropic.com>")
 
     @defaut("hooks-arretes-en-session", "hooks de l'agent arrêtés depuis le commit précédent", "ci", "hooks.trace")
@@ -1274,6 +1294,47 @@ def _cas() -> list[Cas]:
         return etage_outil(a, c, "Bash", {"command": f"echo 'max_attempts = 99' >> {c.resolve()}/.socle/policy.toml"},
                            cwd=arbre)
 
+    @defaut("remise-hors-head", "fichier protégé remis à un autre état que le dernier commit, ou tout un dossier",
+            "agent", "remise hors forme")
+    def _(a, c):
+        ajouter(c, ".socle/policy.toml", "# changé par erreur\n")
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "git checkout HEAD~1 -- .socle/policy.toml", "git restore --source=main -- .socle/policy.toml",
+            "git restore .socle/policy.toml", "git restore --source=HEAD -- .", "git checkout HEAD -- .socle",
+            "git restore --source=HEAD -- '.socle/git-hooks/*'")])
+
+    @defaut("remise-redirigee", "remise admise d'un fichier protégé dont la redirection écrit un autre fichier "
+            "protégé", "agent", "écriture protégée")
+    def _(a, c):
+        ajouter(c, ".socle/policy.toml", "# changé par erreur\n")
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "git restore --source=HEAD -- .socle/policy.toml > .github/CODEOWNERS",
+            "git checkout HEAD -- .socle/policy.toml > .socle/git-hooks/pre-commit")])
+
+    @defaut("remise-autre-depot", "remise d'un fichier protégé depuis un autre dépôt, une autre révision sans `--`, "
+            "ou des chemins lus dans un fichier", "agent", "remise hors forme")
+    def _(a, c):
+        ajouter(c, ".socle/policy.toml", "# changé par erreur\n")
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "GIT_DIR=/tmp/autre/.git git checkout HEAD -- .socle/policy.toml",
+            "env GIT_WORK_TREE=/tmp git restore --source=HEAD -- .socle/policy.toml",
+            "git checkout HEAD~1 .socle/policy.toml",
+            "git restore --source=HEAD --pathspec-from-file=/tmp/chemins.txt")])
+
+    @defaut("remise-reglages", "réglages de Claude Code remis à l'état du dernier commit par l'agent", "agent",
+            "réglage de l'agent")
+    def _(a, c):
+        ajouter(c, ".claude/settings.json", " ")
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "git restore --source=HEAD -- .claude/settings.json", "git checkout HEAD -- .claude/settings.json")])
+
+    @defaut("remise-sous-demande", "fichier protégé remis alors qu'une demande en attente le cite", "agent",
+            "remise sous demande")
+    def _(a, c):
+        protege_en_attente(a, c)
+        return etage_outil(a, c, "Bash", {"command": "git restore --source=HEAD --staged --worktree -- "
+                                                     ".github/CODEOWNERS"})
+
     @defaut("reglage-local-agent", "l'agent coupe ses hooks par un réglage local de Claude Code", "agent",
             "réglage de l'agent")
     def _(a, c):
@@ -1663,6 +1724,17 @@ def _temoins() -> list[tuple[str, Callable]]:
                 or etage_outil(a, c, "Bash", {"command": f"python3 {lanceur} " + "install --target /tmp/jetable-socle "
                                                          "--mode amont"}))
 
+    @temoin("un fichier protégé changé par erreur, remis à son état du dernier commit, et un fichier apparu sous un "
+            "chemin protégé, supprimé, passent le hook de l'agent (D-0098)")
+    def _(a, c):
+        ajouter(c, ".socle/policy.toml", "# changé par erreur\n")
+        ajouter(c, ".github/CODEOWNERS", "* @essai\n")
+        ajouter(c, ".socle/git-hooks/post-merge", "#!/bin/sh\n")
+        return (etage_outil(a, c, "Bash", {"command": "git restore --source=HEAD --staged --worktree -- "
+                                                      ".socle/policy.toml"})
+                or etage_outil(a, c, "Bash", {"command": "git checkout HEAD -- .github/CODEOWNERS"})
+                or etage_outil(a, c, "Bash", {"command": "rm .socle/git-hooks/post-merge"}))
+
     @temoin("un commit d'agent qui porte la trace de ses hooks passe la CI")
     def _(a, c):
         maj_memoire(c, "Commit d'agent avec hooks.")
@@ -1843,6 +1915,13 @@ def _temoins() -> list[tuple[str, Callable]]:
         ajouter(c, "_outil/test_outil.py", "def test_rien():\n    pass\n")
         ajouter(c, "_outil/LISEZMOI.md", "Chaque constat cite `file:line`, et F-0099.\n")
         return etage_ci(a, c)
+
+    @temoin("le commit d'un agent d'une autre session, sans les hooks du socle, qui ne touche que des chemins "
+            "déclarés tiers, passe la CI")
+    def _(a, c):
+        _declarer_ui_tierce(a, c)
+        ajouter(c, "ui/app.py", "def rendu(x):\n    return x\n")
+        return etage_ci(a, c, "fix: l'interface rend mieux\n\nCo-Authored-By: Claude <noreply@anthropic.com>")
 
     @temoin("un chemin qui n'existe que dans une rustine suivie du dépôt passe la CI")
     def _(a, c):
@@ -2327,6 +2406,8 @@ RAISONS_AGENT = {
     "installeur hors mode": "dans un autre mode que celui de son verrou",
     "installeur cible illisible": "une cible que le hook ne sait pas résoudre",
     "écriture protégée": "par le shell : seul l'humain",
+    "remise hors forme": "Seule passe la remise",
+    "remise sous demande": "en attente, ou validée sans que ce qu'elle approuve",
     "écriture à l'aveugle": "à l'aveugle",
     "référence inventée": "référence inventée",
     "escalade": "ARRÊT ET ESCALADE",

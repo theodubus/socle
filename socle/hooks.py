@@ -372,6 +372,11 @@ def ecrits(c: commandes.Commande) -> list[str]:
             res += commandes.options_et_arguments(reste)[1]
         elif sous == "checkout" and "--" in reste:
             res += reste[reste.index("--") + 1:]
+        elif sous == "checkout":
+            # Sans `--` : `git checkout <révision> <chemins>`, ou un seul
+            # nom, branche ou chemin (B-0165).
+            args = commandes.options_et_arguments(reste)[1]
+            res += args[1:] if len(args) > 1 else args
     return [c.chemin(x) for x in res if x]
 
 
@@ -381,24 +386,182 @@ def cibles_ecrites(cmd: str) -> list[str]:
     return [x for c in commandes.analyser(cmd) for x in ecrits(c)]
 
 
+def _protege(projet: config.Projet, rel: str, cache: dict) -> str | None:
+    """`rel` dit comme le refus le cite, s'il est protégé ou contient un
+    fichier protégé ; `None` sinon."""
+    motifs = projet.chemins_proteges()
+    if outils.correspond(rel, motifs):
+        return rel
+    if "suivis" not in cache:
+        cache["suivis"] = outils.fichiers_courants(projet.racine)
+    prefixe = "" if rel in ("", ".") else rel.rstrip("/") + "/"
+    touche = next((f for f in cache["suivis"] if f.startswith(prefixe) and outils.correspond(f, motifs)), None)
+    return trad("{chemin}/ (dont {touche})", chemin=rel or ".", touche=touche) if touche else None
+
+
 def ecriture_protegee(projet: config.Projet, cmd: str) -> str | None:
     """Le chemin protégé qu'une commande shell écrit, s'il y en a un : un
-    fichier protégé, ou un dossier qui en contient (`rm -rf .socle`)."""
-    motifs = projet.chemins_proteges()
-    suivis = None
-    for jeton in cibles_ecrites(cmd):
-        rel = _relatif(projet.racine, jeton.strip("'\""))
-        if rel is None:
-            continue
-        if outils.correspond(rel, motifs):
-            return rel
-        if suivis is None:
-            suivis = outils.fichiers_courants(projet.racine)
-        prefixe = "" if rel in ("", ".") else rel.rstrip("/") + "/"
-        touche = next((f for f in suivis if f.startswith(prefixe) and outils.correspond(f, motifs)), None)
-        if touche:
-            return trad("{chemin}/ (dont {touche})", chemin=rel or ".", touche=touche)
+    fichier protégé, ou un dossier qui en contient (`rm -rf .socle`). La
+    remise d'un fichier protégé à son état du dernier commit, que
+    `remise_en_etat` admet, n'en est pas une (D-0098)."""
+    cache: dict = {}
+    for c in commandes.analyser(cmd):
+        for jeton in _ecrits_hors_remise(projet, c, remise_en_etat(projet, c, cmd)):
+            rel = _relatif(projet.racine, jeton.strip("'\""))
+            if rel is None:
+                continue
+            cible = _protege(projet, rel, cache)
+            if cible:
+                return cible
     return None
+
+
+# D-0098 : ce que l'agent peut lancer pour remettre un fichier protégé changé
+# par erreur, chaque chemin écrit en toutes lettres.
+REMISE_FORMES = ("`git restore --source=HEAD --staged --worktree -- <chemin>`", "`git checkout HEAD -- <chemin>`",
+                 "`rm <chemin>`")
+# Les options de `git restore` qui gardent la remise à l'état du dernier
+# commit ; sans `--source=HEAD`, elle viendrait de l'index.
+REMISE_OPTIONS = {"--source=HEAD", "--staged", "-S", "--worktree", "-W", "-SW", "-WS"}
+# Un chemin que le shell réécrirait (variable, substitution, motif,
+# dossier de l'utilisateur) ou que git lirait comme un motif (`:(glob)…`).
+NON_LITTERAL = re.compile(r"[$`*?\[\]{}~\\!]|^:")
+# Ce qui change, dans la même commande, l'environnement ou le dossier où
+# git lit : une affectation (`GIT_DIR=…`), un `export`, un `pushd`.
+AFFECTATION = re.compile(r"[A-Za-z_]\w*=")
+ENVIRONNEMENT = {"export", "declare", "typeset", "readonly", "local", "source", ".", "set", "alias", "pushd", "popd"}
+
+
+def _environnement_change(texte: str) -> bool:
+    return any(AFFECTATION.match(j) for j in commandes.jetons(texte)) or any(
+        c.programme in ENVIRONNEMENT for c in commandes.analyser(texte))
+
+
+def _ecrits_hors_remise(projet: config.Projet, c: commandes.Commande,
+                        remise: tuple[list[str], str | None] | None) -> list[str]:
+    """Ce que la commande écrit, moins les fichiers qu'une remise admise
+    remet : ses redirections et ses autres chemins se jugent comme avant."""
+    if remise is None or remise[1] is not None:
+        return ecrits(c)
+    sans = commandes.Commande(c.argv, [], c.dossier, c.prefixe)
+    return [c.chemin(x) for x in c.redirige if x] + [
+        x for x in ecrits(sans) if _relatif(projet.racine, x) not in remise[0]]
+
+
+def _cite_chemin(texte: str, rel: str) -> bool:
+    """Le texte cite `rel`, ou un dossier qui le contient (`.socle/`,
+    `.socle/**`, `.socle`), écrit seul et non comme début d'un autre chemin."""
+    if rel in texte:
+        return True
+    parties = rel.split("/")[:-1]
+    for i in range(1, len(parties) + 1):
+        dossier = re.escape("/".join(parties[:i]))
+        if re.search(r"(?<![\w./-])" + dossier + r"(?:/\**)?(?![\w./-])", texte):
+            return True
+    return False
+
+
+def _demande_qui_epargne(projet: config.Projet, rel: str):
+    """La demande qui cite `rel`, ou un dossier qui le contient, et dont ce
+    qu'elle approuve n'est pas encore commité : en attente, ou validée quand
+    sa réponse n'est pas dans `HEAD` ou que l'empreinte du fichier présent
+    est celle qu'elle cite."""
+    from socle import fingerprint as empreinte
+
+    racine = projet.racine
+    present = racine / rel
+    actuelle = empreinte.courte(empreinte.fichier(present)) if present.is_file() else None
+    for d in demandes.toutes(racine):
+        if not d.id or d.entree is None or "retiree" in d.entree.meta or not _cite_chemin(d.texte, rel):
+            continue
+        if d.reponse is None:
+            return d
+        if d.validee and ((actuelle and actuelle in d.texte) or not d.chemin_reponse or outils.git(
+                racine, "cat-file", "-t", f"HEAD:{d.chemin_reponse}", check=False).strip() != "blob"):
+            return d
+    return None
+
+
+def remise_en_etat(projet: config.Projet, c: commandes.Commande,
+                   texte: str = "") -> tuple[list[str], str | None] | None:
+    """D-0098 : une commande simple qui remet des fichiers protégés à leur
+    état du dernier commit. `None` si elle n'en vise aucun ; sinon les
+    chemins protégés qu'elle remet, et la raison de son refus, ou `None`
+    si elle passe. Passent `git restore --source=HEAD [--staged]
+    [--worktree] -- <fichiers>` et `git checkout HEAD -- <fichiers>`, chaque
+    fichier écrit en toutes lettres et présent dans `HEAD`, et `rm [-f]
+    <fichiers>` d'un fichier apparu sous un chemin protégé que git ne suit
+    pas. Un fichier que cite une demande dont ce qu'elle approuve n'est pas
+    commité, lui ou son dossier, ne se remet pas : c'est peut-être la
+    modification que l'humain y soumet. `texte`, la commande entière, fait
+    refuser la remise quand elle change l'environnement de git."""
+    racine = projet.racine
+
+    def refus(chemins: list[str], pourquoi: str) -> tuple[list[str], str]:
+        return chemins, trad("remise en état d'un fichier protégé refusée ({pourquoi}). Seule passe la remise "
+                             "d'un fichier protégé changé par erreur, hors des réglages de Claude Code, à son état "
+                             "du dernier commit, chaque chemin "
+                             "écrit en toutes lettres : {formes}, ce dernier pour un fichier que git ne suit pas "
+                             "(D-0098). Le reste revient à l'humain.", pourquoi=pourquoi,
+                             formes=", ".join(REMISE_FORMES))
+
+    if c.programme == "git":
+        sous, reste = commandes.git_sous_commande(c.argv)
+        if sous not in ("restore", "checkout"):
+            return None
+        if any(o.startswith(("--pathspec-from-file", "--pathspec-file-nul")) for o in reste):
+            return refus([], trad("chemins lus dans un fichier"))
+        if sous == "checkout" and "--" in reste:
+            options, args = reste[:reste.index("--")], reste[reste.index("--") + 1:]
+        elif sous == "checkout":
+            options, args = commandes.options_et_arguments(reste)
+            if len(args) > 1:
+                options, args = options + args[:1], args[1:]
+        else:
+            options, args = commandes.options_et_arguments(reste)
+        if sous == "checkout":
+            forme = options == ["HEAD"]
+        else:
+            forme = "--source=HEAD" in options and set(options) <= REMISE_OPTIONS
+        forme = forme and c.argv[1] == sous
+        suivi = True
+    elif c.programme == "rm":
+        options, args = commandes.options_et_arguments(c.argv[1:])
+        if not all(re.fullmatch(r"-[fv]+", o) for o in options):
+            return None  # `rm -r` : une suppression, jugée comme toute écriture
+        forme, suivi = True, False
+    else:
+        return None
+    cache: dict = {}
+    proteges = [(a, rel) for a in args if (rel := _relatif(racine, c.chemin(a))) is not None
+                and _protege(projet, rel, cache)]
+    if not proteges:
+        return None
+    chemins = [rel for _, rel in proteges]
+
+    if not forme:
+        return refus(chemins, trad("forme de commande : une autre source que le dernier commit, ou d'autres "
+                                   "options"))
+    if c.prefixe or (texte and _environnement_change(texte)):
+        return refus(chemins, trad("une variable, `env`, `export` ou un préfixe change l'environnement de la "
+                                   "commande"))
+    for brut, rel in proteges:
+        if NON_LITTERAL.search(brut) or rel in ("", "."):
+            return refus(chemins, trad("`{brut}` n'est pas un chemin écrit en toutes lettres", brut=brut))
+        dans_head = outils.git(racine, "cat-file", "-t", f"HEAD:{rel}", check=False).strip() == "blob"
+        if suivi and not dans_head:
+            return refus(chemins, trad("`{rel}` n'est pas un fichier du dernier commit", rel=rel))
+        if not suivi:
+            indexe = bool(outils.git(racine, "ls-files", "--cached", "--", rel, check=False).strip())
+            if dans_head or indexe or not (racine / rel).is_file() or (racine / rel).is_symlink():
+                return refus(chemins, trad("`{rel}` n'est pas un fichier que git ne suit pas", rel=rel))
+    for rel in chemins:
+        d = _demande_qui_epargne(projet, rel)
+        if d:
+            return chemins, trad("`{rel}` est cité par la demande {id}, en attente, ou validée sans que ce "
+                                 "qu'elle approuve soit commité : sa remise en état revient à l'humain (D-0098).",
+                                 rel=rel, id=d.id)
+    return chemins, None
 
 
 def _branches_protegees(racine: Path) -> set[str]:
@@ -692,6 +855,12 @@ def refus_bash(projet: config.Projet, cmd: str, cwd: str | None = None) -> str |
     faute = _fuite_bash(projet, cmd)
     if faute:
         return faute
+    remises = [(c, remise_en_etat(projet, c, cmd)) for c in simples]
+    refusee = next((r[1] for _, r in remises if r is not None and r[1]), None)
+    if refusee:
+        return refusee
+    # Les réglages de Claude Code restent à l'humain, remise comprise
+    # (sa réponse : « Exclure »).
     reglage = next((x for c in simples for x in ecrits(c) if REGLAGES_AGENT.search(x)), None)
     if reglage:
         return trad("`{reglage}` : les réglages de Claude Code commandent ses hooks, seul l'humain les "
@@ -699,7 +868,10 @@ def refus_bash(projet: config.Projet, cmd: str, cwd: str | None = None) -> str |
     cible = ecriture_protegee(projet, cmd)
     if cible:
         return trad("écriture d'un fichier protégé ({cible}) par le shell : seul l'humain modifie la "
-                    "politique, les hooks, la CI et le moteur (relance de l'installeur).", cible=cible)
+                    "politique, les hooks, la CI et le moteur (relance de l'installeur). Un fichier protégé "
+                    "changé par erreur, hors des réglages de Claude Code, se remet à son état du dernier "
+                    "commit : {formes} (D-0098).", cible=cible,
+                    formes=", ".join(REMISE_FORMES))
     return None
 
 

@@ -166,6 +166,14 @@ class Contexte:
         return res
 
     @cached_property
+    def commits_du_projet(self) -> list[dict]:
+        """Les commits de la plage, sans ceux qui ne touchent que des chemins
+        déclarés tiers (ADR-0031) : le travail d'un autre outil ou d'un autre
+        agent, que les contrôles qui jugent un commit ne jugent pas. Un commit
+        qui touche aussi un fichier du projet reste jugé en entier."""
+        return [c for c in self.commits if not ne_touche_que_des_tiers(self.projet, self.racine, c)]
+
+    @cached_property
     def validations(self) -> list[demandes.Demande]:
         return demandes.validations_ajoutees(self.racine, self.base, self.tete)
 
@@ -186,6 +194,16 @@ class Contexte:
     def documents(self) -> dict[str, str]:
         """Les documents markdown du projet, hors archives et exclusions."""
         return self.textes(["**/*.md"], self.projet.exclusions_docs())
+
+
+def ne_touche_que_des_tiers(projet: config.Projet, racine: Path, commit: dict) -> bool:
+    """Un commit à un parent dont tous les fichiers changés sont sous des
+    chemins déclarés tiers (ADR-0031 et son amendement). Un commit vide,
+    une fusion, le commit en cours ou le premier ne le sont jamais."""
+    if len(commit["parents"]) != 1 or not projet.chemins_tiers():
+        return False
+    changes = outils.fichiers_changes(racine, commit["parents"][0], commit["sha"])
+    return bool(changes) and not projet.hors_tiers(changes)
 
 
 def selectionner(etage: str, ids: list[str] | None = None, rapide: bool = False) -> list[Controle]:

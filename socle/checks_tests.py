@@ -67,18 +67,27 @@ def capacites(ctx, r):
         r.erreur("adaptateur.capacites", trad("aucun adaptateur (`{adaptateur}`)",
                                               adaptateur=ctx.projet.chemins.adaptateur))
         return
-    caps = ctx.projet.adaptateur.get("capabilities", {})
+    for message in ecarts_au_contrat(ctx.projet.adaptateur):
+        r.erreur("adaptateur.capacites", message, ctx.projet.chemins.adaptateur)
+
+
+def ecarts_au_contrat(adaptateur: dict) -> list[str]:
+    """Ce qu'un adaptateur, lu, omet du contrat des adaptateurs : chaque
+    capacité déclarée, ou absente avec sa raison et son remplacement, et la
+    lecture des tests. Le contrôle et l'installeur, qui juge un adaptateur
+    propre au projet avant de le poser (B-0168), le lisent."""
+    res = []
+    caps = adaptateur.get("capabilities", {})
     for nom in CAPACITES:
         c = caps.get(nom)
-        if c is None:
-            r.erreur("adaptateur.capacites", trad("capacité « {nom} » non déclarée : une commande, ou `absent` "
-                                                  "+ `replacement`", nom=nom), ctx.projet.chemins.adaptateur)
+        if not isinstance(c, dict):
+            res.append(trad("capacité « {nom} » non déclarée : une commande, ou `absent` + `replacement`", nom=nom))
         elif "command" not in c and not ("absent" in c and "replacement" in c):
-            r.erreur("adaptateur.capacites", trad("capacité « {nom} » : ni `command`, ni `absent` avec "
-                                                  "`replacement`", nom=nom), ctx.projet.chemins.adaptateur)
-    if cfg_tests(ctx.projet) is None:
-        r.erreur("adaptateur.capacites", trad("section `[tests]` sans `function` : les tests creux ne peuvent "
-                                              "pas être détectés"), ctx.projet.chemins.adaptateur)
+            res.append(trad("capacité « {nom} » : ni `command`, ni `absent` avec `replacement`", nom=nom))
+    t = adaptateur.get("tests")
+    if not isinstance(t, dict) or "function" not in t:
+        res.append(trad("section `[tests]` sans `function` : les tests creux ne peuvent pas être détectés"))
+    return res
 
 
 @controle("tests.creux", par_adaptateur=True)
@@ -426,7 +435,7 @@ def config_code(projet) -> tuple[list, list, str | None]:
 
 def dispenses_tests(ctx, r) -> set[str]:
     noms = set()
-    for c in ctx.commits:
+    for c in ctx.commits_du_projet:
         for v in langue.trailers(c["message"]).get("dispense-test", []):
             m = DISPENSE_TEST.match(v.strip())
             if not m:

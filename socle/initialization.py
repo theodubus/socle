@@ -92,14 +92,107 @@ def auditer_depot(projet: config.Projet) -> list[Fait]:
                                premier=premier), premier))
     # La CI du socle et son balayage de mutation ne sont pas ceux du projet :
     # l'installeur vient de les poser.
-    for ci in sorted(f for f in fichiers if f.startswith(".github/workflows/") and f.endswith((".yml", ".yaml"))
-                     and f not in (".github/workflows/socle.yml", mutation.WORKFLOW)):
-        faits.append(Fait(trad("Une CI GitHub existe : `{nom}`", nom=ci.rsplit("/", 1)[1]), ci))
+    # Tous les workflows tiennent en un fait, relu à chaque session (B-0170).
+    # Pour preuve, le premier, comme pour les tests.
+    chemins = sorted(f for f in fichiers if f.startswith(".github/workflows/") and f.endswith((".yml", ".yaml"))
+                     and f not in (".github/workflows/socle.yml", mutation.WORKFLOW))
+    if chemins:
+        workflows = {f.rsplit("/", 1)[1]: declencheurs(outils.lire_a(racine, None, f) or "") for f in chemins}
+        faits.append(Fait(resumer_workflows(workflows), chemins[0]))
     for doc in ("README.md", "README", "README.rst"):
         if doc in fichiers:
             faits.append(Fait(trad("Le dépôt a un README"), doc))
             break
     return faits
+
+
+CLE_ON = re.compile(r"""^(?:on|"on"|'on'|true)\s*:(.*)$""")
+EVENEMENT = re.compile(r"[a-z_]+")
+JUGENT = {"push", "pull_request", "pull_request_target"}
+# Un push qui ne filtre que des tags ne juge ni une branche ni une pull
+# request : il se rend sous ce nom, hors de JUGENT.
+PUSH_TAGS = "push_tags"
+
+
+def _nu(el: str) -> str:
+    return re.sub(r"\s+#.*$", "", el).strip()
+
+
+def declencheurs(texte: str) -> set[str] | None:
+    """Les événements qui lancent un workflow GitHub, lus de sa clé `on`
+    sans bibliothèque YAML : un mot (`on: push`), une liste (`on: [push,
+    pull_request]`, ou un tiret par ligne), ou les clés du bloc indenté
+    dessous. Un `push` dont le bloc ne filtre que des tags se rend
+    `push_tags`. `None` quand rien ne se lit sûrement : on ne devine pas."""
+    lignes = texte.lstrip("﻿").splitlines()
+    for i, ligne in enumerate(lignes):
+        m = CLE_ON.match(ligne)
+        if not m:
+            continue
+        reste = _nu(m.group(1))
+        sous: dict[str, set[str]] = {}
+        if reste:
+            if reste[0] in "[{":
+                if reste[-1] != {"[": "]", "{": "}"}[reste[0]] or "tags" in reste:
+                    return None  # sur plusieurs lignes, ou des tags qui ne se lisent pas sûrement
+                mots = [x.split(":")[0].strip().strip("'\"") for x in reste[1:-1].split(",") if x.strip()]
+            else:
+                mots = [reste.strip("'\"")]
+        else:
+            entrees = []
+            for suite in lignes[i + 1:]:
+                if not suite.strip() or suite.lstrip().startswith("#"):
+                    continue
+                r, el = len(suite) - len(suite.lstrip()), _nu(suite)
+                if r == 0 and not el.startswith("-"):
+                    break
+                entrees.append((r, el))
+            mots, cles, courant = [], False, None
+            retrait = entrees[0][0] if entrees else 0
+            for r, el in entrees:
+                if r < retrait:
+                    return None
+                if r == retrait and el.startswith("-"):
+                    if not cles:  # sinon, la liste compacte sous un événement
+                        mots.append(el[1:].strip().strip("'\""))
+                elif r == retrait:
+                    cles, courant = True, el.split(":")[0].strip().strip("'\"")
+                    mots.append(courant)
+                    valeur = el.split(":", 1)[1].strip() if ":" in el else ""
+                    if courant == "push" and "tags" in valeur:
+                        return None  # des sous-clés en ligne : ne se lisent pas sûrement
+                    sous[courant] = set()
+                elif courant and ":" in el and not el.startswith("-"):
+                    sous[courant].add(el.split(":")[0].strip().strip("'\""))
+        if not mots or not all(EVENEMENT.fullmatch(x) for x in mots):
+            return None
+        evts = set(mots)
+        filtres = sous.get("push", set())
+        if filtres & {"tags", "tags-ignore"} and not filtres & {"branches", "branches-ignore"}:
+            evts = evts - {"push"} | {PUSH_TAGS}
+        return evts
+    return None
+
+
+def resumer_workflows(workflows: dict[str, set[str] | None]) -> str:
+    """Le fait unique des workflows : ceux qui jugent un push de branche ou
+    une pull request, les autres (à la main, planifiés, sur un tag, autre
+    événement), les non lus. La ponctuation suit la langue du projet."""
+    groupes = {"jugent": [], "autres": [], "non_lus": []}
+    for nom, evts in sorted(workflows.items()):
+        groupes["non_lus" if evts is None else "jugent" if evts & JUGENT else "autres"].append(nom)
+
+    def liste(noms):
+        return f"{len(noms)} ({', '.join(f'`{n}`' for n in noms)})" if noms else trad("aucun")
+
+    texte = trad("qui jugent un push de branche ou une pull request : {liste}", liste=liste(groupes["jugent"]))
+    if groupes["autres"]:
+        texte = trad("{gauche} ; {droite}", gauche=texte, droite=trad(
+            "autres (à la main, planifiés, autre événement) : {liste}", liste=liste(groupes["autres"])))
+    if groupes["non_lus"]:
+        texte = trad("{gauche} ; {droite}", gauche=texte,
+                     droite=trad("non lus : {liste}", liste=liste(groupes["non_lus"])))
+    return trad("Workflows GitHub du projet, {parties}", parties=texte)
 
 
 def questions_de_depart(projet: config.Projet, cadrage: str | None, depot: bool) -> list[Question]:

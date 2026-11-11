@@ -19,8 +19,18 @@ The path in short:
 
 In a cloud session, the agent installs the socle from its public
 repository, which is cloned without being added to the session. The
-session that installs started before the socle, hence without its hooks:
-it pushes its branch and opens a pull request. Once that is merged, the
+agent's hooks load in the session that installs, from the tool call that
+follows the installer writing their settings: from then on, a protected
+file (the adapter, the CI, the policy) can no longer be fixed by hand.
+What is wrong is fixed by running the installer again with the right
+options, an adapter of the project's own being given by `--adapter
+<file.toml>`; a trial is undone by committing it on its branch, then going
+back to the starting branch with `git switch`, never file by file, which
+the hook refuses: uncommitted, its files would follow, and the installer
+run again would see an update. Before the first
+commit, `python3 .socle/socle verify --fast` runs the adapter's build and
+tests, which the installer's audit does not run. The session that installs
+pushes its branch and opens a pull request. Once that is merged, the
 work continues in a new session, which starts from the default branch and
 receives the state as soon as it starts. A session that adds a second
 repository is not resumed: with two repositories, it restarts outside the
@@ -37,7 +47,10 @@ A project written in several languages has one adapter per language: the
 installer sets one per language it recognises, or those it is given
 (`--adapter python-pytest --adapter kotlin`, the first being the main
 one), and each file is judged by the one of its language (the
-[adapters specification](adapters/README.md)).
+[adapters specification](adapters/README.md)). A language whose manifest
+is only in a subdirectory gets no adapter automatically: the installer
+says so, with its two ways out, an adapter of the project's own whose
+commands enter the subdirectory, or the subdirectory declared third-party.
 
 Right after the installation:
 
@@ -199,7 +212,19 @@ agreement in the conversation. From a terminal:
 adapter, the hooks and the CI are protected: a commit that changes them
 without approval is refused. When the change comes from the human:
 `python3 .socle/socle approve --text "<reason>"`, then commit. This
-command is reserved to the human.
+command is reserved to the human. The agent never writes to a protected
+file, except to put it back as it was at the last commit when it changed
+it by mistake (D-0098), Claude Code's settings excepted, which the human
+keeps for themselves: `git restore --source=HEAD --staged --worktree --
+<path>` or `git checkout HEAD -- <path>`, each path written out in full,
+or `rm <path>` for a file that appeared under a protected path and that
+git does not track. Anything else is refused to it: another commit, with
+or without `--`, a whole folder, a shell pattern or variable, paths read
+from a file, a variable or a prefix before `git`, a redirection to another
+protected file, and a file that is cited, itself or its folder, by a
+request pending or approved whose approved change is not committed yet.
+The accepted risk: erasing a change of the human in the working tree that
+they neither committed nor submitted in a request.
 
 **Doing what the agent cannot do.** Pushing to the default branch,
 publishing, setting up a service, deleting a remote branch, setting a tag
@@ -313,3 +338,25 @@ budgets, mutation caps, correspondences between code and documentation,
 third-party files (those of a tool installed in the project), the
 project's case files and specifications. Tightening them is free;
 loosening them requires an approved request.
+
+**A subfolder worked on by other agents.** When other agent sessions,
+which have neither the socle's hooks nor its rules, work on a subfolder on
+their own branches (a user interface, say), declare it third-party in the
+guardrails (`[thirdparty] paths = ["ui/**"]`), then approve it: it is a
+relaxation
+(`python3 .socle/socle approve --keys thirdparty.paths --text "<reason>"`).
+A commit that touches only third-party paths is then not a commit of the
+project: declaring a third-party path also exempts from the hooks' trace
+the commits that touch only it; a test exemption it carries is neither
+judged nor read (it exempts no function of the project), and a fix there
+is only warned about. Their pull requests pass the socle's CI job.
+Nothing needs setting on GitHub, or in the pre-push hook, which those
+sessions do not have: the socle's CI job, required before merging or not,
+judges them this way. Two limits, each with its setting:
+
+- a commit that also touches a file of the project (the memory, the
+  documentation, a file at the root) is judged as a whole, and refused
+  without the hooks' trace: those sessions stay in their subfolder;
+- the adapter's capabilities (build, tests) run as it declares them: if
+  they cover the subfolder, it must build and its tests pass, or the human
+  excludes it from the adapter's sources, a protected file.

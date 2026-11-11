@@ -19,9 +19,20 @@ Le parcours en bref :
 ## 1. Démarrer
 
 En session cloud, l'agent installe le socle depuis son dépôt public, qui se
-clone sans être ajouté à la session. La session qui installe a démarré
-avant le socle, donc sans ses hooks : elle pousse sa branche et ouvre une
-pull request. Une fois celle-ci fusionnée, le travail continue dans une
+clone sans être ajouté à la session. Les hooks de l'agent se chargent
+dans la session qui installe, dès l'appel d'outil qui suit l'écriture de
+ses réglages par l'installeur : ensuite, un fichier protégé (l'adaptateur,
+la CI, la politique) ne se corrige plus à la main. Ce qui ne va pas se
+corrige en relançant l'installeur avec les bonnes options, un adaptateur
+propre au projet se donnant par `--adapter <fichier.toml>` ; un essai se
+défait en le commitant sur sa branche, puis en revenant à la branche de
+départ par `git switch`, jamais fichier par fichier, que le hook refuse :
+non commités, ses fichiers suivraient, et l'installeur relancé y verrait
+une mise à jour. Avant le premier commit,
+`python3 .socle/socle verify --fast` lance la compilation et les tests de
+l'adaptateur, que l'audit de l'installeur ne lance pas. La session qui
+installe pousse sa branche et ouvre une pull request. Une fois celle-ci
+fusionnée, le travail continue dans une
 session neuve, qui part de la branche par défaut et reçoit l'état dès son
 démarrage. Une session qui ajoute un second dépôt ne se reprend pas : à
 deux dépôts, elle redémarre hors de la racine du projet, sans les hooks de
@@ -38,7 +49,11 @@ Un projet écrit en plusieurs langages a un adaptateur par langage :
 l'installeur en pose un par langage qu'il reconnaît, ou ceux qu'on lui
 nomme (`--adapter python-pytest --adapter kotlin`, le premier étant le
 principal), et chaque fichier est jugé par celui de son langage (la
-[spécification des adaptateurs](adapters/README.md)).
+[spécification des adaptateurs](adapters/README.md)). Un langage dont le
+manifeste n'est que dans un sous-dossier ne reçoit pas d'adaptateur en
+automatique : l'installeur le dit, avec ses deux issues, un adaptateur
+propre au projet dont les commandes entrent dans le sous-dossier, ou le
+sous-dossier déclaré tiers.
 
 Juste après l'installation :
 
@@ -199,7 +214,20 @@ conversation. Depuis un terminal : `python3 .socle/socle reviewed --by <nom>`.
 l'adaptateur, les hooks et la CI sont protégés : un commit qui les change
 sans validation est refusé. Quand le changement vient de l'humain :
 `python3 .socle/socle approve --text "<raison>"`, puis commiter. Cette
-commande est réservée à l'humain.
+commande est réservée à l'humain. L'agent, lui, n'écrit jamais dans un
+fichier protégé, sauf pour le remettre à son état du dernier commit quand
+il l'a changé par erreur (D-0098), hors des réglages de Claude Code, que
+l'humain garde pour lui : `git restore --source=HEAD --staged
+--worktree -- <chemin>` ou `git checkout HEAD -- <chemin>`, chaque chemin
+écrit en toutes lettres, ou `rm <chemin>` pour un fichier apparu sous un
+chemin protégé que git ne suit pas. Le reste lui est refusé : un autre
+commit, avec ou sans `--`, un dossier entier, un motif ou une variable du
+shell, des chemins lus dans un fichier, une variable ou un préfixe devant
+`git`, une redirection vers un autre fichier protégé, et un fichier que
+cite, lui ou son dossier, une demande en attente ou validée dont ce
+qu'elle approuve n'est pas commité. Le risque accepté : effacer une
+modification de l'humain dans l'arbre de travail qu'il n'a ni commitée ni
+soumise par une demande.
 
 **Faire ce que l'agent ne peut pas faire.** Pousser sur la branche par
 défaut, publier, régler un service, supprimer une branche distante, poser
@@ -314,3 +342,26 @@ de la mémoire, plafonds de mutation, correspondances entre code et
 documentation, fichiers tiers (ceux d'un outil installé dans le projet),
 fichiers de cas et spécifications du projet. Les durcir est
 libre ; les relâcher exige une demande validée.
+
+**Un sous-dossier travaillé par d'autres agents.** Quand d'autres sessions
+d'agents, qui n'ont ni les hooks ni les règles du socle, travaillent un
+sous-dossier sur leurs propres branches (une interface, par exemple),
+le déclarer tiers dans les garde-fous (`[thirdparty] paths = ["ui/**"]`),
+puis l'approuver : c'est un assouplissement
+(`python3 .socle/socle approve --keys thirdparty.paths --text "<raison>"`).
+Un commit qui ne touche que des chemins tiers n'est alors pas un commit du
+projet : déclarer un chemin tiers dispense aussi de la trace des hooks les
+commits qui ne touchent que lui ; une dispense de test qu'il porte n'est ni
+jugée ni lue (elle ne dispense aucune fonction du projet), et un correctif
+n'y est qu'averti. Leurs pull requests passent le travail de CI du socle.
+Rien n'est à régler côté GitHub, ni au hook avant push, que ces sessions
+n'ont pas : le travail de CI du socle, exigé ou non avant fusion, les juge
+ainsi. Deux limites, chacune avec son réglage :
+
+- un commit qui touche aussi un fichier du projet (la mémoire, la
+  documentation, un fichier à la racine) est jugé en entier, et refusé sans
+  la trace des hooks : ces sessions restent dans leur sous-dossier ;
+- les capacités de l'adaptateur (compilation, tests) tournent comme il les
+  déclare : si elles couvrent le sous-dossier, il doit compiler et ses
+  tests passer, ou l'humain l'exclut des sources de l'adaptateur, fichier
+  protégé.

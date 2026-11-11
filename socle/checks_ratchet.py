@@ -333,9 +333,17 @@ def proteges(ctx, r):
         elif attente:
             r.avertir("protege.fichiers", trad("modification en attente de {id} : le tour peut finir, le commit "
                                                "et la CI attendent la réponse de l'humain", id=attente.id), c)
-        else:
+        elif re.search(r"(^|/)\.claude/settings(\.local)?\.json$", c):
+            # Les réglages de Claude Code restent à l'humain, remise comprise.
             r.erreur("protege.fichiers", trad("fichier protégé modifié sans validation humaine. Une demande "
                                               "validée doit citer `{fichier}` et `{cite}`", fichier=c, cite=cite), c)
+        else:
+            r.erreur("protege.fichiers", trad("fichier protégé modifié sans validation humaine. Une demande "
+                                              "validée doit citer `{fichier}` et `{cite}`. Changé par erreur dans "
+                                              "l'arbre de travail, l'agent le remet à son état du dernier commit : "
+                                              "`git restore --source=HEAD --staged --worktree -- {fichier}`, ou "
+                                              "`rm {fichier}` s'il est apparu sans être suivi par git (D-0098)",
+                                              fichier=c, cite=cite), c)
 
 
 @controle("moteur.empreinte")
@@ -417,8 +425,10 @@ def trace(ctx, r):
     session (`Socle-Hooks:`, ajouté par le hook git). Absente, ou sans
     PreToolUse : les hooks n'ont jamais été chargés. Et depuis le commit
     précédent (`Socle-Hooks-Since-Commit:`) : sans PreToolUse, ils ont cessé
-    de tirer en cours de session."""
-    for c in ctx.commits:
+    de tirer en cours de session. Un commit qui ne touche que des chemins
+    déclarés tiers n'est pas un commit du projet : l'agent d'une autre
+    session, qui n'a pas les hooks du socle, l'a écrit (ADR-0031)."""
+    for c in ctx.commits_du_projet:
         if len(c["parents"]) != 1 or not est_agent(ctx.projet, c["message"]):
             continue
         if outils.lire_a(ctx.racine, c["parents"][0], ctx.projet.chemins.lock) is None:

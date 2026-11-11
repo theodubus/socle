@@ -157,7 +157,17 @@ client : il a alors un adaptateur par langage (ADR-0051).
 - **L'installation.** `socle install --adapter python-pytest --adapter
   kotlin` : le premier nommé prend `.socle/adapter.toml`. En automatique,
   l'installeur en pose un par langage qu'il reconnaît, hors des fichiers
-  tiers. Un langage ajouté à un projet déjà équipé voit ses modules entrer
+  tiers ; un langage dont le manifeste n'est que dans un sous-dossier (un
+  `ui/package.json` sans `package.json` à la racine) n'en reçoit pas, ses
+  commandes se lançant à la racine, et l'installeur le dit. Sauf si ce
+  qu'il lance tourne de la racine : Gradle, dès que la racine a son wrapper
+  ou un fichier de build (`gradlew`, `settings.gradle`, `build.gradle`, ou
+  leurs `.kts`) ; Python, sous pytest, qui parcourt les sous-dossiers, ou
+  avec un dossier `tests/` à la racine, que lit `unittest discover -s
+  tests`.
+  `--adapter` prend aussi le chemin d'un adaptateur propre au projet (un
+  `.toml`), jugé par ce contrat avant d'être posé, puis gardé aux mises à
+  jour comme une copie adaptée. Un langage ajouté à un projet déjà équipé voit ses modules entrer
   « à mesurer » au cliquet de mutation.
 - **La mise à jour.** Elle rafraîchit chaque copie d'un adaptateur
   maintenu, la principale comprise, que le projet n'a pas adaptée : celle

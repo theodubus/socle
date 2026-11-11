@@ -20,7 +20,6 @@ from __future__ import annotations
 import difflib
 import fnmatch
 import json
-import math
 import os
 import re
 import shutil
@@ -42,10 +41,18 @@ DEBUT_SOCLE = config.DEBUT_SOCLE
 FIN_SOCLE = "<!-- socle:fin -->"
 
 
+def est_un_fichier(nom: str) -> bool:
+    """Ce que `--adapter` reçoit désigne un fichier d'adaptateur, un `.toml`,
+    et non un adaptateur maintenu."""
+    return Path(nom).suffix == ".toml"
+
+
 def charger_adaptateur(nom: str) -> tuple[str, str]:
     """(texte, nom) d'un adaptateur maintenu ou d'un fichier."""
     p = Path(nom)
-    if p.suffix == ".toml" and p.is_file():
+    if est_un_fichier(nom):
+        if not p.is_file():
+            raise SystemExit(trad("fichier d'adaptateur introuvable : {nom}", nom=nom))
         return p.read_text(encoding="utf-8"), p.stem
     q = ADAPTATEURS / f"{nom}.toml"
     if not q.is_file():
@@ -156,18 +163,94 @@ def detecter_adaptateurs(cible: Path) -> list[str]:
         return []
     res = [premier]
     vus = {_langage_de(premier)}
-    # Les fichiers d'un outil tiers n'appellent pas d'adaptateur : l'état ne
-    # signale pas leur langage non plus.
-    fichiers = config.Projet.charger(cible).hors_tiers(
-        [f for f in outils.fichiers_courants(cible) if not f.startswith((config.DOSSIER + "/", ".claude/"))])
+    fichiers = _fichiers_du_projet(cible)
     presents = langages_presents(fichiers)
+    # Un langage dont le manifeste n'est que dans un sous-dossier n'en reçoit
+    # pas : ses commandes se lancent à la racine, où elles échoueraient ;
+    # l'installeur le dit (B-0168).
+    en_sous_dossier = langages_en_sous_dossier(cible)
     for _, langage in MARQUEURS_LANGAGE:
-        if langage not in presents or langage in vus:
+        if langage not in presents or langage in vus or langage in en_sous_dossier:
             continue
         nom = _python_ou_pytest(cible, fichiers, partout=True) if langage == "python" else langage
         if (ADAPTATEURS / f"{nom}.toml").is_file():
             vus.add(langage)
             res.append(nom)
+    return res
+
+
+# Ce qui, à la racine, permet de lancer de là les commandes d'un langage
+# dont le manifeste est plus bas : Gradle se lance de la racine dès qu'il y a
+# son wrapper ou un fichier de build, Groovy compris (revue de B-0168).
+LANCEURS_A_LA_RACINE = {"kotlin": ("settings.gradle", "build.gradle", "gradlew")}
+
+
+def lancable_de_la_racine(cible: Path, langage: str, chemins: list[str], fichiers: list[str]) -> bool:
+    """Les commandes de l'adaptateur maintenu d'un langage, dont `chemins`
+    sont les manifestes, peuvent tourner de la racine : un manifeste y est,
+    ou ce qui y lance l'outil (`LANCEURS_A_LA_RACINE`). Python sans
+    manifeste à la racine : pytest, qui parcourt les sous-dossiers depuis la
+    racine, ou un dossier `tests/` à la racine, que lit `unittest discover
+    -s tests` (B-0168)."""
+    if any("/" not in c for c in chemins) or set(LANCEURS_A_LA_RACINE.get(langage, ())) & set(fichiers):
+        return True
+    if langage == "python":
+        return (_python_ou_pytest(cible, fichiers, partout=True) == "python-pytest"
+                or any(f.startswith("tests/") and f.endswith(".py") for f in fichiers))
+    return False
+
+
+def _fichiers_du_projet(cible: Path) -> list[str]:
+    """Les fichiers courants du dépôt, hors ceux du socle et d'un outil
+    tiers : ceux-là n'appellent pas d'adaptateur, et l'état ne signale pas
+    leur langage non plus."""
+    return config.Projet.charger(cible).hors_tiers(
+        [f for f in outils.fichiers_courants(cible) if not f.startswith((config.DOSSIER + "/", ".claude/"))])
+
+
+def langages_en_sous_dossier(cible: Path) -> dict[str, list[str]]:
+    """Chaque langage dont le dépôt ne porte de manifeste que dans des
+    sous-dossiers, avec ces manifestes : un adaptateur y lancerait ses
+    commandes à la racine, où elles échoueraient. En automatique,
+    l'installeur ne lui en pose pas, et le dit (B-0168), sauf si ses
+    commandes peuvent tourner de la racine (`lancable_de_la_racine`)."""
+    fichiers = _fichiers_du_projet(cible)
+    return {langage: chemins for langage, chemins in langages_presents(fichiers).items()
+            if not lancable_de_la_racine(cible, langage, chemins, fichiers)}
+
+
+def langages_en_place(cible: Path, ch: config.Chemins) -> set[str]:
+    """Les langages des adaptateurs que le projet a déjà, le principal
+    compris : sa clé `language`, le nom du fichier à défaut."""
+    res = set()
+    for c in [ch.adaptateur, *config.fichiers_adaptateurs(cible, ch.adaptateurs)]:
+        p = cible / c
+        if not p.is_file():
+            continue
+        try:
+            res.add(str(config.lire_toml(p.read_text(encoding="utf-8")).get("language") or Path(c).stem))
+        except (tomllib.TOMLDecodeError, OSError):
+            res.add(Path(c).stem)
+    return res
+
+
+def sous_dossiers_sans_adaptateur(cible: Path, couverts: set[str]) -> list[str]:
+    """Ce que l'installeur dit, en automatique, de chaque langage qu'aucun
+    adaptateur ne couvre parce que son manifeste n'est que dans un
+    sous-dossier : où, et les deux issues (B-0168)."""
+    res = []
+    for langage, chemins in langages_en_sous_dossier(cible).items():
+        if langage in couverts:
+            continue
+        dossiers = sorted({c.rsplit("/", 1)[0] for c in chemins})
+        res.append(trad("!! {langage} : son manifeste n'est que dans un sous-dossier ({manifestes}) ; aucun adaptateur "
+                        "ne lui est posé, ses commandes se lanceraient à la racine. Deux issues : lui donner un "
+                        "adaptateur propre au projet, dont les commandes entrent dans {dossiers}, en relançant "
+                        "l'installeur avec `--adapter <principal> --adapter <fichier.toml>` ; ou déclarer le "
+                        "sous-dossier tiers, qu'aucun contrôle ne juge alors, par `[thirdparty] paths = [{motifs}]` "
+                        "des garde-fous, une décision de l'humain",
+                        langage=langage, manifestes=", ".join(chemins), dossiers=", ".join(f"{d}/" for d in dossiers),
+                        motifs=", ".join(f'"{d}/**"' for d in dossiers)))
     return res
 
 
@@ -885,7 +968,9 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
             return 2
         detectes = True
         noms += [x for x in trouves if x not in noms]
-    charges = []
+    from socle.checks_tests import ecarts_au_contrat
+
+    charges, de_fichier = [], set()
     for n in noms:
         texte, nom = charger_adaptateur(n)
         try:
@@ -893,7 +978,16 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
         except tomllib.TOMLDecodeError as e:
             print(trad("refus : adaptateur « {nom} » illisible : {erreur}", nom=nom, erreur=e), file=sys.stderr)
             return 2
+        # Un adaptateur propre au projet se juge avant d'être posé : protégé
+        # ensuite, il ne se corrigerait plus à la main (B-0168).
+        ecarts = ecarts_au_contrat(donnees) if est_un_fichier(n) else []
+        if ecarts:
+            print(trad("refus : l'adaptateur {chemin} ne tient pas le contrat des adaptateurs :\n  - {ecarts}",
+                       chemin=n, ecarts="\n  - ".join(ecarts)), file=sys.stderr)
+            return 2
         charges.append((nom, texte, str(donnees.get("language") or nom), n in nommes))
+        if est_un_fichier(n):
+            de_fichier.add(nom)
     # Le principal : celui que le projet a déjà, sinon le premier nommé. Un
     # autre adaptateur du même langage que lui ne s'ajoute pas.
     principal = cible / ch.adaptateur
@@ -916,6 +1010,13 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
         # Le premier nommé n'est pas le principal du projet : la CI part du
         # principal, qui reste (constat 3).
         texte_adaptateur, nom_adaptateur = texte_principal, langage_principal or Path(ch.adaptateur).stem
+    # Un fichier d'adaptateur donné pour le langage d'un principal déjà en
+    # place n'est pas posé : le principal se garde. L'installeur le dit, au
+    # lieu d'afficher son nom comme s'il l'était (revue de B-0168).
+    ecartes = [nom for nom, texte, langage, _ in charges if nom in de_fichier and texte_principal
+               and langage == langage_principal and texte != texte_principal]
+    if nom_adaptateur in ecartes:
+        texte_adaptateur, nom_adaptateur = texte_principal, langage_principal or Path(ch.adaptateur).stem
     ancien = config.Projet.charger(cible).lock if (cible / config.FORMAT_ACTUEL.lock).is_file() else {}
     journal = [trad("adaptateur : {nom}", nom=", ".join([nom_adaptateur, *(n for n, _ in autres)]))
                + (trad(" (détecté)") if detectes else "")]
@@ -923,6 +1024,17 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
         journal.append(trad("!! {adaptateur} ne déclare pas `language` : aucun autre adaptateur ne s'ajoute en "
                             "automatique ({liste}) ; les nommer par `--adapter`, ou y déclarer son langage",
                             adaptateur=ch.adaptateur, liste=", ".join(sans_langage)))
+    for nom in ecartes:
+        journal.append(trad("!! {nom} non posé : {adaptateur} existe déjà pour {langage}, et se garde. Pour le "
+                            "remplacer : sur un essai, le commiter sur sa branche, revenir à la branche de départ "
+                            "par `git switch` et relancer l'installeur sur une branche neuve ; sur un projet "
+                            "équipé, proposer le changement à l'humain par une demande, l'adaptateur étant protégé",
+                            nom=nom, adaptateur=ch.adaptateur, langage=langage_principal))
+    if detectes:
+        # Les langages couverts : ceux de cet appel, et ceux des copies déjà
+        # posées (revue de B-0168).
+        journal += sous_dossiers_sans_adaptateur(cible, langages | {c[2] for c in charges}
+                                                 | langages_en_place(cible, ch))
     if ancien:
         journal.append(trad("mise à jour : moteur {avant} → {version}", avant=ancien.get("version", "amont"),
                             version=VERSION))
@@ -995,6 +1107,7 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
         print(f"  - {l}")
     print(trad("\nAudit :"))
     code, echecs = _audit(cible)
+    print(note_d_audit())
     print(trad("\nEt maintenant :"))
     for i, etape in enumerate(et_maintenant(cible, bool(ancien), echecs), 1):
         print(f"  {i}. {etape}")
@@ -1270,6 +1383,14 @@ def _prive(cible: Path, mode: str, filtre: str) -> list[str]:
     return res
 
 
+def budget_d_adoption(octets: int) -> int:
+    """Le budget qu'une adoption fixe à un fichier de cette taille : la taille
+    plus un dixième, arrondie au millier supérieur. Le cliquet ne le laisse
+    ensuite que baisser : sans marge, la première ligne ajoutée le casserait
+    (B-0168)."""
+    return -(-octets * 11 // 10000) * 1000
+
+
 def _adopter(cible: Path) -> list[str]:
     """Plafonds au niveau actuel ; les contrôles en échec passent en
     avertissement, liste d'où l'on ne retire que pour durcir."""
@@ -1280,20 +1401,24 @@ def _adopter(cible: Path) -> list[str]:
     res = []
     claude = cible / "CLAUDE.md"
     if claude.is_file() and claude.read_text(encoding="utf-8").strip() != "@AGENTS.md" and '"CLAUDE.md"' not in texte:
-        # Gardé comme source le temps du renommage : il a son budget, au niveau actuel.
-        taille = int(math.ceil(len(claude.read_bytes()) / 1000.0) * 1000)
+        # Gardé comme source le temps du renommage : il a son budget, au
+        # niveau actuel avec sa marge.
+        octets = len(claude.read_bytes())
+        taille = budget_d_adoption(octets)
         texte = texte.replace("[budgets]\n", f'[budgets]\n"CLAUDE.md" = {{ max_bytes = {taille} }}\n', 1)
-        res.append(trad("budget de CLAUDE.md, gardé comme source : {taille} octets (il ne pourra que baisser)",
-                        taille=taille))
+        res.append(trad("budget de CLAUDE.md, gardé comme source : {taille} octets pour {octets}, sa taille plus un "
+                        "dixième, arrondie au millier supérieur (il ne pourra que baisser)", taille=taille,
+                        octets=octets))
     gf.write_text(texte, encoding="utf-8")
     projet = config.Projet.charger(cible)
     for motif, b in (projet.gf("budgets", defaut={}) or {}).items():
         tailles = [len((cible / c).read_bytes()) for c in outils.filtrer(outils.fichiers_courants(cible), [motif])]
         if tailles and max(tailles) > b.get("max_bytes", 0):
-            nouveau = int(math.ceil(max(tailles) / 1000.0) * 1000)
+            nouveau = budget_d_adoption(max(tailles))
             texte = re.sub(rf'^("{re.escape(motif)}"\s*=\s*\{{\s*max_bytes\s*=\s*)\d+', rf"\g<1>{nouveau}", texte, flags=re.M)
-            res.append(trad("budget de {motif} fixé au niveau actuel : {nouveau} octets (il ne pourra que "
-                            "baisser)", motif=motif, nouveau=nouveau))
+            res.append(trad("budget de {motif} fixé au niveau actuel avec sa marge : {nouveau} octets pour {octets}, "
+                            "la taille plus un dixième, arrondie au millier supérieur (il ne pourra que baisser)",
+                            motif=motif, nouveau=nouveau, octets=max(tailles)))
     gf.write_text(texte, encoding="utf-8")
     projet = config.Projet.charger(cible)
     rapport = contexte.executer(contexte.Contexte(projet, etage="ci", base=None))
@@ -1325,6 +1450,13 @@ def _audit(cible: Path) -> tuple[int, list[str]]:
     if r.stderr:
         print(r.stderr, end="", file=sys.stderr)
     return r.returncode, en_echec_dans(r.stdout)
+
+
+def note_d_audit() -> str:
+    """Ce que l'audit n'a pas lancé : il lance les contrôles, pas les
+    capacités de l'adaptateur (B-0168)."""
+    return trad("(l'audit lance les contrôles du socle, pas les capacités de l'adaptateur : la compilation et les "
+                "tests du projet n'ont pas été lancés ; `python3 .socle/socle verify --fast` les lance)")
 
 
 def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str]) -> list[str]:
@@ -1395,6 +1527,16 @@ def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str]) -> list[str
                            "session cloud, dans le script d'installation de l'environnement ou par l'agent, pour "
                            "cette session seulement : le hook de démarrage du socle les installe ensuite dans "
                            "chaque session neuve", commandes=" ; ".join(f"`{x}`" for x in ci)))
+    # L'audit n'a lancé que les contrôles : la vérification rapide lance les
+    # capacités de l'adaptateur, avant que rien ne parte (B-0168).
+    verifier = trad(". Avant de commiter, lancer `python3 .socle/socle verify --fast` : il lance la compilation et "
+                    "les tests de l'adaptateur, que l'audit n'a pas lancés")
+    if not mise_a_jour:
+        verifier += trad(". S'ils échouent pour une raison que l'adaptateur porte (ses commandes, lancées à la "
+                         "racine) : l'adaptateur posé est protégé, et ne se corrige plus à la main. Laisser l'essai "
+                         "sur sa branche, commité, revenir à la branche de départ par `git switch`, jamais fichier "
+                         "par fichier, et relancer l'installeur sur une branche neuve avec `--adapter "
+                         "<fichier.toml>`")
     message = (trad("Mettre à jour le socle {version}", version=VERSION) if mise_a_jour
                else trad("Installer le socle {version}", version=VERSION))
     if mise_a_jour and "protege.fichiers" in echecs and os.environ.get(hooks.SESSION_CLOUD) == "true":
@@ -1405,10 +1547,10 @@ def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str]) -> list[str
                            'approuve, et la pousser ; puis, quand elle le permet, les fichiers protégés avec ce qui '
                            'les cite (journal, chantier actif) : `git add -A && git commit -m "{message}" && git '
                            'push`. Le hook avant commit refuse une référence, chemin ou identifiant, que le commit '
-                           'ne contient pas', message=message))
+                           'ne contient pas', message=message) + verifier)
     else:
         etapes.append(trad('commiter puis pousser : `git add -A && git commit -m "{message}" && git push`',
-                           message=message))
+                           message=message) + verifier)
     etapes.append(trad("ouvrir l'agent dans le projet : il lit l'état au démarrage") if mise_a_jour
                   else trad("ouvrir l'agent dans le projet : il lit l'état au démarrage, et te donne le lien des questions "
                           "de départ, une demande à laquelle tu réponds dans la conversation"))

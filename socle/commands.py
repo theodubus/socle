@@ -36,6 +36,9 @@ class Commande:
     # Le dossier où elle s'exécute, relatif au dossier de départ (`""` : le
     # même), ou absolu après un `cd` absolu.
     dossier: str = ""
+    # Ce qui la précède et que `_sans_prefixes` retire : affectations de
+    # variables (`GIT_DIR=…`), `env`, `sudo`… et leurs options.
+    prefixe: list[str] = field(default_factory=list)
 
     @property
     def programme(self) -> str:
@@ -109,7 +112,7 @@ def analyser(texte: str, dossier: str = "") -> list[Commande]:
         nonlocal mots, redir, dossier
         argv = _sans_prefixes(mots)
         if argv or redir:
-            c = Commande(argv, redir, dossier)
+            c = Commande(argv, redir, dossier, mots[:len(mots) - len(argv)])
             nom = c.programme
             if nom == "cd":
                 cible = argv[1] if len(argv) > 1 else "~"

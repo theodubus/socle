@@ -143,14 +143,19 @@ PYTHONPATH=/tmp/socle python3 -m socle install --target . --owner @<propriétair
 | `--private compagnon` | ajoute une mémoire privée, dans un dépôt privé à part |
 | `--review lots` | exige la relecture de l'humain avant toute publication |
 | `--language en` | mémoire et messages en anglais |
-| `--adapter <nom>` | impose le langage au lieu de le déduire |
+| `--adapter <nom>` | impose le langage au lieu de le déduire : un adaptateur maintenu, ou le chemin du fichier d'un adaptateur propre au projet (`.toml`), jugé par le contrat des adaptateurs avant d'être posé |
 | `--human <nom>` | le nom de l'humain, qui signe les réponses que l'agent relaie ; par défaut son nom git, sauf en session cloud, où l'identité git est celle de l'agent |
 
 L'installeur termine par les étapes suivantes, chacune avec sa commande.
 Il rend 0 quand l'installation a réussi, même si un geste de l'humain
 l'attend (l'approbation de ses fichiers protégés, la mise en place d'un
 dépôt privé), 1 quand un autre contrôle échoue, et 2 quand il refuse
-d'installer (un langage qu'il ne reconnaît pas, par exemple).
+d'installer (un langage qu'il ne reconnaît pas, par exemple). Son audit
+lance les contrôles, pas la compilation ni les tests de l'adaptateur :
+`python3 .socle/socle verify --fast` les lance, avant le premier commit.
+En automatique, un langage dont le manifeste n'est que dans un
+sous-dossier ne reçoit pas d'adaptateur, ses commandes se lançant à la
+racine : l'installeur le dit, avec ses deux issues.
 Une mise à jour relance les mêmes commandes depuis un clone à jour : les
 fichiers du projet ne sont jamais écrasés, hors une copie d'un adaptateur
 maintenu que le projet n'a pas adaptée. La suite, étape par étape : [le
@@ -160,10 +165,17 @@ guide d'utilisation](socle/HELP.md), copié dans le projet et affiché par
 **En session cloud de Claude Code**, l'agent fait tout, installation
 comprise : ce dépôt, public, se clone sans être ajouté à la session, qui
 reste ainsi sur le seul dépôt du projet. L'installation prend `--human
-<nom>`, l'identité git du conteneur étant celle de l'agent. La session qui
-installe pousse sa branche et ouvre une pull request ; une fois celle-ci
-fusionnée, le travail continue dans une session neuve, qui reçoit l'état du
-projet et les hooks de l'agent dès son démarrage. La mise à jour sans
+<nom>`, l'identité git du conteneur étant celle de l'agent. Les hooks de
+l'agent se chargent dans la session qui installe, dès l'appel d'outil qui
+suit l'écriture de ses réglages : un fichier protégé, l'adaptateur compris,
+ne s'y corrige plus à la main. Un adaptateur propre au projet se donne donc
+à l'installeur (`--adapter <fichier.toml>`) ; pour revenir d'un essai, on
+le commite sur sa branche, puis on change de branche, jamais fichier par
+fichier, et on relance l'installeur avec les bonnes options : non commités,
+ses fichiers suivraient, et l'installeur y verrait une mise à jour. La session qui installe pousse sa branche et
+ouvre une pull request ; une fois celle-ci fusionnée, le travail continue
+dans une session neuve, qui reçoit l'état du projet dès son démarrage. La
+mise à jour sans
 terminal, et la session qui ajoute un second dépôt, sont dans le guide.
 
 Le prompt à donner à l'agent, ses deux noms remplacés :
