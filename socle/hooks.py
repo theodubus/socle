@@ -449,11 +449,11 @@ def contournement(racine: Path, c: commandes.Commande, depart: str | None = None
     return f"git {sous} --no-verify"
 
 
-def commande_humaine(c: commandes.Commande) -> tuple[str, list[str]] | None:
-    """Une commande du socle réservée à l'humain (`answer`, `approve`,
-    `reviewed`, `private install`), quel que soit le chemin du lanceur (entre
-    guillemets, après un `cd`, par `python3 -m socle`) : son nom et ses
-    arguments ; `None` sinon."""
+def arguments_socle(c: commandes.Commande) -> list[str] | None:
+    """Les arguments d'une invocation du socle, sous-commande en tête et
+    options globales (`--root`) retirées, quel que soit le chemin du lanceur
+    (entre guillemets, après un `cd`) ; `None` si la commande ne lance pas
+    le socle."""
     argv = c.argv
     if not argv:
         return None
@@ -474,6 +474,16 @@ def commande_humaine(c: commandes.Commande) -> tuple[str, list[str]] | None:
         return None
     while reste and (reste[0] == "--root" or reste[0].startswith("--root=")):
         reste = reste[2:] if reste[0] == "--root" else reste[1:]
+    return reste
+
+
+def commande_humaine(c: commandes.Commande) -> tuple[str, list[str]] | None:
+    """Une commande du socle réservée à l'humain (`answer`, `approve`,
+    `reviewed`, `private install`), quel que soit le chemin du lanceur (entre
+    guillemets, après un `cd`) : son nom et ses arguments ; `None` sinon."""
+    reste = arguments_socle(c)
+    if reste is None:
+        return None
     if reste[:2] == ["private", "install"]:
         return "private install", reste
     if reste and reste[0] in ("answer", "decision", "approve", "reviewed"):
@@ -505,6 +515,69 @@ class _Trouve:
         return self.nom
 
 
+def _valeur_option(args: list[str], nom: str, defaut: str) -> str:
+    """La valeur d'une option longue (`--nom x` ou `--nom=x`), la dernière
+    donnée l'emportant, comme pour `argparse`."""
+    valeur = defaut
+    for i, x in enumerate(args):
+        if x == nom and i + 1 < len(args):
+            valeur = args[i + 1]
+        elif x.startswith(nom + "="):
+            valeur = x.split("=", 1)[1]
+    return valeur
+
+
+def _cible_illisible(texte: str) -> bool:
+    """Un chemin que le hook ne sait pas résoudre comme le shell le fera :
+    une substitution (`$D`, `$(pwd)`, un accent grave), que le shell neuf de
+    chaque appel peut rendre vide ou changer, ou un `~` autre que le dossier
+    de l'utilisateur (`~autre`, `~+`)."""
+    if "$" in texte or "`" in texte:
+        return True
+    return texte.startswith("~") and os.path.expanduser(texte).startswith("~")
+
+
+def installeur_hors_mode(projet: config.Projet, c: commandes.Commande,
+                         depart: str | None = None) -> tuple[str, str, str] | None:
+    """L'installeur (`socle install`) lancé sur un projet équipé dans un autre
+    mode que celui de son verrou (ADR-0062) : sa cible, le mode demandé et
+    celui du verrou ; `None` sinon. Le projet équipé est la racine du projet,
+    ou toute cible qui porte son propre verrou (un worktree, une copie).
+    Une cible sans verrou, une première installation dans un dossier
+    temporaire, passe ; la mise à jour dans le mode du verrou aussi.
+    Une cible que le hook ne sait pas résoudre, elle ou le `cd` qui la
+    précède (une variable, une substitution, `~autre`), rend un mode du
+    verrou vide : le hook refuse, faute de savoir ce qu'elle vise. Aucune
+    exception n'en sort : le hook qui lèverait laisserait passer toute la
+    commande sans la juger."""
+    reste = arguments_socle(c)
+    if not reste or reste[0] != "install":
+        return None
+    args = reste[1:]
+    demande = _valeur_option(args, "--mode", config.MODE_PROJET)
+    brute = c.chemin(_valeur_option(args, "--target", "."))
+    if _cible_illisible(brute) or _cible_illisible(c.dossier):
+        return (brute, demande, "")
+    try:
+        cible = Path(os.path.expanduser(brute))
+        if not cible.is_absolute():
+            cible = Path(depart or projet.racine) / cible
+        cible = cible.resolve()
+    except (OSError, RuntimeError, ValueError):
+        return (brute, demande, "")
+    if cible == projet.racine.resolve():
+        verrou = projet.lock
+    else:
+        try:
+            verrou = config.lire_toml((cible / projet.chemins.lock).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+    if not verrou:
+        return None
+    attendu = verrou.get("mode", config.MODE_PROJET)
+    return (str(cible), demande, attendu) if demande != attendu else None
+
+
 COMMANDES_HUMAINES = _Repere(("answer", "decision", "approve", "reviewed"))
 INSTALLER_PRIVE = _Repere(("private install",))
 
@@ -534,6 +607,20 @@ def refus_bash(projet: config.Projet, cmd: str, cwd: str | None = None) -> str |
             return trad("`{saut}` contourne les hooks du projet : la CI exécute tout, et rien ne la "
                         "contourne. Corriger ce que le hook refuse ; s'il refuse à tort, l'inscrire au "
                         "backlog et le dire à l'humain.", saut=saut)
+        hors_mode = installeur_hors_mode(projet, c, cwd)
+        if hors_mode and not hors_mode[2]:
+            return trad("l'installeur visé sur une cible que le hook ne sait pas résoudre (« {cible} ») : une "
+                        "variable, une substitution ou un `~` autre que le dossier de l'utilisateur, dans la cible "
+                        "ou dans le `cd` qui la précède. Chaque appel repart d'un shell neuf, où une variable est "
+                        "vide : la cible serait le dossier courant, le projet. Écrire le chemin en toutes lettres, "
+                        "absolu, par exemple celui que `mktemp -d` a rendu.", cible=hors_mode[0])
+        if hors_mode:
+            return trad("l'installeur visé sur un projet équipé ({cible}) en mode « {demande} », dans un autre "
+                        "mode que celui de son verrou (« {attendu} ») : il en réécrirait le verrou, les hooks, "
+                        "la CI et CODEOWNERS. La mise à jour se relance dans le mode du verrou (`--mode "
+                        "{attendu}`) ; pour éprouver l'installeur, viser un dossier temporaire créé hors du "
+                        "dépôt. Changer de mode revient à l'humain.",
+                        cible=hors_mode[0], demande=hors_mode[1], attendu=hors_mode[2])
         h = commande_humaine(c)
         if h and h[0] == "private install":
             return trad("`socle private install` est réservé à l'humain : il pousse vers le dépôt privé "
@@ -757,6 +844,16 @@ def _empreinte_arbre(racine: Path) -> str:
     return outils.empreinte_arbre(racine)
 
 
+def signature_d_echec(racine: Path, echecs: list[str]) -> str:
+    """Ce qui distingue un échec de fin de tour d'un autre : l'arbre que les
+    contrôles ont vu et les contrôles en échec, sans le texte des erreurs.
+    Pour une étape de l'adaptateur, ce texte est la fin de la sortie de
+    l'outil, qui change à chaque relance (une durée, « Ran N tests in
+    X.XXXs ») : il ferait de chaque relance un échec nouveau. Deux
+    tentatives de même signature n'ont rien changé (B-0143)."""
+    return outils.sha256(_empreinte_arbre(racine) + "\n" + "\n".join(echecs))[:16]
+
+
 def stop(projet: config.Projet, entree: dict) -> int:
     from socle import context as contexte, verification
 
@@ -781,12 +878,25 @@ def stop(projet: config.Projet, entree: dict) -> int:
     # pas à l'escalade sur les échecs d'une autre (relevé de la passe de
     # recul, F).
     cle = session or "-"
-    precedent = compteur.read_text().split() if compteur.is_file() else []
-    essais = int(precedent[0]) + 1 if len(precedent) == 2 and precedent[1] == cle and \
-        precedent[0].isdigit() else 1
-    compteur.parent.mkdir(parents=True, exist_ok=True)
-    compteur.write_text(f"{essais} {cle}")
     texte = rapport.texte(trad("contrôles de fin de tour (`socle check --stage agent`)"))
+    signature = signature_d_echec(racine, rapport.controles_en_echec())
+    precedent = compteur.read_text().split() if compteur.is_file() else []
+    sien = len(precedent) >= 2 and precedent[1] == cle and precedent[0].isdigit()
+    # B-0143 (ADR-0061) : une relance que le hook a lui-même provoquée, sur le
+    # même échec et le même arbre, ne peut rien apporter ; elle ne bloque
+    # plus. L'humain lit le rapport dans le message du hook ; le commit et la
+    # CI refusent toujours. Le compteur ne bouge pas : la relance n'était pas
+    # une tentative, et le premier arrêt du tour suivant bloque de nouveau.
+    if entree.get("stop_hook_active") and sien and precedent[2:] == [signature]:
+        tracer(racine, "Stop-inchange", session, ",".join(rapport.controles_en_echec()))
+        print(json.dumps({"systemMessage": trad(
+            "Les contrôles échouent encore, sans changement depuis la tentative précédente : le hook ne relance "
+            "plus ce tour, que l'agent n'a pas pu corriger. À l'humain de regarder ; le commit et la CI refusent "
+            "toujours.\n\n{rapport}", rapport=texte)}, ensure_ascii=False))
+        return 0
+    essais = int(precedent[0]) + 1 if sien else 1
+    compteur.parent.mkdir(parents=True, exist_ok=True)
+    compteur.write_text(f"{essais} {cle} {signature}")
     if essais >= projet.maximum_tentatives():
         compteur.unlink(missing_ok=True)
         print(json.dumps({"systemMessage": trad(
@@ -796,7 +906,10 @@ def stop(projet: config.Projet, entree: dict) -> int:
         return 0
     tracer_refus(racine, "Stop", ",".join(rapport.controles_en_echec()), entree.get("session_id", ""))
     print(json.dumps({"decision": "block", "reason": trad(
-        "Les contrôles échouent (tentative {essais}/{maximum}) : corriger avant de conclure.\n\n{rapport}",
+        "Les contrôles échouent (tentative {essais}/{maximum}) : corriger avant de conclure. Si tu ne peux pas "
+        "corriger (un fichier que tu n'as pas le droit de remettre), réponds en une ligne qui dit pourquoi, sans "
+        "redire ton récap : une relance sur le même échec et le même arbre ne bloque plus, et l'humain reçoit le "
+        "rapport.\n\n{rapport}",
         essais=essais, maximum=projet.maximum_tentatives(), rapport=texte)}, ensure_ascii=False))
     return 0
 

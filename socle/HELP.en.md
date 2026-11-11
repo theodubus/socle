@@ -207,7 +207,10 @@ previous commit.
 **Updating the socle.** Run the installation command again from an
 up-to-date clone of the engine (`git clone --depth 1
 https://github.com/theodubus/socle /tmp/socle`). The project's files are never overwritten;
-the diff of the policy is shown. The one exception: a copy of a maintained
+the diff of the policy is shown. The agent's hook refuses the installer aimed
+at an equipped project in another mode than its lock's, or at a target
+written through a variable: the update keeps the mode, and its target is
+written out in full. The one exception: a copy of a maintained
 adapter that the project has not adapted is refreshed; an adapted copy is
 kept, and the installer says when its maintained adapter has changed: the
 agent then proposes to carry the corrections over, through a request. Then approve the changed protected files

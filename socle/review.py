@@ -96,7 +96,10 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
     base = base or base_du_lot(projet.racine)
     lignes = [trad("# Revue adversariale d'un lot"), "", trad(
         "Tu relis le lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce dossier, et tu peux lire le dépôt pour vérifier un constat, mais tu ne "
-        "modifies rien. Ton rôle est de le prendre en défaut. Cherche ce qui casse (un cas limite, une erreur "
+        "modifies rien. Pour éprouver une commande (l'installeur, un script), crée d'abord un dossier temporaire "
+        "hors du dépôt (`mktemp -d`), et n'écris que là : chaque commande qui écrit y vise par son chemin absolu, "
+        "jamais par le dossier courant, écrit en toutes lettres tel que `mktemp -d` l'a rendu, jamais par une "
+        "variable, qui ne survit pas d'un appel à l'autre. Ton rôle est de le prendre en défaut. Cherche ce qui casse (un cas limite, une erreur "
         "de logique, une régression), ce qu'aucun test ne prouve (une branche du code, un message, un cas que "
         "rien n'exerce), et ce qui contredit un sujet, un critère « Fait quand » ou une décision cités plus "
         "bas. Ne juge ni le style, ni ce que les contrôles automatiques jugent déjà : la forme de la mémoire, "

@@ -762,10 +762,21 @@ def cmd_aide(args) -> int:
     return 0
 
 
+class _Analyseur(argparse.ArgumentParser):
+    """Un analyseur qui refuse les abréviations d'options (`--mo` pour
+    `--mode`), et ses sous-commandes de même : le hook de l'agent lit les
+    options par leur nom entier (ADR-0062), et une abréviation qu'il ne
+    reconnaîtrait pas passerait sans être jugée."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
+
+
 def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     """L'analyseur de la ligne de commande, et l'aide d'une ligne de chaque
     commande."""
-    p = argparse.ArgumentParser(prog="socle", description=trad("socle {version} — mémoire, documentation et "
+    p = _Analyseur(prog="socle", description=trad("socle {version} — mémoire, documentation et "
                                                                "tests fiables", version=VERSION),
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--root", help=trad("racine du projet (défaut : le dépôt git courant)"))

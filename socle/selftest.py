@@ -1297,6 +1297,19 @@ def _cas() -> list[Cas]:
             sortie = r.stdout
         return sortie
 
+    @defaut("echec-inchange-relance", "relance du hook sur un échec et un arbre inchangés, que l'humain ne voit pas",
+            "agent", "échec inchangé")
+    def _(a, c):
+        remplacer(c, "calc.py", "return FACTEUR * x", "return x * FACTEUR")
+        maj_memoire(c)
+        sortie = ""
+        for relance in (False, True):
+            sortie = a.socle(c, "hook", "stop", entree=json.dumps({"session_id": "autotest",
+                                                                   "stop_hook_active": relance})).stdout
+        # Une relance qui bloquerait encore n'attrape rien : elle doit passer
+        # la main à l'humain, par le message du hook (B-0143).
+        return "" if '"block"' in sortie else sortie
+
     @defaut("validation-ecrite-en-ci", "fait « validé » commité sans réponse de l'humain", "ci", "memoire.preuves")
     def _(a, c):
         remplacer(c, "memory/canonical.md", "> statut : mesuré · preuve : fichier:tests/test_calc.py", "> statut : validé")
@@ -1426,6 +1439,18 @@ def _cas() -> list[Cas]:
     def _(a, c):
         lanceur = ".socle/" + "socle"
         return etage_outil(a, c, "Bash", {"command": f"python3 {lanceur} private " + "install --repo git@h:o/p.git"})
+
+    @defaut("agent-installe-hors-mode", "l'agent relance l'installeur sur le projet dans un autre mode que son verrou",
+            "agent", "installeur hors mode")
+    def _(a, c):
+        lanceur = ".socle/" + "socle"
+        return etage_outil(a, c, "Bash", {"command": f"python3 {lanceur} " + "install --target . --mode amont"})
+
+    @defaut("agent-installe-cible-illisible", "l'agent relance l'installeur sur une cible écrite par une variable, "
+            "vide dans le shell neuf de l'appel : elle viserait le projet", "agent", "installeur cible illisible")
+    def _(a, c):
+        lanceur = ".socle/" + "socle"
+        return etage_outil(a, c, "Bash", {"command": f"python3 {lanceur} " + 'install --target "$D" --mode amont'})
 
     @defaut("relais-sans-citation", "réponse relayée sans le texte exact de l'humain", "agent", "commande humaine")
     def _(a, c):
@@ -1605,6 +1630,13 @@ def _temoins() -> list[tuple[str, Callable]]:
     @temoin("un commit sans hooks dans un dépôt jetable, hors du projet, passe le hook de l'agent")
     def _(a, c):
         return etage_outil(a, c, "Bash", {"command": "cd /tmp/jetable && git commit -q -m x --" + "no-verify"})
+
+    @temoin("l'installeur relancé dans le mode du verrou, ou sur un dossier temporaire, passe le hook de l'agent")
+    def _(a, c):
+        lanceur = ".socle/" + "socle"
+        return (etage_outil(a, c, "Bash", {"command": f"python3 {lanceur} " + "install --target . --owner @moi"})
+                or etage_outil(a, c, "Bash", {"command": f"python3 {lanceur} " + "install --target /tmp/jetable-socle "
+                                                         "--mode amont"}))
 
     @temoin("un commit d'agent qui porte la trace de ses hooks passe la CI")
     def _(a, c):
@@ -2066,6 +2098,16 @@ def _temoins() -> list[tuple[str, Callable]]:
         etage_stop(a, c, "Pour toi : rien.\nEnsuite : rien.")  # retient l'état de l'arbre
         return etage_stop(a, c, "Réponse à une question, sans rien changer.")
 
+    @temoin("une relance du hook après une correction passe la fin de tour")
+    def _(a, c):
+        remplacer(c, "calc.py", "return FACTEUR * x", "return x * FACTEUR")
+        maj_memoire(c)
+        if not etage_stop(a, c):
+            return "la fin de tour passe sur un code sans sa doc"
+        remplacer(c, "docs/calc.md", "la\nconstante", "la constante\nnommée")
+        r = a.socle(c, "hook", "stop", entree=json.dumps({"session_id": "autotest", "stop_hook_active": True}))
+        return r.stdout if "sans changement" in r.stdout or '"block"' in r.stdout else ""
+
     @temoin("un identifiant renuméroté après une collision passe la CI")
     def _(a, c):
         point = _collision(a, c)
@@ -2236,10 +2278,13 @@ RAISONS_AGENT = {
     "commande humaine": "ne répond jamais à la place de l'humain",
     "commande de l'humain seul": "est réservé à l'humain",
     "contournement d'un hook": "contourne les hooks du projet",
+    "installeur hors mode": "dans un autre mode que celui de son verrou",
+    "installeur cible illisible": "une cible que le hook ne sait pas résoudre",
     "écriture protégée": "par le shell : seul l'humain",
     "écriture à l'aveugle": "à l'aveugle",
     "référence inventée": "référence inventée",
     "escalade": "ARRÊT ET ESCALADE",
+    "échec inchangé": "sans changement depuis la tentative précédente",
     "memoire.peremption": "chantier actif inchangé depuis",
     "réglage de l'agent": "les réglages de Claude Code commandent ses hooks",
     "où regarder": "« Où regarder » doit donner un lien",
