@@ -92,7 +92,13 @@ sont vérifiés aussi ; un chemin d'un autre dépôt s'écrit `depot:chemin`, le
 dépôt lié quelque part dans le projet par son adresse, ou, à défaut, déclaré
 dans `[references] repos` des garde-fous. Un texte barré (`~~…~~`,
 `<s>…</s>`, `<del>…</del>`) dit ce qui n'est plus : ses chemins et ses liens
-ne se vérifient pas. Dans une couche qui ne se
+ne se vérifient pas. Un chemin vaut s'il est suivi par git, l'index
+compris, comme un clone neuf le verra : un fichier neuf pas encore ajouté
+(`git add`) est averti sur l'arbre de travail, et le commit qui ne l'ajoute
+pas le refuse ; un chemin ignoré ne vaut que par une règle d'un
+`.gitignore` que l'index ou le commit jugé contient, pas par une règle
+locale (`.git/info/exclude`) ; un dossier ignoré se cite avec sa barre
+finale. Dans une couche qui ne se
 réécrit pas (canonique, décisions, journal, demandes), un chemin qui a
 existé dans l'historique du dépôt vaut, un lien relatif se lit aussi depuis
 les anciens emplacements de son fichier, et l'ancre d'un lien n'est pas

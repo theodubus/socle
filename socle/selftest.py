@@ -1579,6 +1579,18 @@ def _cas() -> list[Cas]:
         r = a.run(c, "git", "commit", "-q", "-m", "essai")
         return "" if r.returncode == 0 else r.stdout + r.stderr
 
+    @defaut("chemin-cite-hors-depot", "chemin cité présent sur le disque seulement, qu'une règle locale de git "
+            "ignore", "agent", "memoire.references")
+    def _(a, c):
+        # B-0166 : passé en local, il manquait au clone neuf de la CI.
+        ajouter(c, "docs/essais/x.md", "# Essai local\n")
+        exclusions = Path(a.git(c, "rev-parse", "--git-path", "info/exclude").strip())
+        exclusions = exclusions if exclusions.is_absolute() else c / exclusions
+        exclusions.parent.mkdir(parents=True, exist_ok=True)
+        exclusions.write_text("docs/essais/\n")
+        maj_memoire(c, "Les essais vivent dans `docs/essais/`.")
+        return etage_stop(a, c)
+
     @defaut("memoire-en-retard", "code changé sans mise à jour de la mémoire", "agent", "memoire.retard")
     def _(a, c):
         remplacer(c, "calc.py", "return FACTEUR * x", "return x * FACTEUR")
@@ -1673,6 +1685,13 @@ def _temoins() -> list[tuple[str, Callable]]:
         remplacer(c, "memory/active.md", "## En cours\n\nRien pour l'instant.",
                   "## En cours\n\nLe modèle vient de `ailleurs:tools/etat.sh`.")
         return etage_ci(a, c)
+
+    @temoin("un fichier neuf cité par la mémoire, ajouté par le même commit, passe la fin de tour, le commit et "
+            "la CI")
+    def _(a, c):
+        ajouter(c, "docs/neuf.md", "# Neuf\n")
+        maj_memoire(c, "La note vit dans `docs/neuf.md`.")
+        return etage_stop(a, c) or etage_git(a, c) or etage_ci(a, c)
 
     @temoin("une référence de commit en fin de phrase passe la CI")
     def _(a, c):

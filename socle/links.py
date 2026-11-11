@@ -238,9 +238,23 @@ def problemes(projet: config.Projet, message: str) -> tuple[list[str], list[str]
             morts.append(trad("lien relatif « {cible} » : hors du conteneur, il ne mène nulle part", cible=cible))
     for m in CODE.finditer(texte):
         chemin = ressemble_a_un_chemin(m["code"])
-        if chemin and not (racine / chemin).exists():
-            morts.append(trad("`{code}` : aucun chemin de ce nom dans le dépôt, le lien qu'en fait le client "
-                              "mène à un 404", code=m['code']))
+        # Suivi par git, ou livré par le prochain `git add`, et non présent
+        # sur le disque : un dossier que git ignore, une règle locale
+        # comprise, n'est que dans le conteneur (B-0166).
+        # Suivi mais supprimé du disque (`rm` sans `git rm`) : le prochain
+        # commit le retirera, refusé comme le contrôle de la mémoire le fait.
+        if chemin and not (outils.chemin_suivi(racine, chemin, a_ajouter=True) and (racine / chemin).exists()):
+            imbrique = outils.depot_imbrique(racine, chemin)
+            if imbrique:
+                morts.append(trad("`{code}` : dans le dépôt git imbriqué `{depot}/`, que le dépôt ne suit pas, le "
+                                  "lien qu'en fait le client mène à un 404 : ne pas le citer", code=m['code'],
+                                  depot=imbrique))
+            elif (racine / chemin).exists():
+                morts.append(trad("`{code}` : présent sur le disque du conteneur mais ignoré par git, le lien "
+                                  "qu'en fait le client mène à un 404 : ne pas le citer", code=m['code']))
+            else:
+                morts.append(trad("`{code}` : aucun chemin de ce nom dans le dépôt, le lien qu'en fait le client "
+                                  "mène à un 404", code=m['code']))
     depot = url_depot(projet)
     urls = URL.findall(texte)
     tirees = {m["numero"] for m in PULL_REQUEST.finditer(texte)}

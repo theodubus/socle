@@ -701,8 +701,20 @@ MESSAGES: dict[str, str] = {
         "dead link: {cible}",
     "ancre morte : {cible}":
         "dead anchor: {cible}",
+    "{faute} — non suivi par git, à ajouter (`git add`)":
+        "{faute} — not tracked by git, to be added (`git add`)",
     "chemin cité inexistant : `{jeton}`":
         "cited path does not exist: `{jeton}`",
+    "chemin cité ignoré par git : `{jeton}` — présent sur le disque seulement (une règle locale, ou d'un `.gitignore` pas encore ajouté à l'index, l'ignore), il manquera à un clone neuf, celui de la CI : ne pas le citer, ou ajouter la règle (`git add` du `.gitignore`)":
+        "cited path ignored by git: `{jeton}` — present on disk only (a local rule, or one from a `.gitignore` not yet added to the index, ignores it), a fresh clone, the CI's, will lack it: do not cite it, or add the rule (`git add` the `.gitignore`)",
+    "dossier non suivi cité sans barre finale : `{jeton}` — sans elle, il ne se juge pas comme dans un clone neuf : écrire `{j}/`":
+        "untracked directory cited without a trailing slash: `{jeton}` — without it, it is not judged as in a fresh clone: write `{j}/`",
+    "chemin cité dans le dépôt git imbriqué `{depot}/` : `{jeton}` — le dépôt ne le suit pas, et `git add` n'en ferait qu'un lien de sous-module : ne pas le citer":
+        "cited path inside the nested git repository `{depot}/`: `{jeton}` — the repository does not track it, and `git add` would only make a submodule link of it: do not cite it",
+    "`{code}` : dans le dépôt git imbriqué `{depot}/`, que le dépôt ne suit pas, le lien qu'en fait le client mène à un 404 : ne pas le citer":
+        "`{code}`: inside the nested git repository `{depot}/`, which the repository does not track, the link the client makes of it leads to a 404: do not cite it",
+    "chemin cité non suivi par git : `{jeton}` — à ajouter (`git add`) : le commit qui ne l'ajoute pas sera refusé, et la CI le dirait inexistant":
+        "cited path not tracked by git: `{jeton}` — to be added (`git add`): a commit that does not add it will be refused, and the CI would call it nonexistent",
     "identifiant privé `{ident}` dans un fichier public":
         "private identifier `{ident}` in a public file",
     "`{ident}@{h}` ne correspond pas à la version actuelle de {ident} (lue avant un changement, ou inventée) : la "
@@ -1801,6 +1813,8 @@ MESSAGES: dict[str, str] = {
         "relative link “{cible}”: outside the container, it leads nowhere",
     "`{code}` : aucun chemin de ce nom dans le dépôt, le lien qu'en fait le client mène à un 404":
         "`{code}`: no path of that name in the repository, the link the client makes of it leads to a 404",
+    "`{code}` : présent sur le disque du conteneur mais ignoré par git, le lien qu'en fait le client mène à un 404 : ne pas le citer":
+        "`{code}`: present on the container's disk but ignored by git, the link the client makes of it leads to a 404: do not cite it",
     "capacité absente : {absent}":
         "capability absent: {absent}",
     "lecteur de résultats inconnu : « {parser} » (connus : {liste})":
@@ -2408,6 +2422,10 @@ MESSAGES: dict[str, str] = {
         "end of intervention without saying what falls to the human",
     "fin d'intervention qui ne dit pas la suite":
         "end of intervention that does not say what comes next",
+    "chemin cité présent sur le disque seulement, qu'une règle locale de git ignore":
+        "cited path present on disk only, ignored by a local git rule",
+    "un fichier neuf cité par la mémoire, ajouté par le même commit, passe la fin de tour, le commit et la CI":
+        "a new file cited by the memory, added by the same commit, passes the end of turn, the commit and the CI",
     "chemin donné à l'humain qui n'existe pas dans le dépôt":
         "path given to the human that does not exist in the repository",
     "lien relatif, que l'humain ne peut pas suivre hors du conteneur":

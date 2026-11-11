@@ -156,6 +156,48 @@ def fichiers_courants(racine: Path) -> list[str]:
     return sorted(set(vus))
 
 
+def fichiers_suivis(racine: Path) -> list[str] | None:
+    """Les fichiers que git suit, l'index compris : un fichier ajouté par
+    `git add` y est avant son commit. `None` hors d'un dépôt. Un fichier
+    présent sur le disque seulement manque à un clone neuf, celui de la
+    CI (B-0166)."""
+    if not est_depot(racine):
+        return None
+    sortie = git(racine, "ls-files", "-z", "--cached", check=False)
+    return sorted({n for n in sortie.split("\0") if n})
+
+
+def chemin_suivi(racine: Path, chemin: str, a_ajouter: bool = False) -> bool:
+    """Le chemin, fichier ou dossier, est suivi par git (l'index compte),
+    comme le verra un clone neuf. Avec `a_ajouter`, un fichier non suivi
+    qu'aucune règle de git n'ignore compte aussi : `git add` le livre, et le
+    commit qui ne l'ajoute pas le dira absent. Un fichier ignoré, par une
+    règle locale comprise (`.git/info/exclude`), ne compte jamais. Hors d'un
+    dépôt, le chemin existe sur le disque (B-0166)."""
+    if not est_depot(racine):
+        return (Path(racine) / chemin).exists()
+    c = chemin.strip().strip("/")
+    if not c:
+        return True
+    autres = ["--others", "--exclude-standard"] if a_ajouter else []
+    sortie = git(racine, "ls-files", "-z", "--cached", *autres, "--", f":(literal){c}", check=False)
+    # Un dépôt git imbriqué, non suivi, sort en `dossier/` : `git add` n'en
+    # ferait qu'un lien de sous-module, ses fichiers ne seraient pas livrés.
+    return any(n and not n.endswith("/") for n in sortie.split("\0"))
+
+
+def depot_imbrique(racine: Path, chemin: str) -> str | None:
+    """Le dossier d'un dépôt git imbriqué (un worktree d'agent, un clone)
+    qui contient le chemin, ou est ce chemin : ses fichiers ne sont pas ceux
+    du dépôt. `None` s'il n'y en a pas."""
+    parts = [p for p in chemin.strip().strip("/").split("/") if p]
+    for i in range(1, len(parts) + 1):
+        dossier = "/".join(parts[:i])
+        if (Path(racine) / dossier / ".git").exists():
+            return dossier
+    return None
+
+
 def fichiers_a(racine: Path, rev: str | None) -> list[str]:
     if rev is None or rev == ARBRE_VIDE:
         return []
