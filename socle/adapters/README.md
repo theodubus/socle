@@ -91,6 +91,35 @@ avant le socle. L'agent en a besoin aussi, là où il travaille :
 l'installeur cite leurs commandes parmi les étapes qui suivent, et un
 `verify` qui échoue faute d'outil les rappelle.
 
+Un adaptateur se pose souvent avant le premier fichier de son langage. Une
+étape de `ci_setup` qui exige un fichier de build (un cache de dépendances,
+`npm ci`, `composer install`, `dotnet restore`) attend ce fichier, par une
+condition sur sa présence, dont les motifs sont une part de ceux que l'outil
+lit (B-0179) : tant qu'il manque, l'étape est sautée, et elle ne peut donc
+pas échouer faute de lui. La règle ne garantit rien de plus : un fichier de
+build présent mais incomplet (un `package.json` sans verrou) fait échouer
+l'étape, nettement. Ainsi, sous Kotlin :
+
+```yaml
+      - uses: actions/setup-java@v5
+        if: hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') != ''
+        with:
+          cache: gradle
+```
+
+Le cache sert dès le premier fichier, sans réinstaller le socle. La
+condition saute toute l'étape, l'installation de l'outil comprise (le JDK
+sous Kotlin et Java) : c'est la seule forme sûre sans pouvoir l'essayer. Le
+moteur lit la même condition sur les fichiers du projet : une commande qui
+attend son fichier de build, l'installeur ne la donne pas à l'agent, et le
+hook de démarrage d'une session cloud ne la lance pas ; tous deux disent
+qu'elle attend. Une étape dont l'outil se passe lui-même du fichier absent
+n'a pas de condition : `ruby/setup-ruby` saute `bundle install` et son cache
+sans `Gemfile`, et le cache d'`actions/setup-go` se dit en avertissement
+sans `go.sum`. Les capacités, elles, ne tournent pas avant le premier
+fichier `sources`, comme dit plus haut. Le texte du workflow est jugé par
+les tests ; son exécution, seulement sur GitHub.
+
 ## Une capacité absente se déclare
 
 Chaque capacité est soit une commande, soit déclarée absente avec ce qui la

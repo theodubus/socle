@@ -19,6 +19,8 @@ sources = ["**/*.cs"]
 # Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
 # Les deux SDK de support long : le plus récent construit, et les tests
 # d'un projet qui cible .NET 8 trouvent leur environnement d'exécution.
+# `dotnet restore` exige une solution ou un projet à la racine : l'étape
+# attend le premier (B-0179).
 ci_setup = """
       - uses: actions/setup-dotnet@v5
         with:
@@ -26,6 +28,7 @@ ci_setup = """
             8.0.x
             10.0.x
       - name: Dépendances
+        if: hashFiles('*.sln', '*.slnx', '*.csproj') != ''
         run: dotnet restore && dotnet tool restore
 """
 

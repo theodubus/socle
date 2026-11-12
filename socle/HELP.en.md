@@ -53,6 +53,10 @@ as with `--adapter`, while no adapter covers it and its manifest is not
 under a declared third-party path, the installer says so, with its two ways out: an adapter of the project's
 own whose commands enter the subdirectory, or the subdirectory declared
 third-party.
+An adapter can be set before the first file of its language: the CI
+prepares its tools only once its build file is there (the Gradle cache
+waits for a Gradle file), and its capabilities wait for the first source
+file, which `verify` reports as a warning.
 
 Right after the installation:
 

@@ -11,12 +11,14 @@ maintained = true
 sources = ["**/*.php"]
 
 # Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+# `composer install` exige un `composer.json` : l'étape attend le premier (B-0179).
 ci_setup = """
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
           coverage: pcov
       - name: Dépendances
+        if: hashFiles('composer.json') != ''
         run: composer install --no-interaction --no-progress
 """
 

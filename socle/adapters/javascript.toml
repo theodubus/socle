@@ -14,11 +14,14 @@ maintained = true
 sources = ["**/*.js", "**/*.mjs", "**/*.cjs", "**/*.jsx", "**/*.ts", "**/*.mts", "**/*.tsx"]
 
 # Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+# `npm ci` exige un manifeste : l'étape attend `package.json` (B-0179). Sans
+# verrou, elle échoue nettement, ce qui vaut mieux qu'un saut en silence.
 ci_setup = """
       - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Dépendances
+        if: hashFiles('package.json') != ''
         run: npm ci
 """
 

@@ -13,8 +13,10 @@ maintained = true
 sources = ["**/src/main/java/**/*.java", "**/src/test/java/**/*.java"]
 
 # Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+# Le cache de Maven exige un `pom.xml` : l'étape attend le premier (B-0179).
 ci_setup = """
       - uses: actions/setup-java@v5
+        if: hashFiles('**/pom.xml') != ''
         with:
           distribution: temurin
           java-version: 21

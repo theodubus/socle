@@ -19,8 +19,12 @@ maintained = true
 sources = ["**/src/**/kotlin/**/*.kt", "**/src/**/java/**/*.kt"]
 
 # Étapes ajoutées au workflow de CI avant le socle (indentation YAML de six).
+# Le cache de Gradle exige un fichier de build : l'étape attend le premier,
+# sans quoi la CI d'un projet qui n'a pas encore de Gradle échouerait avant
+# tout contrôle (B-0179). Ces motifs sont une part de ceux que lit le cache.
 ci_setup = """
       - uses: actions/setup-java@v5
+        if: hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') != ''
         with:
           distribution: temurin
           java-version: 21

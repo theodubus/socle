@@ -1637,6 +1637,10 @@ def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str]) -> list[str
                            "session cloud, dans le script d'installation de l'environnement ou par l'agent, pour "
                            "cette session seulement : le hook de démarrage du socle les installe ensuite dans "
                            "chaque session neuve", commandes=" ; ".join(f"`{x}`" for x in ci)))
+    attente = verification.commandes_en_attente(projet)
+    if attente and not mise_a_jour:
+        etapes.append(trad("ne pas encore lancer les outils de la CI qui attendent leur fichier de build : {ligne}",
+                           ligne=verification.attente_dite(attente)))
     # L'audit n'a lancé que les contrôles : la vérification rapide lance les
     # capacités de l'adaptateur, avant que rien ne parte (B-0168).
     verifier = trad(". Avant de commiter, lancer `python3 .socle/socle verify --fast` : il lance la compilation et "

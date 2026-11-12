@@ -181,17 +181,21 @@ def installer_outils(projet: config.Projet) -> list[str]:
     if os.environ.get(SESSION_CLOUD) != "true":
         return []
     commandes_ci = verification.commandes_ci(projet)
+    # Une commande qui attend son fichier de build ne se lance pas : elle
+    # échouerait à chaque session neuve (B-0179).
+    attente = verification.commandes_en_attente(projet)
+    dit = [trad("outils de l'adaptateur {ligne}", ligne=verification.attente_dite(attente))] if attente else []
     if not commandes_ci:
-        return []
+        return dit
     marque = config.chemin_trace(projet.racine).parent / "outils-installes"
     empreinte = outils.sha256("\n".join(commandes_ci))
     try:
         if marque.read_text(encoding="utf-8").strip() == empreinte:
-            return []
+            return dit
     except OSError:
         pass
     fin = time.monotonic() + DELAI_OUTILS
-    lignes, reussi = [], True
+    lignes, reussi = list(dit), True
     for c in commandes_ci:
         try:
             p = subprocess.run(c, shell=True, cwd=projet.racine, capture_output=True, text=True, encoding="utf-8",

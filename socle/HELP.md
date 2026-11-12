@@ -56,6 +56,10 @@ adaptateur ne le couvre et que son manifeste n'est pas sous un chemin
 tiers déclaré, l'installeur le dit, avec ses deux issues : un adaptateur
 propre au projet dont les commandes entrent dans le sous-dossier, ou le
 sous-dossier déclaré tiers.
+Un adaptateur peut se poser avant le premier fichier de son langage : la
+CI ne prépare ses outils qu'une fois son fichier de build là (le cache de
+Gradle attend un fichier Gradle), et ses capacités attendent le premier
+fichier source, ce que `verify` dit en avertissement.
 
 Juste après l'installation :
 

@@ -86,10 +86,57 @@ def commandes_ci(projet: config.Projet) -> list[str]:
     """Les commandes que la CI lance pour les outils des adaptateurs, avant
     le socle (leurs étapes `ci_setup`) : l'environnement de l'agent en a
     besoin aussi (B-0090). Un bloc `run: |` donne une commande, ses lignes
-    jointes ; une commande que deux adaptateurs partagent ne se répète pas."""
+    jointes ; une commande que deux adaptateurs partagent ne se répète pas.
+    Une commande dont l'étape attend un fichier de build (`if: hashFiles(…)
+    != ''`) n'en est que si un fichier du projet répond à l'un de ses motifs,
+    comme dans la CI (B-0179) : sinon, elle est dans `commandes_en_attente`."""
+    return _commandes_du_projet(projet, [a.donnees for a in projet.adaptateurs])[0]
+
+
+def commandes_en_attente(projet: config.Projet) -> list[tuple[str, list[str]]]:
+    """Les commandes de CI dont l'étape attend un fichier de build qu'aucun
+    fichier du projet n'est encore, chacune avec les motifs qu'elle attend :
+    la CI les saute, l'agent ne les lance pas non plus (B-0179)."""
+    return _commandes_du_projet(projet, [a.donnees for a in projet.adaptateurs])[1]
+
+
+def _commandes_du_projet(projet: config.Projet,
+                         adaptateurs: list[dict]) -> tuple[list[str], list[tuple[str, list[str]]]]:
+    pretes, attente, fichiers = [], [], None
+    for a in adaptateurs:
+        for commande, motifs in etapes_ci(a.get("ci_setup") or ""):
+            if motifs:
+                if fichiers is None:
+                    fichiers = outils.fichiers_courants(projet.racine)
+                if not outils.filtrer(fichiers, motifs):
+                    if all(c != commande for c, _ in attente):
+                        attente.append((commande, motifs))
+                    continue
+            if commande not in pretes:
+                pretes.append(commande)
+    return pretes, [(c, m) for c, m in attente if c not in pretes]
+
+
+def attente_dite(attente: list[tuple[str, list[str]]]) -> str:
+    """La ligne qui dit les commandes de CI qui attendent leur fichier de
+    build, au lieu de les lancer pour qu'elles échouent."""
+    return trad("en attente de leur fichier de build, comme dans la CI : {commandes}",
+                commandes=" ; ".join(trad("`{commande}` (attend {motifs})", commande=c,
+                                          motifs=", ".join(f"`{m}`" for m in motifs)) for c, motifs in attente))
+
+
+def etapes_ci(texte: str) -> list[tuple[str, list[str]]]:
+    """Les commandes d'un `ci_setup`, chacune avec les motifs de la condition
+    `if: hashFiles(…) != ''` de son étape (une liste vide sans condition)."""
+    lignes = re.findall(r"(?m)^( *)- ", texte)
+    if not lignes:
+        return [(c, []) for c in _commandes_ci(texte)]
+    retrait = min(len(x) for x in lignes)
     res = []
-    for a in projet.adaptateurs:
-        res += [c for c in _commandes_ci(a.donnees.get("ci_setup") or "") if c not in res]
+    for bloc in re.split(rf"(?m)^(?= {{{retrait}}}- )", texte):
+        m = re.search(r"(?m)^\s*(?:- )?if:\s*hashFiles\(([^)]*)\)\s*!=\s*''", bloc)
+        motifs = re.findall(r"'([^']+)'", m.group(1)) if m else []
+        res += [(c, motifs) for c in _commandes_ci(bloc)]
     return res
 
 
@@ -170,7 +217,7 @@ def _executer_etapes_de(projet: config.Projet, prefixe: str, rapide: bool, rappo
             message = trad("`{commande}` a rendu {code}\n        {queue}",
                            commande=c['command'], code=p.returncode, queue=queue)
             if p.returncode == 127 or OUTIL_ABSENT.search(sortie):
-                ci = _commandes_ci(projet.adaptateur.get("ci_setup") or "")
+                ci = _commandes_du_projet(projet, [projet.adaptateur])[0]
                 message += "\n        " + (trad("l'outil manque à cet environnement ; la CI l'installe ainsi : {commandes} "
                                                "— l'installer ici ; en session cloud, le hook de démarrage du "
                                                "socle l'installe dans chaque session neuve",

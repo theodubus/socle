@@ -2174,6 +2174,14 @@ MESSAGES: dict[str, str] = {
         "!! adapter tools: `{commande}` exceeds the start-up time limit; run it again before verifying",
     "outils de l'adaptateur installés (session cloud) : `{commande}`":
         "adapter tools installed (cloud session): `{commande}`",
+    "outils de l'adaptateur {ligne}":
+        "adapter tools {ligne}",
+    "en attente de leur fichier de build, comme dans la CI : {commandes}":
+        "waiting for their build file, as in the CI: {commandes}",
+    "`{commande}` (attend {motifs})":
+        "`{commande}` (waits for {motifs})",
+    "ne pas encore lancer les outils de la CI qui attendent leur fichier de build : {ligne}":
+        "do not run yet the CI tools that wait for their build file: {ligne}",
     "!! outils de l'adaptateur : `{commande}` a rendu {code} ; la relancer avant de vérifier\n    {queue}":
         "!! adapter tools: `{commande}` returned {code}; run it again before verifying\n    {queue}",
     "pas encore de code (aucun fichier {sources}) : `{commande}` non lancée ; elle tournera dès le premier fichier":
