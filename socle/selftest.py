@@ -573,6 +573,19 @@ def _balayage_planifie(a: "Atelier", c: Path, etat: str, jours: int = 0) -> dict
     return {"PATH": f"{outils_}{os.pathsep}{a.env.get('PATH', '')}"}
 
 
+def _adopte_avec_une_reference_morte(a: "Atelier", c: Path):
+    """Le projet d'essai adopté avec une référence morte d'avant
+    l'installation, tolérée par l'installeur lui-même, posé à la base
+    (B-0180)."""
+    from socle import installer as installeur
+
+    ajouter(c, "docs/calc.md", "Voir F-0098.\n")
+    ajouter(c, ".socle/guardrails.toml", '\n[adoption]\nwarn_only = ["memoire.references"]\n')
+    installeur.consigner_tolerances(c)
+    a.commit(c, "adoption")
+    a.git(c, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+
 def balayage(c: Path, lignes: str) -> Path:
     d = c.parent / f"{c.name}-mutants"
     d.mkdir(exist_ok=True)
@@ -1487,6 +1500,18 @@ def _cas() -> list[Cas]:
         lanceur = ".socle/" + "socle"  # en deux morceaux : ce fichier n'est pas une invocation
         return etage_outil(a, c, "Bash", {"command": f"python3 {lanceur} answer D-0001 valider"})
 
+    @defaut("agent-repond-aide-glissee", "l'agent répond à la place de l'humain, `--help` glissé dans la réponse",
+            "agent", "commande humaine")
+    def _(a, c):
+        lanceur = ".socle/" + "socle"
+        return etage_outil(a, c, "Bash", {"command": f"python3 {lanceur} answer D-0001 valider --help"})
+
+    @defaut("agent-repond-option-python", "l'agent répond à la place de l'humain, une option de python à valeur "
+            "devant le lanceur", "agent", "commande humaine")
+    def _(a, c):
+        lanceur = ".socle/" + "socle"
+        return etage_outil(a, c, "Bash", {"command": f"python3 -W ignore {lanceur} answer D-0001 valider"})
+
     @defaut("agent-approuve", "l'agent approuve lui-même un changement protégé", "agent", "commande de l'humain seul")
     def _(a, c):
         lanceur = ".socle/" + "socle"
@@ -1645,6 +1670,13 @@ def _cas() -> list[Cas]:
                 f"> statut : ouvert · origine : {a.journal}\n\nPour l'essai.\n")
         return etage_git(a, c)
 
+    @defaut("constat-neuf-sous-adoption", "référence morte née après l'adoption, sous un contrôle en "
+            "`warn_only`", "git", "memoire.references")
+    def _(a, c):
+        _adopte_avec_une_reference_morte(a, c)
+        ajouter(c, "docs/calc.md", "Voir F-0097.\n")
+        return etage_git(a, c)
+
     @defaut("defaut-indexe-masque", "défaut indexé, corrigé seulement sur disque", "git", "memoire.references")
     def _(a, c):
         ajouter(c, "docs/calc.md", "Voir F-0099.\n")
@@ -1712,6 +1744,13 @@ def _temoins() -> list[tuple[str, Callable]]:
         (c / "tests/test_regression.py").write_text(TEST_REGRESSION)
         maj_memoire(c, "Correctif de `double` sur les chaînes, avec son test.")
         return etage_ci(a, c, "fix: double accepte une chaîne")
+
+    @temoin("sous l'adoption, une référence morte d'avant l'installation, déplacée d'une ligne, reste en "
+            "avertissement au commit (B-0180)")
+    def _(a, c):
+        _adopte_avec_une_reference_morte(a, c)
+        remplacer(c, "docs/calc.md", "# Calcul\n", "# Calcul\n\nUne ligne de plus.\n")
+        return etage_git(a, c)
 
     @temoin("un commit sans hooks dans un dépôt jetable, hors du projet, passe le hook de l'agent")
     def _(a, c):
@@ -2307,6 +2346,12 @@ def _temoins() -> list[tuple[str, Callable]]:
         ajouter(c, "tests/test_calc.py", "    def test_deterministe(self):\n"
                 "        self.assertEqual(double(3), double(3))  # socle: voulu — double est déterministe\n")
         return etage_git(a, c)
+
+    @temoin("l'aide de `socle answer`, `decision` et `reviewed` passe le hook de l'agent")
+    def _(a, c):
+        lanceur = ".socle/" + "socle"
+        return etage_outil(a, c, "Bash", {"command": f"python3 {lanceur} answer --help && python3 {lanceur} "
+                                                     f"decision -h && python3 {lanceur} reviewed --help"})
 
     @temoin("une commande qui CITE `socle answer` sans l'appeler passe")
     def _(a, c):

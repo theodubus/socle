@@ -329,19 +329,19 @@ def references(ctx, r):
     connus = depots_connus(ctx, textes.values())
     essais = ajoutes_par_une_branche_jetable(ctx, textes)
 
-    def signaler(faute: str, chemin: str, ligne: int):
+    def signaler(faute: str, chemin: str, ligne: int, objet: str):
         # Sur une branche jetable, hors de la CI, un fichier qu'elle ajoute
         # n'est qu'averti, quelle que soit la faute de référence ; sa pull
         # request le rejuge en entier (D-0087). Un fichier qu'un `git add`
         # livrerait n'est qu'averti sur l'arbre de travail : le commit, qui
         # juge l'index, le refuse s'il ne l'ajoute pas (ADR-0063).
         if isinstance(faute, AAjouter):
-            r.avertir("memoire.references", faute, chemin, ligne)
+            r.avertir("memoire.references", faute, chemin, ligne, objet)
         elif chemin in essais:
             r.avertir("memoire.references", trad("{faute} — branche jetable, fichier qu'elle ajoute : averti, sa "
-                                                 "pull request le jugera", faute=faute), chemin, ligne)
+                                                 "pull request le jugera", faute=faute), chemin, ligne, objet)
         else:
-            r.erreur("memoire.references", faute, chemin, ligne)
+            r.erreur("memoire.references", faute, chemin, ligne, objet)
     for chemin, texte in sorted(textes.items()):
         dossier = chemin.rsplit("/", 1)[0] if "/" in chemin else ""
         gele = memoire.couche_attendue(chemin) in COUCHES_GELEES
@@ -351,7 +351,7 @@ def references(ctx, r):
                 if not est_prive(chemin) or not prive_dispo:
                     continue  # fuite : `memoire.prive` ; indisponible : signalé à part
             if ident not in defs:
-                signaler(trad("`{ident}` ne désigne aucune entrée de la mémoire", ident=ident), chemin, ligne)
+                signaler(trad("`{ident}` ne désigne aucune entrée de la mémoire", ident=ident), chemin, ligne, ident)
         for i, ligne, code in memoire.lignes_hors_code(texte):
             if code:
                 continue
@@ -360,19 +360,21 @@ def references(ctx, r):
                     continue
                 faute = verifier_ref(ctx, type_, cible, gele)
                 if faute:
-                    signaler(faute, chemin, i)
+                    signaler(faute, chemin, i, f"{type_}:{cible}")
             vivante = memoire.sans_barre(ligne)
             for m in LIEN_RE.finditer(vivante):
                 faute = _verifier_lien(ctx, chemin, dossier, m.group(1), gele)
                 if faute:
-                    signaler(faute, chemin, i)
+                    signaler(faute, chemin, i, m.group(1))
             sans_refs = memoire.REF_RE.sub(" ", vivante)
             for m in CODE_EN_LIGNE.finditer(sans_refs):
                 faute = _verifier_chemin_cite(ctx, m.group(1), gele)
                 if faute and demande and protege_cite(ctx, m.group(1)):
                     faute = None
                 if faute:
-                    signaler(faute, chemin, i)
+                    # Le genre de faute dans l'objet : un lien mort vers la même
+                    # cible n'a pas la même clé d'adoption (B-0189).
+                    signaler(faute, chemin, i, f"chemin:{m.group(1)}")
                 depot = depot_non_declare(ctx, m.group(1), connus)
                 if depot:
                     autres.setdefault(depot, []).append((chemin, i, m.group(1)))

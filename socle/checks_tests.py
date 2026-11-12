@@ -134,9 +134,11 @@ def creux(ctx, r):
         marques = [*f.attributs, f.entete, *f.lignes_corps]
         desactive = ignore and any(ignore.search(a) for a in [*f.attributs, f.entete, *corps_nu])
         if desactive and not (raison and any(raison.search(a) for a in marques)):
-            r.erreur("tests.creux", trad("test `{nom}` désactivé sans raison écrite", nom=f.nom), f.fichier, f.ligne)
+            r.erreur("tests.creux", trad("test `{nom}` désactivé sans raison écrite", nom=f.nom), f.fichier, f.ligne,
+                     f"désactivé {f.nom}")
         if not tests_lecture.affirme(f, assertion, aides, cfg):
-            r.erreur("tests.creux", trad("test `{nom}` sans assertion : il passe sans rien mesurer", nom=f.nom), f.fichier, f.ligne)
+            r.erreur("tests.creux", trad("test `{nom}` sans assertion : il passe sans rien mesurer", nom=f.nom), f.fichier, f.ligne,
+                     f"sans assertion {f.nom}")
         for k, ligne in enumerate(f.lignes_corps):
             precedente = f.lignes_corps[k - 1] if k else ""
             if VOULU.search(ligne) or VOULU.search(precedente):
@@ -146,7 +148,7 @@ def creux(ctx, r):
                     r.erreur("tests.creux", trad("assertion tautologique dans `{nom}` : « {ligne} » — si elle "
                                                  "est voulue (déterminisme), l'écrire : commentaire `socle: "
                                                  "voulu — <raison>`", nom=f.nom, ligne=ligne.strip()),
-                             f.fichier, f.ligne + k + 1)
+                             f.fichier, f.ligne + k + 1, f"tautologie {f.nom} : {ligne.strip()}")
     # Un groupe entier se désactive hors de tout test : une classe sous
     # `@unittest.skip`, un `describe.skip`, un `@Disabled` de classe, un
     # `skip` dans un `before`.
@@ -164,7 +166,7 @@ def creux(ctx, r):
             if not (raison and raison.search(ligne)):
                 r.erreur("tests.creux", trad("groupe de tests désactivé sans raison écrite : « {ligne} »",
                                              ligne=ligne.strip()[:80]),
-                         chemin, i + 1)
+                         chemin, i + 1, f"groupe désactivé : {ligne.strip()[:80]}")
 
 
 def _nomme(texte: str, nom: str) -> bool:
@@ -324,7 +326,7 @@ def attendus(ctx, r):
                                              "et la CI attendent la réponse de l'humain",
                                              quoi=quoi, attente=attente), fichier, ligne)
         else:
-            r.erreur("tests.attendus", faute + _note_agent(ctx, nom), fichier, ligne)
+            r.erreur("tests.attendus", trad("{faute}{note}", faute=faute, note=_note_agent(ctx, nom)), fichier, ligne)
 
     hors: dict[str, list[tuple[str, str]]] = {}
 

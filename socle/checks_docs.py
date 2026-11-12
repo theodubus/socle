@@ -98,7 +98,7 @@ def valeurs(ctx, r):
             continue
         v, err = valeur_source(ctx, decl)
         if err:
-            r.erreur("docs.valeurs", f"`{nom}` : {err}", ctx.projet.chemins.garde_fous)
+            r.erreur("docs.valeurs", trad("`{nom}` : {err}", nom=nom, err=err), ctx.projet.chemins.garde_fous)
         sources[nom] = v
 
     cites = defaultdict(int)
@@ -244,4 +244,12 @@ def copie(ctx, r):
             premier = lieux[0]
             autres = ", ".join(f"{c}:{l}" for c, l in lieux[1:])
             r.erreur("docs.copie", trad("paragraphe identique aussi présent en {autres} : garder une source, "
-                                        "renvoyer vers elle", autres=autres), premier[0], premier[1])
+                                        "renvoyer vers elle", autres=autres), premier[0], premier[1],
+                     "copie en " + ", ".join(sorted(fichiers - {premier[0]})) + " : " + debut_de(p))
+
+
+def debut_de(paragraphe: str, mots: int = 8, borne: int = 80) -> str:
+    """Les premiers mots d'un paragraphe, blancs réduits et coupés à `borne`
+    caractères : ce qui distingue, dans la clé d'un constat, deux paragraphes
+    recopiés entre les deux mêmes fichiers (ADR-0070)."""
+    return " ".join(paragraphe.split()[:mots])[:borne]

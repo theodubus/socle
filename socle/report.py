@@ -29,6 +29,10 @@ class Constat:
     chemin: str | None = None
     ligne: int | None = None
     gravite: str = ERREUR
+    # La valeur que le constat cite (un identifiant, la cible d'un lien, le
+    # nom d'un test) : la clé sous laquelle l'adoption le tolère, sans
+    # dépendre de la langue ni de la tournure du message (B-0180).
+    objet: str | None = None
 
     def lieu(self) -> str:
         if self.chemin and self.ligne:
@@ -45,11 +49,11 @@ class Rapport:
     constats: list[Constat] = field(default_factory=list)
     executes: list[str] = field(default_factory=list)
 
-    def erreur(self, controle, message, chemin=None, ligne=None):
-        self.constats.append(Constat(controle, message, chemin, ligne, ERREUR))
+    def erreur(self, controle, message, chemin=None, ligne=None, objet=None):
+        self.constats.append(Constat(controle, message, chemin, ligne, ERREUR, objet))
 
-    def avertir(self, controle, message, chemin=None, ligne=None):
-        self.constats.append(Constat(controle, message, chemin, ligne, AVERTISSEMENT))
+    def avertir(self, controle, message, chemin=None, ligne=None, objet=None):
+        self.constats.append(Constat(controle, message, chemin, ligne, AVERTISSEMENT, objet))
 
     def indisponible(self, controle, message):
         """Un contrôle qui ne peut pas s'exécuter le DIT, au lieu d'être sauté

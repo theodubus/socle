@@ -264,6 +264,19 @@ class Projet:
         res += list(self.gf("memory", "code", defaut=[]))
         return res
 
+    def fichiers_de_tests(self, fichiers) -> list[str]:
+        """Parmi `fichiers`, ceux de tests que les adaptateurs déclarent
+        (`[tests] paths`), hors de leurs exclusions et du dossier du socle,
+        comme les juge `designes` : ils ne sont pas toujours dans leurs
+        `sources`, les tests d'intégration du Rust par exemple (B-0182)."""
+        res = set()
+        for a in self.adaptateurs:
+            tests = a.donnees.get("tests")
+            if isinstance(tests, dict):
+                res |= set(outils.filtrer(fichiers, tests.get("paths", []),
+                                          list(tests.get("exclude", [])) + [f"{DOSSIER}/**"]))
+        return sorted(res)
+
     def exclusions_docs(self) -> list[str]:
         """Ce qui n'est pas de la documentation du projet : les archives
         (gardées telles quelles) et le moteur (ses gabarits et son format)."""

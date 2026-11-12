@@ -12,7 +12,9 @@ Ce qu'il copie et ce qu'il référence décide de tout :
 
 Mode adoption (projet existant) : les budgets sont fixés au niveau actuel,
 et les contrôles qui échouent sur l'existant passent en avertissement
-(`[adoption] warn_only`), d'où on ne les retire que pour durcir.
+(`[adoption] warn_only`), d'où on ne les retire que pour durcir ; seuls les
+constats présents à l'adoption y sont tolérés (`[adoption.tolerated]`), tout
+autre échoue (B-0180).
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
+from collections import Counter
 from datetime import date
 from pathlib import Path
 from typing import NamedTuple
@@ -234,23 +237,49 @@ def langages_en_place(cible: Path, ch: config.Chemins) -> set[str]:
     return res
 
 
-def sous_dossiers_sans_adaptateur(cible: Path, couverts: set[str]) -> list[str]:
-    """Ce que l'installeur dit, en automatique, de chaque langage qu'aucun
-    adaptateur ne couvre parce que son manifeste n'est que dans un
-    sous-dossier : où, et les deux issues (B-0168)."""
+def adaptateurs_sans_langage(cible: Path, ch: config.Chemins) -> list[str]:
+    """Les adaptateurs que le projet a déjà et qui ne déclarent pas
+    `language` : le nom de leur fichier en tient lieu, et ne dit pas quel
+    langage ils couvrent."""
+    res = []
+    for c in [ch.adaptateur, *config.fichiers_adaptateurs(cible, ch.adaptateurs)]:
+        p = cible / c
+        try:
+            if p.is_file() and not config.lire_toml(p.read_text(encoding="utf-8")).get("language"):
+                res.append(c)
+        except (tomllib.TOMLDecodeError, OSError):
+            continue
+    return res
+
+
+def sous_dossiers_sans_adaptateur(cible: Path, couverts: set[str], sans_langage: list[str] | tuple = ()) -> list[str]:
+    """Ce que l'installeur dit, en automatique comme avec `--adapter`
+    (B-0178), de chaque langage qu'aucun adaptateur ne couvre parce que son
+    manifeste n'est que dans un sous-dossier : où, et les deux issues
+    (B-0168). Un manifeste sous un chemin tiers déclaré ne compte pas (les
+    fichiers tiers sont hors du projet). Si des adaptateurs posés ne
+    déclarent pas leur langage (`sans_langage`), l'installeur les nomme au
+    lieu d'affirmer qu'aucun ne couvre ce langage."""
     res = []
     for langage, chemins in langages_en_sous_dossier(cible).items():
         if langage in couverts:
             continue
         dossiers = sorted({c.rsplit("/", 1)[0] for c in chemins})
+        issues = trad("Deux issues : lui donner un adaptateur propre au projet, dont les commandes entrent dans "
+                      "{dossiers}, en relançant l'installeur avec `--adapter <principal> --adapter <fichier.toml>` ; "
+                      "ou déclarer le sous-dossier tiers, qu'aucun contrôle ne juge alors, par `[thirdparty] paths "
+                      "= [{motifs}]` des garde-fous, une décision de l'humain",
+                      dossiers=", ".join(f"{d}/" for d in dossiers), motifs=", ".join(f'"{d}/**"' for d in dossiers))
+        if sans_langage:
+            res.append(trad("!! {langage} : son manifeste n'est que dans un sous-dossier ({manifestes}), et {liste} "
+                            "ne déclare pas `language` : si cet adaptateur couvre {langage}, ajouter "
+                            "`language = \"{langage}\"` à ce fichier et relancer l'installeur. Sinon : {issues}",
+                            langage=langage, manifestes=", ".join(chemins), liste=", ".join(sans_langage),
+                            issues=issues))
+            continue
         res.append(trad("!! {langage} : son manifeste n'est que dans un sous-dossier ({manifestes}) ; aucun adaptateur "
-                        "ne lui est posé, ses commandes se lanceraient à la racine. Deux issues : lui donner un "
-                        "adaptateur propre au projet, dont les commandes entrent dans {dossiers}, en relançant "
-                        "l'installeur avec `--adapter <principal> --adapter <fichier.toml>` ; ou déclarer le "
-                        "sous-dossier tiers, qu'aucun contrôle ne juge alors, par `[thirdparty] paths = [{motifs}]` "
-                        "des garde-fous, une décision de l'humain",
-                        langage=langage, manifestes=", ".join(chemins), dossiers=", ".join(f"{d}/" for d in dossiers),
-                        motifs=", ".join(f'"{d}/**"' for d in dossiers)))
+                        "ne lui est posé, ses commandes se lanceraient à la racine. {issues}",
+                        langage=langage, manifestes=", ".join(chemins), issues=issues))
     return res
 
 
@@ -970,7 +999,7 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
         noms += [x for x in trouves if x not in noms]
     from socle.checks_tests import ecarts_au_contrat
 
-    charges, de_fichier = [], set()
+    charges, de_fichier, sans_cle = [], set(), {}
     for n in noms:
         texte, nom = charger_adaptateur(n)
         try:
@@ -986,6 +1015,8 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
                        chemin=n, ecarts="\n  - ".join(ecarts)), file=sys.stderr)
             return 2
         charges.append((nom, texte, str(donnees.get("language") or nom), n in nommes))
+        if not donnees.get("language"):
+            sans_cle[nom] = n
         if est_un_fichier(n):
             de_fichier.add(nom)
     # Le principal : celui que le projet a déjà, sinon le premier nommé. Un
@@ -1030,11 +1061,12 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
                             "par `git switch` et relancer l'installeur sur une branche neuve ; sur un projet "
                             "équipé, proposer le changement à l'humain par une demande, l'adaptateur étant protégé",
                             nom=nom, adaptateur=ch.adaptateur, langage=langage_principal))
-    if detectes:
-        # Les langages couverts : ceux de cet appel, et ceux des copies déjà
-        # posées (revue de B-0168).
-        journal += sous_dossiers_sans_adaptateur(cible, langages | {c[2] for c in charges}
-                                                 | langages_en_place(cible, ch))
+    # Les langages couverts : ceux de cet appel, et ceux des copies déjà
+    # posées (revue de B-0168), détectés ou nommés par `--adapter` (B-0178).
+    poses_sans_cle = [sans_cle[n] for n in [nom_adaptateur, *(n for n, _ in autres)] if n in sans_cle]
+    journal += sous_dossiers_sans_adaptateur(cible, langages | {c[2] for c in charges}
+                                             | langages_en_place(cible, ch),
+                                             sorted(set(poses_sans_cle) | set(adaptateurs_sans_langage(cible, ch))))
     if ancien:
         journal.append(trad("mise à jour : moteur {avant} → {version}", avant=ancien.get("version", "amont"),
                             version=VERSION))
@@ -1100,6 +1132,8 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
     # 7. Adoption : budgets au niveau actuel, contrôles en échec en avertissement.
     if adoption:
         journal += _adopter(cible)
+    if adoption or ancien:
+        journal += consigner_tolerances(cible, mise_a_jour=not adoption)
     journal += _alerte_budget(cible, section_avant)
 
     print(trad("socle {version} installé dans {cible}", version=VERSION, cible=cible))
@@ -1439,6 +1473,82 @@ def _adopter(cible: Path) -> list[str]:
         res.append(trad("adoption : {n} contrôle(s) en avertissement : {liste}",
                         n=len(en_echec), liste=', '.join(en_echec)))
     return res
+
+
+_TABLE_TOLERES = re.compile(r"(?ms)^\[adoption\.tolerated\][^\n]*\n.*?(?=^\[|\Z)")
+
+
+def consigner_tolerances(cible: Path, mise_a_jour: bool = False) -> list[str]:
+    """Chaque contrôle de `[adoption] warn_only` qui n'a pas encore sa liste
+    de constats tolérés reçoit ceux présents maintenant : à l'adoption, et à
+    la mise à jour d'un projet adopté avant B-0180, dont les constats anciens
+    ne deviennent pas des erreurs. Dit ensuite, par contrôle, combien
+    l'adoption en tolère. Une liste déjà là ne s'étend jamais : ce serait
+    assouplir."""
+    from socle import context as contexte
+
+    projet = config.Projet.charger(cible)
+    manquants = [c for c, liste in contexte.tolerances(projet).items() if liste is None]
+    res = []
+    if manquants:
+        gf = cible / config.FORMAT_ACTUEL.garde_fous
+        texte = gf.read_text(encoding="utf-8")
+        existantes = projet.gf("adoption", "tolerated", defaut={}) or {}
+        if existantes and not _TABLE_TOLERES.search(texte):
+            # Écrite à la main sous une autre forme : on n'y touche pas.
+            return res + contexte.bilan_adoption(projet)
+        presents = contexte.constats_presents(projet, manquants)
+        if mise_a_jour:
+            # Un projet adopté avant B-0180 : ne sont d'avant l'installation
+            # que les constats de la base, la branche par défaut ; un constat
+            # né sur la branche de travail n'est pas toléré.
+            base = outils.base_de_travail(cible)
+            if base is None:
+                res.append(trad("mise à jour : aucune base lisible (la branche par défaut distante) : les constats "
+                                "présents dans l'arbre de travail sont consignés comme tolérés, y compris ceux "
+                                "qu'une branche aurait ajoutés"))
+            else:
+                de_la_base = contexte.constats_presents(projet, manquants, tete=base)
+                # Un fichier renommé sur la branche garde ses constats de la
+                # base, sous son nouveau nom (B-0189).
+                tiers = projet.chemins_tiers()
+                renommes = {a: b for a, b in outils.renommes(cible, base).items()
+                            if not outils.correspond(b, tiers)}
+                deplacees: dict[str, Counter] = {}
+                for c in manquants:
+                    suivies = [contexte.cle_renommee(k, renommes) for k in de_la_base[c]]
+                    deplacees[c] = Counter(n for k, n in zip(de_la_base[c], suivies) if n != k)
+                    de_la_base[c] = suivies
+                for c in manquants:
+                    gardes = list((Counter(presents[c]) & Counter(de_la_base[c])).elements())
+                    consignees = list((deplacees[c] & Counter(gardes)).elements())
+                    if consignees:
+                        res.append(trad("mise à jour : {controle} — {n} constat(s) d'un fichier renommé sur la "
+                                        "branche, consigné(s) sous son nouveau nom : {cles}",
+                                        controle=c, n=len(consignees), cles="; ".join(consignees)))
+                    nes = list((Counter(presents[c]) - Counter(de_la_base[c])).elements())
+                    if nes:
+                        res.append(trad("mise à jour : {controle} — {n} constat(s) né(s) sur la branche, absent(s) "
+                                        "de la branche par défaut, non toléré(s) : à corriger ({cles})",
+                                        controle=c, n=len(nes), cles="; ".join(nes)))
+                    presents[c] = gardes
+        toutes = {**existantes, **presents}
+        lignes = ["[adoption.tolerated]",
+                  trad("# Les constats présents à l'adoption, que `warn_only` tolère : toute autre erreur de ces\n"
+                       "# contrôles échoue. En retirer durcit (libre) ; en ajouter assouplit (demande validée).")]
+        for c, cles in toutes.items():
+            lignes.append(f"{json.dumps(c, ensure_ascii=False)} = [")
+            lignes += [f"    {json.dumps(k, ensure_ascii=False)}," for k in cles]
+            lignes.append("]")
+        texte = _TABLE_TOLERES.sub("", texte).rstrip("\n") + "\n\n" + "\n".join(lignes) + "\n"
+        gf.write_text(texte, encoding="utf-8")
+        for c in manquants:
+            if mise_a_jour:
+                res.append(trad("mise à jour : {controle} était désarmé en entier par l'adoption ; ses {n} "
+                                "constat(s) présent(s) sont consignés comme tolérés (`[adoption.tolerated]`), et "
+                                "tout constat nouveau échouera désormais (B-0180)", controle=c, n=len(presents[c])))
+        projet = config.Projet.charger(cible)
+    return res + contexte.bilan_adoption(projet)
 
 
 def _audit(cible: Path) -> tuple[int, list[str]]:

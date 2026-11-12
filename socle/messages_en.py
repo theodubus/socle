@@ -532,16 +532,23 @@ MESSAGES: dict[str, str] = {
     "dixième, arrondie au millier supérieur (il ne pourra que baisser)":
         "budget of {motif} set at the current level with its margin: {nouveau} bytes for {octets}, the size plus a "
         "tenth, rounded up to the next thousand (it can only go down)",
+    "Deux issues : lui donner un adaptateur propre au projet, dont les commandes entrent dans {dossiers}, en "
+    "relançant l'installeur avec `--adapter <principal> --adapter <fichier.toml>` ; ou déclarer le sous-dossier "
+    "tiers, qu'aucun contrôle ne juge alors, par `[thirdparty] paths = [{motifs}]` des garde-fous, une décision de "
+    "l'humain":
+        "Two ways out: give it an adapter of the project's own, whose commands enter {dossiers}, by running the "
+        "installer again with `--adapter <main> --adapter <file.toml>`; or declare the subdirectory third-party, then "
+        "judged by no check, through `[thirdparty] paths = [{motifs}]` of the guardrails, a decision for the human",
+    "!! {langage} : son manifeste n'est que dans un sous-dossier ({manifestes}), et {liste} ne déclare pas "
+    "`language` : si cet adaptateur couvre {langage}, ajouter `language = \"{langage}\"` à ce fichier et relancer "
+    "l'installeur. Sinon : {issues}":
+        "!! {langage}: its manifest is only in a subdirectory ({manifestes}), and {liste} does not declare "
+        "`language`: if that adapter covers {langage}, add `language = \"{langage}\"` to that file and run the "
+        "installer again. Otherwise: {issues}",
     "!! {langage} : son manifeste n'est que dans un sous-dossier ({manifestes}) ; aucun adaptateur ne lui est posé, "
-    "ses commandes se lanceraient à la racine. Deux issues : lui donner un adaptateur propre au projet, dont les "
-    "commandes entrent dans {dossiers}, en relançant l'installeur avec `--adapter <principal> --adapter "
-    "<fichier.toml>` ; ou déclarer le sous-dossier tiers, qu'aucun contrôle ne juge alors, par `[thirdparty] paths "
-    "= [{motifs}]` des garde-fous, une décision de l'humain":
+    "ses commandes se lanceraient à la racine. {issues}":
         "!! {langage}: its manifest is only in a subdirectory ({manifestes}); no adapter is set for it, its commands "
-        "would run at the root. Two ways out: give it an adapter of the project's own, whose commands enter "
-        "{dossiers}, by running the installer again with `--adapter <main> --adapter <file.toml>`; or declare the "
-        "subdirectory third-party, then judged by no check, through `[thirdparty] paths = [{motifs}]` of the "
-        "guardrails, a decision for the human",
+        "would run at the root. {issues}",
     "!! {nom} non posé : {adaptateur} existe déjà pour {langage}, et se garde. Pour le remplacer : sur un essai, le "
     "commiter sur sa branche, revenir à la branche de départ par `git switch` et relancer l'installeur sur une "
     "branche neuve ; sur un projet équipé, proposer le changement à l'humain par une demande, l'adaptateur étant "
@@ -582,6 +589,69 @@ MESSAGES: dict[str, str] = {
         "loosens (approved request).\n",
     "adoption : {n} contrôle(s) en avertissement : {liste}":
         "adoption: {n} check(s) as warnings: {liste}",
+    "adoption : !! {controle} désarmé en entier : aucune liste de constats tolérés "
+    "(`[adoption.tolerated]`), toutes ses erreurs, même nouvelles, passent en "
+    "avertissement. Remède : relancer l'installeur (`python3 .socle/socle install "
+    "--target .`), qui consigne les constats présents comme tolérés":
+        "adoption: !! {controle} entirely disarmed: no list of tolerated findings (`[adoption.tolerated]`), all its "
+        "errors, even new ones, become warnings. Remedy: run the installer again (`python3 .socle/socle install "
+        "--target .`), which records the present findings as tolerated",
+    "adoption : {controle} — plus aucun constat toléré : il peut sortir de "
+    "`[adoption] warn_only` (durcir est libre)":
+        "adoption: {controle} — no tolerated finding left: it can leave `[adoption] warn_only` (tightening is free)",
+    "adoption : {controle} — {n} constat(s) d'avant l'installation encore toléré(s) ; "
+    "tout constat nouveau échoue. À zéro, il pourra sortir de `[adoption] warn_only`":
+        "adoption: {controle} — {n} finding(s) from before the installation still tolerated; any new finding "
+        "fails. At zero, it can leave `[adoption] warn_only`",
+    "contrôle désarmé en entier par l'adoption : aucune liste de constats "
+    "tolérés ; relancer l'installeur pour la consigner":
+        "check entirely disarmed by adoption: no list of tolerated findings; run the installer again to record it",
+    "constat toléré par l'adoption résorbé, à retirer de "
+    "`[adoption.tolerated]` : {cle}":
+        "finding tolerated by adoption resolved, to remove from `[adoption.tolerated]`: {cle}",
+    "{message} — constat toléré par l'adoption, mais son fichier est renommé : renommer "
+    "sa clé dans `[adoption.tolerated]` de « {ancienne} » à « {nouvelle} », ce que le "
+    "cliquet laisse faire dans la même pull request":
+        "{message} — finding tolerated by adoption, but its file is renamed: rename its key in "
+        "`[adoption.tolerated]` from \"{ancienne}\" to \"{nouvelle}\", which the ratchet allows in the same "
+        "pull request",
+    "`{nom}` : {err}":
+        "`{nom}`: {err}",
+    "{faute}{note}":
+        "{faute}{note}",
+    "mise à jour : {controle} — {n} constat(s) d'un fichier renommé sur la branche, consigné(s) sous "
+    "son nouveau nom : {cles}":
+        "update: {controle} — {n} finding(s) of a file renamed on the branch, recorded under its new name: {cles}",
+    "# Les constats présents à l'adoption, que `warn_only` tolère : toute autre erreur de ces\n"
+    "# contrôles échoue. En retirer durcit (libre) ; en ajouter assouplit (demande validée).":
+        "# The findings present at adoption, which `warn_only` tolerates: any other error of these\n"
+        "# checks fails. Removing one tightens (free); adding one loosens (approved request).",
+    "mise à jour : {controle} était désarmé en entier par l'adoption ; ses {n} "
+    "constat(s) présent(s) sont consignés comme tolérés (`[adoption.tolerated]`), et "
+    "tout constat nouveau échouera désormais (B-0180)":
+        "update: {controle} was entirely disarmed by adoption; its {n} present finding(s) are recorded as tolerated "
+        "(`[adoption.tolerated]`), and any new finding will now fail (B-0180)",
+    "adoption : illisible ({erreur})":
+        "adoption: unreadable ({erreur})",
+    "liste des constats tolérés retirée : le contrôle entier est désarmé":
+        "list of tolerated findings removed: the whole check is disarmed",
+    "constat toléré ajouté ({n} fois)":
+        "tolerated finding added ({n} time(s))",
+    "mise à jour : aucune base lisible (la branche par défaut distante) : les constats "
+    "présents dans l'arbre de travail sont consignés comme tolérés, y compris ceux "
+    "qu'une branche aurait ajoutés":
+        "update: no readable base (the remote default branch): the findings present in the working tree are "
+        "recorded as tolerated, including those a branch may have added",
+    "mise à jour : {controle} — {n} constat(s) né(s) sur la branche, absent(s) "
+    "de la branche par défaut, non toléré(s) : à corriger ({cles})":
+        "update: {controle} — {n} finding(s) born on the branch, absent from the default branch, not tolerated: "
+        "to fix ({cles})",
+    "référence morte née après l'adoption, sous un contrôle en `warn_only`":
+        "dead reference born after adoption, under a check in `warn_only`",
+    "sous l'adoption, une référence morte d'avant l'installation, déplacée d'une ligne, reste en avertissement au "
+    "commit (B-0180)":
+        "under adoption, a dead reference from before the installation, moved down a line, stays a warning at "
+        "commit (B-0180)",
     "approuver les fichiers protégés que la mise à jour a changés (la liste s'affiche, à confirmer) : `python3 "
     ".socle/socle approve --text \"Mise à jour du socle {version}\"`":
         "approve the protected files the update changed (the list is shown, to confirm): `python3 .socle/socle "
@@ -2492,6 +2562,10 @@ MESSAGES: dict[str, str] = {
         "the agent writes a human answer",
     "l'agent répond à la place de l'humain":
         "the agent answers in place of the human",
+    "l'agent répond à la place de l'humain, `--help` glissé dans la réponse":
+        "the agent answers in place of the human, `--help` slipped into the answer",
+    "l'agent répond à la place de l'humain, une option de python à valeur devant le lanceur":
+        "the agent answers in place of the human, a python option with a value before the launcher",
     "l'agent approuve lui-même un changement protégé":
         "the agent approves a protected change itself",
     "l'agent commite en sautant les hooks du projet":
@@ -2666,6 +2740,8 @@ MESSAGES: dict[str, str] = {
         "a defect on disk but not in the index does not block the commit of what is indexed",
     "une tautologie voulue, raison écrite, passe le commit":
         "an intended tautology, reason written, passes the commit",
+    "l'aide de `socle answer`, `decision` et `reviewed` passe le hook de l'agent":
+        "the help of `socle answer`, `decision` and `reviewed` passes the agent's hook",
     "une commande qui CITE `socle answer` sans l'appeler passe":
         "a command that CITES `socle answer` without calling it passes",
     "l'agent verrouille la mémoire privée : seule sa mise en place est réservée à l'humain":

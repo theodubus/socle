@@ -48,9 +48,11 @@ installer sets one per language it recognises, or those it is given
 (`--adapter python-pytest --adapter kotlin`, the first being the main
 one), and each file is judged by the one of its language (the
 [adapters specification](adapters/README.md)). A language whose manifest
-is only in a subdirectory gets no adapter automatically: the installer
-says so, with its two ways out, an adapter of the project's own whose
-commands enter the subdirectory, or the subdirectory declared third-party.
+is only in a subdirectory gets no adapter automatically. Automatically
+as with `--adapter`, while no adapter covers it and its manifest is not
+under a declared third-party path, the installer says so, with its two ways out: an adapter of the project's
+own whose commands enter the subdirectory, or the subdirectory declared
+third-party.
 
 Right after the installation:
 
@@ -338,6 +340,27 @@ budgets, mutation caps, correspondences between code and documentation,
 third-party files (those of a tool installed in the project), the
 project's case files and specifications. Tightening them is free;
 loosening them requires an approved request.
+
+**An adopted project** (installed with `--adoption`). The checks that
+failed on the existing code are named in `[adoption] warn_only`, and the
+findings present at installation in `[adoption.tolerated]`, per check,
+under a key that depends neither on the line number nor on the language:
+the file and what the finding cites (`"README.md — missing.md"` for a dead
+link). Those stay warnings; any new finding of these checks fails.
+Renaming a file that carries some is settled in the pull request that
+renames it: the check fails and says to rename the key in the list, from
+the old one to the new one, which the ratchet allows in the same pull
+request. Only a rename that git recognizes is followed: commit the rename
+alone, before editing the file; failing that, fix the finding, or tolerate
+it through an approved request. A finding the CI no longer sees is reported: removing
+it from the list is free, adding one requires an approved request that
+cites it. The
+state says, per check, how many findings adoption still tolerates; at zero,
+the check can leave `warn_only`. A project adopted before this rule gets its
+list when the engine is updated, made of the default branch's findings
+(those born on the branch are not tolerated, the installer names them);
+while it is missing, the state says the
+check is entirely disarmed.
 
 **A subfolder worked on by other agents.** When other agent sessions,
 which have neither the socle's hooks nor its rules, work on a subfolder on

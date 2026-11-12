@@ -138,7 +138,7 @@ PYTHONPATH=/tmp/socle python3 -m socle install --target . --owner @<propriétair
 
 | Option | Effet |
 | --- | --- |
-| `--adoption` | équipe un projet existant : les contrôles qui échouent passent en avertissement, puis ne peuvent que durcir |
+| `--adoption` | équipe un projet existant : les constats présents des contrôles qui échouent sont consignés et passent en avertissement, tout constat nouveau échoue, et la liste ne peut que se réduire |
 | `--mutation-caps <fichier>` | reprend des plafonds de mutation déjà mesurés (une table `[mutation.caps]` en TOML) au lieu de poser ces modules « à mesurer » |
 | `--private compagnon` | ajoute une mémoire privée, dans un dépôt privé à part |
 | `--review lots` | exige la relecture de l'humain avant toute publication |
@@ -153,9 +153,11 @@ dépôt privé), 1 quand un autre contrôle échoue, et 2 quand il refuse
 d'installer (un langage qu'il ne reconnaît pas, par exemple). Son audit
 lance les contrôles, pas la compilation ni les tests de l'adaptateur :
 `python3 .socle/socle verify --fast` les lance, avant le premier commit.
-En automatique, un langage dont le manifeste n'est que dans un
-sous-dossier ne reçoit pas d'adaptateur, ses commandes se lançant à la
-racine : l'installeur le dit, avec ses deux issues.
+Un langage dont le manifeste n'est que dans un sous-dossier ne reçoit
+pas d'adaptateur en automatique, ses commandes se lançant à la racine ;
+en automatique comme avec `--adapter`, tant qu'aucun adaptateur ne le
+couvre et que son manifeste n'est pas sous un chemin tiers déclaré,
+l'installeur le dit, avec ses deux issues.
 Une mise à jour relance les mêmes commandes depuis un clone à jour : les
 fichiers du projet ne sont jamais écrasés, hors une copie d'un adaptateur
 maintenu que le projet n'a pas adaptée. La suite, étape par étape : [le

@@ -38,12 +38,28 @@ def remplir(texte: str, valeurs: dict) -> str:
     return _VARIABLE.sub(lambda m: str(valeurs[m.group(1)]) if m.group(1) in valeurs else m.group(0), texte)
 
 
+class Message(str):
+    """Un message traduit qui garde sa source française, remplie : la clé
+    d'un constat que l'adoption tolère n'en dépend pas de la langue
+    (B-0180)."""
+
+    source: str
+
+
+def source(message: str) -> str:
+    """Le texte français d'un message, quelle que soit la langue où il est
+    sorti."""
+    return getattr(message, "source", message)
+
+
 def trad(texte: str, /, **valeurs) -> str:
     """Le message dans la langue courante, ses variables remplies."""
     langue_ = _courante.get()
-    if langue_ != FRANCAIS:
-        texte = _catalogue(langue_).get(texte, texte)
-    return remplir(texte, valeurs)
+    if langue_ == FRANCAIS:
+        return remplir(texte, valeurs)
+    m = Message(remplir(_catalogue(langue_).get(texte, texte), valeurs))
+    m.source = remplir(texte, {k: source(v) for k, v in valeurs.items()})
+    return m
 
 
 def a_traduire(texte: str) -> str:

@@ -192,6 +192,12 @@ def calculer(projet: config.Projet, contenus: bool = True) -> str:
         lignes.append(trad("ce que l'humain a écrit lui-même : incalculable ({erreur})",
                            erreur=f"{type(e).__name__}: {e}"))
     lignes += _hooks(racine)
+    try:
+        from socle import context as contexte
+
+        lignes += contexte.bilan_adoption(projet)
+    except Exception as e:
+        lignes.append(trad("adoption : illisible ({erreur})", erreur=f"{type(e).__name__}: {e}"))
     from socle import private as prive
 
     lignes.append(prive.ligne_etat(projet))

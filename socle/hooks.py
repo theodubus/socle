@@ -661,6 +661,38 @@ def contournement(racine: Path, c: commandes.Commande, depart: str | None = None
     return f"git {sous} --no-verify"
 
 
+# Les options de python qui prennent une valeur, collée ou séparée (B-0187).
+OPTIONS_PYTHON_A_VALEUR = "WXQ"
+OPTIONS_LONGUES_PYTHON_A_VALEUR = ("--check-hash-based-pycs",)
+
+
+def options_de_python(args: list[str]) -> list[str] | None:
+    """Les arguments de python après ses options, valeurs comprises
+    (`-W ignore`, `-Xutf8`, `-bW error`) : le script en tête. `-m socle`
+    rend `["-m socle", …]` ; `-c`, ou `-m` d'un autre module, `None` : ce
+    n'est pas le lanceur du socle (B-0187)."""
+    reste = list(args)
+    while reste and reste[0].startswith("-") and reste[0] != "-":
+        opt, reste = reste[0], reste[1:]
+        if opt == "--":
+            break
+        if opt.startswith("--"):
+            if opt in OPTIONS_LONGUES_PYTHON_A_VALEUR:
+                reste = reste[1:]
+            continue
+        for i, lettre in enumerate(opt[1:], 1):
+            colle = opt[i + 1:]
+            if lettre in "cm":
+                valeur = colle or (reste[0] if reste else "")
+                reste = reste if colle else reste[1:]
+                return ["-m socle", *reste] if lettre == "m" and valeur == "socle" else None
+            if lettre in OPTIONS_PYTHON_A_VALEUR:
+                if not colle:
+                    reste = reste[1:]
+                break
+    return reste
+
+
 def arguments_socle(c: commandes.Commande) -> list[str] | None:
     """Les arguments d'une invocation du socle, sous-commande en tête et
     options globales (`--root`) retirées, quel que soit le chemin du lanceur
@@ -674,12 +706,15 @@ def arguments_socle(c: commandes.Commande) -> list[str] | None:
         return posixpath.normpath(c.chemin(chemin)).endswith(".socle/socle") or chemin.endswith(".socle/socle")
 
     if re.fullmatch(r"python[\d.]*", c.programme):
-        reste = argv[1:]
-        while reste and reste[0].startswith("-"):
-            reste = reste[1:]
-        if not reste or not lanceur(reste[0]):
+        reste = options_de_python(argv[1:])
+        if reste is None:
             return None
-        reste = reste[1:]
+        if reste[:1] == ["-m socle"]:
+            reste = reste[1:]
+        elif not reste or not lanceur(reste[0]):
+            return None
+        else:
+            reste = reste[1:]
     elif c.programme == "socle" or lanceur(argv[0]):
         reste = argv[1:]
     else:
@@ -845,6 +880,10 @@ def refus_bash(projet: config.Projet, cmd: str, cwd: str | None = None) -> str |
         # pas ailleurs dans le texte.
         relais = "--relayed" in h[1] and any(x.split("=", 1)[0] in ("--quote", "--quote-file") for x in h[1]) \
             if h else True
+        # L'aide seule (`socle answer --help`) ne répond à rien (B-0184) ;
+        # glissée parmi d'autres arguments, elle ne fait rien passer.
+        if h and h[0] in ("answer", "decision", "reviewed") and h[1][1:] in (["--help"], ["-h"]):
+            relais = True
         if not relais:
             return trad("l'agent ne répond jamais à la place de l'humain. Il ne peut que relayer une "
                         "réponse donnée dans la conversation : `socle answer D-NNNN <réponse> --relayed "
@@ -1114,8 +1153,9 @@ def stop(projet: config.Projet, entree: dict) -> int:
 
     # Les capacités rapides de l'adaptateur, seulement si du code a changé, et
     # pas sur un arbre où elles ont déjà passé (la vérification que l'agent
-    # vient de lancer) : inutile de payer une compilation de plus.
-    if outils.filtrer(ctx.changes, projet.chemins_code()):
+    # vient de lancer) : inutile de payer une compilation de plus. Un fichier
+    # de tests que l'adaptateur déclare compte comme du code (B-0182).
+    if outils.filtrer(ctx.changes, projet.chemins_code()) or projet.fichiers_de_tests(ctx.changes):
         verification.etapes_rapides(projet, rapport)
 
     if rapport.reussi:
