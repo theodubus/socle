@@ -532,6 +532,17 @@ def sha256(donnees: bytes | str) -> str:
     return hashlib.sha256(donnees).hexdigest()
 
 
+def raccourcir(texte: str, octets: int) -> str:
+    """Le texte en `octets` octets UTF-8 au plus : coupé entre deux
+    caractères, sa fin remplacée par « … » quand il dépasse."""
+    brut = texte.encode("utf-8")
+    if len(brut) <= octets:
+        return texte
+    if octets < 3:  # « … » seul ne tiendrait pas
+        return brut[:max(0, octets)].decode("utf-8", errors="ignore")
+    return brut[:octets - 3].decode("utf-8", errors="ignore").rstrip() + "…"
+
+
 def ecrire(chemin: Path, texte: str, executable: bool = False):
     """Écrit un fichier en UTF-8, ses dossiers créés au besoin."""
     chemin.parent.mkdir(parents=True, exist_ok=True)

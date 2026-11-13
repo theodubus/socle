@@ -113,6 +113,37 @@ MESSAGES: dict[str, str] = {
     "peut les couper tous).":
         "`{reglage}`: Claude Code's settings drive its hooks, only the human changes them (a local setting can turn "
         "them all off).",
+    "{chemin}, par `{mot}`":
+        "{chemin}, through `{mot}`",
+    "`{mot}`, dont {parts}":
+        "`{mot}`, including {parts}",
+    "`{mot}`, dans le dossier `{dossier}`":
+        "`{mot}`, in the directory `{dossier}`",
+    "écriture par le shell vers un chemin que le hook ne sait pas développer : {quoi}. Une variable que ni "
+    "l'environnement du hook ni la commande ne donnent, une substitution de commande (`$(…)`, accents graves) ou un "
+    "`cd` vers un tel chemin peuvent viser un fichier protégé ; un tel chemin ne passe que si la part écrite en "
+    "toutes lettres qui le précède, remontée des `..` qui le suivent, le place hors du projet (`/tmp/$X`). Écrire le "
+    "chemin en toutes lettres, ou affecter la variable plus tôt dans la même commande (`F=/tmp/x; echo y > "
+    "\"$F\"`) (B-0171).":
+        "write by the shell to a path the hook cannot expand: {quoi}. A variable that neither the hook's environment "
+        "nor the command gives, a command substitution (`$(…)`, backticks) or a `cd` to such a path can target a "
+        "protected file; such a path passes only if the part written out in full before it, moved up by the `..` "
+        "that follow it, puts it outside the project (`/tmp/$X`). Write the path out in full, or assign the variable "
+        "earlier in the same command (`F=/tmp/x; echo y > \"$F\"`) (B-0171).",
+    "écriture par le shell dans une commande que le hook ne sait pas juger ({pourquoi}) : il ne peut dire si elle "
+    "écrit un fichier protégé. La découper en commandes plus simples, lancées une à une ; un long texte s'écrit par "
+    "l'outil d'écriture de fichiers, ou dans le corps d'un heredoc, qui ne compte pas (B-0171).":
+        "write by the shell in a command the hook cannot judge ({pourquoi}): it cannot tell whether it writes a "
+        "protected file. Split it into simpler commands, run one by one; a long text is written with the file-writing "
+        "tool, or in the body of a heredoc, which does not count (B-0171).",
+    "son jugement a pris plus de {n} secondes":
+        "judging it took more than {n} seconds",
+    "son découpage a levé {erreur}":
+        "parsing it raised {erreur}",
+    "{n} caractères hors du corps de ses heredocs, au-delà de {max}":
+        "{n} characters outside the bodies of its heredocs, beyond {max}",
+    "{n} parenthèses ou accolades ouvertes à la fois, au-delà de {max}":
+        "{n} parentheses or braces open at once, beyond {max}",
     "écriture d'un fichier protégé ({cible}) par le shell : seul l'humain modifie la politique, les hooks, la CI et "
     "le moteur (relance de l'installeur). Un fichier protégé changé par erreur, hors des réglages de Claude Code, se "
     "remet à son état du dernier commit : {formes} (D-0098).":
@@ -439,6 +470,12 @@ MESSAGES: dict[str, str] = {
         "!! template settings missing from {nom} ({n}): declare them if the project needs them, once this engine is "
         "committed (CI judges with the committed engine, and a setting it does not know counts as loosening); "
         "tightening is free, loosening waits for a validated request:\n      {liste}",
+    "!! le budget de {chemin} ({budget} octets, public et privé ensemble) dépasse la part du chantier actif dans la "
+    "sortie du démarrage ({permis} octets, en-têtes déduits) : à son budget, il y serait coupé à chaque session ; le "
+    "baisser à {permis} au plus, ce qui durcit et reste libre, et resserrer le chantier actif":
+        "!! the budget of {chemin} ({budget} bytes, public and private together) exceeds the active work's share of "
+        "the start-up output ({permis} bytes, headers deducted): at its budget, it would be cut there in every "
+        "session; lower it to {permis} at most, which tightens and stays free, and tighten the active work",
     "{nom} posé":
         "{nom} installed",
     "mémoire initiale posée, journal ouvert par {ident}":
@@ -941,6 +978,10 @@ MESSAGES: dict[str, str] = {
         "Its budget: {budget} bytes, fingerprint lines set aside.",
     "{octets} octets pour un budget de {budget} ({motif}) : archiver dans le journal":
         "{octets} bytes for a budget of {budget} ({motif}): archive into the journal",
+    "{public} + {prive} octets pour le chantier actif public et privé, qui partagent une part de la sortie du "
+    "démarrage, pour un budget de {budget} à eux deux : archiver dans le journal":
+        "{public} + {prive} bytes for the public and private active work, which share one part of the start-up "
+        "output, for a budget of {budget} between them: archive into the journal",
     "{octets} octets pour un budget de {budget} ({motif}) : resserrer la partie propre au projet, hors de la section "
     "du socle, ou relever le budget par une demande validée":
         "{octets} bytes for a budget of {budget} ({motif}): tighten the project's own part, outside the socle's "
@@ -1265,6 +1306,8 @@ MESSAGES: dict[str, str] = {
         "ready: {id} — {titre} (high priority)",
     "prêts aussi, de priorité basse : {ids}":
         "also ready, low priority: {ids}",
+    "{ids} … et {n} autre(s)":
+        "{ids} … and {n} more",
     "… et {n} autre(s) prêt(s)":
         "… and {n} more ready",
     "{n} sujet(s) attendent un sujet ouvert":
@@ -1583,8 +1626,8 @@ MESSAGES: dict[str, str] = {
         "commit   : {sha} on {branche} ({propre})",
     "base     : {defaut} — non fusionné : {n} commit(s)":
         "base     : {defaut} — not merged: {n} commit(s)",
-    "  … et {n} autre(s)":
-        "  … and {n} more",
+    "  … et {n} autre(s) : `python3 .socle/socle state --short`":
+        "  … and {n} more: `python3 .socle/socle state --short`",
     "depuis la base : {code} fichier(s) de code, {docs} de doc, {memoire} de mémoire":
         "since the base: {code} code file(s), {docs} doc, {memoire} memory",
     "  ^ du code a changé et la mémoire non : la fin de tour le refusera":
@@ -1605,8 +1648,42 @@ MESSAGES: dict[str, str] = {
         "memory   : {faits} fact(s) ({detail}) · {adrs} decision(s) · journal: {journal} entry(ies), last {dernier}",
     "aucun":
         "none",
-    "décisions, index decisions@{empreinte} (une en entier : `python3 .socle/socle show ADR-NNNN`) :":
-        "decisions, index decisions@{empreinte} (one in full: `python3 .socle/socle show ADR-NNNN`):",
+    "la fin du chantier actif, {n} ligne(s) sur {total} : lire {chemin}":
+        "the end of the active work, {n} line(s) of {total}: read {chemin}",
+    "--- {chemin} : {n} fait(s) par leur titre ; un en entier : `python3 .socle/socle show F-NNNN` ---":
+        "--- {chemin}: {n} fact(s) by their title; one in full: `python3 .socle/socle show F-NNNN` ---",
+    "--- {chemin} : {n} fait(s) sur {total} par leur titre ; un en entier : `python3 .socle/socle show F-NNNN` ---":
+        "--- {chemin}: {n} fact(s) of {total} by their title; one in full: `python3 .socle/socle show F-NNNN` ---",
+    "{n} fait(s) sur {total} : lire {chemin}":
+        "{n} fact(s) of {total}: read {chemin}",
+    "--- la dernière décision sur {total} ; avant toute décision de conception, l'index entier : `python3 "
+    ".socle/socle show --index decisions` ---":
+        "--- the last decision of {total}; before any design decision, the whole index: `python3 .socle/socle show "
+        "--index decisions` ---",
+    "--- les {n} dernières décisions sur {total}, la plus récente d'abord ; avant toute décision de conception, "
+    "l'index entier : `python3 .socle/socle show --index decisions` ---":
+        "--- the last {n} decisions of {total}, the most recent first; before any design decision, the whole "
+        "index: `python3 .socle/socle show --index decisions` ---",
+    "{n} des {total} dernières décisions : `python3 .socle/socle show --index decisions`":
+        "{n} of the last {total} decisions: `python3 .socle/socle show --index decisions`",
+    "!! coupé à la borne du démarrage ({borne} octets, `[startup] max_bytes` des garde-fous) : {manque}":
+        "!! cut at the start-up cap ({borne} bytes, `[startup] max_bytes` of the guardrails): {manque}",
+    "{groupe}, {demande} octets pour une part de {part} — {coupees}":
+        "{groupe}, {demande} bytes for a share of {part} — {coupees}",
+    "l'état dérivé":
+        "the derived state",
+    "le chantier actif":
+        "the active work",
+    "les faits":
+        "the facts",
+    "les décisions":
+        "the decisions",
+    "{n} ligne(s) sur {total} ; l'état entier : `python3 .socle/socle state --short`":
+        "{n} line(s) of {total}; the whole state: `python3 .socle/socle state --short`",
+    "au dernier démarrage de session ({date}), le hook a ajouté :":
+        "at the last session start ({date}), the hook added:",
+    "mutation : état inconnu ({erreur})":
+        "mutation : state unknown ({erreur})",
     "backlog  : {ouverts} ouvert(s), {en_cours} en cours, {bloques} bloqué(s), {clos} clos":
         "backlog  : {ouverts} open, {en_cours} in progress, {bloques} blocked, {clos} closed",
     "en cours":
@@ -1617,8 +1694,10 @@ MESSAGES: dict[str, str] = {
         "staleness: active work unchanged for {age} days (threshold {jours})",
     "demandes humaines en attente : {n}":
         "pending human requests: {n}",
-    " (du {date})":
-        " (of {date})",
+    "demandes humaines en attente : {n} — sous « ce qui revient à l'humain », avec leur lien":
+        "pending human requests: {n} — under \"what falls to the human\", with their link",
+    "  illisible : {chemin} — `python3 .socle/socle check` dit pourquoi":
+        "  unreadable: {chemin} — `python3 .socle/socle check` says why",
     "  RENVOYÉE (contexte insuffisant) : {id} — à réécrire en une demande qui la remplace":
         "  SENT BACK (insufficient context): {id} — to rewrite as a request that replaces it",
     "hooks    : aucune trace — ils n'ont encore jamais tiré dans ce clone":
@@ -1743,8 +1822,8 @@ MESSAGES: dict[str, str] = {
         "the human's guide: their steps, each with its command",
     "où en est le projet, calculé à chaque fois (injecté au démarrage de l'agent)":
         "where the project stands, computed every time (injected when the agent starts)",
-    "sans le contenu de l'actif et du canonique":
-        "without the content of the active work and the canonical memory",
+    "l'état dérivé seul, entier : sans le chantier actif, les faits ni les décisions, sans borne ni plafond":
+        "the derived state alone, whole: without the active work, the facts or the decisions, with no cap or limit",
     "contrôles du socle, un code de sortie":
         "the socle's checks, one exit code",
     "révision de base (défaut : divergence avec la branche par défaut)":
@@ -2512,6 +2591,30 @@ MESSAGES: dict[str, str] = {
         "protected file written by a shell redirection",
     "dossier qui contient des fichiers protégés déplacé par le shell":
         "folder containing protected files moved by the shell",
+    "fichier protégé écrit par le shell à travers une variable affectée, un motif, une accolade ou un `pushd`":
+        "protected file written by the shell through an assigned variable, a pattern, a brace or a `pushd`",
+    "chemin écrit par le shell à travers une variable ou une substitution que le hook ne sait pas développer, dans "
+    "le projet":
+        "path written by the shell through a variable or a substitution the hook cannot expand, in the project",
+    "fichier protégé écrit par le shell après un sous-shell, une substitution, un pipeline ou une tâche de fond, dont "
+    "le dossier et les variables ne passent pas à la suite":
+        "protected file written by the shell after a subshell, a substitution, a pipeline or a background job, whose "
+        "directory and variables do not carry over",
+    "fichier protégé écrit par le shell à travers `cd \"$OLDPWD\"`, une option de `cd`, les mots d'une variable, "
+    "`$'…'`, `+=`, `shopt`, une classe POSIX ou un script collé à `sed -e`":
+        "protected file written by the shell through `cd \"$OLDPWD\"`, an option of `cd`, the words of a variable, "
+        "`$'…'`, `+=`, `shopt`, a POSIX class or a script attached to `sed -e`",
+    "chemin écrit par le shell que le hook ne sait pas développer : un `..` après une part inconnue, un `cd` vers une "
+    "cible inconnue, `$_`, une référence (`declare -n`), des accolades au-delà du plafond":
+        "path written by the shell that the hook cannot expand: a `..` after an unknown part, a `cd` to an unknown "
+        "target, `$_`, a reference (`declare -n`), braces beyond the cap",
+    "fichier protégé écrit par le shell dans une commande trop imbriquée ou trop longue pour être jugée, ou dont le "
+    "découpage plante":
+        "protected file written by the shell in a command too nested or too long to be judged, or whose parsing "
+        "crashes",
+    "fichier protégé écrit par le shell par un chemin relatif au dossier courant de l'agent, un motif ou `$PWD`":
+        "protected file written by the shell through a path relative to the agent's current directory, a pattern or "
+        "`$PWD`",
     "fichier protégé remis à un autre état que le dernier commit, ou tout un dossier":
         "protected file put back to a state other than the last commit, or a whole folder",
     "remise admise d'un fichier protégé dont la redirection écrit un autre fichier protégé":
@@ -2638,6 +2741,20 @@ MESSAGES: dict[str, str] = {
         "a commit without hooks in a throwaway repository, outside the project, passes the agent's hook",
     "l'installeur relancé dans le mode du verrou, ou sur un dossier temporaire, passe le hook de l'agent":
         "the installer run again in the lock's mode, or on a temporary directory, passes the agent's hook",
+    "une commande trop imbriquée qui n'écrit rien, un long heredoc et 500 `cd` vers un dossier hors du projet "
+    "passent le hook de l'agent (B-0171)":
+        "a too deeply nested command that writes nothing, a long heredoc and 500 `cd` to a directory outside the "
+        "project pass the agent's hook (B-0171)",
+    "un chemin écrit par le shell à travers une variable sous un dossier hors du projet, une variable affectée vers "
+    "un fichier libre ou un motif qui ne nomme aucun fichier protégé passent le hook de l'agent (B-0171)":
+        "a path written by the shell through a variable under a directory outside the project, a variable assigned "
+        "to a free file or a pattern that names no protected file pass the agent's hook (B-0171)",
+    "après un sous-shell, un fichier libre, une valeur par défaut hors du projet, un `sed` sans `-i` qui lit un "
+    "fichier protégé et, depuis un dossier hors du projet, un motif relatif passent le hook de l'agent (B-0171, "
+    "B-0205)":
+        "after a subshell, a free file, a default value outside the project, a `sed` without `-i` that reads a "
+        "protected file and, from a directory outside the project, a relative pattern pass the agent's hook (B-0171, "
+        "B-0205)",
     "un commit d'agent qui porte la trace de ses hooks passe la CI":
         "an agent commit that carries the trace of its hooks passes the CI",
     "une valeur attendue changée sous une spécification que l'humain a commitée passe la CI":

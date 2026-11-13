@@ -858,6 +858,20 @@ def budgets(ctx, r):
             elif "max_lines" in b and lignes > b["max_lines"]:
                 r.erreur("memoire.budgets", trad("{lignes} lignes pour un budget de {budget} ({motif}) : archiver "
                                                  "dans le journal", lignes=lignes, budget=b['max_lines'], motif=motif), chemin)
+    # Le chantier actif public et privé s'injectent ensemble au démarrage,
+    # dans la même part de sa borne (ADR-0071) : le budget du chantier actif
+    # juge leur somme, qui n'y est alors jamais coupée.
+    actif, actif_prive = ch.actif, ch.dans_prive(ch.actif)
+    budget = ctx.projet.budget_octets(actif)
+    if budget is not None and actif in ctx.fichiers and actif_prive in ctx.fichiers:
+        public, prive = ctx.lire(actif) or "", ctx.lire(actif_prive) or ""
+        tailles = [len(public.encode("utf-8")), len(prive.encode("utf-8"))]
+        # Seul au-delà, chacun l'a déjà dit ; chiffré, le privé ne se mesure pas.
+        if memoire.lisible(prive) and max(tailles) <= budget < sum(tailles):
+            r.erreur("memoire.budgets", trad("{public} + {prive} octets pour le chantier actif public et privé, qui "
+                                             "partagent une part de la sortie du démarrage, pour un budget de "
+                                             "{budget} à eux deux : archiver dans le journal", public=tailles[0],
+                                             prive=tailles[1], budget=budget), actif_prive)
     # Le fichier d'instructions est AGENTS.md ; tant qu'une adoption garde
     # CLAUDE.md comme source (renommage en attente), c'est lui qui est relu.
     instructions = [config.INSTRUCTIONS]

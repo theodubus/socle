@@ -32,6 +32,9 @@ TRACE = ".socle/trace/hooks.log"  # hors dépôt git seulement
 # CI le reçoit en motif : il n'a que des caractères que les motifs de GitHub
 # prennent pour eux-mêmes, sinon il est ignoré des deux côtés.
 BRANCHES_JETABLES = ("proto/",)
+# La borne, en octets UTF-8, de la sortie du démarrage quand les garde-fous
+# n'en disent rien (`[startup] max_bytes`) : la valeur du gabarit (ADR-0071).
+BORNE_DEMARRAGE = 9500
 PREFIXE_DE_BRANCHE = re.compile(r"[A-Za-z0-9._/-]+")
 COMPTEUR_STOP = ".socle/trace/stop-echecs"
 INSTRUCTIONS = "AGENTS.md"
@@ -283,6 +286,15 @@ class Projet:
         return [self.chemins.archives + "/**", self.dossier_moteur.rstrip("/") + "/**"] + list(
             self.gf("references", "exclude", defaut=[])
         )
+
+    def borne_demarrage(self) -> int:
+        """La borne de la sortie du démarrage, `[startup] max_bytes` des
+        garde-fous, celle du gabarit à défaut ou si elle n'est pas un entier
+        positif : au-delà, l'état coupe ce qu'il injecte, et le dit."""
+        valeur = self.gf("startup", "max_bytes", defaut=None)
+        if isinstance(valeur, bool) or not isinstance(valeur, int) or valeur <= 0:
+            return BORNE_DEMARRAGE
+        return valeur
 
     def branches_jetables(self) -> list[str]:
         """Les préfixes des branches jetables, `[branches] disposable` des

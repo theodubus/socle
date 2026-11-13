@@ -96,8 +96,15 @@ session receives two states.
 ## 2. Working with the agent
 
 Tasks are given to the agent as usual. At the start of each session, it
-receives the project's state; it works, and the checks verify it at each
-step.
+receives the project's state, the active work, the titles of the facts and
+the last ten decisions; it works, and the checks verify it at each step.
+This start-up stays under `[startup] max_bytes` of the guardrails, a cap
+set below what Claude Code hands over whole to the agent, of which each
+part has its share: a part beyond its own loses whole lines (the state
+first what can be read elsewhere, never what calls for action before it;
+the others from their end), and the last line says which, by how much,
+and how to read the rest. The active work's budget, public and private
+together, fits in its share: at its allowed size, it is never cut.
 
 **Planning.** From the brief, the agent writes a short specification and a
 short architecture in the project's documentation: each choice as an ADR,
@@ -230,7 +237,23 @@ from a file, a variable or a prefix before `git`, a redirection to another
 protected file, and a file that is cited, itself or its folder, by a
 request pending or approved whose approved change is not committed yet.
 The accepted risk: erasing a change of the human in the working tree that
-they neither committed nor submitted in a request.
+they neither committed nor submitted in a request. A path the shell
+writes, the hook expands, as best it can, as the shell would (variables,
+patterns, braces, `~`, `cd`, `pushd`), from the agent's current directory,
+assuming a subshell, a substitution or a pipeline passes nothing on to
+what follows. A path it cannot expand (a variable it does not know,
+`$(…)`) is refused if the directory that the part written out in full
+before it names, moved up by the `..` that follow it, is in the project or
+contains it: write it out in full, or under a directory outside the
+project (`/tmp/…`). A command it cannot judge (more than 10,000 characters
+outside the bodies of its heredocs, more than 32 parentheses or braces
+open at once, a judgment that crashes or takes over 5 seconds) is refused
+if it can write: split it. This hook is only a first barrier against the
+agent's mistakes: it does not model all of bash, some shell forms escape
+it (an unknown part that is itself `..`, an option set by the shell's
+profile, a variable Claude Code sets only for its hooks…), and the
+guarantee is the protected-files check, at the end of the turn, at commit
+and in CI.
 
 **Doing what the agent cannot do.** Pushing to the default branch,
 publishing, setting up a service, deleting a remote branch, setting a tag

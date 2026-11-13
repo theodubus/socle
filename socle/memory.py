@@ -689,21 +689,31 @@ def ordre(mem: "Memoire") -> Ordre | None:
                  [sujets[i] for i in basses])
 
 
-def lignes_ordre(mem: "Memoire", plafond: int = 8) -> list[str]:
-    """L'ordre du backlog en lignes, pour l'état et le rappel de fin de tour."""
+def lignes_ordre(mem: "Memoire", plafond: int | None = 8, titre: int | None = None,
+                 basses: int | None = None) -> list[str]:
+    """L'ordre du backlog en lignes, pour l'état et le rappel de fin de tour :
+    `plafond` sujets prêts au plus, `basses` sujets de priorité basse, chaque
+    titre en `titre` octets au plus (sans limite : `None`)."""
     o = ordre(mem)
     if o is None:
         return []
+
+    def t(e) -> str:
+        return outils.raccourcir(e.titre, titre) if titre else e.titre
+
     res = []
     if o.jalon:
-        res.append(trad("prochain jalon : {id} — {titre} ; reste : {restants}", id=o.jalon.id, titre=o.jalon.titre,
+        res.append(trad("prochain jalon : {id} — {titre} ; reste : {restants}", id=o.jalon.id, titre=t(o.jalon),
                         restants=", ".join(o.restants) if o.restants else trad("rien, il se clôt")))
-    res += [trad("prêt : {id} — {titre} (priorité haute)", id=e.id, titre=e.titre) if priorite(e) == "haute"
-            else trad("prêt : {id} — {titre}", id=e.id, titre=e.titre) for e in o.prets[:plafond]]
-    if len(o.prets) > plafond:
+    res += [trad("prêt : {id} — {titre} (priorité haute)", id=e.id, titre=t(e)) if priorite(e) == "haute"
+            else trad("prêt : {id} — {titre}", id=e.id, titre=t(e)) for e in o.prets[:plafond]]
+    if plafond is not None and len(o.prets) > plafond:
         res.append(trad("… et {n} autre(s) prêt(s)", n=len(o.prets) - plafond))
     if o.basses:
-        res.append(trad("prêts aussi, de priorité basse : {ids}", ids=", ".join(e.id for e in o.basses)))
+        ids = ", ".join(e.id for e in o.basses[:basses])
+        if basses is not None and len(o.basses) > basses:
+            ids = trad("{ids} … et {n} autre(s)", ids=ids, n=len(o.basses) - basses)
+        res.append(trad("prêts aussi, de priorité basse : {ids}", ids=ids))
     if o.en_attente:
         res.append(trad("{n} sujet(s) attendent un sujet ouvert", n=o.en_attente))
     return res

@@ -787,7 +787,8 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
 
     s = sp.add_parser("state", help=trad("où en est le projet, calculé à chaque fois (injecté au démarrage de "
                                          "l'agent)"))
-    s.add_argument("--short", action="store_true", help=trad("sans le contenu de l'actif et du canonique"))
+    s.add_argument("--short", action="store_true", help=trad("l'état dérivé seul, entier : sans le chantier actif, les "
+                                                             "faits ni les décisions, sans borne ni plafond"))
     s.set_defaults(f=cmd_state)
 
     s = sp.add_parser("check", help=trad("contrôles du socle, un code de sortie"))

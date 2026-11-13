@@ -9,7 +9,7 @@ This file says **how** to work;
 ### At startup, and after every compaction
 
 `python3 .socle/socle state` prints the derived state — commit, base, CI,
-backlog, pending human requests —, then the active work and the canonical
+backlog, pending human requests —, then the essentials of the
 memory. Under Claude Code, the `SessionStart` hook does it on its own; under
 another agent, run it first. Nothing that is not in it is established.
 What the human wrote themselves since the agent's last commit (an approval,
@@ -79,12 +79,14 @@ code.
 
 ### Reading the memory on demand
 
-Startup only injects the state, the active work and the facts. The rest is
-read when it is needed, without waiting to be asked:
+Startup only injects the state, the active work, the titles of the facts
+and the last ten decisions, under a cap; what a `!! cut` line says is
+missing is read at once. The rest is read when it is needed, without
+waiting to be asked:
 
 - a cited identifier (`F-`, `B-`, `ADR-`, `D-`, `J-`) is read before relying
   on it: `python3 .socle/socle show <ID>`, which also gives its fingerprint;
-- before a design decision, the decision index in the state says whether it
+- before a design decision, `socle show --index decisions` says whether it
   has already been made: it is not reopened without a new fact;
 - before opening a topic, the backlog (`socle show --index backlog`) says
   whether it already exists;

@@ -101,8 +101,16 @@ reçoit deux états.
 ## 2. Travailler avec l'agent
 
 Les tâches se confient à l'agent comme d'habitude. Au démarrage de chaque
-session, il reçoit l'état du projet ; il travaille, et les contrôles le
-vérifient à chaque étape.
+session, il reçoit l'état du projet, le chantier actif, les titres des faits
+et les dix dernières décisions ; il travaille, et les contrôles le vérifient
+à chaque étape. Ce démarrage tient sous `[startup] max_bytes` des
+garde-fous, borne posée sous ce que Claude Code remet entier à l'agent,
+dont chaque partie a sa part : une partie qui dépasse la sienne perd des
+lignes entières (l'état, d'abord ce qui se relit ailleurs, jamais ce qui
+demande d'agir avant ; les autres, depuis leur fin), et la dernière ligne
+dit laquelle, de combien, et comment lire le reste. Le budget du chantier
+actif, public et privé ensemble, tient dans sa part : à sa taille
+permise, il n'est jamais coupé.
 
 **Planifier.** Depuis le cadrage, l'agent écrit une spécification et une
 architecture courtes dans la documentation du projet : chaque choix en
@@ -233,7 +241,24 @@ shell, des chemins lus dans un fichier, une variable ou un préfixe devant
 cite, lui ou son dossier, une demande en attente ou validée dont ce
 qu'elle approuve n'est pas commité. Le risque accepté : effacer une
 modification de l'humain dans l'arbre de travail qu'il n'a ni commitée ni
-soumise par une demande.
+soumise par une demande. Un chemin que le shell écrit, le hook le
+développe, au mieux, comme le shell (variables, motifs, accolades, `~`,
+`cd`, `pushd`), depuis le dossier courant de l'agent, en supposant qu'un
+sous-shell, une substitution ou un pipeline ne transmettent rien à la
+suite. Un chemin qu'il ne sait pas développer (une variable qu'il ne
+connaît pas, `$(…)`) est refusé si le dossier qu'écrit en toutes lettres
+la part qui le précède, remonté des `..` qui le suivent, est dans le
+projet ou le contient : l'écrire en toutes lettres, ou sous un dossier
+hors du projet (`/tmp/…`). Une commande qu'il ne sait pas juger (plus de
+10 000 caractères hors du corps de ses heredocs, plus de 32 parenthèses
+ou accolades ouvertes à la fois, un jugement qui plante ou passe
+5 secondes) est refusée si elle peut écrire : la découper. Ce hook n'est
+qu'une première barrière contre les erreurs de l'agent : il ne modélise
+pas tout bash, des formes du shell lui échappent (une part inconnue qui
+vaut elle-même `..`, une option posée par le profil du shell, une
+variable que Claude Code ne pose que pour ses hooks…), et la garantie est
+le contrôle des fichiers protégés, à la fin du tour, au commit et dans la
+CI.
 
 **Faire ce que l'agent ne peut pas faire.** Pousser sur la branche par
 défaut, publier, régler un service, supprimer une branche distante, poser

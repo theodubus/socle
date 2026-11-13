@@ -31,6 +31,9 @@ ABSENT = object()
 REGLES = [
     (("budgets", "*", "max_bytes|max_lines"), "bas"),
     (("staleness", "active_days"), "bas"),
+    # Relevée au-delà de ce que Claude Code remet entier, la sortie du
+    # démarrage ne parviendrait plus à l'agent (ADR-0071).
+    (("startup", "max_bytes"), "bas"),
     (("mutation", "caps", "*", "max"), "bas"),
     (("mutation", "caps", "*", "reason"), "libre"),
     (("mutation", "caps", "*", "pending"), "faux"),
@@ -54,7 +57,8 @@ REGLES = [
 
 # Une clé qui a une valeur par défaut : absente, elle la vaut, et l'écrire
 # telle quelle ne change rien (D-0087).
-DEFAUTS = {("branches", "disposable"): list(config.BRANCHES_JETABLES)}
+DEFAUTS = {("branches", "disposable"): list(config.BRANCHES_JETABLES),
+           ("startup", "max_bytes"): config.BORNE_DEMARRAGE}
 
 
 def _cle(chemin: tuple[str, ...]) -> str:
