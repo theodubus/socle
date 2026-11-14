@@ -115,10 +115,24 @@ MESSAGES: dict[str, str] = {
         "them all off).",
     "{chemin}, par `{mot}`":
         "{chemin}, through `{mot}`",
+    "{chemin}, cité par `{qui}`, un écrivain que le hook ne sait pas lire : il peut l'écrire ; un fichier protégé "
+    "se lit par `cat` ou par l'outil de lecture":
+        "{chemin}, cited by `{qui}`, a writer the hook cannot read: it may write it; a protected file is read with "
+        "`cat` or the file-reading tool",
     "`{mot}`, dont {parts}":
         "`{mot}`, including {parts}",
     "`{mot}`, dans le dossier `{dossier}`":
         "`{mot}`, in the directory `{dossier}`",
+    "`{mot}`, que le hook ne sait pas développer":
+        "`{mot}`, which the hook cannot expand",
+    "suppression par le shell d'un dossier qui contient le projet, ou peut le contenir ({quoi}) : elle emporterait le "
+    "code, la mémoire, la politique et les hooks, et aucun contrôle ne la rattrape ensuite. Viser un dossier du "
+    "projet, ou hors de lui un dossier qui ne le contient pas (`/tmp/…`), son chemin écrit en toutes lettres "
+    "(B-0208).":
+        "deletion by the shell of a directory that contains the project, or may contain it ({quoi}): it would take "
+        "away the code, the memory, the policy and the hooks, and no check catches it afterwards. Target a directory "
+        "of the project, or outside it a directory that does not contain it (`/tmp/…`), its path written out in full "
+        "(B-0208).",
     "écriture par le shell vers un chemin que le hook ne sait pas développer : {quoi}. Une variable que ni "
     "l'environnement du hook ni la commande ne donnent, une substitution de commande (`$(…)`, accents graves) ou un "
     "`cd` vers un tel chemin peuvent viser un fichier protégé ; un tel chemin ne passe que si la part écrite en "
@@ -2677,6 +2691,26 @@ MESSAGES: dict[str, str] = {
     "fichier protégé écrit par le shell par un chemin relatif au dossier courant de l'agent, un motif ou `$PWD`":
         "protected file written by the shell through a path relative to the agent's current directory, a pattern or "
         "`$PWD`",
+    "fichier protégé écrit par `cp -t`, `find -delete`, `xargs`, `bash -ec`, `sort -o` ou `python -c`":
+        "protected file written by `cp -t`, `find -delete`, `xargs`, `bash -ec`, `sort -o` or `python -c`",
+    "fichier protégé écrit par le shell après un commentaire en fin de ligne, un `#` au milieu d'un mot ou une "
+    "substitution aux guillemets imbriqués":
+        "protected file written by the shell after an end-of-line comment, a `#` in the middle of a word or a "
+        "substitution with nested quotes",
+    "dossier qui contient le projet supprimé par le shell : `rm -rf ..`, un `cd` puis `../..`, les sources d'un "
+    "`mv`, `git clean` sous `-C ..`, un `find` qui supprime depuis un dossier qui le contient, ou depuis la racine "
+    "sans filtre de nom ou de chemin qui garde sa suppression":
+        "directory that contains the project deleted by the shell: `rm -rf ..`, a `cd` then `../..`, the sources of an "
+        "`mv`, `git clean` under `-C ..`, a `find` that deletes from a directory that contains it, or from the root "
+        "without a name or path filter guarding its deletion",
+    "fichier protégé écrit par le shell derrière un mot réservé (`then`, `else`, `do`, `!`, `{`), par la "
+    "variable d'un `for`, après un groupe dans un pipeline ou après la définition d'une fonction":
+        "protected file written by the shell behind a reserved word (`then`, `else`, `do`, `!`, `{`), through a "
+        "`for` variable, after a group in a pipeline or after a function definition",
+    "chemin écrit par le shell après une condition ou une boucle qui change le dossier ou une variable, ou dans la "
+    "branche qui suit":
+        "path written by the shell after a condition or a loop that changes the directory or a variable, or in the "
+        "branch that follows",
     "fichier protégé remis à un autre état que le dernier commit, ou tout un dossier":
         "protected file put back to a state other than the last commit, or a whole folder",
     "remise admise d'un fichier protégé dont la redirection écrit un autre fichier protégé":
@@ -2807,6 +2841,18 @@ MESSAGES: dict[str, str] = {
     "passent le hook de l'agent (B-0171)":
         "a too deeply nested command that writes nothing, a long heredoc and 500 `cd` to a directory outside the "
         "project pass the agent's hook (B-0171)",
+    "`find -delete` d'un motif libre, `xargs` et `python -c` qui ne citent aucun fichier protégé et `cp -t` vers "
+    "un dossier hors du projet passent le hook de l'agent (B-0206)":
+        "`find -delete` of a free pattern, `xargs` and `python -c` that cite no protected file and `cp -t` to a "
+        "directory outside the project pass the agent's hook (B-0206)",
+    "un `#` dans un mot, une redirection dans un commentaire et une substitution aux guillemets imbriqués qui lit "
+    "un fichier protégé passent le hook de l'agent (B-0207)":
+        "a `#` in a word, a redirection in a comment and a substitution with nested quotes that reads a protected "
+        "file pass the agent's hook (B-0207)",
+    "une boucle sur des fichiers libres, une condition et un groupe qui écrivent un fichier libre, et une boucle "
+    "qui revient à son dossier, passent le hook de l'agent (B-0204)":
+        "a loop over free files, a condition and a group that write a free file, and a loop that comes back to its "
+        "directory, pass the agent's hook (B-0204)",
     "un chemin écrit par le shell à travers une variable sous un dossier hors du projet, une variable affectée vers "
     "un fichier libre ou un motif qui ne nomme aucun fichier protégé passent le hook de l'agent (B-0171)":
         "a path written by the shell through a variable under a directory outside the project, a variable assigned "
@@ -2817,6 +2863,17 @@ MESSAGES: dict[str, str] = {
         "after a subshell, a free file, a default value outside the project, a `sed` without `-i` that reads a "
         "protected file and, from a directory outside the project, a relative pattern pass the agent's hook (B-0171, "
         "B-0205)",
+    "la suppression d'un dossier voisin du projet, d'un dossier du projet, un `find` sans filtre sous un dossier "
+    "du projet et un `find` qui filtre ce qu'il supprime sous la racine passent le hook de l'agent (B-0208)":
+        "deleting a directory next to the project, a directory of the project, a `find` without a filter under a "
+        "directory of the project and a `find` that filters what it deletes under the root pass the agent's hook "
+        "(B-0208)",
+    "message de commit passé par un fichier relatif au dossier courant de l'agent, qui cite un terme privé":
+        "commit message passed through a file relative to the agent's current directory, which cites a private term",
+    "mode compagnon : un message de commit passé par un fichier du dossier courant de l'agent, qui ne cite aucun "
+    "terme privé, passe le hook de l'agent, quand la racine a un fichier du même nom qui en cite un (B-0205)":
+        "companion mode: a commit message passed through a file of the agent's current directory, which cites no "
+        "private term, passes the agent's hook, when the root has a file of the same name that cites one (B-0205)",
     "un commit d'agent qui porte la trace de ses hooks passe la CI":
         "an agent commit that carries the trace of its hooks passes the CI",
     "une valeur attendue changée sous une spécification que l'humain a commitée passe la CI":

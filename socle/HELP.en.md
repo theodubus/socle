@@ -255,12 +255,29 @@ contains it: write it out in full, or under a directory outside the
 project (`/tmp/…`). A command it cannot judge (more than 10,000 characters
 outside the bodies of its heredocs, more than 32 parentheses or braces
 open at once, a judgment that crashes or takes over 5 seconds) is refused
-if it can write: split it. This hook is only a first barrier against the
-agent's mistakes: it does not model all of bash, some shell forms escape
-it (an unknown part that is itself `..`, an option set by the shell's
-profile, a variable Claude Code sets only for its hooks…), and the
-guarantee is the protected-files check, at the end of the turn, at commit
-and in CI.
+if it can write: split it. It also refuses deleting a directory that
+contains the project (`rm -rf ..`, an `mv`, a `git clean` or a `find` that
+deletes from such a directory), and deleting the project by a `find` that
+starts from its root with no name or path filter guarding what it deletes
+(`find . -delete`, `find . -type f -delete`, `find . -delete -name
+'*.pyc'`, whose filter comes after the action); a directory next to the
+project, and a directory of the project, stay free. This hook stops the mistakes of a cooperative agent, one that does
+not try to get around its guardrails, before they take effect. It judges the shell forms an agent writes in its work, and,
+whatever its form, what nothing catches afterwards: deleting the project
+or a directory that contains it, an irreversible external action, a leak
+of the private memory into what gets published. Deleting the project
+still escapes it when a program other than `rm`, `mv`, `git clean` or
+`find` does it (`rsync --delete`, `git worktree remove`, a `python3 -c`
+that calls `shutil.rmtree`, `xargs rm`): nothing catches it, and these
+commands are not run against the project or a directory that contains
+it. It does not model all of
+bash: a write to a protected file in a form one writes only to get around
+it (an `eval`, `IFS`, a path built on the fly in another language) is
+outside its model, as are forms that escape it (an unknown part that is
+itself `..`, an option set by the shell's profile, a variable Claude Code
+sets only for its hooks…); the guarantee is then the protected-files
+check, at the end of the turn, at commit and in CI, and a hole of that
+kind opens no backlog subject.
 
 **Doing what the agent cannot do.** Pushing to the default branch,
 publishing, setting up a service, deleting a remote branch, setting a tag

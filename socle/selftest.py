@@ -1124,6 +1124,15 @@ def _cas() -> list[Cas]:
         corps.write_text("Avance sur Mistral.\n")
         return etage_outil(a, c, "Bash", {"command": f"gh pr create --title Essai --body-file {corps}"})
 
+    @defaut("fuite-fichier-du-dossier-courant", "message de commit passé par un fichier relatif au dossier courant "
+            "de l'agent, qui cite un terme privé", "agent", "fuite")
+    def _(a, c):
+        # B-0205 : le hook lisait le fichier de la racine, qui ne cite rien.
+        c = a.clone_prive("compagnon")
+        ajouter(c, "docs/message.txt", "Avance sur Mistral.\n")
+        ajouter(c, "message.txt", "Avance.\n")
+        return etage_outil(a, c, "Bash", {"command": "git commit -F message.txt"}, cwd=c / "docs")
+
     @defaut("prive-dans-un-bloc-de-code", "identifiant privé dans un bloc de code d'un fichier public", "ci",
             "memoire.prive")
     def _(a, c):
@@ -1440,6 +1449,63 @@ def _cas() -> list[Cas]:
         return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
             "echo 'max_attempts = 99' >> policy.toml", "echo 'max_attempts = 99' >> $PWD/policy.toml",
             "rm pol*")], c / ".socle")
+
+    @defaut("suppression-du-projet", "dossier qui contient le projet supprimé par le shell : `rm -rf ..`, un "
+            "`cd` puis `../..`, les sources d'un `mv`, `git clean` sous `-C ..`, un `find` qui supprime depuis un "
+            "dossier qui le contient, ou depuis la racine sans filtre de nom ou de chemin qui garde sa suppression",
+            "agent", "suppression du projet")
+    def _(a, c):
+        # B-0208 : rien ne rattrape ensuite la suppression du projet.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "rm -rf ..", "cd .socle && rm -rf ../..", "mv .. /tmp/ailleurs", "git -C .. clean -ffdx",
+            "find .. -name '*.pyc' -delete", "find . -delete", "find . -delete -name '*.pyc'",
+            "find . \\( -type f \\) -delete")])
+
+    @defaut("protege-mot-reserve", "fichier protégé écrit par le shell derrière un mot réservé (`then`, `else`, "
+            "`do`, `!`, `{`), par la variable d'un `for`, après un groupe dans un pipeline ou après la définition "
+            "d'une fonction", "agent", "écriture protégée")
+    def _(a, c):
+        # B-0204 : `then rm …` se lisait comme le programme `then`.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "if true; then echo 'max_attempts = 99' >> .socle/policy.toml; fi",
+            "if false; then :; else sed -i s/3/9/ .socle/policy.toml; fi",
+            "! sed -i s/3/9/ .socle/policy.toml",
+            "for f in .socle/*.toml; do sed -i s/3/9/ \"$f\"; done",
+            "for d in .socle memory; do cd $d; echo 'max_attempts = 99' >> policy.toml; done",
+            "for f in a policy.toml; do echo 'max_attempts = 99' >> .socle/$f; done",
+            "{ cd /tmp; } | cat; echo 'max_attempts = 99' >> .socle/policy.toml",
+            "build() { cd /tmp; }; echo 'max_attempts = 99' >> .socle/policy.toml")])
+
+    @defaut("protege-diese-guillemets", "fichier protégé écrit par le shell après un commentaire en fin de ligne, un "
+            "`#` au milieu d'un mot ou une substitution aux guillemets imbriqués", "agent", "écriture protégée")
+    def _(a, c):
+        # B-0207 : la commande qui suivait se perdait.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "echo ok # une note\necho 'max_attempts = 99' >> .socle/policy.toml",
+            "[ $# -eq 0 ]; echo 'max_attempts = 99' >> .socle/policy.toml",
+            "X=\"$(echo \"l'apostrophe\")\"; sed -i s/3/9/ .socle/policy.toml",
+            "X=\"$(echo \"; cd /tmp; \")\"; echo 'max_attempts = 99' >> .socle/policy.toml")])
+
+    @defaut("protege-ecrivain-par-option", "fichier protégé écrit par `cp -t`, `find -delete`, `xargs`, `bash -ec`, "
+            "`sort -o` ou `python -c`", "agent", "écriture protégée")
+    def _(a, c):
+        # B-0206 : chacune de ces écritures passait le hook.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "cp -t .socle/git-hooks calc.py", "find .socle -name policy.toml -delete",
+            "find . -path '*/.socle/*' -delete",
+            "echo .socle/policy.toml | xargs sed -i s/3/9/", "bash -ec 'sed -i s/3/9/ .socle/policy.toml'",
+            "sort -o .socle/policy.toml calc.py",
+            "python3 -c \"open('.socle/policy.toml', 'a').write('max_attempts = 99')\"")])
+
+    @defaut("ecriture-illisible-composee", "chemin écrit par le shell après une condition ou une boucle qui change "
+            "le dossier ou une variable, ou dans la branche qui suit", "agent", "écriture illisible")
+    def _(a, c):
+        # B-0204 : le hook ne sait pas quelle branche le shell prendra.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "if [ -n \"$SOCLE_ESSAI_CIBLE\" ]; then cd /tmp; fi; echo 'max_attempts = 99' >> .socle/policy.toml",
+            "if [ -n \"$SOCLE_ESSAI_CIBLE\" ]; then cd /tmp; else echo 'max_attempts = 99' >> .socle/policy.toml; fi",
+            "if [ -n \"$SOCLE_ESSAI_CIBLE\" ]; then F=.socle/policy.toml; else F=/tmp/x; fi; echo x >> \"$F\"",
+            "for d in .socle memory; do cd $d; break; cd ..; done; echo 'max_attempts = 99' >> policy.toml")])
 
     @defaut("protege-depuis-un-worktree", "fichier protégé de la copie principale écrit depuis un worktree du dépôt",
             "agent", "écriture protégée")
@@ -1931,6 +1997,37 @@ def _temoins() -> list[tuple[str, Callable]]:
                 or etage_outil(a, c, "Bash", {"command": "sed -n -e's/i/j/p' .socle/policy.toml"})
                 or etage_outil(a, c, "Bash", {"command": "rm -rf ./*"}, cwd=ailleurs))
 
+    @temoin("une boucle sur des fichiers libres, une condition et un groupe qui écrivent un fichier libre, et une "
+            "boucle qui revient à son dossier, passent le hook de l'agent (B-0204)")
+    def _(a, c):
+        return (etage_outil(a, c, "Bash", {"command": "for f in *.py; do sed -i s/3/9/ \"$f\"; done"})
+                or etage_outil(a, c, "Bash", {"command": "if [ -f calc.py ]; then echo ok > notes.txt; else rm -f "
+                                                         "notes.txt; fi"})
+                or etage_outil(a, c, "Bash", {"command": "{ echo a; echo b; } > notes.txt"})
+                or etage_outil(a, c, "Bash", {"command": "for d in */; do cd \"$d\"; ls; cd ..; done; "
+                                                         "echo ok > notes.txt"})
+                or etage_outil(a, c, "Bash", {"command": "for d in memory tests; do cd \"$d\" || continue; ls; cd ..; "
+                                                         "done; echo ok > notes.txt"})
+                or etage_outil(a, c, "Bash", {"command": "for d in */; do cd \"$d\" || { echo \"$d\" >&2; continue; }; "
+                                                         "for f in *.log; do grep -q E \"$f\" && break; done; cd ..; "
+                                                         "done; echo ok > notes.txt"}))
+
+    @temoin("un `#` dans un mot, une redirection dans un commentaire et une substitution aux guillemets imbriqués "
+            "qui lit un fichier protégé passent le hook de l'agent (B-0207)")
+    def _(a, c):
+        return (etage_outil(a, c, "Bash", {"command": "echo \"a#b\" > notes.txt"})
+                or etage_outil(a, c, "Bash", {"command": "echo ok # > .socle/policy.toml"})
+                or etage_outil(a, c, "Bash", {"command": "echo \"$(grep -c \"=\" .socle/policy.toml)\" > notes.txt"}))
+
+    @temoin("`find -delete` d'un motif libre, `xargs` et `python -c` qui ne citent aucun fichier protégé et `cp -t` "
+            "vers un dossier hors du projet passent le hook de l'agent (B-0206)")
+    def _(a, c):
+        ailleurs = a.dossier.parent / (a.dossier.name + "-ailleurs")
+        return (etage_outil(a, c, "Bash", {"command": "find . -name '*.pyc' -delete"})
+                or etage_outil(a, c, "Bash", {"command": "find . -name '*.py' | xargs sed -i s/3/9/"})
+                or etage_outil(a, c, "Bash", {"command": "python3 -c \"print(open('calc.py').read())\""})
+                or etage_outil(a, c, "Bash", {"command": f"cp -t {ailleurs} calc.py"}))
+
     @temoin("une commande trop imbriquée qui n'écrit rien, un long heredoc et 500 `cd` vers un dossier hors du "
             "projet passent le hook de l'agent (B-0171)")
     def _(a, c):
@@ -1941,6 +2038,18 @@ def _temoins() -> list[tuple[str, Callable]]:
                 or etage_outil(a, c, "Bash", {"command": f"cat > {ailleurs}/long.txt <<'FIN'\n"
                                                          + "une ligne de texte\n" * 1000 + "FIN"})
                 or etage_outil(a, c, "Bash", {"command": f"cd {ailleurs}; " + "cd a; " * 500 + "echo x > notes.txt"}))
+
+    @temoin("la suppression d'un dossier voisin du projet, d'un dossier du projet, un `find` sans filtre sous un "
+            "dossier du projet et un `find` qui filtre ce qu'il supprime sous la racine passent le hook de l'agent "
+            "(B-0208)")
+    def _(a, c):
+        # Le pendant sain de `suppression-du-projet` : seul ce qui contient
+        # le projet est refusé.
+        ailleurs = a.dossier.parent / (a.dossier.name + "-ailleurs")
+        return (etage_outil(a, c, "Bash", {"command": f"rm -rf {ailleurs} && rm -rf build"})
+                or etage_outil(a, c, "Bash", {"command": "find . -name '*.pyc' -delete && mv calc.py .."})
+                or etage_outil(a, c, "Bash", {"command": "find build -delete"})
+                or etage_outil(a, c, "Bash", {"command": f"cd {ailleurs} && rm -rf ./*"}))
 
     @temoin("un fichier protégé changé par erreur, remis à son état du dernier commit, et un fichier apparu sous un "
             "chemin protégé, supprimé, passent le hook de l'agent (D-0098)")
@@ -2335,6 +2444,16 @@ def _temoins() -> list[tuple[str, Callable]]:
             sortie = "le fichier privé est commité en clair"
         return sortie
 
+    @temoin("mode compagnon : un message de commit passé par un fichier du dossier courant de l'agent, qui ne cite "
+            "aucun terme privé, passe le hook de l'agent, quand la racine a un fichier du même nom qui en cite un "
+            "(B-0205)")
+    def _(a, c):
+        # Le pendant sain de `fuite-fichier-du-dossier-courant`.
+        c = a.clone_prive("compagnon")
+        ajouter(c, "docs/message.txt", "Avance.\n")
+        ajouter(c, "message.txt", "Avance sur Mistral.\n")
+        return etage_outil(a, c, "Bash", {"command": "git commit -F message.txt"}, cwd=c / "docs")
+
     @temoin("ajouter un terme à la liste privée est libre : le commit et la CI passent")
     def _(a, c):
         c = a.clone_prive("compagnon")
@@ -2648,6 +2767,7 @@ RAISONS_AGENT = {
     "écriture protégée": "par le shell : seul l'humain",
     "écriture illisible": "un chemin que le hook ne sait pas développer",
     "commande injugeable": "une commande que le hook ne sait pas juger",
+    "suppression du projet": "d'un dossier qui contient le projet",
     "remise hors forme": "Seule passe la remise",
     "remise sous demande": "en attente, ou validée sans que ce qu'elle approuve",
     "écriture à l'aveugle": "à l'aveugle",

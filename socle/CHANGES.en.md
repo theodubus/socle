@@ -7,6 +7,115 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-14-k — The agent's hook sees what cp -t, find -delete, xargs, bash -ec, sort -o and python -c write
+
+The agent's hook now judges these writes to a protected file: `cp`, `ln`,
+`install` and `mv` write the directory of `-t`, `sort` the file of `-o`;
+`bash -ec '…'`, `bash -lc '…'` and `bash -c -- '…'` open their command;
+`find -delete`, or `find -exec rm {} +`, is judged by its starting points
+and the name or path filters that guard its action, at any depth: `find .
+-name '*.pyc' -delete` passes, `find . -name '*.toml' -delete` is refused.
+A filter guards only the action that follows it, outside a `!` and the
+other branch of a `-o`; the `*` of a `-path` crosses directories, as in
+`find`. `python -c` and `xargs` of a writer, which the hook cannot read,
+are judged by the protected paths they cite in full: `echo <protected
+file> | xargs rm` is refused, as is a `python -c` that cites a protected
+file, even to read it.
+
+To do: read a protected file with `cat` or the file-reading tool, rather
+than with a `python -c` that cites it, which the hook now refuses; it also
+refuses a `python -c` that cites a directory containing a protected file,
+even to list it (`os.listdir('.socle')`): list it with `ls`. The hook
+likewise refuses a `find` that deletes or writes what it finds from the
+root without a name or path filter, even with `-type` or `-empty` (`find .
+-type d -empty -delete`, `find . -type f -exec sed -i … {} +`): give it a
+name or path filter, or start it from a directory of the project.
+
+## 2026-11-14-j — The agent's hook no longer loses the command after a hash or nested quotes
+
+The agent's hook reads a `#` as the shell does: it opens a comment only at
+the start of a word, and the comment stops at the end of its line. A `#` in
+the middle of a word (`x#`, `$#`, an address) no longer loses the command
+that follows, nor does an end-of-line comment lose the one on the next line.
+A substitution between quotes whose argument has its own quotes (`"$(cmd
+"arg")"`) is also read as the shell reads it: the command that follows it is
+judged. What the substitution itself runs is still not judged.
+
+To do: nothing.
+
+## 2026-11-14-i — The agent's hook reads conditions and loops
+
+The agent's hook now judges a command written behind a shell reserved word
+(`then`, `else`, `elif`, `do`, `!`, `{`, `if`, `while`, `until`): a write to
+a protected file, an irreversible action or a command reserved for the human
+in the body of a condition or a loop no longer passes, as outside it. What a
+condition or a loop changes, its directory and its variables, becomes
+unknown after it, except a directory it comes back to (`for d in */; do cd
+"$d"; …; cd ..; done`) without a `break` or a `continue` having left it
+elsewhere; the body of a `for` is judged once per word of its list, its
+variable bound to that word, so that `for d in .socle memory; do cd $d; …;
+done` is judged in each of the two directories, and `for f in *.md; do sed
+-i … "$f"; done` by its pattern. The body of a function (`f() { …; }`) is judged, but what it
+changes does not hold for what follows: it does not run where it is
+written.
+
+To do: nothing, unless the hook now refuses a loop that writes to a variable
+it does not know (`while read f; do sed -i … "$f"; done`): write the list of
+files out in full, in a `for`, or handle them with the file-writing tool.
+Nested `for` loops of several thousand iterations, which it does not
+unfold, have the same unknown variable: split them into shorter commands.
+
+## 2026-11-14-h — The agent's hook reads the file a command publishes from its current directory
+
+To judge a leak of the private memory, the agent's hook reads the file a
+command publishes (`git commit -F`, `gh … --body-file`, `gh api -F
+field=@x`). It read a relative path from the project's root, whatever the
+agent's current directory: after a `cd docs`, `git commit -F message.txt`
+made it read the root's `message.txt`, not the one git publishes. It now
+reads it from the agent's current directory, like the paths a command
+writes.
+
+To do: nothing.
+
+## 2026-11-14-g — The agent's hook refuses deleting a directory that contains the project
+
+The agent's hook let through `rm -rf ..` run from the root, and deleting a
+directory that contains it (the user's directory, the one that holds a
+subagent's worktrees): it would take away the code, the memory, the policy
+and the hooks, and no check catches it afterwards. It now refuses deleting
+such a directory through the arguments of `rm`, the sources of an `mv`,
+what `git clean` sweeps and the starting points of a `find` that deletes
+(`-delete`, `-exec rm`), its path expanded like any path the hook judges;
+and deleting the project by a `find` that starts from its root with no
+name or path filter guarding what it deletes (`find . -delete`, `find .
+-type f -delete`, `find . -delete -name '*.pyc'`, whose filter comes after
+the action, or `find . -path ./.git -prune -o -delete`). A directory next
+to the project, a directory of the project (`find build -delete`) and a
+`find` that filters what it deletes under the root stay free.
+
+To do: nothing. Such a refusal is lifted by targeting a directory of the
+project, or outside it a directory that does not contain it, written out
+in full.
+
+## 2026-11-14-f — The threat model of the agent's hook
+
+The guide now says what the agent's hook stops: the mistakes of a
+cooperative agent, before they take effect. It judges the shell forms an
+agent writes in its work, and, whatever its form, what nothing catches
+afterwards: deleting the project or a directory that contains it, an
+irreversible external action, a leak of the private memory into what gets
+published. A write to a protected file in a form one writes only to get
+around it (an `eval`, `IFS`, a path built on the fly in another language)
+is outside its model: the `protege.fichiers` check refuses it afterwards.
+The hook itself does not change. Deleting the project still escapes it
+when a program other than `rm`, `mv`, `git clean` or `find` does it
+(`rsync --delete`, `git worktree remove`, a `python3 -c` that calls
+`shutil.rmtree`, `xargs rm`): nothing catches it.
+
+To do: a hole of the hook of that last kind, found by a review, opens no
+backlog subject; a hole through which passes what nothing catches opens
+one, whatever its form.
+
 ## 2026-11-14-e — The socle-batch skill leads a batch
 
 A new socle skill, `socle-batch`, put in place and protected like the others
