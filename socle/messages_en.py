@@ -3082,4 +3082,22 @@ MESSAGES: dict[str, str] = {
         "with `--adapter`, or declare its language in it",
     "plafonds de mutation : {n} module(s) des adaptateurs ajoutés posé(s) à mesurer":
         "mutation caps: {n} module(s) of the added adapters set to measure",
+    "Une réponse `valider` pas encore poussée part avec le changement qu'elle autorise : poussée seule, elle ne le "
+    "couvrira pas — un avertissement, pas un refus.":
+        "An `approve` answer not yet pushed leaves with the change it authorizes: pushed alone, it will not cover "
+        "it — a warning, not a refusal.",
+    "réponse `valider` de {id}, pas encore poussée, sans le changement qu'elle autorise : la branche ne change "
+    "encore rien de ce qu'elle nomme ({liste}). Poussée seule, elle ne couvrira pas ce changement : la CI d'un "
+    "push, et le hook avant push, ne comptent que les validations de leur plage. La commiter et la pousser avec "
+    "lui, dans le même push":
+        "`approve` answer of {id}, not yet pushed, without the change it authorizes: the branch does not change "
+        "anything it names yet ({liste}). Pushed alone, it will not cover that change: the CI of a push, and the "
+        "pre-push hook, only count the approvals of their range. Commit it and push it with that change, in the "
+        "same push",
+    "socle — avertissement ({controle}) : {constat}":
+        "socle — warning ({controle}): {constat}",
+    "réponse « valider » poussée sans le test qu'elle autorise à changer":
+        "`approve` answer pushed without the test it authorizes to change",
+    "une réponse « valider » poussée avec le test qu'elle autorise à changer part sans avertissement":
+        "an `approve` answer pushed with the test it authorizes to change leaves without a warning",
 }

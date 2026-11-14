@@ -1630,6 +1630,7 @@ def git_pre_commit(projet: config.Projet) -> int:
                        "réservé à l'humain ; l'agent, lui, ouvre une demande."), file=sys.stderr)
         print(trad("\nCommit refusé. `git commit --no-verify` contourne ce hook, jamais la CI."), file=sys.stderr)
         return 1
+    _dire_reponses_seules(rapport)
     return 0
 
 
@@ -2012,4 +2013,19 @@ def git_pre_push(projet: config.Projet) -> int:
         tracer_refus(projet.racine, "git-pre-push", ",".join(rapport.controles_en_echec()))
         rapport.afficher(trad("socle — vérification avant push"), flux=sys.stderr, court=True)
         return 1
+    _dire_reponses_seules(rapport)
     return 0
+
+
+def _dire_reponses_seules(rapport) -> None:
+    """Le hook git qui laisse passer se tait, sauf pour ceci, qu'il dit sur
+    sa sortie d'erreur : une réponse `valider` qui part sans le changement
+    qu'elle autorise, et ne le couvrira pas au push suivant
+    (`demandes.reponse-seule`, B-0142). Le rapport d'un refus le montre
+    déjà."""
+    from socle.report import AVERTISSEMENT
+
+    for c in rapport.constats:
+        if c.controle == "demandes.reponse-seule" and c.gravite == AVERTISSEMENT:
+            print(trad("socle — avertissement ({controle}) : {constat}", controle=c.controle, constat=c.en_ligne()),
+                  file=sys.stderr)

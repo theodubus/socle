@@ -1094,6 +1094,128 @@ def reponses(ctx, r):
                 r.erreur("demandes.reponses", trad("réponse sans demande"), c)
 
 
+@controle("demandes.reponse-seule", etages=("agent", "git"), base=True)
+def reponse_seule(ctx, r):
+    """Une réponse `valider` pas encore poussée part avec le changement
+    qu'elle autorise : poussée seule, elle ne le couvrira pas — un
+    avertissement, pas un refus.
+
+    La CI d'un push et le hook avant push ne comptent que les validations
+    de leur plage (B-0043) : la réponse poussée avant le test ou le fichier
+    protégé qu'elle nomme ne les couvre plus au push suivant (B-0142,
+    ADR-0074). La plage est celle qui n'est pas encore poussée ; le
+    changement se mesure sur la branche, depuis la branche par défaut : un
+    fichier poussé sous une demande en attente (D-0071) précède sa réponse
+    sans dommage."""
+    base = outils.base_non_poussee(ctx.racine, ctx.branches)
+    if not base:
+        return
+    # Le plus souvent, la plage n'ajoute aucune réponse : un diff suffit.
+    if not any(memoire.est_reponse(c) for c in outils.fichiers_changes(ctx.racine, base, ctx.tete)):
+        return
+    for d in demandes.validations_ajoutees(ctx.racine, base, ctx.tete):
+        # Un test ne précède jamais sa réponse (`tests.attendus` le refuse) :
+        # il se mesure sur la plage pas encore poussée, et un test changé plus
+        # tôt sur la branche, sous une validation antérieure, ne compte pas
+        # (la revue de B-0142). Seul un fichier protégé se mesure sur la
+        # branche entière (D-0071).
+        nommes = _tests_nommes(ctx, d.texte, base) + _fichiers_nommes(ctx, d.texte)
+        if not nommes or any(change for _, change in nommes):
+            continue
+        noms = [n for n, _ in nommes]
+        r.avertir("demandes.reponse-seule", trad(
+            "réponse `valider` de {id}, pas encore poussée, sans le changement qu'elle autorise : la branche ne "
+            "change encore rien de ce qu'elle nomme ({liste}). Poussée seule, elle ne couvrira pas ce changement : "
+            "la CI d'un push, et le hook avant push, ne comptent que les validations de leur plage. La commiter et "
+            "la pousser avec lui, dans le même push", id=d.id or d.chemin,
+            liste=", ".join(f"`{n}`" for n in noms[:5]) + (" …" if len(noms) > 5 else "")),
+            d.chemin_reponse or d.chemin)
+
+
+def _tests_nommes(ctx, texte: str, depuis: str | None = None) -> list[tuple[str, bool]]:
+    """Les tests que le texte nomme en mot entier, comme `tests.attendus`
+    les reconnaît, et les fichiers de cas qu'il cite, chacun avec un
+    booléen : a-t-il changé depuis `depuis` (par défaut, la base de la
+    branche) ?"""
+    from collections import defaultdict
+
+    from socle import checks_tests as controles_tests, tests_reader as tests_lecture
+
+    if depuis:
+        changes = set(outils.fichiers_changes(ctx.racine, depuis, ctx.tete))
+        fichiers_avant = outils.fichiers_a(ctx.racine, depuis)
+
+        def lire_avant(vue, c):
+            return outils.lire_a(ctx.racine, depuis, c)
+    else:
+        changes = set(ctx.changes)
+        fichiers_avant = None
+
+        def lire_avant(vue, c):
+            return vue.lire_base(c)
+    res: dict[str, bool] = {}
+
+    def forme(f) -> str:
+        return re.sub(r"\s+", " ", "\n".join([*f.attributs, f.entete, f.corps]))
+
+    for a in ctx.projet.adaptateurs:
+        vue = ctx.pour(a)
+        cfg = controles_tests.cfg_tests(vue.projet)
+        if cfg is None:
+            continue
+
+        def nommes(texte_fichier: str | None, chemin: str) -> dict[str, list[str]]:
+            par_nom = defaultdict(list)
+            for f in tests_lecture.extraire(texte_fichier or "", chemin, cfg) if texte_fichier else []:
+                if f.est_test and controles_tests._nomme(texte, f.nom):
+                    par_nom[f.nom].append(forme(f))
+            return par_nom
+
+        apres = controles_tests.fichiers_tests(vue, vue.fichiers)
+        for c in apres:
+            maintenant = nommes(vue.lire(c), c)
+            avant = nommes(lire_avant(vue, c), c) if c in changes else maintenant
+            for nom in set(maintenant) | set(avant):
+                res[nom] = res.get(nom, False) or sorted(maintenant.get(nom, [])) != sorted(avant.get(nom, []))
+        base_vue = vue.fichiers_base if fichiers_avant is None else vue.projet.hors_tiers(fichiers_avant)
+        for c in controles_tests.fichiers_tests(vue, base_vue):
+            if c in changes and c not in apres:
+                for nom in nommes(lire_avant(vue, c), c):
+                    res[nom] = True  # le fichier de tests est parti, et le test avec lui
+    motifs = ctx.projet.gf("tests", "case_paths", defaut=[]) or []
+    avant = set(ctx.fichiers_base) if fichiers_avant is None else set(fichiers_avant)
+    for c in outils.filtrer(sorted(set(ctx.fichiers) | avant), motifs) if motifs else []:
+        if controles_tests._nomme(texte, c):
+            res[c] = c in changes
+    return sorted(res.items())
+
+
+# Ce qu'un chemin de fichier ne porte pas : un motif, un lien Markdown.
+_PAS_UN_CHEMIN = re.compile(r"[*?\[\]()<>]")
+
+
+def _fichiers_nommes(ctx, texte: str) -> list[tuple[str, bool]]:
+    """Les fichiers protégés que le texte cite avec une empreinte sur la
+    même ligne, comme une demande qui approuve un changement les cite, et
+    pour chacun : la branche l'a-t-elle changé depuis sa base ? Les
+    réponses humaines, que `protege.fichiers` ne juge pas, n'en sont pas."""
+    motifs = sorted(set(ctx.projet.chemins_proteges())
+                    | set(ctx.projet_base.chemins_proteges() if ctx.projet_base else []))
+    changes = set(ctx.changes)
+    res: dict[str, bool] = {}
+    for ligne in texte.splitlines():
+        jetons = [re.sub(r"^[*(]+|[*.,;:)]+$", "", j) for j in ligne.replace("`", " ").split()]
+        empreintes = {j for j in jetons if demandes.EMPREINTE_DE_FICHIER.fullmatch(j)
+                      or j in demandes.FICHIER_SUPPRIME}
+        if not empreintes:
+            continue
+        for j in jetons:
+            if (j and j not in empreintes and not j.endswith("/") and not _PAS_UN_CHEMIN.search(j)
+                    and not memoire.est_reponse(j) and outils.correspond(j, motifs)):
+                res[j] = j in changes
+    return sorted(res.items())
+
+
 @controle("instructions.source-unique")
 def source_unique(ctx, r):
     """Un seul fichier d'instructions fait foi : `AGENTS.md`, que `CLAUDE.md`

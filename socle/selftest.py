@@ -492,6 +492,25 @@ def _demande_nommant_le_test(a: "Atelier", c: Path) -> str:
         "## Où regarder", "- `test_double` — le test du module, qui attend le double de deux.\n\n## Où regarder", 1)
 
 
+def _pousser_la_reponse(a: "Atelier", c: Path, avec_le_test: bool) -> tuple[int, str]:
+    """La demande qui nomme `test_double`, poussée ; la réponse `valider` de
+    l'humain, consignée et commitée, avec le test qu'elle autorise à changer
+    ou sans lui ; puis le push, par le hook avant push : son code et sa
+    sortie."""
+    (c / "memory/requests/D-0001-refactor.md").write_text(_demande_nommant_le_test(a, c))
+    pousser(a, c)
+    (c / "citation.txt").write_text("oui, compare à un flottant")
+    r = a.socle(c, "answer", "D-0001", "valider", "--relayed", "--by", "Théo", "--quote-file", "citation.txt")
+    (c / "citation.txt").unlink()
+    if r.returncode != 0:
+        return r.returncode, r.stdout + r.stderr
+    if avec_le_test:
+        remplacer(c, "tests/test_calc.py", "self.assertEqual(double(2), 4)", "self.assertEqual(double(2), 4.0)")
+    a.commit(c, "La réponse de Théo")
+    r = a.run(c, "git", "push", "-q", "origin", f"travail:{c.name}")
+    return r.returncode, r.stdout + r.stderr
+
+
 def pousser(a: Atelier, c: Path, message: str = "essai"):
     """Commit et push de la branche de travail vers l'origine d'essai, sous
     le nom du clone : les cas partagent la même origine."""
@@ -1252,6 +1271,12 @@ def _cas() -> list[Cas]:
         remplacer(c, "tests/test_calc.py", "self.assertEqual(double(2), 4)", "self.assertEqual(double(2), 4.0)")
         maj_memoire(c)
         return etage_stop(a, c, "J'ai changé le test en attendant la réponse." + RECAP)
+
+    @defaut("reponse-poussee-seule", "réponse « valider » poussée sans le test qu'elle autorise à changer", "git",
+            "demandes.reponse-seule")
+    def _(a, c):
+        # B-0142 : un avertissement, que le hook avant push dit sans refuser.
+        return _pousser_la_reponse(a, c, avec_le_test=False)[1]
 
     @defaut("test-supprime", "test supprimé sans validation", "ci", "tests.attendus")
     def _(a, c):
@@ -2116,6 +2141,11 @@ def _temoins() -> list[tuple[str, Callable]]:
         maj_memoire(c)
         return etage_ci(a, c)
 
+    @temoin("une réponse « valider » poussée avec le test qu'elle autorise à changer part sans avertissement")
+    def _(a, c):
+        code, sortie = _pousser_la_reponse(a, c, avec_le_test=True)
+        return (sortie or "push refusé") if code or RAISONS_AGENT["demandes.reponse-seule"] in sortie else ""
+
     @temoin("un correctif dont le test passe sur le parent, admis par une demande validée qui nomme son commit, "
             "passe la CI")
     def _(a, c):
@@ -2585,6 +2615,7 @@ RAISONS_AGENT = {
     "commit sans filtre": "commit d'agent sans aucun passage du filtre",
     "geste sans valider": "que seule une réponse `valider` autorise à changer",
     "question en widget": "widget de questions de l'agent",
+    "demandes.reponse-seule": "Poussée seule, elle ne couvrira pas ce changement",
 }
 
 

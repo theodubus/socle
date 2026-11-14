@@ -69,6 +69,14 @@ python3 .socle/socle answer D-NNNN <réponse> --relayed --by <nom> --quote-file 
 
 3. Recopier la réponse au journal, avec son texte exact.
 
+La réponse se consigne dès qu'elle est donnée, dans l'arbre : l'état la
+lit répondue avant son commit, et l'humain ne la voit plus en attente.
+Elle se commite et se pousse avec le changement qu'elle autorise (une
+valeur attendue, un fichier protégé), dans le même tour, jamais avant :
+la CI d'un push ne compte que les validations de sa plage, et le push du
+changement, seul après elle, serait refusé. `demandes.reponse-seule` en
+avertit avant qu'elle parte seule.
+
 Une réponse ne se relaie qu'à une demande poussée telle quelle : l'humain
 doit avoir pu la lire. Une demande répondue est gelée. La réponse
 `contexte-insuffisant` renvoie la demande : la réécrire en une demande
