@@ -13,7 +13,14 @@ agent that wrote the batch, and who tries to find fault with it.
 
 Before the push that delivers a batch that changes code, a specification
 or a test; never for a batch that only touches the memory. One pass per
-batch: no second review after the fixes.
+batch; a second one only if the fix of the blocking findings is heavy (it
+changes the design of a part, not a few lines), and on that fix alone.
+
+The reviewer judges the batch against its topics: their “Done when”
+criterion and, for a guardrail, its threat model. A topic that adds or
+changes a guardrail therefore writes it before its code, in its
+`## Threat model` section: what the guardrail stops, what it lets
+through; a topic whose design is not settled, its specification.
 
 ## How
 
@@ -26,8 +33,11 @@ python3 .socle/socle review
 ```
 
    It gives the instruction, the batch's diff since the remote branch
-   (otherwise the default branch), the topics the batch closes and the
-   decisions they cite. `--base <ref>` changes the batch's base.
+   (otherwise the default branch), the topics the batch touches, in
+   full, those it opens by their title, and the decisions they cite.
+   `--base <ref>` changes the batch's base; for a second review,
+   `--since <reviewed commit>` shows only the diff since the first
+   review's commit, with the messages of the commits that fix it.
 3. Hand it to a reviewer who does not have the conversation. Under
    Claude Code: a subagent (the `Agent` tool), of the session's model,
    whose only message is this brief, as is: nothing is added to it,
@@ -45,9 +55,18 @@ python3 .socle/socle review
 
 ## The findings
 
-None blocks on its own. Fix each founded finding, in the batch, before the
-push; answer the others in one line: why it does not hold. Post nothing on
-GitHub: the human reads the recap, not the review.
+The reviewer classifies them; the agent checks each classification.
 
-The recap says it in one line: `Review: <n> findings, <k> fixed;
-dismissed: <reason for each>`, or `Review: no finding`.
+- **Blocking** (it contradicts a ticked criterion or a cited decision,
+  breaks what worked, loses data, or bypasses a guardrail within its
+  threat model): fixed in the batch, before the push.
+- **For the backlog** (the rest: a bypass outside the threat model, a
+  criterion the batch does not tick, a neighbouring defect): not fixed
+  in the batch; it goes to the backlog, one topic per finding or one for
+  several of the same kind.
+- **Unfounded**: dismissed, in one line that says why.
+
+Post nothing on GitHub: the human reads the recap, not the review. The
+recap says it in one line: `Review: <b> blocking, fixed; <n> to the
+backlog (<topics>); dismissed: <reason for each>`, or `Review: no
+finding`.

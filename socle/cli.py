@@ -406,7 +406,7 @@ def cmd_review(args) -> int:
             return 2
         print(texte, end="")
         return 0
-    print(revue.dossier(_projet(args), args.base, args.max_bytes), end="")
+    print(revue.dossier(_projet(args), args.base, args.max_bytes, getattr(args, "since", None)), end="")
     return 0
 
 
@@ -870,6 +870,8 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("--base", help=trad("la base du lot (par défaut : la branche distante, sinon la branche par "
                                        "défaut)"))
     s.add_argument("--max-bytes", type=int, default=60_000, help=trad("le plafond du diff montré"))
+    s.add_argument("--since", metavar="REF", help=trad("une seconde revue : le diff depuis ce commit, celui de la "
+                                                       "première revue, et les sujets du lot entier"))
     s.add_argument("--request", metavar="D-NNNN", help=trad("le dossier de la relecture à froid de cette demande, "
                                                             "pour un lecteur qui n'a que son texte"))
     s.set_defaults(f=cmd_review)

@@ -13,8 +13,11 @@ après des semaines ; le skill `socle-request` dit quand.
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 from socle import config, memory as memoire, utils as outils
-from socle.messages import trad
+from socle.messages import a_traduire, trad
 
 # Au-delà, le diff se tronque, et le dossier le dit : un relecteur qui reçoit
 # un diff énorme le survole.
@@ -46,6 +49,54 @@ def sujets_fermes(projet: config.Projet, base: str) -> list:
                              check=False).split())
     mem = memoire.Memoire.charger(projet.racine)
     return [e for e in mem.entrees("B") if e.fichier in touches and e.statut in memoire.BACKLOG_CLOS
+            and not memoire.est_prive(e.fichier)]
+
+
+def sujets_du_lot(projet: config.Projet, base: str) -> tuple[list, list]:
+    """Les sujets du backlog que le lot touche, quel que soit leur statut
+    (ADR-0073) : ceux qu'il sert, qui existaient à sa base ou qu'il clôt,
+    dont le « Fait quand » est la barre du relecteur ; puis ceux qu'il ouvre
+    sans les clore, ce qu'il renvoie au backlog."""
+    touches = set(outils.git(projet.racine, "diff", "--name-only", base, "--", projet.chemins.backlog,
+                             check=False).split())
+    a_la_base = outils.git(projet.racine, "ls-tree", "-r", "--name-only", base, "--", projet.chemins.backlog,
+                           check=False).split()
+    existants = {m.group(1) for nom in a_la_base if (m := re.match(r"(B-\d+)", Path(nom).name))}
+    mem = memoire.Memoire.charger(projet.racine)
+    servis, ouverts = [], []
+    for e in mem.entrees("B"):
+        if e.fichier not in touches or memoire.est_prive(e.fichier):
+            continue
+        (servis if e.id in existants or e.statut in memoire.BACKLOG_CLOS else ouverts).append(e)
+    return servis, ouverts
+
+
+def messages_depuis(racine, depuis: str) -> list[str]:
+    """Les messages des commits depuis `depuis`, du plus ancien au plus
+    récent, sans leurs lignes de fin (`Co-Authored-By:`, `Socle-Hooks:`…) :
+    ce que la correction dit corriger. Seul le dernier paragraphe se retire,
+    s'il n'est fait que de lignes de fin, et jamais le titre : un titre
+    `fix: …` ou `Corrige: B-NNNN` reste."""
+    brut = outils.git(racine, "log", "--reverse", "--format=%x00%B", f"{depuis}..HEAD", check=False)
+    res = []
+    for message in brut.split("\0"):
+        paragraphes = [p.strip("\n") for p in re.split(r"\n[ \t]*\n", message.strip()) if p.strip()]
+        if len(paragraphes) > 1 and all(re.match(r"^[A-Za-z][\w-]*: \S", ligne)
+                                        for ligne in paragraphes[-1].splitlines()):
+            paragraphes.pop()
+        if paragraphes:
+            res.append("\n\n".join(paragraphes))
+    return res
+
+
+def decisions_ecrites(projet: config.Projet, base: str) -> list:
+    """Les décisions et les demandes que le lot ajoute à la mémoire : la
+    spécification ou le modèle de menace écrits avant son code, que ses
+    sujets, plus anciens, ne citent pas (ADR-0073)."""
+    ajoutes = set(outils.git(projet.racine, "diff", "--name-only", "--diff-filter=A", base, "--",
+                             projet.chemins.memoire, check=False).split())
+    mem = memoire.Memoire.charger(projet.racine)
+    return [e for e in mem.entrees() if e.fichier in ajoutes and e.id.startswith(("ADR-", "D-"))
             and not memoire.est_prive(e.fichier)]
 
 
@@ -89,27 +140,58 @@ def dossier_demande(projet: config.Projet, ident: str) -> str | None:
                       trouvees[0].texte.strip(), ""])
 
 
-def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFOND_DIFF) -> str:
+# La consigne du relecteur (ADR-0042, ADR-0044, ADR-0073), en trois parties :
+# son rôle, sa barre, les deux classes de ses constats.
+CONSIGNE_ROLE = a_traduire(
+    "Tu relis le lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce dossier, et "
+    "tu peux lire le dépôt pour vérifier un constat, mais tu ne modifies rien. Pour éprouver une commande "
+    "(l'installeur, un script), crée d'abord un dossier temporaire hors du dépôt (`mktemp -d`), et n'écris que "
+    "là : chaque commande qui écrit y vise par son chemin absolu, jamais par le dossier courant, écrit en toutes "
+    "lettres tel que `mktemp -d` l'a rendu, jamais par une variable, qui ne survit pas d'un appel à l'autre. Ton "
+    "rôle est de le prendre en défaut.")
+CONSIGNE_BARRE = a_traduire(
+    "Ta barre est celle des sujets du lot, plus bas : leur critère « Fait quand », les décisions qu'ils citent, "
+    "et, pour un sujet qui pose ou change un garde-fou, son modèle de menace, ce que le garde-fou arrête et ce "
+    "qu'il laisse passer. Cherche ce qui casse (un cas limite, une erreur de logique, une régression), ce "
+    "qu'aucun test ne prouve, et ce qui contredit un critère ou une décision. Ne juge ni le style, ni ce que les "
+    "contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests.")
+CONSIGNE_CLASSES = a_traduire(
+    "Classe chaque constat. **Bloquant** : il contredit un critère coché ou une décision citée, fait régresser "
+    "ce qui marchait avant le lot, perd des données, ou contourne un garde-fou dans son modèle de menace ; un "
+    "garde-fou que le lot pose ou change sans modèle de menace écrit est lui-même un constat bloquant. **Pour le "
+    "backlog** : tout le reste, dont un contournement hors du modèle de menace, un critère que le lot ne coche "
+    "pas, un défaut voisin, une amélioration. Seuls les bloquants se corrigent dans le lot. Rends deux listes "
+    "numérotées, « Bloquants » puis « Pour le backlog », chaque constat avec son fichier et sa ligne, ce qui "
+    "casse et comment le vérifier, et, pour un bloquant, ce qu'il contredit ; ou « aucun constat ».")
+CONSIGNE_SECONDE = a_traduire(
+    "Seconde revue : ce diff corrige des constats bloquants d'une première revue, que disent les messages de ses "
+    "commits ci-dessous ; le reste du lot a déjà été relu. Ne juge que cette correction : un bloquant mal "
+    "corrigé, ce qu'elle fait régresser, contre les mêmes sujets.")
+
+
+def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFOND_DIFF,
+            depuis: str | None = None) -> str:
     """Ce que reçoit le relecteur, en plus du dépôt qu'il peut lire : la
-    consigne, le diff du lot, les sujets qu'il ferme et les décisions
-    qu'ils citent."""
+    consigne, le diff du lot, les sujets du lot, les décisions qu'il écrit
+    et celles qu'ils citent (ADR-0073). Avec `depuis`, le dossier d'une seconde revue : le
+    diff depuis ce commit, les messages de ses commits, et toujours les
+    sujets du lot entier, depuis `base`."""
     base = base or base_du_lot(projet.racine)
-    lignes = [trad("# Revue adversariale d'un lot"), "", trad(
-        "Tu relis le lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce dossier, et tu peux lire le dépôt pour vérifier un constat, mais tu ne "
-        "modifies rien. Pour éprouver une commande (l'installeur, un script), crée d'abord un dossier temporaire "
-        "hors du dépôt (`mktemp -d`), et n'écris que là : chaque commande qui écrit y vise par son chemin absolu, "
-        "jamais par le dossier courant, écrit en toutes lettres tel que `mktemp -d` l'a rendu, jamais par une "
-        "variable, qui ne survit pas d'un appel à l'autre. Ton rôle est de le prendre en défaut. Cherche ce qui casse (un cas limite, une erreur "
-        "de logique, une régression), ce qu'aucun test ne prouve (une branche du code, un message, un cas que "
-        "rien n'exerce), et ce qui contredit un sujet, un critère « Fait quand » ou une décision cités plus "
-        "bas. Ne juge ni le style, ni ce que les contrôles automatiques jugent déjà : la forme de la mémoire, "
-        "les liens, la présence des tests. Rends des constats numérotés, chacun avec son fichier et sa ligne, "
-        "ce qui casse et comment le vérifier ; ou « aucun constat »."), ""]
+    lignes = [trad("# Revue adversariale d'un lot"), "", trad(CONSIGNE_ROLE), "", trad(CONSIGNE_BARRE), "",
+              trad(CONSIGNE_CLASSES), ""]
     if not base:
         lignes.append(trad("(aucune base connue : ni branche distante, ni branche par défaut ; rien à relire)"))
         return "\n".join(lignes) + "\n"
-    diff, fichiers = _diff(projet, base)
-    lignes += [trad("## Le diff du lot ({n} fichier(s), depuis {base})", n=len(fichiers), base=base), ""]
+    if depuis:
+        lignes += [trad("## Seconde revue"), "", trad(CONSIGNE_SECONDE), ""]
+        for message in messages_depuis(projet.racine, depuis):
+            lignes += ["```text", message, "```", ""]
+        diff, fichiers = _diff(projet, depuis)
+        lignes += [trad("## Le diff de la correction ({n} fichier(s), depuis {base})", n=len(fichiers),
+                        base=depuis), ""]
+    else:
+        diff, fichiers = _diff(projet, base)
+        lignes += [trad("## Le diff du lot ({n} fichier(s), depuis {base})", n=len(fichiers), base=base), ""]
     if not diff.strip():
         lignes.append(trad("(aucun changement hors de la mémoire : rien à relire)"))
     else:
@@ -117,13 +199,21 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
         lignes += ["```diff", montre.rstrip("\n"), "```"]
         if len(montre) < len(diff):
             lignes.append(trad("(diff tronqué : {n} caractère(s) de plus non montrés ; `git diff {base}` les "
-                               "donne)", n=len(diff) - len(montre), base=base))
-    sujets = sujets_fermes(projet, base)
-    if sujets:
-        lignes += ["", trad("## Les sujets que le lot ferme"), ""]
-        for s in sujets:
+                               "donne)", n=len(diff) - len(montre), base=depuis or base))
+    servis, ouverts = sujets_du_lot(projet, base)
+    if servis:
+        lignes += ["", trad("## Les sujets du lot : leur critère « Fait quand » est ta barre"), ""]
+        for s in servis:
             lignes += [s.texte.strip(), ""]
-    decisions = decisions_citees(projet, sujets)
+    if ouverts:
+        lignes += ["", trad("## Les sujets que le lot ouvre : ce qu'il renvoie au backlog"), ""]
+        lignes += [f"- {s.id} — {s.titre}" for s in ouverts]
+    ecrites = decisions_ecrites(projet, base)
+    if ecrites:
+        lignes += ["", trad("## Les décisions et les demandes que le lot écrit"), ""]
+        for e in ecrites:
+            lignes += [e.texte.strip(), ""]
+    decisions = [e for e in decisions_citees(projet, servis) if e.id not in {d.id for d in ecrites}]
     if decisions:
         lignes += ["", trad("## Les décisions et les demandes qu'ils citent"), ""]
         for e in decisions:

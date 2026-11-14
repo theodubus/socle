@@ -138,9 +138,13 @@ human.
 
 **Having it reviewed.** Before delivering a batch that changes code, a
 specification or a test, the agent has it reviewed by a reviewer without
-context, who tries to find fault with it: what breaks, what no test
-proves, what contradicts a decision. The agent fixes each founded finding
-and dismisses the others; its recap says how many.
+context, who tries to find fault with it against the “Done when”
+criterion of the batch's topics and, for a guardrail, its threat model,
+written before the code: what the guardrail stops, what it lets through.
+The agent fixes the blocking findings in the batch (a contradicted
+criterion, a regression, a data loss, a bypass within the threat model),
+sends the others to the backlog, where you see them, and dismisses the
+unfounded ones; its recap says how many.
 
 **Delivering.** By default, the agent does everything on one development
 branch and keeps only one pull request open, to which each finished batch

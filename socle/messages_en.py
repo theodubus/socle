@@ -1925,26 +1925,20 @@ MESSAGES: dict[str, str] = {
         "“Context”: it opens with “The project”, then “The work”, then “The question”, in that order",
     "« Contexte » : le paragraphe « {nom} » fait moins de {n} mots":
         "“Context”: the “{nom}” paragraph has fewer than {n} words",
-    "Tu relis le lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce dossier, et tu peux lire le dépôt pour vérifier un constat, mais tu ne modifies rien. "
-    "Pour éprouver une commande (l'installeur, un script), crée d'abord un dossier temporaire hors du dépôt "
-    "(`mktemp -d`), et n'écris que là : chaque commande qui écrit y vise par son chemin absolu, jamais par le "
-    "dossier courant, écrit en toutes lettres tel que `mktemp -d` l'a rendu, jamais par une variable, qui ne "
-    "survit pas d'un appel à l'autre. "
-    "Ton rôle est de le prendre en défaut. Cherche ce qui casse (un cas limite, une erreur de logique, une "
-    "régression), ce qu'aucun test ne prouve (une branche du code, un message, un cas que rien n'exerce), et ce qui "
-    "contredit un sujet, un critère « Fait quand » ou une décision cités plus bas. Ne juge ni le style, ni ce que les "
-    "contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests. Rends des "
-    "constats numérotés, chacun avec son fichier et sa ligne, ce qui casse et comment le vérifier ; ou « aucun "
-    "constat ».":
-        "You review another agent's batch of work, without its conversation or its reasoning: you have this brief, and you may read the repository to check a finding, but you change "
-        "nothing. To try a command (the installer, a script), first create a temporary directory outside the "
-        "repository (`mktemp -d`), and write only there: each command that writes aims at it by its absolute path, "
-        "never through the current directory, written out in full as `mktemp -d` returned it, never through a "
-        "variable, which does not survive from one call to the next. Your role is to find fault with it. Look for what breaks (an edge case, a logic error, a "
-        "regression), what no test proves (a code branch, a message, a case nothing exercises), and what contradicts "
-        "a topic, a “Done when” criterion or a decision cited below. Judge neither style nor what the automatic "
-        "checks already judge: the form of the memory, the links, the presence of tests. Return numbered findings, "
-        "each with its file and line, what breaks and how to verify it; or “no finding”.",
+    "Tu relis le lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce dossier, et tu peux lire le dépôt pour vérifier un constat, mais tu ne modifies rien. Pour éprouver une commande (l'installeur, un script), crée d'abord un dossier temporaire hors du dépôt (`mktemp -d`), et n'écris que là : chaque commande qui écrit y vise par son chemin absolu, jamais par le dossier courant, écrit en toutes lettres tel que `mktemp -d` l'a rendu, jamais par une variable, qui ne survit pas d'un appel à l'autre. Ton rôle est de le prendre en défaut.":
+        "You review another agent's batch of work, without its conversation or its reasoning: you have this brief, and you may read the repository to check a finding, but you change nothing. To try a command (the installer, a script), first create a temporary directory outside the repository (`mktemp -d`), and write only there: each command that writes aims at it by its absolute path, never through the current directory, written out in full as `mktemp -d` returned it, never through a variable, which does not survive from one call to the next. Your role is to find fault with it.",
+    "Ta barre est celle des sujets du lot, plus bas : leur critère « Fait quand », les décisions qu'ils citent, et, pour un sujet qui pose ou change un garde-fou, son modèle de menace, ce que le garde-fou arrête et ce qu'il laisse passer. Cherche ce qui casse (un cas limite, une erreur de logique, une régression), ce qu'aucun test ne prouve, et ce qui contredit un critère ou une décision. Ne juge ni le style, ni ce que les contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests.":
+        "Your bar is that of the batch's topics, below: their “Done when” criterion, the decisions they cite, and, for a topic that adds or changes a guardrail, its threat model, what the guardrail stops and what it lets through. Look for what breaks (an edge case, a logic error, a regression), what no test proves, and what contradicts a criterion or a decision. Judge neither style nor what the automatic checks already judge: the form of the memory, the links, the presence of tests.",
+    "Classe chaque constat. **Bloquant** : il contredit un critère coché ou une décision citée, fait régresser ce qui marchait avant le lot, perd des données, ou contourne un garde-fou dans son modèle de menace ; un garde-fou que le lot pose ou change sans modèle de menace écrit est lui-même un constat bloquant. **Pour le backlog** : tout le reste, dont un contournement hors du modèle de menace, un critère que le lot ne coche pas, un défaut voisin, une amélioration. Seuls les bloquants se corrigent dans le lot. Rends deux listes numérotées, « Bloquants » puis « Pour le backlog », chaque constat avec son fichier et sa ligne, ce qui casse et comment le vérifier, et, pour un bloquant, ce qu'il contredit ; ou « aucun constat ».":
+        "Classify each finding. **Blocking**: it contradicts a ticked criterion or a cited decision, breaks what worked before the batch, loses data, or bypasses a guardrail within its threat model; a guardrail the batch adds or changes without a written threat model is itself a blocking finding. **For the backlog**: everything else, including a bypass outside the threat model, a criterion the batch does not tick, a neighbouring defect, an improvement. Only blocking findings are fixed in the batch. Return two numbered lists, “Blocking” then “For the backlog”, each finding with its file and line, what breaks and how to verify it, and, for a blocking one, what it contradicts; or “no finding”.",
+    "Seconde revue : ce diff corrige des constats bloquants d'une première revue, que disent les messages de ses commits ci-dessous ; le reste du lot a déjà été relu. Ne juge que cette correction : un bloquant mal corrigé, ce qu'elle fait régresser, contre les mêmes sujets.":
+        "Second review: this diff fixes blocking findings of a first review, which the messages of its commits below state; the rest of the batch has already been reviewed. Judge only this fix: a blocking finding badly fixed, what it breaks, against the same topics.",
+    "## Seconde revue":
+        "## Second review",
+    "## Le diff de la correction ({n} fichier(s), depuis {base})":
+        "## The fix's diff ({n} file(s), since {base})",
+    "une seconde revue : le diff depuis ce commit, celui de la première revue, et les sujets du lot entier":
+        "a second review: the diff since this commit, the one of the first review, and the topics of the whole batch",
     "(aucune base connue : ni branche distante, ni branche par défaut ; rien à relire)":
         "(no known base: neither a remote branch nor a default branch; nothing to review)",
     "## Le diff du lot ({n} fichier(s), depuis {base})":
@@ -1953,8 +1947,12 @@ MESSAGES: dict[str, str] = {
         "(no change outside the memory: nothing to review)",
     "(diff tronqué : {n} caractère(s) de plus non montrés ; `git diff {base}` les donne)":
         "(diff truncated: {n} more character(s) not shown; `git diff {base}` gives them)",
-    "## Les sujets que le lot ferme":
-        "## The topics the batch closes",
+    "## Les sujets du lot : leur critère « Fait quand » est ta barre":
+        "## The batch's topics: their “Done when” criterion is your bar",
+    "## Les sujets que le lot ouvre : ce qu'il renvoie au backlog":
+        "## The topics the batch opens: what it sends to the backlog",
+    "## Les décisions et les demandes que le lot écrit":
+        "## The decisions and requests the batch writes",
     "## Les décisions et les demandes qu'ils citent":
         "## The decisions and requests they cite",
     "répondre à une demande ; l'agent y relaie (--relayed) ta réponse donnée dans la conversation":

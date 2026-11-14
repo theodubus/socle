@@ -200,6 +200,10 @@ l'attendent.
 Ce qui rend un sujet fait se dit, s'il le faut, dans une section
 `## Fait quand`, en cases à cocher (D-0064). Le contrôle du backlog refuse
 de le clore `fait` tant qu'une case reste vide ; abandonné, il les laisse.
+Un sujet qui pose ou change un garde-fou écrit, avant son code, une section
+`## Modèle de menace` (`## Threat model` en anglais) : ce que le garde-fou
+arrête, ce qu'il laisse passer. La revue d'un lot juge contre elle et
+contre le « Fait quand ».
 
 ```markdown
 # B-0020 — La recherche par ingrédient livrée

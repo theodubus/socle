@@ -127,7 +127,11 @@ going; it stops at the end of the batch, or as soon as a decision is up
 to the human. It does not change a priority the human gave. Before the
 push of a batch that changes code, a specification or a test, it has it
 reviewed by a reviewer without context (the `socle-review` skill), and its
-recap gives the findings.
+recap gives the findings. The reviewer judges the batch against the “Done
+when” of its topics: a topic whose design is not settled writes its
+specification before its code, a topic that adds or changes a guardrail,
+its threat model (its `## Threat model` section). Only blocking findings
+are fixed in the batch; the others go to the backlog.
 
 By default, everything happens on one development branch, with only one
 pull request open at a time: each finished batch is added to it, the

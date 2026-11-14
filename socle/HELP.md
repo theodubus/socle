@@ -144,9 +144,13 @@ Il s'arrête à la fin du lot, ou dès qu'une décision revient à l'humain.
 
 **Faire relire.** Avant de livrer un lot qui change du code, une
 spécification ou un test, l'agent le fait relire par un relecteur sans
-contexte, qui cherche à le prendre en défaut : ce qui casse, ce qu'aucun
-test ne prouve, ce qui contredit une décision. L'agent corrige chaque
-constat fondé et écarte les autres ; son récap dit combien.
+contexte, qui cherche à le prendre en défaut contre le critère « Fait
+quand » des sujets du lot et, pour un garde-fou, son modèle de menace,
+écrit avant le code : ce que le garde-fou arrête, ce qu'il laisse passer.
+L'agent corrige dans le lot les constats bloquants (un critère contredit,
+une régression, une perte de données, un contournement dans le modèle de
+menace), envoie les autres au backlog, où vous les voyez, et écarte les
+infondés ; son récap dit combien.
 
 **Livrer.** Par défaut, l'agent fait tout sur une branche de
 développement et garde une seule pull request ouverte, à laquelle chaque

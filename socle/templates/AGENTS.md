@@ -128,7 +128,12 @@ priorité basse s'il est commode), puis s'y met ; il s'arrête à la fin du
 lot, ou dès qu'une décision revient à l'humain. Il ne change pas une
 priorité que l'humain a donnée. Avant le push d'un lot qui change du code,
 une spécification ou un test, il le fait relire par un relecteur sans
-contexte (le skill `socle-review`), et son récap dit les constats.
+contexte (le skill `socle-review`), et son récap dit les constats. Le
+relecteur juge le lot contre le « Fait quand » de ses sujets : un sujet
+dont la conception n'est pas tranchée écrit sa spécification avant son
+code, un sujet qui pose ou change un garde-fou, son modèle de menace (sa
+section `## Modèle de menace`). Seuls les constats bloquants se corrigent
+dans le lot ; les autres vont au backlog.
 
 Par défaut, tout se fait sur une branche de développement, avec une seule
 pull request ouverte à la fois : chaque lot fini s'y ajoute, l'humain la
