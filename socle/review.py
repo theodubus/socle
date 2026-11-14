@@ -24,13 +24,47 @@ from socle.messages import a_traduire, trad
 PLAFOND_DIFF = 60_000
 
 
+def _amont(racine) -> str:
+    """La branche distante de la branche courante, `""` sans elle."""
+    return outils.git(racine, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}",
+                      check=False).strip()
+
+
 def base_du_lot(racine) -> str | None:
     """Ce que le lot change se mesure depuis la branche distante de la
     branche courante, ce qu'elle n'a pas encore poussé ; sans branche
     distante, depuis la branche par défaut."""
-    amont = outils.git(racine, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}",
-                       check=False).strip()
-    return amont or outils.branche_par_defaut(racine)
+    return _amont(racine) or outils.branche_par_defaut(racine)
+
+
+def contient_le_lot(projet: config.Projet, base: str, depuis: str | None = None) -> bool:
+    """`base` contient déjà le lot (ADR-0075) : avec `depuis`, le commit relu
+    par la première revue y est déjà ; sans, rien n'en diffère hors de la
+    mémoire, ni un commit, ni l'arbre."""
+    if depuis:
+        return outils.git_reussit(projet.racine, "merge-base", "--is-ancestor", depuis, base)
+    return outils.git_reussit(projet.racine, "diff", "--quiet", base, "--", ".",
+                              f":(exclude){projet.chemins.memoire}")
+
+
+def base_par_defaut(projet: config.Projet, depuis: str | None = None) -> tuple[str | None, str | None]:
+    """La base du lot sans `--base`, et ce que le dossier en dit (ADR-0075).
+    Une branche distante qui contient déjà le lot, poussé avant sa revue,
+    n'y laisse rien : il se mesure alors depuis l'ancêtre commun de HEAD et
+    de la branche par défaut. Si celui-ci le contient aussi, la base reste,
+    et la note dit pourquoi le dossier est vide, et quoi lancer."""
+    base = base_du_lot(projet.racine)
+    if not base or base != _amont(projet.racine) or not contient_le_lot(projet, base, depuis):
+        return base, None
+    defaut = outils.branche_par_defaut(projet.racine) or base
+    commun = outils.base_de_travail(projet.racine)
+    if commun and not contient_le_lot(projet, commun, depuis):
+        return commun, trad("(la branche distante {amont} contient déjà le lot : il se mesure depuis {commun}, "
+                            "l'ancêtre commun de HEAD et de {defaut} ; s'il commence plus tard, `socle review "
+                            "--base <le commit d'avant le lot>`)", amont=base, commun=commun, defaut=defaut)
+    return base, trad("(la branche distante {amont} contient déjà le lot, et la branche par défaut {defaut} aussi : "
+                      "rien à relire depuis elles. Un lot déjà poussé se relit depuis le commit d'avant lui : "
+                      "`socle review --base <ce commit>`)", amont=base, defaut=defaut)
 
 
 def _diff(projet: config.Projet, base: str) -> tuple[str, list[str]]:
@@ -175,13 +209,18 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
     consigne, le diff du lot, les sujets du lot, les décisions qu'il écrit
     et celles qu'ils citent (ADR-0073). Avec `depuis`, le dossier d'une seconde revue : le
     diff depuis ce commit, les messages de ses commits, et toujours les
-    sujets du lot entier, depuis `base`."""
-    base = base or base_du_lot(projet.racine)
+    sujets du lot entier, depuis `base`. Sans `base`, celle de
+    `base_par_defaut` (ADR-0075)."""
+    note = None
+    if not base:
+        base, note = base_par_defaut(projet, depuis)
     lignes = [trad("# Revue adversariale d'un lot"), "", trad(CONSIGNE_ROLE), "", trad(CONSIGNE_BARRE), "",
               trad(CONSIGNE_CLASSES), ""]
     if not base:
         lignes.append(trad("(aucune base connue : ni branche distante, ni branche par défaut ; rien à relire)"))
         return "\n".join(lignes) + "\n"
+    if note:
+        lignes += [note, ""]
     if depuis:
         lignes += [trad("## Seconde revue"), "", trad(CONSIGNE_SECONDE), ""]
         for message in messages_depuis(projet.racine, depuis):

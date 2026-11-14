@@ -33,7 +33,9 @@ python3 .socle/socle review
 ```
 
    It gives the instruction, the batch's diff since the remote branch
-   (otherwise the default branch), the topics the batch touches, in
+   (otherwise the default branch; if the remote branch already contains
+   the batch, pushed before its review, since the common ancestor with
+   the default branch, and it says so), the topics the batch touches, in
    full, those it opens by their title, and the decisions they cite.
    `--base <ref>` changes the batch's base; for a second review,
    `--since <reviewed commit>` shows only the diff since the first

@@ -70,8 +70,10 @@ Juste après l'installation :
 2. Donner à l'agent les outils que la CI installe pour l'adaptateur
    (pytest, par exemple), que l'installeur cite avec leurs commandes. En
    session cloud, le conteneur repart de zéro à chaque session : le hook de
-   démarrage du socle les installe dans chaque session neuve ; seule la
-   session qui installe le socle les installe elle-même. Tant que le projet
+   démarrage du socle les installe dans chaque session neuve, et complète
+   l'historique d'un clone superficiel, dont les commits que la mémoire cite
+   manqueraient ; seule la session qui installe le socle les installe
+   elle-même. Tant que le projet
    n'a aucun fichier source, `verify` ne lance ni compilation ni tests, et
    le dit.
 3. Commiter et pousser.

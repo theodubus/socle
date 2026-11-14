@@ -34,7 +34,9 @@ python3 .socle/socle review
 ```
 
    Il donne la consigne, le diff du lot depuis la branche distante (sinon
-   la branche par défaut), les sujets que le lot touche, en entier, ceux
+   la branche par défaut ; si la branche distante contient déjà le lot,
+   poussé avant sa revue, depuis l'ancêtre commun avec la branche par
+   défaut, et il le dit), les sujets que le lot touche, en entier, ceux
    qu'il ouvre par leur titre, et les décisions qu'ils citent.
    `--base <ref>` change la base du lot ; pour une seconde revue,
    `--since <commit relu>` ne montre que le diff depuis le commit de la

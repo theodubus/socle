@@ -868,7 +868,8 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s = sp.add_parser("review", help=trad("le dossier de la revue adversariale d'un lot, pour un relecteur sans "
                                           "contexte"))
     s.add_argument("--base", help=trad("la base du lot (par défaut : la branche distante, sinon la branche par "
-                                       "défaut)"))
+                                       "défaut ; l'ancêtre commun avec celle-ci quand la branche distante contient "
+                                       "déjà le lot)"))
     s.add_argument("--max-bytes", type=int, default=60_000, help=trad("le plafond du diff montré"))
     s.add_argument("--since", metavar="REF", help=trad("une seconde revue : le diff depuis ce commit, celui de la "
                                                        "première revue, et les sujets du lot entier"))

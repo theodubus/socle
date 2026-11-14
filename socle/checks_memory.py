@@ -408,7 +408,8 @@ def verifier_ref(ctx, type_: str, cible: str, historique: bool = False) -> str |
         if not re.fullmatch(r"[0-9a-f]{7,40}", cible):
             return trad("`commit:{cible}` n'est pas un SHA", cible=cible)
         # Absent du clone, il peut n'être plus que dans une pull request :
-        # on les récupère avant de le dire absent (B-0117).
+        # on les récupère avant de le dire absent, de GitHub ou de l'origine
+        # qui les a récupérées (B-0117, B-0175).
         if not outils.objet_existe(ctx.racine, cible) and not (
                 outils.recuperer_pull_requests(ctx.racine) and outils.objet_existe(ctx.racine, cible)):
             # Sa branche supprimée sans pull request, un clone qui l'a encore

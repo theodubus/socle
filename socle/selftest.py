@@ -678,6 +678,27 @@ def maj_memoire(c: Path, texte: str = "Travail en cours sur l'essai."):
     remplacer(c, "memory/active.md", "## En cours\n\nRien pour l'instant.", f"## En cours\n\n{texte}")
 
 
+def _clone_d_un_clone(a: Atelier, c: Path, ref: str | None) -> Path:
+    """Un commit de `c` que seul `ref` garde (aucun ref, s'il est `None`),
+    cité par la mémoire du clone ; puis un clone de `c` tel qu'un agent le
+    fait hors de GitHub, qui ne reçoit pas les objets qu'aucun ref
+    n'atteint (`--no-local`, B-0175)."""
+    a.git(c, "checkout", "-q", "-b", "piste")
+    (c / "piste.txt").write_text("piste\n")
+    a.commit(c, "piste")
+    sha = a.git(c, "rev-parse", "HEAD").strip()
+    if ref:
+        a.git(c, "update-ref", ref, sha)
+    a.git(c, "checkout", "-q", "travail")
+    a.git(c, "branch", "-q", "-D", "piste")
+    maj_memoire(c, f"Repris de la piste (commit:{sha[:7]}).")
+    a.commit(c, "essai")
+    d = c.parent / f"{c.name}-clone"
+    a.git(a.dossier, "clone", "-q", "--no-local", str(c), str(d))
+    a.git(d, "config", "core.hooksPath", ".socle/git-hooks")
+    return d
+
+
 # --------------------------------------------------------------------------
 # Les défauts du cadrage, puis quelques autres
 # --------------------------------------------------------------------------
@@ -789,6 +810,11 @@ def _cas() -> list[Cas]:
     def _(a, c):
         ajouter(c, "docs/calc.md", "Voir F-0099 et [le guide](guide.md).\n")
         return etage_git(a, c)
+
+    @defaut("commit-sans-ref", "commit cité que l'origine ne garde par aucun ref, absent d'un clone neuf", "ci",
+            "memoire.references")
+    def _(a, c):
+        return etage_ci(a, _clone_d_un_clone(a, c, None))
 
     @defaut("code-sans-doc", "code modifié sans doc associée", "agent", "docs.correspondance")
     def _(a, c):
@@ -1957,6 +1983,11 @@ def _temoins() -> list[tuple[str, Callable]]:
         sha = a.run(c, "git", "rev-parse", "HEAD").stdout.strip()
         maj_memoire(c, f"Repris de l'essai (commit:{sha}).")
         return etage_ci(a, c)
+
+    @temoin("un commit cité que l'origine ne garde que par une tête de pull request récupérée passe la CI d'un "
+            "clone neuf hors de GitHub (B-0175)")
+    def _(a, c):
+        return etage_ci(a, _clone_d_un_clone(a, c, "refs/socle/pull/7"))
 
     @temoin("un skill du projet bien formé, qui cite dans son texte une commande à ne pas lancer, passe le "
             "commit et la CI")

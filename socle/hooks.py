@@ -160,7 +160,9 @@ def session_start(projet: config.Projet, entree: dict) -> int:
     # Ses lignes entrent dans l'état, en tête avec les autres lignes d'action :
     # toute la sortie du hook tient sous la borne du démarrage (ADR-0071).
     # Gardées, `socle state --short` les redit, où la ligne de coupe renvoie.
-    supplement = installer_outils(projet)
+    # L'historique, puis les outils, sous un seul délai : celui du hook.
+    fin = time.monotonic() + DELAI_OUTILS
+    supplement = completer_historique(projet.racine, fin) + installer_outils(projet, fin)
     if not git_ok and (projet.racine / config.GIT_HOOKS).is_dir():
         supplement.append(trad("\n!! hooks git non branchés : `git config core.hooksPath .socle/git-hooks`"))
     etat.retenir_demarrage(projet, supplement)
@@ -171,17 +173,64 @@ def session_start(projet: config.Projet, entree: dict) -> int:
 # Claude Code la pose dans ses sessions cloud, dont le conteneur repart de
 # zéro à chaque session.
 SESSION_CLOUD = "CLAUDE_CODE_REMOTE"
-# Sous le délai du hook de démarrage (`.claude/settings.json`).
+# Le travail du démarrage en session cloud, l'historique puis les outils,
+# sous le délai de son hook (`.claude/settings.json`).
 DELAI_OUTILS = 270
+# L'historique en prend au plus cette part ; les outils ont le reste.
+DELAI_HISTORIQUE = 120
+# Arrêté au délai, git a ce temps pour retirer ses verrous avant d'être tué.
+ARRET_HISTORIQUE = 10
 # Une ligne de la sortie d'un échec des outils, en octets au plus.
 LIGNE_DE_SORTIE = 200
+# La commande qui complète un clone superficiel, telle que l'agent la relance.
+COMPLETER = "git fetch --unshallow"
 
 
-def installer_outils(projet: config.Projet) -> list[str]:
+def completer_historique(racine: Path, fin: float | None = None) -> list[str]:
+    """En session cloud, l'historique d'un clone superficiel : sans lui,
+    `memoire.references` ne trouve pas les commits que la mémoire cite, et
+    refuse le premier commit de l'agent (B-0202). Complété, le clone ne
+    l'est plus : rien à marquer. Un échec se dit sans bloquer le démarrage,
+    et se retente au suivant. Rend les lignes à montrer à l'agent."""
+    if os.environ.get(SESSION_CLOUD) != "true":
+        return []
+    r = subprocess.run(["git", "rev-parse", "--is-shallow-repository"], cwd=racine, capture_output=True, text=True)
+    if r.returncode != 0 or r.stdout.strip() != "true":
+        return []
+    reste = (fin if fin is not None else time.monotonic() + DELAI_OUTILS) - time.monotonic()
+    # Aucune invite d'identifiants : personne ne la verrait.
+    p = subprocess.Popen(["git", "fetch", "--quiet", "--unshallow"], cwd=racine, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
+                         env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
+    try:
+        sortie, erreurs = p.communicate(timeout=max(1, min(DELAI_HISTORIQUE, reste)))
+    except subprocess.TimeoutExpired:
+        # Tué d'emblée (SIGKILL), git laisserait `.git/shallow.lock`, et le
+        # clone resterait superficiel, la commande relancée à la main
+        # comprise : arrêté (SIGTERM), il retire ses verrous.
+        p.terminate()
+        try:
+            p.communicate(timeout=ARRET_HISTORIQUE)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.communicate()
+        return [trad("!! clone superficiel : `{commande}` dépasse le délai du démarrage ; le relancer avant de "
+                     "commiter, sans quoi les commits que la mémoire cite manquent", commande=COMPLETER)]
+    if p.returncode == 0:
+        return [trad("historique du clone complété (session cloud) : `{commande}`", commande=COMPLETER)]
+    derniere = (sortie + erreurs).strip().splitlines()[-1:] or [""]
+    return [trad("!! clone superficiel : `{commande}` a rendu {code} ; le relancer avant de commiter, sans quoi "
+                 "les commits que la mémoire cite manquent\n    {queue}", commande=COMPLETER, code=p.returncode,
+                 queue=outils.raccourcir(derniere[0], LIGNE_DE_SORTIE))]
+
+
+def installer_outils(projet: config.Projet, fin: float | None = None) -> list[str]:
     """En session cloud, les outils de l'adaptateur, par les commandes que la
     CI lance pour eux : sans eux, la première vérification de l'agent échoue
     (D-0048). Une fois par conteneur ; un échec se dit sans bloquer le
-    démarrage. Rend les lignes à montrer à l'agent."""
+    démarrage. `fin`, l'heure (`time.monotonic`) où le délai du démarrage
+    s'achève, que l'historique a pu entamer. Rend les lignes à montrer à
+    l'agent."""
     from socle import verification
 
     if os.environ.get(SESSION_CLOUD) != "true":
@@ -200,7 +249,7 @@ def installer_outils(projet: config.Projet) -> list[str]:
             return dit
     except OSError:
         pass
-    fin = time.monotonic() + DELAI_OUTILS
+    fin = fin if fin is not None else time.monotonic() + DELAI_OUTILS
     lignes, reussi = list(dit), True
     for c in commandes_ci:
         try:

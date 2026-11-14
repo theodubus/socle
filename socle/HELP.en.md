@@ -67,8 +67,9 @@ Right after the installation:
 2. Give the agent the tools the CI installs for the adapter (pytest, for
    instance), which the installer quotes with their commands. In a cloud
    session, the container starts from scratch at every session: the
-   socle's start-up hook installs them in every new session; only the
-   session that installs the socle installs them itself. As long as the
+   socle's start-up hook installs them in every new session, and completes
+   the history of a shallow clone, which would lack the commits the memory
+   cites; only the session that installs the socle installs them itself. As long as the
    project has no source file, `verify` runs neither build nor tests, and
    says so.
 3. Commit and push.

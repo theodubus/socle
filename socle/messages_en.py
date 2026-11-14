@@ -1874,8 +1874,10 @@ MESSAGES: dict[str, str] = {
         "the permalink of a file or an entry, to give to the human",
     "le dossier de la revue adversariale d'un lot, pour un relecteur sans contexte":
         "the brief of a batch's adversarial review, for a reviewer without context",
-    "la base du lot (par défaut : la branche distante, sinon la branche par défaut)":
-        "the base of the batch (by default: the remote branch, otherwise the default branch)",
+    "la base du lot (par défaut : la branche distante, sinon la branche par défaut ; l'ancêtre commun avec "
+    "celle-ci quand la branche distante contient déjà le lot)":
+        "the base of the batch (by default: the remote branch, otherwise the default branch; the common ancestor "
+        "with the latter when the remote branch already contains the batch)",
     "le plafond du diff montré":
         "the cap of the diff shown",
     "# Revue adversariale d'un lot":
@@ -1945,6 +1947,15 @@ MESSAGES: dict[str, str] = {
         "## The batch's diff ({n} file(s), since {base})",
     "(aucun changement hors de la mémoire : rien à relire)":
         "(no change outside the memory: nothing to review)",
+    "(la branche distante {amont} contient déjà le lot : il se mesure depuis {commun}, l'ancêtre commun de HEAD et "
+    "de {defaut} ; s'il commence plus tard, `socle review --base <le commit d'avant le lot>`)":
+        "(the remote branch {amont} already contains the batch: it is measured since {commun}, the common ancestor "
+        "of HEAD and {defaut}; if it starts later, `socle review --base <the commit before the batch>`)",
+    "(la branche distante {amont} contient déjà le lot, et la branche par défaut {defaut} aussi : rien à relire "
+    "depuis elles. Un lot déjà poussé se relit depuis le commit d'avant lui : `socle review --base <ce commit>`)":
+        "(the remote branch {amont} already contains the batch, and so does the default branch {defaut}: nothing "
+        "to review since them. A batch already pushed is reviewed since the commit before it: `socle review "
+        "--base <that commit>`)",
     "(diff tronqué : {n} caractère(s) de plus non montrés ; `git diff {base}` les donne)":
         "(diff truncated: {n} more character(s) not shown; `git diff {base}` gives them)",
     "## Les sujets du lot : leur critère « Fait quand » est ta barre":
@@ -2251,6 +2262,16 @@ MESSAGES: dict[str, str] = {
         "!! adapter tools: `{commande}` exceeds the start-up time limit; run it again before verifying",
     "outils de l'adaptateur installés (session cloud) : `{commande}`":
         "adapter tools installed (cloud session): `{commande}`",
+    "!! clone superficiel : `{commande}` dépasse le délai du démarrage ; le relancer avant de commiter, sans quoi les "
+    "commits que la mémoire cite manquent":
+        "!! shallow clone: `{commande}` exceeds the start-up time limit; run it again before committing, or the "
+        "commits the memory cites are missing",
+    "historique du clone complété (session cloud) : `{commande}`":
+        "clone history completed (cloud session): `{commande}`",
+    "!! clone superficiel : `{commande}` a rendu {code} ; le relancer avant de commiter, sans quoi les commits que la "
+    "mémoire cite manquent\n    {queue}":
+        "!! shallow clone: `{commande}` returned {code}; run it again before committing, or the commits the memory "
+        "cites are missing\n    {queue}",
     "outils de l'adaptateur {ligne}":
         "adapter tools {ligne}",
     "en attente de leur fichier de build, comme dans la CI : {commandes}":
@@ -2453,6 +2474,8 @@ MESSAGES: dict[str, str] = {
         "doc value diverging from its source",
     "lien ou identifiant mort":
         "dead link or identifier",
+    "commit cité que l'origine ne garde par aucun ref, absent d'un clone neuf":
+        "cited commit that the origin keeps by no ref, missing from a fresh clone",
     "code modifié sans doc associée":
         "code changed without its associated doc",
     "test sans assertion":
@@ -2765,6 +2788,10 @@ MESSAGES: dict[str, str] = {
         "a path from another repository, undeclared, is reported without refusal",
     "une référence de commit en fin de phrase passe la CI":
         "a commit reference at the end of a sentence passes the CI",
+    "un commit cité que l'origine ne garde que par une tête de pull request récupérée passe la CI d'un clone neuf "
+    "hors de GitHub (B-0175)":
+        "a cited commit that the origin keeps only by a fetched pull request head passes the CI of a fresh clone "
+        "outside GitHub (B-0175)",
     "durcir un garde-fou est libre":
         "tightening a guardrail is free",
     "un module nouveau entre au cliquet de mutation « à mesurer » : la CI passe":
