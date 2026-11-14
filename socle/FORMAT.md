@@ -179,12 +179,19 @@ L'ordre du travail se tient au backlog. Un sujet attend d'autres sujets
 par `après : B-0012, B-0014`, et une demande, `après : D-0007`, jusqu'à sa
 réponse (D-0064) ; une condition hors de la mémoire devient un sujet
 `pour : humain`, qu'il attend. Un jalon est un sujet marqué `forme : jalon`,
-qui attend ses tâches (et le jalon d'avant, s'il y en a un). Un sujet peut
+qui attend ses tâches (et le jalon d'avant, s'il y en a un). Un lot est un
+sujet marqué `forme : lot`, qui attend les sujets qu'on mène ensemble (et
+le lot d'avant, s'il y en a un) : les sujets prêts qui touchent les mêmes
+fichiers, le même garde-fou ou les mêmes tests, qu'une seule revue juge
+ensemble ; son corps dit ce qui les réunit, et nomme dans le texte ce qui
+n'est pas un sujet. Un jalon ni un lot ne sont jamais prêts. Un sujet peut
 avoir une priorité, `priorité : haute` ou `priorité : basse` (D-0062) ; la
 normale ne s'écrit pas, et l'agent ne change pas celle que l'humain a
 donnée. L'état en calcule ce qui vient ensuite : le prochain jalon, ouvert,
 qu'aucun jalon ouvert ne précède, de proche en proche à travers les sujets
-et les demandes qu'il attend, avec ce qui lui reste ; les sujets
+et les demandes qu'il attend, avec ce qui lui reste ; le prochain lot,
+ouvert, qu'aucun lot ouvert ne précède, celui qui est en cours d'abord, et
+où en est chacun de ses sujets et de ses demandes ; les sujets
 prêts, ouverts et pas encore en cours, dont tout ce qu'ils attendent est
 clos ou répondu, ceux du prochain jalon d'abord, puis par priorité ; à
 part, les prêts de priorité basse, que l'agent prend quand c'est commode ;
@@ -192,8 +199,9 @@ et le nombre de sujets qui attendent encore. Le rappel de fin de tour le
 redonne. Le contrôle de l'ordre refuse un `après` qui nomme autre chose
 qu'un sujet ou une demande, un sujet qui s'attend lui-même de proche en
 proche, un sujet `fait` avant ce qu'il attend (un jalon ne se clôt pas
-sur des tâches ouvertes, ni un sujet sur une demande sans réponse), et une
-priorité ni haute ni basse. Un sujet abandonné peut laisser ce qu'il
+sur des tâches ouvertes, ni un lot sur des sujets ouverts, ni un sujet sur
+une demande sans réponse), et une priorité ni haute ni basse. Un sujet
+abandonné peut laisser ce qu'il
 attendait ; un sujet clos, fait ou abandonné, ne retient plus ceux qui
 l'attendent.
 
@@ -472,6 +480,7 @@ interne, que `socle show` dit dans la langue du projet.
 | champ `priorite` | priorité | priority |
 | valeur `seance` | séance | session |
 | valeur `jalon` | jalon | milestone |
+| valeur `lot` | lot | batch |
 | valeur `haute` | haute | high |
 | valeur `basse` | basse | low |
 | section de sujet `fait-quand` | Fait quand | Done when |

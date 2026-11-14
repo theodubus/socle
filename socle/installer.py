@@ -624,10 +624,77 @@ def _refus_cible(cible: Path) -> str | None:
     return None
 
 
+# Les notes de version du moteur, dans son dossier `socle`, comme le guide :
+# une entrée par changement qui touche un projet installé, sous un titre qui
+# porte son identifiant, la date du changement et une lettre (ADR-0078).
+NOTES = "CHANGES.md"
+TITRE_DE_NOTE = re.compile(r"^## (?P<id>\d{4}-\d{2}-\d{2}-[a-z]) — (?P<titre>\S.*?)\s*$")
+
+
+def fichier_des_notes(paquet: Path, lg: str = "fr") -> Path:
+    """Les notes de version du moteur `paquet` (son dossier `socle`) dans la
+    langue `lg` quand il en a une version (`CHANGES.en.md`), sinon en
+    français."""
+    traduit = paquet / f"CHANGES.{lg}.md"
+    return traduit if traduit.is_file() else paquet / NOTES
+
+
+def entrees_des_notes(texte: str) -> list[tuple[str, str]]:
+    """Les entrées des notes de version, dans l'ordre du texte : leur
+    identifiant, et leur texte entier, titre compris. Un titre de niveau 2
+    qui n'a pas la forme d'une entrée clôt la précédente sans en être une."""
+    entrees: list[tuple[str, list[str]]] = []
+    courante = None
+    for ligne in texte.splitlines():
+        if ligne.startswith("## "):
+            m = TITRE_DE_NOTE.match(ligne)
+            courante = (m.group("id"), [ligne]) if m else None
+            if courante:
+                entrees.append(courante)
+        elif courante:
+            courante[1].append(ligne)
+    return [(ident, "\n".join(lignes).strip()) for ident, lignes in entrees]
+
+
+def identifiants_des_notes(paquet: Path) -> set[str]:
+    """Les identifiants des notes de version du moteur `paquet`, dans l'une
+    et l'autre langue ; vide s'il n'en a pas."""
+    return {ident for f in paquet.glob("CHANGES*.md") if f.is_file()
+            for ident, _ in entrees_des_notes(f.read_text(encoding="utf-8", errors="replace"))}
+
+
+def notes_nouvelles(deja: set[str], paquet: Path, lg: str = "fr") -> list[tuple[str, str]]:
+    """Les entrées des notes de version du moteur `paquet`, dans la langue
+    `lg`, que `deja` ne nomme pas : ce que la copie nouvelle du moteur a en
+    plus de celle qu'elle remplace."""
+    f = fichier_des_notes(paquet, lg)
+    if not f.is_file():
+        return []
+    return [(ident, texte) for ident, texte in entrees_des_notes(f.read_text(encoding="utf-8"))
+            if ident not in deja]
+
+
+def texte_des_notes(notes: list[tuple[str, str]], fichier: str, toutes: bool) -> str:
+    """Les notes de version qu'une mise à jour apporte, telles que
+    l'installeur les imprime : une ligne qui dit quoi en faire, puis chaque
+    entrée entière. `toutes` : la copie remplacée n'avait pas de notes."""
+    if toutes:
+        tete = trad("Notes de version : la copie du moteur remplacée n'en avait pas ; voici toutes leurs entrées "
+                    "({n}), dans `{fichier}`, dont certaines décrivent ce que le projet a déjà : leur date le dit, à "
+                    "comparer à celle de sa mise à jour précédente. Les lire, et faire ce que chacune demande :",
+                    n=len(notes), fichier=fichier)
+    else:
+        tete = trad("Notes de version : ce que cette mise à jour change pour le projet, {n} entrée(s) que la copie "
+                    "du moteur remplacée n'avait pas, dans `{fichier}`. Les lire, et faire ce que chacune demande :",
+                    n=len(notes), fichier=fichier)
+    return "\n\n".join([tete, *(texte for _, texte in notes)])
+
+
 def _poser_moteur(cible: Path, mode: str, source: Path, ch: config.Chemins,
-                  ancien: dict | None = None) -> tuple[str, list[str]]:
-    """Le moteur, remplacé en bloc, et son verrou ; rend le dossier du moteur.
-    `ancien` : le verrou d'avant ce passage."""
+                  ancien: dict | None = None) -> tuple[str, list[str], bool]:
+    """Le moteur, remplacé en bloc, et son verrou ; rend le dossier du moteur,
+    ce qu'il dit, et s'il a recopié le moteur. `ancien` : le verrou d'avant
+    ce passage."""
     journal = []
     copie = False
     # 1. Le moteur, remplacé en bloc.
@@ -690,7 +757,7 @@ def _poser_moteur(cible: Path, mode: str, source: Path, ch: config.Chemins,
         ))
         journal.append(trad("verrou : {empreinte} sur {n} fichiers", empreinte=empreinte.courte(calculee), n=n))
 
-    return dossier_moteur, journal
+    return dossier_moteur, journal, copie
 
 
 def _empreintes_protegees(cible: Path) -> dict[str, str]:
@@ -1159,14 +1226,24 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
     # consignera que ceux qu'il change (ADR-0077).
     avant = _etat_des_proteges(cible) if ancien and mode != config.MODE_AMONT else None
 
+    # Les notes de version de la copie du moteur que le projet a, lues avant
+    # qu'elle ne soit remplacée : la mise à jour donne celles que la copie
+    # nouvelle a en plus (ADR-0078).
+    lues = (identifiants_des_notes(cible / str(ancien.get("engine_dir") or ch.moteur) / "socle")
+            if ancien and mode != config.MODE_AMONT else None)
+
     # 1. Le moteur, remplacé en bloc, et son verrou.
-    dossier_moteur, poses = _poser_moteur(cible, mode, source, ch, ancien)
+    dossier_moteur, poses, copie = _poser_moteur(cible, mode, source, ch, ancien)
     journal += poses
 
     # 2. Les fichiers du projet : posés s'ils manquent, jamais écrasés.
     lg, poses = _poser_configuration(cible, texte_adaptateur, ancien, prive, relecture, demandes_privees,
                                      langue_memoire, ch, plafonds, source_plafonds, humain, autres, connus)
     journal += poses
+    # Rien quand le moteur n'est pas recopié : en mode amont, ou lancé depuis
+    # le projet, la copie en place est celle que les notes décriraient.
+    paquet = cible / dossier_moteur / "socle"
+    notes = notes_nouvelles(lues, paquet, lg) if lues is not None and copie else []
 
     # 3. La mémoire initiale.
     journal += _poser_memoire(cible, lg, ", ".join([nom_adaptateur, *(n for n, _ in autres)]), adoption, ch)
@@ -1213,11 +1290,13 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
     print(trad("socle {version} installé dans {cible}", version=VERSION, cible=cible))
     for l in journal:
         print(f"  - {l}")
+    if notes:
+        print("\n" + texte_des_notes(notes, fichier_des_notes(paquet, lg).relative_to(cible).as_posix(), not lues))
     print(trad("\nAudit :"))
     code, echecs = _audit(cible)
     print(note_d_audit())
     print(trad("\nEt maintenant :"))
-    for i, etape in enumerate(et_maintenant(cible, bool(ancien), echecs), 1):
+    for i, etape in enumerate(et_maintenant(cible, bool(ancien), echecs, [i for i, _ in notes]), 1):
         print(f"  {i}. {etape}")
     return code_de_sortie(code, echecs, attentes_de_l_humain(cible))
 
@@ -1643,9 +1722,11 @@ def note_d_audit() -> str:
                 "tests du projet n'ont pas été lancés ; `python3 .socle/socle verify --fast` les lance)")
 
 
-def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str]) -> list[str]:
+def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str], notes: list[str] | tuple = ()) -> list[str]:
     """Ce qui reste à l'humain après l'installation, dans l'ordre où le
-    faire : chaque étape avec sa commande."""
+    faire : chaque étape avec sa commande. `notes` : les identifiants des
+    notes de version que la mise à jour apporte, que le message de commit
+    nomme pour la session suivante (ADR-0078)."""
     from socle import hooks, private as prive
 
     projet = config.Projet.charger(cible)
@@ -1727,21 +1808,37 @@ def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str]) -> list[str
                          "<fichier.toml>`")
     message = (trad("Mettre à jour le socle {version}", version=VERSION) if mise_a_jour
                else trad("Installer le socle {version}", version=VERSION))
+    commande = f'git add -A && git commit -m "{message}"'
+    fichier_notes = ""
+    if mise_a_jour and notes:
+        # Le message de commit garde les notes de la mise à jour pour une
+        # session qui ne l'a pas vue passer : leurs identifiants, et le
+        # fichier où les lire (sans accents graves, que les guillemets du
+        # shell exécuteraient).
+        fichier_notes = fichier_des_notes(cible / projet.dossier_moteur / "socle", messages.langue())
+        fichier_notes = fichier_notes.relative_to(cible).as_posix()
+        commande += ' -m "' + trad("Notes de version du socle : {liste}, dans {fichier}", liste=", ".join(notes),
+                                   fichier=fichier_notes) + '"'
+    commande += " && git push"
     if mise_a_jour and "protege.fichiers" in echecs and os.environ.get(hooks.SESSION_CLOUD) == "true":
         # Le hook avant commit juge ce que le commit contient : la note qui
         # cite un fichier protégé part avec lui, la demande avant eux (B-0148).
         etapes.append(trad('dans la session qui pose la demande, commiter en deux temps : d\'abord la demande '
                            'seule, qui ne cite que ce qui est déjà commité, hors les fichiers protégés qu\'elle '
                            'approuve, et la pousser ; puis, quand elle le permet, les fichiers protégés avec ce qui '
-                           'les cite (journal, chantier actif) : `git add -A && git commit -m "{message}" && git '
-                           'push`. Le hook avant commit refuse une référence, chemin ou identifiant, que le commit '
-                           'ne contient pas', message=message) + verifier)
+                           'les cite (journal, chantier actif) : `{commande}`. Le hook avant commit refuse une '
+                           'référence, chemin ou identifiant, que le commit ne contient pas', commande=commande)
+                       + verifier)
     else:
-        etapes.append(trad('commiter puis pousser : `git add -A && git commit -m "{message}" && git push`',
-                           message=message) + verifier)
-    etapes.append(trad("ouvrir l'agent dans le projet : il lit l'état au démarrage") if mise_a_jour
-                  else trad("ouvrir l'agent dans le projet : il lit l'état au démarrage, et te donne le lien des questions "
-                          "de départ, une demande à laquelle tu réponds dans la conversation"))
+        etapes.append(trad("commiter puis pousser : `{commande}`", commande=commande) + verifier)
+    if mise_a_jour and notes:
+        etapes.append(trad("ouvrir l'agent dans le projet : il lit l'état au démarrage ; s'il n'a pas lancé lui-même "
+                           "cette mise à jour, lui dire de lire ses notes de version ({liste}, dans `{fichier}`) et de "
+                           "faire ce que chacune demande", liste=", ".join(notes), fichier=fichier_notes))
+    else:
+        etapes.append(trad("ouvrir l'agent dans le projet : il lit l'état au démarrage") if mise_a_jour
+                      else trad("ouvrir l'agent dans le projet : il lit l'état au démarrage, et te donne le lien des "
+                                "questions de départ, une demande à laquelle tu réponds dans la conversation"))
     if not mise_a_jour and not str(projet.pol("human", "name", defaut="") or "").strip():
         # Sans lui, chaque réponse relayée doit nommer l'humain (`--by`).
         etapes.append(trad("écrire ton nom dans `{politique}` (`[human] name`) avant de fusionner l'installation : "

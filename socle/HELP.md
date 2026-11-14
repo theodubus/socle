@@ -122,7 +122,10 @@ avec ce qu'elle attend (`après` : un autre sujet, ou une demande jusqu'à
 sa réponse) et ce qui la rend faite (une section « Fait quand », en cases
 à cocher, toutes cochées avant de la clore), groupée en jalons. Il soumet
 chaque document en demande. Il suffit de le lui demander ; l'état donne
-ensuite le prochain jalon et les sujets prêts.
+ensuite le prochain jalon et les sujets prêts. Les sujets qui se
+traitent ensemble, parce qu'ils touchent les mêmes fichiers ou les mêmes
+tests, l'agent les réunit en un lot (`forme : lot`), que l'état montre
+avec l'avancement de chacun.
 
 **Spécifications et cas d'essai.** Le projet déclare où vivent ses
 spécifications (`[specs] paths` des garde-fous) : l'état vous signale
@@ -182,8 +185,8 @@ Chaque point de « Pour toi » se comprend seul : ce que c'est, pourquoi,
 et ce que change votre réponse.
 
 À tout moment, `python3 .socle/socle state` donne l'état du projet : le
-commit, la CI, le backlog et ce qui vient ensuite (le prochain jalon, les
-sujets prêts), les demandes en attente, ce qui revient à l'humain. La mémoire se lit dans `memory/`.
+commit, la CI, le backlog et ce qui vient ensuite (le prochain jalon, le
+prochain lot, les sujets prêts), les demandes en attente, ce qui revient à l'humain. La mémoire se lit dans `memory/`.
 
 Une procédure du projet qui revient, l'agent l'écrit en skill dans
 `.claude/skills/`, avec une entrée au journal : il la charge ensuite à la
@@ -279,7 +282,12 @@ commit (`Dispense-test: f — <raison>`) ; un correctif apporte un test qui
 **Mettre à jour le socle.** Relancer la commande d'installation depuis un
 clone à jour du moteur (`git clone --depth 1
 https://github.com/theodubus/socle /tmp/socle`). Les fichiers du projet ne sont jamais écrasés ; le
-diff de la politique est montré. Le hook de l'agent refuse l'installeur visé
+diff de la politique est montré. Entre ce qu'il a posé et l'audit,
+l'installeur imprime les [notes de version](CHANGES.md) que la copie du
+moteur du projet n'avait pas, toutes si elle n'en avait aucune : ce que
+chaque changement fait au projet, et ce que l'agent doit faire. Le message
+de commit qu'il propose nomme leurs identifiants, pour l'agent qui n'a pas
+vu passer la mise à jour. Le hook de l'agent refuse l'installeur visé
 sur un projet équipé dans un autre mode que celui de son verrou, ou sur
 une cible écrite par une variable : la mise à jour garde le mode, et sa
 cible s'écrit en toutes lettres. Seule exception, une copie d'un adaptateur
@@ -314,8 +322,9 @@ Mets à jour le socle de ce dépôt depuis son dépôt public, sans ajouter ce d
 1. Si le clone est superficiel (git rev-parse --is-shallow-repository répond true), complète son historique : git fetch --unshallow.
 2. git clone --depth 1 https://github.com/theodubus/socle /tmp/socle
 3. Sur ta branche de travail, depuis la racine du dépôt : PYTHONPATH=/tmp/socle python3 -m socle install --target . ; si le projet a plusieurs adaptateurs (des copies dans .socle/adapters/), nomme-les tous par --adapter, le principal d'abord, comme à l'installation.
-4. Suis les étapes « Et maintenant » de l'installeur, dont la demande qui cite les fichiers protégés changés, puis pousse et ouvre la pull request.
-5. Dis-moi ce qui me revient.
+4. Lis les notes de version que l'installeur imprime, et fais ce que chacune demande.
+5. Suis les étapes « Et maintenant » de l'installeur, dont la demande qui cite les fichiers protégés changés, puis pousse et ouvre la pull request.
+6. Dis-moi ce qui me revient.
 ```
 
 **Mettre en place la mémoire privée** (mode compagnon). Créer un dépôt

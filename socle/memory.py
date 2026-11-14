@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from socle import config, language as langue, utils as outils
-from socle.messages import trad
+from socle.messages import a_traduire, trad
 
 TYPES = {
     "F": "canonique",
@@ -578,7 +578,8 @@ def lignes_index(mem: "Memoire", index: str, sauf: set[str] = frozenset()) -> li
 
 # --------------------------------------------------------------------------
 # L'ordre du backlog : un sujet attend d'autres sujets (`après`), un jalon
-# est un sujet qui attend ses tâches ; ce qui vient ensuite se calcule.
+# est un sujet qui attend ses tâches, un lot un sujet qui attend les sujets
+# qu'on mène ensemble ; ce qui vient ensuite se calcule.
 # --------------------------------------------------------------------------
 
 
@@ -590,6 +591,13 @@ def dependances(e: Entree) -> list[str]:
 
 def est_jalon(e: Entree) -> bool:
     return langue.valeur(nettoyer(e.meta.get("forme", ""))) == "jalon"
+
+
+def est_lot(e: Entree) -> bool:
+    """Un lot (`forme : lot`, `form: batch`) : les sujets qu'on mène
+    ensemble, qu'il attend par `après`, avec le lot d'avant (ADR-0079). Il
+    n'est jamais à prendre ; il se clôt quand ses sujets le sont."""
+    return langue.valeur(nettoyer(e.meta.get("forme", ""))) == "lot"
 
 
 PRIORITES = ("haute", "basse")
@@ -632,7 +640,8 @@ def criteres(e: Entree) -> list[tuple[bool, str]]:
 class Ordre:
     """Ce qui vient ensuite : les sujets prêts (ouverts, pas encore en cours,
     dont tout ce qu'ils attendent est clos), le prochain jalon et ce qui lui
-    reste, et le nombre de sujets qui attendent un sujet non clos."""
+    reste, le nombre de sujets qui attendent un sujet non clos, et le
+    prochain lot avec l'avancement de ses sujets."""
 
     prets: list[Entree]
     jalon: Entree | None
@@ -641,13 +650,18 @@ class Ordre:
     # Les sujets prêts de priorité basse, à part : l'agent les prend quand
     # c'est commode, et le dit (D-0062).
     basses: list[Entree] = field(default_factory=list)
+    # Le prochain lot, et où en est ce qu'il attend hors des lots :
+    # (identifiant, mot interne), dans l'ordre de son `après` (ADR-0079).
+    lot: Entree | None = None
+    avancement: list[tuple[str, str]] = field(default_factory=list)
 
 
 def ordre(mem: "Memoire") -> Ordre | None:
-    """L'ordre du backlog, s'il en a un : sans `après`, jalon ni priorité, rien."""
+    """L'ordre du backlog, s'il en a un : sans `après`, jalon, lot ni
+    priorité, rien."""
     sujets = {e.id: e for e in mem.entrees("B") if not e.archivee and not e.basculee}
     demandes = {e.id: e for e in mem.entrees("D") if not e.basculee}
-    if not any(dependances(e) or est_jalon(e) or priorite(e) for e in sujets.values()):
+    if not any(dependances(e) or est_jalon(e) or est_lot(e) or priorite(e) for e in sujets.values()):
         return None
 
     def ouvert(i: str) -> bool:
@@ -676,8 +690,16 @@ def ordre(mem: "Memoire") -> Ordre | None:
               if est_jalon(sujets[i]) and not any(d in sujets and est_jalon(sujets[d]) for d in attendus(i))]
     jalon = jalons[0] if jalons else None
     restants = sorted(attendus(jalon)) if jalon else []
+    # Le prochain lot : celui qu'aucun lot ouvert ne précède, l'en cours
+    # d'abord, puis par identifiant.
+    lots = sorted((i for i in ouverts
+                   if est_lot(sujets[i]) and not any(d in sujets and est_lot(sujets[d]) for d in attendus(i))),
+                  key=lambda i: (sujets[i].statut != "en-cours", i))
+    lot = sujets[lots[0]] if lots else None
     # Un sujet en cours ou bloqué n'est plus à prendre : l'état le dit à part.
-    a_prendre = [i for i in ouverts if sujets[i].statut == "ouvert" and not est_jalon(sujets[i])]
+    # Un jalon ni un lot ne se prennent : ils attendent leurs sujets.
+    a_prendre = [i for i in ouverts
+                 if sujets[i].statut == "ouvert" and not est_jalon(sujets[i]) and not est_lot(sujets[i])]
     # Ceux du prochain jalon d'abord, puis par priorité ; les basses à part.
     rang = {"haute": 0, None: 1}
     prets = sorted((i for i in a_prendre if not any(ouvert(d) for d in dependances(sujets[i]))),
@@ -685,8 +707,31 @@ def ordre(mem: "Memoire") -> Ordre | None:
     basses = [i for i in prets if priorite(sujets[i]) == "basse"]
     prets = [i for i in prets if i not in basses]
     attente = len(a_prendre) - len(prets) - len(basses)
+
+    def ou_en_est(i: str) -> str:
+        """Où en est ce qu'un lot attend, en mot interne : le statut d'un
+        sujet qui n'est plus ouvert, sinon `pret` ou `attend` ; pour une
+        demande, `repondue` ou `sans-reponse` ; `inconnu` pour le reste."""
+        if i in demandes:
+            return "repondue" if demande_close(mem, demandes[i]) else "sans-reponse"
+        if i not in sujets:
+            return "inconnu"
+        if sujets[i].statut != "ouvert":
+            return sujets[i].statut
+        return "attend" if any(ouvert(d) for d in dependances(sujets[i])) else "pret"
+
+    avancement = [(d, ou_en_est(d)) for d in dict.fromkeys(dependances(lot))
+                  if not (d in sujets and est_lot(sujets[d]))] if lot else []
     return Ordre([sujets[i] for i in prets], sujets[jalon] if jalon else None, restants, attente,
-                 [sujets[i] for i in basses])
+                 [sujets[i] for i in basses], lot, avancement)
+
+
+# Où en est ce qu'un lot attend, tel que l'état le dit ; un sujet clos ou
+# une demande répondue ne se détaille pas.
+AVANCEMENT = {"en-cours": a_traduire("en cours"), "bloque": a_traduire("bloqué"), "pret": a_traduire("prêt"),
+              "attend": a_traduire("attend"), "sans-reponse": a_traduire("sans réponse"),
+              "inconnu": a_traduire("inconnu")}
+CLOS_DANS_UN_LOT = ("fait", "abandonne", "repondue")
 
 
 def lignes_ordre(mem: "Memoire", plafond: int | None = 8, titre: int | None = None,
@@ -705,6 +750,12 @@ def lignes_ordre(mem: "Memoire", plafond: int | None = 8, titre: int | None = No
     if o.jalon:
         res.append(trad("prochain jalon : {id} — {titre} ; reste : {restants}", id=o.jalon.id, titre=t(o.jalon),
                         restants=", ".join(o.restants) if o.restants else trad("rien, il se clôt")))
+    if o.lot:
+        reste = [(i, a) for i, a in o.avancement if a not in CLOS_DANS_UN_LOT]
+        res.append(trad("prochain lot : {id} — {titre} ; {clos} clos sur {total} ; reste : {restants}",
+                        id=o.lot.id, titre=t(o.lot), clos=len(o.avancement) - len(reste), total=len(o.avancement),
+                        restants=", ".join(f"{i} ({trad(AVANCEMENT.get(a, a))})" for i, a in reste)
+                        if reste else trad("rien, il se clôt")))
     res += [trad("prêt : {id} — {titre} (priorité haute)", id=e.id, titre=t(e)) if priorite(e) == "haute"
             else trad("prêt : {id} — {titre}", id=e.id, titre=t(e)) for e in o.prets[:plafond]]
     if plafond is not None and len(o.prets) > plafond:

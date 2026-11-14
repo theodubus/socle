@@ -160,7 +160,9 @@ couvre et que son manifeste n'est pas sous un chemin tiers déclaré,
 l'installeur le dit, avec ses deux issues.
 Une mise à jour relance les mêmes commandes depuis un clone à jour : les
 fichiers du projet ne sont jamais écrasés, hors une copie d'un adaptateur
-maintenu que le projet n'a pas adaptée. La suite, étape par étape : [le
+maintenu que le projet n'a pas adaptée, et l'installeur donne à l'agent
+les [notes de version](socle/CHANGES.md) que la copie du moteur du projet
+n'avait pas, chacune avec ce qu'il doit faire. La suite, étape par étape : [le
 guide d'utilisation](socle/HELP.md), copié dans le projet et affiché par
 `python3 .socle/socle help`.
 
@@ -206,6 +208,7 @@ le produit, publié depuis son atelier à chaque changement du moteur.
 | Cette page | ce qu'est le socle, son fonctionnement, son installation |
 | [Le guide d'utilisation](socle/HELP.md) | l'usage d'un projet équipé, étape par étape, et la référence des commandes |
 | [Le format de la mémoire](socle/FORMAT.md) | la spécification de la mémoire |
+| [Les notes de version](socle/CHANGES.md) | ce que chaque changement fait à un projet installé, et ce que son agent doit faire |
 | [La spécification des adaptateurs](socle/adapters/README.md) | comment décrire un langage |
 
 ## Licence

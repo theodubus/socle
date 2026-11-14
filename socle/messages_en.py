@@ -721,18 +721,34 @@ MESSAGES: dict[str, str] = {
         "Update the socle {version}",
     "Installer le socle {version}":
         "Install the socle {version}",
-    "commiter puis pousser : `git add -A && git commit -m \"{message}\" && git push`":
-        "commit then push: `git add -A && git commit -m \"{message}\" && git push`",
+    "commiter puis pousser : `{commande}`":
+        "commit then push: `{commande}`",
     "dans la session qui pose la demande, commiter en deux temps : d'abord la demande seule, qui ne cite que ce qui "
     "est déjà commité, hors les fichiers protégés qu'elle approuve, et la pousser ; puis, quand elle le permet, les "
-    "fichiers protégés avec ce qui les cite (journal, chantier actif) : `git add -A && git commit -m \"{message}\" "
-    "&& git push`. Le hook avant commit refuse une référence, chemin ou identifiant, que le commit ne contient pas":
+    "fichiers protégés avec ce qui les cite (journal, chantier actif) : `{commande}`. Le hook avant commit refuse une "
+    "référence, chemin ou identifiant, que le commit ne contient pas":
         "in the session that puts the request, commit in two steps: first the request alone, which cites only what "
         "is already committed, apart from the protected files it approves, and push it; then, when it allows it, the "
-        "protected files with what cites them (journal, active work): `git add -A && git commit -m \"{message}\" && "
-        "git push`. The pre-commit hook refuses a reference, path or identifier, that the commit does not contain",
+        "protected files with what cites them (journal, active work): `{commande}`. The pre-commit hook refuses a "
+        "reference, path or identifier, that the commit does not contain",
+    "Notes de version du socle : {liste}, dans {fichier}":
+        "Socle release notes: {liste}, in {fichier}",
     "ouvrir l'agent dans le projet : il lit l'état au démarrage":
         "open the agent in the project: it reads the state at startup",
+    "ouvrir l'agent dans le projet : il lit l'état au démarrage ; s'il n'a pas lancé lui-même cette mise à jour, lui "
+    "dire de lire ses notes de version ({liste}, dans `{fichier}`) et de faire ce que chacune demande":
+        "open the agent in the project: it reads the state at startup; if it did not run this update itself, tell it "
+        "to read its release notes ({liste}, in `{fichier}`) and to do what each one asks",
+    "Notes de version : la copie du moteur remplacée n'en avait pas ; voici toutes leurs entrées ({n}), dans "
+    "`{fichier}`, dont certaines décrivent ce que le projet a déjà : leur date le dit, à comparer à celle de sa mise "
+    "à jour précédente. Les lire, et faire ce que chacune demande :":
+        "Release notes: the replaced engine copy had none; here are all their entries ({n}), in `{fichier}`, some of "
+        "which describe what the project already has: their date says so, to compare with that of its previous "
+        "update. Read them, and do what each one asks:",
+    "Notes de version : ce que cette mise à jour change pour le projet, {n} entrée(s) que la copie du moteur "
+    "remplacée n'avait pas, dans `{fichier}`. Les lire, et faire ce que chacune demande :":
+        "Release notes: what this update changes for the project, {n} entry(ies) that the replaced engine copy did "
+        "not have, in `{fichier}`. Read them, and do what each one asks:",
     "ouvrir l'agent dans le projet : il lit l'état au démarrage, et te donne le lien des questions de départ, une "
     "demande à laquelle tu réponds dans la conversation":
         "open the agent in the project: it reads the state at startup, and gives you the link of the starting "
@@ -1313,6 +1329,16 @@ MESSAGES: dict[str, str] = {
         "next milestone: {id} — {titre}; left: {restants}",
     "rien, il se clôt":
         "nothing, it can close",
+    "prochain lot : {id} — {titre} ; {clos} clos sur {total} ; reste : {restants}":
+        "next batch: {id} — {titre}; {clos} closed out of {total}; left: {restants}",
+    "prêt":
+        "ready",
+    "attend":
+        "waiting",
+    "sans réponse":
+        "unanswered",
+    "inconnu":
+        "unknown",
     "Selon l'ordre du backlog :":
         "According to the backlog's order:",
     "prêt : {id} — {titre}":
