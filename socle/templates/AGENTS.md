@@ -105,7 +105,8 @@ refusée ; il faut relire l'entrée. `socle new` pose l'empreinte de l'index.
 Une procédure rare se lit dans son skill, que l'agent charge sur sa
 description : `socle-request` (poser une demande, relayer une réponse,
 consigner une décision en séance), `socle-private-memory` (la mémoire
-privée), `socle-review` (la revue adversariale d'un lot, avant sa
+privée), `socle-batch` (mener un lot, de sa formation à sa livraison),
+`socle-review` (la revue adversariale d'un lot, avant sa
 livraison) et `socle-resume` (en session cloud, à chaque tour qui agit :
 reprendre seul après une limite d'usage), dans `.claude/skills/`, posés par l'installeur et
 protégés ; un autre agent lit leur `SKILL.md` à ce chemin.
@@ -126,7 +127,8 @@ sans attendre de message. Il annonce d'abord le lot, pas forcément tout ce
 qui est prêt (les sujets, leur taille, le jalon qu'ils servent ; un sujet de
 priorité basse s'il est commode), puis s'y met ; il s'arrête à la fin du
 lot, ou dès qu'une décision revient à l'humain. Il ne change pas une
-priorité que l'humain a donnée. Avant le push d'un lot qui change du code,
+priorité que l'humain a donnée. Le lot se garde au backlog (`forme : lot`)
+et se mène selon le skill `socle-batch`. Avant le push d'un lot qui change du code,
 une spécification ou un test, il le fait relire par un relecteur sans
 contexte (le skill `socle-review`), et son récap dit les constats. Le
 relecteur juge le lot contre le « Fait quand » de ses sujets : un sujet

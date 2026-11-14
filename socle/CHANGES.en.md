@@ -7,6 +7,19 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-14-e — The socle-batch skill leads a batch
+
+A new socle skill, `socle-batch`, put in place and protected like the others
+under `.claude/skills/`, says how to lead a batch from forming it to
+delivering it: announcing it, one subagent per subject, the context-free
+review before any push, integration, CI and merge, one session per batch,
+the consumption thresholds beyond which the session wraps up, and the change
+of session with the next one's prompt. After the merge, nothing is pushed
+without new work. An agent without subagents leads the batch alone.
+
+To do: the skill is in the request for the update's protected files; a
+project procedure that already led its batches keeps only what is its own.
+
 ## 2026-11-14-d — A batch is kept in the backlog
 
 A batch, the subjects led together because they touch the same files, the

@@ -103,7 +103,8 @@ must be read again. `socle new` puts in the index fingerprint.
 A rare procedure is read in its skill, which the agent loads on its
 description: `socle-request` (writing a request, relaying an answer,
 recording a decision taken in session), `socle-private-memory` (the
-private memory), `socle-review` (the adversarial review of a batch, before its
+private memory), `socle-batch` (running a batch, from forming it to delivering
+it), `socle-review` (the adversarial review of a batch, before its
 delivery) and `socle-resume` (in a cloud session, at every turn that
 acts: resuming alone after a usage limit), in `.claude/skills/`, laid by the installer and
 protected; another agent reads their `SKILL.md` at that path.
@@ -124,7 +125,9 @@ without waiting for a message. It first announces the batch, not
 necessarily everything that is ready (the topics, their size, the
 milestone they serve; a low-priority topic if convenient), then gets
 going; it stops at the end of the batch, or as soon as a decision is up
-to the human. It does not change a priority the human gave. Before the
+to the human. It does not change a priority the human gave. The batch is
+kept in the backlog (`form: batch`) and run following the `socle-batch`
+skill. Before the
 push of a batch that changes code, a specification or a test, it has it
 reviewed by a reviewer without context (the `socle-review` skill), and its
 recap gives the findings. The reviewer judges the batch against the “Done

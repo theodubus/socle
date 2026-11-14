@@ -7,6 +7,20 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-14-e — Le skill socle-batch conduit un lot
+
+Un skill nouveau du socle, `socle-batch`, posé et protégé comme les autres
+sous `.claude/skills/`, dit comment mener un lot de sa formation à sa
+livraison : l'annoncer, un sous-agent par sujet, la revue sans contexte
+avant tout push, l'intégration, la CI et la fusion, une session par lot,
+les seuils de consommation au-delà desquels on range, et le changement de
+session avec le prompt de la suivante. Après la fusion, rien ne se pousse
+sans travail neuf. Un agent sans sous-agents mène le lot seul.
+
+À faire : le skill est dans la demande des fichiers protégés de la mise à
+jour ; une procédure du projet qui menait déjà ses lots ne garde que ce qui
+lui est propre.
+
 ## 2026-11-14-d — Un lot se garde au backlog
 
 Un lot, les sujets qu'on mène ensemble parce qu'ils touchent les mêmes
