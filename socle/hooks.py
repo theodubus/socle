@@ -1515,7 +1515,9 @@ def stop(projet: config.Projet, entree: dict) -> int:
     # pas à l'escalade sur les échecs d'une autre (relevé de la passe de
     # recul, F).
     cle = session or "-"
-    texte = rapport.texte(trad("contrôles de fin de tour (`socle check --stage agent`)"))
+    # Les fichiers qu'une mise à jour a posés, en une ligne : relue à chaque
+    # tentative, la liste n'apprend rien que `socle check` ne redise (ADR-0077).
+    texte = rapport.texte(trad("contrôles de fin de tour (`socle check --stage agent`)"), regrouper=True)
     signature = signature_d_echec(racine, rapport.controles_en_echec())
     precedent = compteur.read_text().split() if compteur.is_file() else []
     sien = len(precedent) >= 2 and precedent[1] == cle and precedent[0].isdigit()

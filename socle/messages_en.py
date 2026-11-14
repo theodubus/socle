@@ -1089,6 +1089,21 @@ MESSAGES: dict[str, str] = {
         "reads it in the pull request",
     "modification validée par {id}":
         "change approved by {id}",
+    "une mise à jour du socle attend sa demande : la poser. {n} fichier(s) protégé(s) qu'elle a posé(s), sans "
+    "validation ni demande en attente ; `python3 .socle/socle check --stage agent --only protege.fichiers` les "
+    "liste avec leurs empreintes, et les étapes « Et maintenant » de l'installeur disent comment poser la "
+    "demande":
+        "a socle update is waiting for its request: open it. {n} protected file(s) it installed, with no approval "
+        "and no pending request; `python3 .socle/socle check --stage agent --only protege.fichiers` lists them "
+        "with their fingerprints, and the installer's \"What now\" steps say how to open the request",
+    "fichier protégé posé par la mise à jour du socle, sans validation humaine : une demande validée doit citer "
+    "`{fichier}` et `{cite}`":
+        "protected file installed by the socle update, without human approval: an approved request must cite "
+        "`{fichier}` and `{cite}`",
+    "# Les fichiers protégés que l'installeur a posés hors du moteur, et l'empreinte de chacun : tant qu'ils "
+    "l'ont, la fin de tour les compte à la mise à jour.":
+        "# The protected files the installer wrote outside the engine, and the fingerprint of each: as long as "
+        "they keep it, the end of turn counts them in the update.",
     "fichier protégé modifié sans validation humaine. Une demande validée doit citer `{fichier}` et `{cite}`":
         "protected file changed without human approval. An approved request must cite `{fichier}` and `{cite}`",
     "fichier protégé modifié sans validation humaine. Une demande validée doit citer `{fichier}` et `{cite}`. "
@@ -3127,4 +3142,8 @@ MESSAGES: dict[str, str] = {
         "`approve` answer pushed without the test it authorizes to change",
     "une réponse « valider » poussée avec le test qu'elle autorise à changer part sans avertissement":
         "an `approve` answer pushed with the test it authorizes to change leaves without a warning",
+    "réponse « valider » poussée sans la clé des garde-fous qu'elle autorise à relâcher":
+        "`approve` answer pushed without the guardrail key it authorizes to relax",
+    "une réponse « valider » poussée avec la clé des garde-fous qu'elle autorise à relâcher part sans avertissement":
+        "an `approve` answer pushed with the guardrail key it authorizes to relax leaves without a warning",
 }

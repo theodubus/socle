@@ -322,6 +322,41 @@ def installation_en_cours(racine) -> bool:
     return outils.lire_a(racine, ref, config.FORMAT_ACTUEL.lock) is None
 
 
+def poses_par_la_mise_a_jour(ctx) -> set[str]:
+    """Les fichiers protégés de l'arbre de travail qu'une mise à jour du
+    socle a posés tels qu'ils sont ; vide hors d'une mise à jour (ADR-0077).
+    Le signe : le verrou du moteur a changé depuis la base, et l'empreinte
+    qu'il porte est celle du moteur de l'arbre et celle du moteur qu'un
+    passage de l'installeur a copié (`copied`), ce que seul l'installeur
+    écrit. Un passage lancé depuis le projet recalcule l'empreinte du moteur
+    sans le copier : il n'écrit `copied` que si le moteur n'a pas changé
+    depuis la copie. Posés par elle : le verrou, le moteur et son lanceur,
+    que cette empreinte couvre, et les fichiers que le verrou nomme sous
+    `[installed]` avec l'empreinte qu'ils ont encore."""
+    projet = ctx.projet
+    verrou = projet.lock
+    chemin_verrou = projet.chemins.lock
+    if (ctx.tete is not None or projet.mode == config.MODE_AMONT or not verrou.get("fingerprint")
+            or verrou.get("copied") != verrou["fingerprint"]
+            or ctx.lire(chemin_verrou) == ctx.lire_base(chemin_verrou)):
+        return set()
+    if empreinte.calculer(ctx.racine, projet.dossier_moteur)[0] != verrou["fingerprint"]:
+        return set()
+    res = {chemin_verrou}
+    res |= {str(p.relative_to(ctx.racine)).replace("\\", "/")
+            for p in empreinte.fichiers_moteur(ctx.racine, projet.dossier_moteur)}
+    # L'installeur remplace le dossier du moteur en bloc : ce qui en
+    # disparaît, l'empreinte retrouvée, vient de lui.
+    paquet = projet.dossier_moteur + "/socle/"
+    res |= {c for c in ctx.changes if c.startswith(paquet) and not (ctx.racine / c).exists()}
+    installes = verrou.get("installed")
+    for c, attendue in (installes.items() if isinstance(installes, dict) else ()):
+        p = ctx.racine / c
+        if isinstance(attendue, str) and p.is_file() and empreinte.fichier(p) == attendue:
+            res.add(c)
+    return res
+
+
 @controle("protege.fichiers", base=True)
 def proteges(ctx, r):
     """Un fichier protégé ne change qu'avec une demande validée qui cite son
@@ -344,7 +379,10 @@ def proteges(ctx, r):
     def existe(chemin: str) -> bool:
         return (ctx.racine / chemin).is_file() if ctx.tete is None else ctx.lire(chemin) is not None
 
-    for c in outils.filtrer(ctx.changes, motifs):
+    changes = outils.filtrer(ctx.changes, motifs)
+    poses = poses_par_la_mise_a_jour(ctx) if changes else set()
+    de_la_mise_a_jour = []
+    for c in changes:
         if memoire.est_reponse(c):
             continue  # les réponses sont le mécanisme de validation lui-même
         if ctx.projet.mode == config.MODE_AMONT and c.startswith(ctx.projet.dossier_moteur + "/socle/"):
@@ -371,6 +409,8 @@ def proteges(ctx, r):
         elif attente:
             r.avertir("protege.fichiers", trad("modification en attente de {id} : le tour peut finir, le commit "
                                                "et la CI attendent la réponse de l'humain", id=attente.id), c)
+        elif c in poses:
+            de_la_mise_a_jour.append((c, cite))
         elif re.search(r"(^|/)\.claude/settings(\.local)?\.json$", c):
             # Les réglages de Claude Code restent à l'humain, remise comprise.
             r.erreur("protege.fichiers", trad("fichier protégé modifié sans validation humaine. Une demande "
@@ -382,6 +422,19 @@ def proteges(ctx, r):
                                               "`git restore --source=HEAD --staged --worktree -- {fichier}`, ou "
                                               "`rm {fichier}` s'il est apparu sans être suivi par git (D-0098)",
                                               fichier=c, cite=cite), c)
+    # Une cause pour tous : la demande de la mise à jour, pas encore posée.
+    # Chaque fichier garde son erreur, que `socle check` liste ; la fin de
+    # tour n'en imprime que la ligne commune (ADR-0077).
+    if not de_la_mise_a_jour:
+        return
+    commune = trad("une mise à jour du socle attend sa demande : la poser. {n} fichier(s) protégé(s) qu'elle a "
+                   "posé(s), sans validation ni demande en attente ; `python3 .socle/socle check --stage agent "
+                   "--only protege.fichiers` les liste avec leurs empreintes, et les étapes « Et maintenant » de "
+                   "l'installeur disent comment poser la demande", n=len(de_la_mise_a_jour))
+    for c, cite in de_la_mise_a_jour:
+        r.erreur("protege.fichiers", trad("fichier protégé posé par la mise à jour du socle, sans validation "
+                                          "humaine : une demande validée doit citer `{fichier}` et `{cite}`",
+                                          fichier=c, cite=cite), c, regroupe=commune)
 
 
 @controle("moteur.empreinte")

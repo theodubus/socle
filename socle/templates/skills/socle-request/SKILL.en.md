@@ -72,10 +72,12 @@ python3 .socle/socle answer D-NNNN <answer> --relayed --by <name> --quote-file <
 The answer is recorded as soon as it is given, in the tree: the state
 reads it as answered before its commit, and the human no longer sees it
 pending. It is committed and pushed with the change it authorizes (an
-expected value, a protected file), in the same turn, never before: the
-CI of a push only counts the approvals of its range, and the push of the
-change, alone after it, would be refused. `demandes.reponse-seule` warns
-before it leaves alone.
+expected value, a guardrail key, a protected file), in the same push,
+never before: the CI of a push only counts the approvals of its range,
+and the push of the change, alone after it, would be refused. Only a
+protected file can precede it, pushed under the pending request where
+the socle's CI is required: the answer then leaves alone, harmlessly.
+`demandes.reponse-seule` warns before it leaves alone.
 
 An answer is only relayed to a request pushed as is: the human must have
 been able to read it. An answered request is frozen. The answer

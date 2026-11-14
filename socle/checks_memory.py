@@ -1104,10 +1104,23 @@ def reponse_seule(ctx, r):
     La CI d'un push et le hook avant push ne comptent que les validations
     de leur plage (B-0043) : la réponse poussée avant le test ou le fichier
     protégé qu'elle nomme ne les couvre plus au push suivant (B-0142,
-    ADR-0074). La plage est celle qui n'est pas encore poussée ; le
+    ADR-0076). La plage est celle qui n'est pas encore poussée ; le
     changement se mesure sur la branche, depuis la branche par défaut : un
     fichier poussé sous une demande en attente (D-0071) précède sa réponse
-    sans dommage."""
+    sans dommage.
+
+    Une clé des garde-fous que la demande nomme se suit comme un test : le
+    cliquet ne compte lui aussi que les validations de sa plage. Un
+    avertissement ne refuse rien : le contrôle qui plante le dit en
+    avertissement, jamais en erreur (B-0215, ADR-0076)."""
+    try:
+        _reponse_seule(ctx, r)
+    except Exception as e:  # un avertissement en panne ne refuse ni commit, ni push, ni fin de tour
+        r.avertir("demandes.reponse-seule", trad("le contrôle a planté : {erreur}",
+                                                 erreur=f"{type(e).__name__}: {e}"))
+
+
+def _reponse_seule(ctx, r):
     base = outils.base_non_poussee(ctx.racine, ctx.branches)
     if not base:
         return
@@ -1115,12 +1128,14 @@ def reponse_seule(ctx, r):
     if not any(memoire.est_reponse(c) for c in outils.fichiers_changes(ctx.racine, base, ctx.tete)):
         return
     for d in demandes.validations_ajoutees(ctx.racine, base, ctx.tete):
-        # Un test ne précède jamais sa réponse (`tests.attendus` le refuse) :
-        # il se mesure sur la plage pas encore poussée, et un test changé plus
-        # tôt sur la branche, sous une validation antérieure, ne compte pas
-        # (la revue de B-0142). Seul un fichier protégé se mesure sur la
-        # branche entière (D-0071).
-        nommes = _tests_nommes(ctx, d.texte, base) + _fichiers_nommes(ctx, d.texte)
+        # Un test ne précède jamais sa réponse (`tests.attendus` le refuse),
+        # ni une clé des garde-fous (`cliquet.garde-fous`) : ils se mesurent
+        # sur la plage pas encore poussée, et un test changé plus tôt sur la
+        # branche, sous une validation antérieure, ne compte pas (la revue de
+        # B-0142). Seul un fichier protégé se mesure sur la branche entière
+        # (D-0071).
+        nommes = _tests_nommes(ctx, d.texte, base) + _cles_nommees(ctx, d.texte, base) \
+            + _fichiers_nommes(ctx, d.texte)
         if not nommes or any(change for _, change in nommes):
             continue
         noms = [n for n, _ in nommes]
@@ -1189,6 +1204,45 @@ def _tests_nommes(ctx, texte: str, depuis: str | None = None) -> list[tuple[str,
         if controles_tests._nomme(texte, c):
             res[c] = c in changes
     return sorted(res.items())
+
+
+def _cles_nommees(ctx, texte: str, depuis: str) -> list[tuple[str, bool]]:
+    """Les clés des garde-fous que le texte cite, comme `cliquet.garde-fous`
+    les reconnaît : la clé citable, en toutes lettres dans la demande
+    (D-0040) ; et pour chacune, a-t-elle changé depuis `depuis` ? Les
+    candidates : les clés des garde-fous avant et après, celles qui ont une
+    valeur par défaut, et celles que les règles du cliquet nomment sans
+    motif. Des garde-fous illisibles ne nomment rien : d'autres contrôles le
+    disent."""
+    import json
+    import tomllib
+
+    from socle import checks_ratchet as cliquet
+
+    chemin = ctx.projet.chemins.garde_fous
+    try:
+        avant = config.charger_toml(ctx.racine, chemin, depuis)
+        apres = config.lire_toml(ctx.lire(chemin))
+    except tomllib.TOMLDecodeError:
+        return []
+
+    def valeurs(gf: dict) -> dict[str, object]:
+        plats = cliquet.aplatir(gf)
+        for c, defaut in cliquet.DEFAUTS.items():
+            plats.setdefault(c, defaut)
+        res = {cliquet._cle(c): v for c, v in plats.items() if cliquet._regle(c) != "libre"}
+        for ligne in gf.get("docmap", []):
+            for g in ligne.get("code", []):
+                res.setdefault(f"docmap {json.dumps(g, ensure_ascii=False)}", []).append(sorted(ligne.get("docs", [])))
+        for v in gf.get("values", []):
+            res[f"values {json.dumps(v.get('name'), ensure_ascii=False)}"] = v
+        return res
+
+    va, vb = valeurs(avant), valeurs(apres)
+    sans_motif = {cliquet._cle(m) for m, sens in cliquet.REGLES
+                  if sens != "libre" and all(re.fullmatch(r"[A-Za-z0-9_-]+", c) for c in m)}
+    return sorted((k, va.get(k, cliquet.ABSENT) != vb.get(k, cliquet.ABSENT))
+                  for k in set(va) | set(vb) | sans_motif if k in texte)
 
 
 # Ce qu'un chemin de fichier ne porte pas : un motif, un lien Markdown.

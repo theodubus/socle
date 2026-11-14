@@ -624,9 +624,12 @@ def _refus_cible(cible: Path) -> str | None:
     return None
 
 
-def _poser_moteur(cible: Path, mode: str, source: Path, ch: config.Chemins) -> tuple[str, list[str]]:
-    """Le moteur, remplacé en bloc, et son verrou ; rend le dossier du moteur."""
+def _poser_moteur(cible: Path, mode: str, source: Path, ch: config.Chemins,
+                  ancien: dict | None = None) -> tuple[str, list[str]]:
+    """Le moteur, remplacé en bloc, et son verrou ; rend le dossier du moteur.
+    `ancien` : le verrou d'avant ce passage."""
     journal = []
+    copie = False
     # 1. Le moteur, remplacé en bloc.
     if mode == config.MODE_AMONT:
         dossier_moteur = str(source.relative_to(cible)) if source.is_relative_to(cible) else "engine"
@@ -643,6 +646,7 @@ def _poser_moteur(cible: Path, mode: str, source: Path, ch: config.Chemins) -> t
             if dest.exists():
                 shutil.rmtree(dest)
             shutil.copytree(source / "socle", dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".*"))
+            copie = True
             journal.append(trad("moteur {version} copié dans {dossier_moteur}/socle", version=VERSION,
                                 dossier_moteur=dossier_moteur))
     # Le message du lanceur sous un Python trop ancien s'écrit avant que le
@@ -665,6 +669,13 @@ def _poser_moteur(cible: Path, mode: str, source: Path, ch: config.Chemins) -> t
                             dossier_moteur=dossier_moteur))
     else:
         calculee, n = empreinte.calculer(cible, dossier_moteur)
+        # L'empreinte du moteur que ce passage a copié, ou qu'un passage
+        # précédent a copié, s'il n'a pas changé depuis : un passage lancé
+        # depuis le projet garde le moteur tel quel et en recalcule
+        # l'empreinte, ce qui n'en fait pas celui d'une mise à jour
+        # (ADR-0077).
+        copiee = calculee if copie else (ancien or {}).get("copied")
+        ligne_copie = f'copied = "{calculee}"\n' if copiee == calculee else ""
         outils.ecrire(cible / ch.lock, (
             trad("# Verrou du moteur — écrit par l'installeur, jamais à la main.\n"
                  "# La CI recalcule l'empreinte ; un moteur altéré dans le projet fait échouer "
@@ -673,12 +684,57 @@ def _poser_moteur(cible: Path, mode: str, source: Path, ch: config.Chemins) -> t
             f'mode = "{mode}"\n'
             f'engine_dir = "{dossier_moteur}"\n'
             f'fingerprint = "{calculee}"\n'
-            f"files = {n}\n"
+            + ligne_copie
+            + f"files = {n}\n"
             f"format = {config.FORMAT}\n"
         ))
         journal.append(trad("verrou : {empreinte} sur {n} fichiers", empreinte=empreinte.courte(calculee), n=n))
 
     return dossier_moteur, journal
+
+
+def _empreintes_protegees(cible: Path) -> dict[str, str]:
+    """Les fichiers protégés de l'arbre et l'empreinte de chacun, hors du
+    verrou, des réponses humaines et de ce que l'empreinte du moteur couvre
+    (le moteur et son lanceur)."""
+    from socle import memory as memoire
+
+    projet = config.Projet.charger(cible)
+    paquet = projet.dossier_moteur + "/socle/"
+    hors = {projet.chemins.lock, config.LANCEUR}
+    return {c: empreinte.fichier(cible / c)
+            for c in outils.filtrer(outils.fichiers_courants(cible), projet.chemins_proteges())
+            if not c.startswith(paquet) and c not in hors and not memoire.est_reponse(c)}
+
+
+def _etat_des_proteges(cible: Path) -> tuple[dict[str, str], set[str]]:
+    """Avant le passage de l'installeur : l'empreinte de chaque fichier
+    protégé, et ceux qui ont déjà changé depuis la base (sans commit, tous)."""
+    empreintes = _empreintes_protegees(cible)
+    base = outils.base_de_travail(cible) or ("HEAD" if outils.a_des_commits(cible) else None)
+    return empreintes, set(outils.fichiers_changes(cible, base)) if base else set(empreintes)
+
+
+def _consigner_installes(cible: Path, avant: tuple[dict[str, str], set[str]], ancien: dict) -> None:
+    """Consigne au verrou, sous `[installed]`, les fichiers protégés que ce
+    passage a posés hors du moteur, avec leur empreinte : la fin de tour les
+    reconnaît comme ceux de la mise à jour tant qu'ils l'ont (ADR-0077). Un
+    fichier n'y entre que si ce passage l'a changé et qu'il était, avant
+    lui, tel que la base ou un passage précédent l'avait laissé : changé par
+    l'agent avant, il n'y entre pas, même fusionné ensuite. L'entrée d'un
+    passage précédent reste tant qu'elle vaut."""
+    empreintes, changes_avant = avant
+    anciens = ancien.get("installed") if isinstance(ancien.get("installed"), dict) else {}
+    installes = {c: h for c, h in sorted(_empreintes_protegees(cible).items())
+                 if anciens.get(c) == h or (empreintes.get(c) != h and (
+                     c not in changes_avant or empreintes.get(c) == anciens.get(c)))}
+    if not installes:
+        return
+    p = cible / config.FORMAT_ACTUEL.lock
+    lignes = [trad("# Les fichiers protégés que l'installeur a posés hors du moteur, et l'empreinte de chacun : "
+                   "tant qu'ils l'ont, la fin de tour les compte à la mise à jour."), "[installed]"]
+    lignes += [f"{json.dumps(c, ensure_ascii=False)} = {json.dumps(h)}" for c, h in installes.items()]
+    outils.ecrire(p, p.read_text(encoding="utf-8").rstrip("\n") + "\n\n" + "\n".join(lignes) + "\n")
 
 
 def _poser_configuration(cible: Path, texte_adaptateur: str, ancien: dict, prive: str | None,
@@ -1099,8 +1155,12 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
                             "que le projet n'a pas adaptée peut y être prise pour adaptée, et gardée ; "
                             "`git fetch --unshallow`, puis relancer l'installeur"))
 
+    # Les fichiers protégés tels qu'ils sont avant ce passage : le verrou ne
+    # consignera que ceux qu'il change (ADR-0077).
+    avant = _etat_des_proteges(cible) if ancien and mode != config.MODE_AMONT else None
+
     # 1. Le moteur, remplacé en bloc, et son verrou.
-    dossier_moteur, poses = _poser_moteur(cible, mode, source, ch)
+    dossier_moteur, poses = _poser_moteur(cible, mode, source, ch, ancien)
     journal += poses
 
     # 2. Les fichiers du projet : posés s'ils manquent, jamais écrasés.
@@ -1134,6 +1194,8 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
                              tous_autres)
     if prive:
         journal += _prive(cible, prive, filtre)
+    if avant is not None:
+        _consigner_installes(cible, avant, ancien)
 
     # 6. La trace : l'installation se voit dans `Socle-Hooks` d'une session
     # en cours (SessionStart a tiré avant que le hook n'existe).

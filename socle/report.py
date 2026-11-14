@@ -33,6 +33,9 @@ class Constat:
     # nom d'un test) : la clé sous laquelle l'adoption le tolère, sans
     # dépendre de la langue ni de la tournure du message (B-0180).
     objet: str | None = None
+    # La ligne commune que l'affichage regroupé imprime une fois à la place
+    # des constats d'une même cause qui la portent (B-0196, ADR-0077).
+    regroupe: str | None = None
 
     def lieu(self) -> str:
         if self.chemin and self.ligne:
@@ -49,8 +52,8 @@ class Rapport:
     constats: list[Constat] = field(default_factory=list)
     executes: list[str] = field(default_factory=list)
 
-    def erreur(self, controle, message, chemin=None, ligne=None, objet=None):
-        self.constats.append(Constat(controle, message, chemin, ligne, ERREUR, objet))
+    def erreur(self, controle, message, chemin=None, ligne=None, objet=None, regroupe=None):
+        self.constats.append(Constat(controle, message, chemin, ligne, ERREUR, objet, regroupe))
 
     def avertir(self, controle, message, chemin=None, ligne=None, objet=None):
         self.constats.append(Constat(controle, message, chemin, ligne, AVERTISSEMENT, objet))
@@ -86,10 +89,13 @@ class Rapport:
                 vus.append(c.controle)
         return vus
 
-    def texte(self, titre: str | None = None, court: bool = False) -> str:
+    def texte(self, titre: str | None = None, court: bool = False, regrouper: bool = False) -> str:
         """Le rapport, contrôle par contrôle ; `court` n'en montre que ce qui
-        échoue, avertit ou n'a pas pu s'exécuter, et compte le reste."""
+        échoue, avertit ou n'a pas pu s'exécuter, et compte le reste ;
+        `regrouper` imprime une fois, à leur place, la ligne commune des
+        constats qui en portent une (ADR-0077)."""
         lignes = []
+        dites = set()
         tus = 0
         if titre:
             lignes.append(titre)
@@ -117,6 +123,11 @@ class Rapport:
             lignes.append(f"  {nom:<34} {etat}")
             for c in erreurs + avert + indispo:
                 marque = {ERREUR: "|", AVERTISSEMENT: "!", INDISPONIBLE: "?"}[c.gravite]
+                if regrouper and c.regroupe:
+                    if (nom, c.regroupe) not in dites:
+                        dites.add((nom, c.regroupe))
+                        lignes.append(f"      {marque} {c.regroupe}")
+                    continue
                 lignes.append(f"      {marque} {c.en_ligne()}")
         if court and tus:
             lignes.append(trad("  … et {n} autre(s) contrôle(s) sans rien à signaler", n=tus))

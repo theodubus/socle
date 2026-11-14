@@ -492,19 +492,31 @@ def _demande_nommant_le_test(a: "Atelier", c: Path) -> str:
         "## Où regarder", "- `test_double` — le test du module, qui attend le double de deux.\n\n## Où regarder", 1)
 
 
-def _pousser_la_reponse(a: "Atelier", c: Path, avec_le_test: bool) -> tuple[int, str]:
-    """La demande qui nomme `test_double`, poussée ; la réponse `valider` de
-    l'humain, consignée et commitée, avec le test qu'elle autorise à changer
-    ou sans lui ; puis le push, par le hook avant push : son code et sa
+def _demande_nommant_la_cle(a: "Atelier", c: Path) -> str:
+    """Une demande au contrat qui nomme la clé des garde-fous
+    `staleness.active_days`, pour la relâcher."""
+    return demande_bonne(a, c).replace(
+        "## Où regarder", "- `staleness.active_days` — la péremption du chantier actif, de 7 à 14 jours.\n\n"
+                          "## Où regarder", 1)
+
+
+def _pousser_la_reponse(a: "Atelier", c: Path, avec_le_test: bool, cle: bool = False) -> tuple[int, str]:
+    """La demande qui nomme `test_double` (ou, avec `cle`, la clé des
+    garde-fous `staleness.active_days`), poussée ; la réponse `valider` de
+    l'humain, consignée et commitée, avec le changement qu'elle autorise ou
+    sans lui ; puis le push, par le hook avant push : son code et sa
     sortie."""
-    (c / "memory/requests/D-0001-refactor.md").write_text(_demande_nommant_le_test(a, c))
+    demande = _demande_nommant_la_cle(a, c) if cle else _demande_nommant_le_test(a, c)
+    (c / "memory/requests/D-0001-refactor.md").write_text(demande)
     pousser(a, c)
     (c / "citation.txt").write_text("oui, compare à un flottant")
     r = a.socle(c, "answer", "D-0001", "valider", "--relayed", "--by", "Théo", "--quote-file", "citation.txt")
     (c / "citation.txt").unlink()
     if r.returncode != 0:
         return r.returncode, r.stdout + r.stderr
-    if avec_le_test:
+    if avec_le_test and cle:
+        remplacer(c, ".socle/guardrails.toml", "active_days = 7", "active_days = 14")
+    elif avec_le_test:
         remplacer(c, "tests/test_calc.py", "self.assertEqual(double(2), 4)", "self.assertEqual(double(2), 4.0)")
     a.commit(c, "La réponse de Théo")
     r = a.run(c, "git", "push", "-q", "origin", f"travail:{c.name}")
@@ -1303,6 +1315,12 @@ def _cas() -> list[Cas]:
     def _(a, c):
         # B-0142 : un avertissement, que le hook avant push dit sans refuser.
         return _pousser_la_reponse(a, c, avec_le_test=False)[1]
+
+    @defaut("reponse-poussee-sans-sa-cle", "réponse « valider » poussée sans la clé des garde-fous qu'elle autorise "
+            "à relâcher", "git", "demandes.reponse-seule")
+    def _(a, c):
+        # B-0215 : le cliquet ne compte lui aussi que les validations de sa plage.
+        return _pousser_la_reponse(a, c, avec_le_test=False, cle=True)[1]
 
     @defaut("test-supprime", "test supprimé sans validation", "ci", "tests.attendus")
     def _(a, c):
@@ -2175,6 +2193,12 @@ def _temoins() -> list[tuple[str, Callable]]:
     @temoin("une réponse « valider » poussée avec le test qu'elle autorise à changer part sans avertissement")
     def _(a, c):
         code, sortie = _pousser_la_reponse(a, c, avec_le_test=True)
+        return (sortie or "push refusé") if code or RAISONS_AGENT["demandes.reponse-seule"] in sortie else ""
+
+    @temoin("une réponse « valider » poussée avec la clé des garde-fous qu'elle autorise à relâcher part sans "
+            "avertissement")
+    def _(a, c):
+        code, sortie = _pousser_la_reponse(a, c, avec_le_test=True, cle=True)
         return (sortie or "push refusé") if code or RAISONS_AGENT["demandes.reponse-seule"] in sortie else ""
 
     @temoin("un correctif dont le test passe sur le parent, admis par une demande validée qui nomme son commit, "
