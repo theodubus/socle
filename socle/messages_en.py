@@ -1929,10 +1929,11 @@ MESSAGES: dict[str, str] = {
         "the permalink of a file or an entry, to give to the human",
     "le dossier de la revue adversariale d'un lot, pour un relecteur sans contexte":
         "the brief of a batch's adversarial review, for a reviewer without context",
-    "la base du lot (par défaut : la branche distante, sinon la branche par défaut ; l'ancêtre commun avec "
-    "celle-ci quand la branche distante contient déjà le lot)":
-        "the base of the batch (by default: the remote branch, otherwise the default branch; the common ancestor "
-        "with the latter when the remote branch already contains the batch)",
+    "la base du lot, qui se mesure depuis son ancêtre commun avec HEAD (par défaut : la branche distante, sinon la "
+    "branche par défaut ; l'ancêtre commun avec celle-ci quand la branche distante contient déjà le lot)":
+        "the base of the batch, measured since its common ancestor with HEAD (by default: the remote branch, "
+        "otherwise the default branch; the common ancestor with the latter when the remote branch already contains "
+        "the batch)",
     "le plafond du diff montré":
         "the cap of the diff shown",
     "# Revue adversariale d'un lot":
@@ -1986,8 +1987,8 @@ MESSAGES: dict[str, str] = {
         "You review another agent's batch of work, without its conversation or its reasoning: you have this brief, and you may read the repository to check a finding, but you change nothing. To try a command (the installer, a script), first create a temporary directory outside the repository (`mktemp -d`), and write only there: each command that writes aims at it by its absolute path, never through the current directory, written out in full as `mktemp -d` returned it, never through a variable, which does not survive from one call to the next. Your role is to find fault with it.",
     "Ta barre est celle des sujets du lot, plus bas : leur critère « Fait quand », les décisions qu'ils citent, et, pour un sujet qui pose ou change un garde-fou, son modèle de menace, ce que le garde-fou arrête et ce qu'il laisse passer. Cherche ce qui casse (un cas limite, une erreur de logique, une régression), ce qu'aucun test ne prouve, et ce qui contredit un critère ou une décision. Ne juge ni le style, ni ce que les contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests.":
         "Your bar is that of the batch's topics, below: their “Done when” criterion, the decisions they cite, and, for a topic that adds or changes a guardrail, its threat model, what the guardrail stops and what it lets through. Look for what breaks (an edge case, a logic error, a regression), what no test proves, and what contradicts a criterion or a decision. Judge neither style nor what the automatic checks already judge: the form of the memory, the links, the presence of tests.",
-    "Classe chaque constat. **Bloquant** : il contredit un critère coché ou une décision citée, fait régresser ce qui marchait avant le lot, perd des données, ou contourne un garde-fou dans son modèle de menace ; un garde-fou que le lot pose ou change sans modèle de menace écrit est lui-même un constat bloquant. **Pour le backlog** : tout le reste, dont un contournement hors du modèle de menace, un critère que le lot ne coche pas, un défaut voisin, une amélioration. Seuls les bloquants se corrigent dans le lot. Rends deux listes numérotées, « Bloquants » puis « Pour le backlog », chaque constat avec son fichier et sa ligne, ce qui casse et comment le vérifier, et, pour un bloquant, ce qu'il contredit ; ou « aucun constat ».":
-        "Classify each finding. **Blocking**: it contradicts a ticked criterion or a cited decision, breaks what worked before the batch, loses data, or bypasses a guardrail within its threat model; a guardrail the batch adds or changes without a written threat model is itself a blocking finding. **For the backlog**: everything else, including a bypass outside the threat model, a criterion the batch does not tick, a neighbouring defect, an improvement. Only blocking findings are fixed in the batch. Return two numbered lists, “Blocking” then “For the backlog”, each finding with its file and line, what breaks and how to verify it, and, for a blocking one, what it contradicts; or “no finding”.",
+    "Classe chaque constat. **Bloquant** : il contredit un critère coché ou une décision citée, fait régresser ce qui marchait avant le lot, perd des données, ou contourne un garde-fou dans son modèle de menace ; un garde-fou que le lot pose ou change sans modèle de menace écrit est lui-même un constat bloquant. **Pour le backlog** : un constat qui ne bloque pas, s'il peut se produire dans l'usage normal du projet, ou si rien ne rattrape ensuite son effet ; un contournement hors du modèle de menace, un critère que le lot ne coche pas, un défaut voisin, une amélioration, jugés de même. **Écarté** : un constat exotique (un geste rare, une forme qu'on n'écrit que pour contourner, un cas jamais reproduit) dont l'effet est rattrapé, par un contrôle, la CI ou une erreur que l'agent voit aussitôt ; et un constat infondé. Seuls les bloquants se corrigent dans le lot. Rends trois listes numérotées, « Bloquants », « Pour le backlog » puis « Écartés », chaque constat avec son fichier et sa ligne, ce qui casse et comment le vérifier, pour un bloquant ce qu'il contredit, pour un écarté pourquoi ; ou « aucun constat ».":
+        "Classify each finding. **Blocking**: it contradicts a ticked criterion or a cited decision, breaks what worked before the batch, loses data, or bypasses a guardrail within its threat model; a guardrail the batch adds or changes without a written threat model is itself a blocking finding. **For the backlog**: a finding that does not block, if it can occur in the project's normal use, or if nothing catches its effect afterwards; a bypass outside the threat model, a criterion the batch does not tick, a neighbouring defect, an improvement, judged the same way. **Dismissed**: an exotic finding (a rare gesture, a form one only writes to get around something, a case never reproduced) whose effect is caught, by a check, the CI or an error the agent sees at once; and an unfounded finding. Only blocking findings are fixed in the batch. Return three numbered lists, “Blocking”, “For the backlog” then “Dismissed”, each finding with its file and line, what breaks and how to verify it, for a blocking one what it contradicts, for a dismissed one why; or “no finding”.",
     "Seconde revue : ce diff corrige des constats bloquants d'une première revue, que disent les messages de ses commits ci-dessous ; le reste du lot a déjà été relu. Ne juge que cette correction : un bloquant mal corrigé, ce qu'elle fait régresser, contre les mêmes sujets.":
         "Second review: this diff fixes blocking findings of a first review, which the messages of its commits below state; the rest of the batch has already been reviewed. Judge only this fix: a blocking finding badly fixed, what it breaks, against the same topics.",
     "## Seconde revue":
@@ -2002,15 +2003,54 @@ MESSAGES: dict[str, str] = {
         "## The batch's diff ({n} file(s), since {base})",
     "(aucun changement hors de la mémoire : rien à relire)":
         "(no change outside the memory: nothing to review)",
+    "(la branche distante {amont} est restée en arrière de {defaut}, que la branche a reprise depuis son dernier "
+    "push, après une fusion par écrasement peut-être : le lot se mesure depuis {commun}, l'ancêtre commun de HEAD et "
+    "de {defaut} ; s'il commence plus tard, `socle review --base <le commit d'avant le lot>{seconde}`)":
+        "(the remote branch {amont} stayed behind {defaut}, which the branch took up again since its last push, "
+        "after a squash merge perhaps: the batch is measured since {commun}, the common ancestor of HEAD and "
+        "{defaut}; if it starts later, `socle review --base <the commit before the batch>{seconde}`)",
     "(la branche distante {amont} contient déjà le lot : il se mesure depuis {commun}, l'ancêtre commun de HEAD et "
-    "de {defaut} ; s'il commence plus tard, `socle review --base <le commit d'avant le lot>`)":
+    "de {defaut}, sur {n} commit(s) hors de la mémoire ; s'il commence plus tard, `socle review --base <le commit "
+    "d'avant le lot>{seconde}`)":
         "(the remote branch {amont} already contains the batch: it is measured since {commun}, the common ancestor "
-        "of HEAD and {defaut}; if it starts later, `socle review --base <the commit before the batch>`)",
+        "of HEAD and {defaut}, over {n} commit(s) outside the memory; if it starts later, `socle review --base "
+        "<the commit before the batch>{seconde}`)",
     "(la branche distante {amont} contient déjà le lot, et la branche par défaut {defaut} aussi : rien à relire "
-    "depuis elles. Un lot déjà poussé se relit depuis le commit d'avant lui : `socle review --base <ce commit>`)":
+    "depuis elles. Un lot déjà poussé se relit depuis le commit d'avant lui : `socle review --base <ce "
+    "commit>{seconde}`)":
         "(the remote branch {amont} already contains the batch, and so does the default branch {defaut}: nothing "
         "to review since them. A batch already pushed is reviewed since the commit before it: `socle review "
-        "--base <that commit>`)",
+        "--base <that commit>{seconde}`)",
+    "(la branche distante {amont} porte déjà {n} commit(s) hors de la mémoire depuis {commun}, l'ancêtre commun de "
+    "HEAD et de {defaut}, que ce dossier ne montre pas : si le lot en comprend, `socle review --base <le commit "
+    "d'avant le lot>{seconde}`)":
+        "(the remote branch {amont} already carries {n} commit(s) outside the memory since {commun}, the common "
+        "ancestor of HEAD and {defaut}, which this brief does not show: if the batch includes some, `socle review "
+        "--base <the commit before the batch>{seconde}`)",
+    "(la branche distante {amont} contient déjà le lot, et ce clone ne connaît pas la branche par défaut : ni "
+    "`origin/HEAD`, ni `main`, ni `master`. Un lot déjà poussé se relit depuis le commit d'avant lui : `socle "
+    "review --base <ce commit>{seconde}`)":
+        "(the remote branch {amont} already contains the batch, and this clone does not know the default branch: "
+        "neither `origin/HEAD`, nor `main`, nor `master`. A batch already pushed is reviewed since the commit "
+        "before it: `socle review --base <that commit>{seconde}`)",
+    "(la branche distante {amont} contient déjà le lot, et HEAD n'a pas d'ancêtre commun avec la branche par "
+    "défaut {defaut} dans ce clone, superficiel peut-être (`git fetch --unshallow`). Un lot déjà poussé se relit "
+    "depuis le commit d'avant lui : `socle review --base <ce commit>{seconde}`)":
+        "(the remote branch {amont} already contains the batch, and HEAD has no common ancestor with the default "
+        "branch {defaut} in this clone, a shallow one perhaps (`git fetch --unshallow`). A batch already pushed is "
+        "reviewed since the commit before it: `socle review --base <that commit>{seconde}`)",
+    "## Le diff du lot ({n} fichier(s), depuis {commun}, l'ancêtre commun de HEAD et de {base})":
+        "## The batch's diff ({n} file(s), since {commun}, the common ancestor of HEAD and {base})",
+    "{option} {ref} : aucune branche, étiquette ni commit de ce nom dans ce dépôt ; rien n'est relu":
+        "{option} {ref}: no branch, tag or commit of that name in this repository; nothing is reviewed",
+    "--since {ref} n'est pas un ancêtre de HEAD : une seconde revue se mesure depuis le commit relu par la "
+    "première, que la branche contient ; rien n'est relu":
+        "--since {ref} is not an ancestor of HEAD: a second review is measured since the commit the first one "
+        "reviewed, which the branch contains; nothing is reviewed",
+    "aucun ancêtre commun entre HEAD et {base} dans ce clone : rien ne mesure le lot. Un clone superficiel "
+    "s'approfondit par `git fetch --unshallow` ; sinon, `socle review --base <le commit d'avant le lot>`":
+        "no common ancestor between HEAD and {base} in this clone: nothing measures the batch. A shallow clone is "
+        "deepened by `git fetch --unshallow`; otherwise, `socle review --base <the commit before the batch>`",
     "(diff tronqué : {n} caractère(s) de plus non montrés ; `git diff {base}` les donne)":
         "(diff truncated: {n} more character(s) not shown; `git diff {base}` gives them)",
     "## Les sujets du lot : leur critère « Fait quand » est ta barre":

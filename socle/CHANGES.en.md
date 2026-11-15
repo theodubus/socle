@@ -7,6 +7,46 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-15-c — The review sorts out exotic findings, and its reviewer receives the most capable model
+
+A review finding that does not block goes to the backlog if it can occur
+in the project's normal use, or if nothing catches its effect afterwards;
+an exotic finding whose effect is caught (by a check, the CI or an error
+the agent sees at once), or an unfounded finding, is dismissed, and the
+recap says why. The reviewer's instruction
+(`python3 .socle/socle review`) says so, and has it return three lists,
+"Blocking", "For the backlog" then "Dismissed". Under Claude Code, the reviewer receives
+explicitly, at launch, the most capable model available up to Opus, never
+a lesser one than the one that implemented the batch, whatever the
+session's; Fable only if the human asks for it. A guardrail's threat
+model is written in the topic's section or in the decision it cites. The
+socle section of AGENTS.md changes (the sorting rule, a tightened text),
+as do the `socle-review` skill, a protected copy, and the `HELP.md` guide.
+
+To do: nothing, except following the sorting at the next review.
+
+## 2026-11-15-b — The review brief measures the batch since the common ancestor, and refuses an unknown reference
+
+`python3 .socle/socle review` measures the batch since the common
+ancestor of HEAD and its base: the default branch that moved on, or a
+commit pushed from elsewhere to the remote branch, no longer enter the
+diff or the topics. Only the topics whose status or "Done when" the batch
+changes make the reviewer's bar; a changed `after`, an added finding or a
+closed topic filed away by `socle archive` are no longer there. An
+unknown `--base` or `--since`, a `--since` that is not an ancestor of
+HEAD, a base with no common ancestor with HEAD are refused (code 2),
+instead of an empty brief. The brief says what the remote branch already
+carries of the batch, over how many commits it measures a batch already
+pushed, and the real reason for an empty brief (default branch guessed,
+shallow clone); under `--since`, the command it proposes keeps `--since`.
+After a squash merge, a branch restarted from the default branch no
+longer brings the merged batch back into the review of the next one.
+The `socle-review` skill, a protected copy, changes.
+
+To do: a batch already pushed in whole or in part, or on a branch that
+carries batches already reviewed, is reviewed with `python3 .socle/socle
+review --base <the commit before the batch>`.
+
 ## 2026-11-15-a — The socle-batch skill says when to compact and which model for which work
 
 The "Consumption" section of the `socle-batch` skill has two more rules.

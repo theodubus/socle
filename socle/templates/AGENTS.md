@@ -14,21 +14,20 @@ mémoire. Sous Claude Code, le hook `SessionStart` le fait seul ; sous un
 autre agent, le lancer d'abord. Rien de ce qui n'y figure pas n'est acquis.
 Ce que l'humain a écrit lui-même depuis le dernier commit de l'agent (une
 approbation, une réponse dans son terminal), l'état le liste : le lui citer
-dans la réponse suivante, par son identifiant et son lien, puisque la
-commande lui a donné un numéro qu'il ne retrouve pas dans la conversation.
+dans la réponse suivante, par son identifiant et son lien, que la
+conversation ne lui a pas donnés.
 
-Si l'état n'a pas été injecté au démarrage d'une session de Claude Code, les
-hooks de l'agent ne sont pas chargés : la session a démarré hors de la racine
-du projet. Le dire à l'humain avant tout travail, et ne rien pousser ;
-`socle state` l'affiche aussi en tête, et le hook avant commit refuse alors
-le commit. Ne jamais écrire soi-même un réglage de Claude Code pour rétablir
-les hooks.
+Si l'état n'a pas été injecté au démarrage d'une session de Claude Code, ses
+hooks ne sont pas chargés (la session a démarré hors de la racine du
+projet ; `socle state` le dit en tête, et le hook avant commit refuse alors
+le commit) : le dire à l'humain avant tout travail, ne rien pousser, et ne
+jamais écrire soi-même un réglage de Claude Code pour les rétablir.
 
 Une consigne de l'humain donnée dans la conversation, qui vaut au-delà du tour
 (une règle, une préférence, une interdiction), s'écrit dans la mémoire avant de
 continuer : au chantier actif si elle touche le travail en cours, sinon au
-journal, avec son texte exact. Le résumé d'un compactage ne la garde pas
-toujours, et une session neuve n'a que la mémoire.
+journal, avec son texte exact : un compactage peut la perdre, et une
+session neuve n'a que la mémoire.
 
 ### La mémoire, dans `memory/`
 
@@ -49,7 +48,7 @@ Un identifiant se calcule (`python3 .socle/socle new <type> "titre"`), il ne
 se devine pas. En cas de conflit, l'ordre d'autorité est : le code et les
 tests, puis la mémoire canonique, puis le journal.
 
-**Mémoire privée**, si la politique en choisit une (`[private] mode`) : rien de privé ne se recopie en public, ni un identifiant `P…`, ni son contenu, ni dans un message de commit, une pull request ou un commentaire ; indisponible (l'état le dit), on ne conclut pas sur ce qui en dépend. Où écrire, basculer une entrée, commiter en mode compagnon, faire relire avant publication : le skill `socle-private-memory`.
+**Mémoire privée**, si la politique en choisit une (`[private] mode`) : rien de privé ne se recopie en public, ni un identifiant `P…`, ni son contenu, ni dans un message de commit, une pull request ou un commentaire ; indisponible (l'état le dit), on ne conclut pas sur ce qui en dépend. Comment y travailler : le skill `socle-private-memory`.
 
 ### Politique d'autonomie (`.socle/policy.toml`, modifiée par l'humain seul)
 
@@ -103,13 +102,12 @@ refusée ; il faut relire l'entrée. `socle new` pose l'empreinte de l'index.
 ### Les skills
 
 Une procédure rare se lit dans son skill, que l'agent charge sur sa
-description : `socle-request` (poser une demande, relayer une réponse,
-consigner une décision en séance), `socle-private-memory` (la mémoire
-privée), `socle-batch` (mener un lot, de sa formation à sa livraison),
-`socle-review` (la revue adversariale d'un lot, avant sa
-livraison) et `socle-resume` (en session cloud, à chaque tour qui agit :
-reprendre seul après une limite d'usage), dans `.claude/skills/`, posés par l'installeur et
-protégés ; un autre agent lit leur `SKILL.md` à ce chemin.
+description : `socle-request` (les demandes, une décision en séance),
+`socle-private-memory` (la mémoire privée), `socle-batch` (mener un lot),
+`socle-review` (la revue d'un lot, avant sa livraison) et `socle-resume`
+(en session cloud, à chaque tour qui agit : reprendre après une limite
+d'usage), dans `.claude/skills/`, posés par l'installeur et protégés ; un
+autre agent lit leur `SKILL.md` à ce chemin.
 
 Une procédure du projet qui se refait (le journal montre la première fois)
 s'écrit en skill à la deuxième, dans `.claude/skills/<nom>/SKILL.md` : un
@@ -128,14 +126,17 @@ qui est prêt (les sujets, leur taille, le jalon qu'ils servent ; un sujet de
 priorité basse s'il est commode), puis s'y met ; il s'arrête à la fin du
 lot, ou dès qu'une décision revient à l'humain. Il ne change pas une
 priorité que l'humain a donnée. Le lot se garde au backlog (`forme : lot`)
-et se mène selon le skill `socle-batch`. Avant le push d'un lot qui change du code,
-une spécification ou un test, il le fait relire par un relecteur sans
-contexte (le skill `socle-review`), et son récap dit les constats. Le
-relecteur juge le lot contre le « Fait quand » de ses sujets : un sujet
-dont la conception n'est pas tranchée écrit sa spécification avant son
-code, un sujet qui pose ou change un garde-fou, son modèle de menace (sa
-section `## Modèle de menace`). Seuls les constats bloquants se corrigent
-dans le lot ; les autres vont au backlog.
+et se mène selon le skill `socle-batch`. Avant le push d'un lot qui change
+du code, une spécification ou un test, il le fait relire par un relecteur
+sans contexte, contre le « Fait quand » de ses sujets (le skill
+`socle-review`). Un sujet dont la conception n'est pas tranchée écrit sa
+spécification avant son code ; un sujet qui pose ou change un garde-fou,
+son modèle de menace (sa section `## Modèle de menace`, ou la décision
+qu'il cite). Seuls les constats bloquants se corrigent dans le lot ; un
+autre va au backlog s'il peut se produire dans l'usage normal du projet,
+ou si rien ne rattrape ensuite son effet ; sinon, exotique et rattrapé,
+ou infondé, il s'écarte. Le récap dit les constats, et pourquoi chaque
+écarté l'est.
 
 Par défaut, tout se fait sur une branche de développement, avec une seule
 pull request ouverte à la fois : chaque lot fini s'y ajoute, l'humain la
@@ -171,7 +172,7 @@ des garde-fous (`proto/` par défaut) : la CI ne la juge pas aux envois.
 | Où | Quoi |
 | --- | --- |
 | `.claude/settings.json` | hooks de Claude Code : `SessionStart` (état dérivé ; en session cloud, les outils de l'adaptateur), `PreToolUse` (refus), `Stop` (contrôles de fin de tour) |
-| `.socle/git-hooks/` | hooks git : `pre-commit` (contrôles rapides), `prepare-commit-msg` (trailers `Socle-Hooks`, `Socle-Hooks-Since-Commit`), `commit-msg` (fuites de la mémoire privée ; une fonction sans test ni dispense, un correctif sans test, un commit d'agent sans hook de l'agent, en avertissement), `pre-push` (`verify --fast` sur le dernier commit, la plage qui part jugée comme la CI la jugera, relecture avant publication) |
+| `.socle/git-hooks/` | hooks git : `pre-commit` (contrôles rapides), `prepare-commit-msg` (trailers `Socle-Hooks`, `Socle-Hooks-Since-Commit`), `commit-msg` (fuites de la mémoire privée ; en avertissement, une fonction sans test ni dispense, un correctif sans test, un commit d'agent sans ses hooks), `pre-push` (`verify --fast` sur le dernier commit, la plage qui part jugée comme en CI, relecture avant publication) |
 | `.github/workflows/socle.yml` | CI : capacités de l'adaptateur, tous les contrôles contre la base, auto-test du socle |
 @@LIGNE_MUTATION@@
 | `.git/socle/hooks.log` | trace locale de chaque hook qui tire, non versionnée, commune à tous les worktrees du dépôt |

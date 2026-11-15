@@ -406,7 +406,14 @@ def cmd_review(args) -> int:
             return 2
         print(texte, end="")
         return 0
-    print(revue.dossier(_projet(args), args.base, args.max_bytes, getattr(args, "since", None)), end="")
+    try:
+        texte = revue.dossier(_projet(args), args.base, args.max_bytes, getattr(args, "since", None))
+    except revue.ReferenceRefusee as refus:
+        # Une référence qui ne mesure pas le lot (ADR-0081) : un dossier vide
+        # ou étranger, qu'un relecteur jugerait sans constat, ne part pas.
+        print(refus, file=sys.stderr)
+        return 2
+    print(texte, end="")
     return 0
 
 
@@ -867,9 +874,9 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
 
     s = sp.add_parser("review", help=trad("le dossier de la revue adversariale d'un lot, pour un relecteur sans "
                                           "contexte"))
-    s.add_argument("--base", help=trad("la base du lot (par défaut : la branche distante, sinon la branche par "
-                                       "défaut ; l'ancêtre commun avec celle-ci quand la branche distante contient "
-                                       "déjà le lot)"))
+    s.add_argument("--base", help=trad("la base du lot, qui se mesure depuis son ancêtre commun avec HEAD (par "
+                                       "défaut : la branche distante, sinon la branche par défaut ; l'ancêtre commun "
+                                       "avec celle-ci quand la branche distante contient déjà le lot)"))
     s.add_argument("--max-bytes", type=int, default=60_000, help=trad("le plafond du diff montré"))
     s.add_argument("--since", metavar="REF", help=trad("une seconde revue : le diff depuis ce commit, celui de la "
                                                        "première revue, et les sujets du lot entier"))

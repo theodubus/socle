@@ -145,9 +145,11 @@ context, who tries to find fault with it against the “Done when”
 criterion of the batch's topics and, for a guardrail, its threat model,
 written before the code: what the guardrail stops, what it lets through.
 The agent fixes the blocking findings in the batch (a contradicted
-criterion, a regression, a data loss, a bypass within the threat model),
-sends the others to the backlog, where you see them, and dismisses the
-unfounded ones; its recap says how many.
+criterion, a regression, a data loss, a bypass within the threat model);
+it sends to the backlog, where you see them, those that can occur in the
+project's normal use or whose effect nothing catches afterwards, and
+dismisses the others, exotic and caught, or unfounded. Its recap says how
+many, and why each is dismissed.
 
 **Delivering.** By default, the agent does everything on one development
 branch and keeps only one pull request open, to which each finished batch

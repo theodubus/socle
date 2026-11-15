@@ -14,7 +14,6 @@ après des semaines ; le skill `socle-request` dit quand.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 from socle import config, memory as memoire, utils as outils
 from socle.messages import a_traduire, trad
@@ -37,71 +36,147 @@ def base_du_lot(racine) -> str | None:
     return _amont(racine) or outils.branche_par_defaut(racine)
 
 
+class ReferenceRefusee(ValueError):
+    """Une base ou un `--since` qui ne mesure pas le lot (ADR-0081) : le
+    dossier ne se fait pas, au lieu d'un dossier vide ou étranger."""
+
+
+def debut_du_lot(racine, base: str) -> str | None:
+    """Le commit d'où se mesure le lot : l'ancêtre commun de `base` et de
+    HEAD (ADR-0081). Une base qui a avancé sans la branche n'apporte ainsi
+    au lot ni ses changements ni ses sujets. `None` sans ancêtre commun."""
+    return outils.git(racine, "merge-base", base, "HEAD", check=False).strip() or None
+
+
+def _debut(racine, base: str) -> str:
+    return debut_du_lot(racine, base) or base
+
+
+def _hors_memoire(projet: config.Projet) -> list[str]:
+    return ["--", ".", f":(exclude){projet.chemins.memoire}"]
+
+
+def _commits_hors_memoire(projet: config.Projet, depuis: str, jusqua: str) -> int:
+    """Les commits de `depuis..jusqua` qui changent autre chose que la mémoire."""
+    sortie = outils.git(projet.racine, "rev-list", "--count", f"{depuis}..{jusqua}", *_hors_memoire(projet),
+                        check=False).strip()
+    return int(sortie) if sortie.isdigit() else 0
+
+
+def refus_des_references(projet: config.Projet, base: str | None, depuis: str | None) -> str | None:
+    """Pourquoi `--base` ou `--since` ne mesurent pas le lot, `None` s'ils
+    le mesurent (ADR-0081) : une référence inconnue, un `--since` qui n'est
+    pas un ancêtre de HEAD."""
+    for option, ref in (("--base", base), ("--since", depuis)):
+        if ref and not outils.rev_existe(projet.racine, ref):
+            return trad("{option} {ref} : aucune branche, étiquette ni commit de ce nom dans ce dépôt ; rien "
+                        "n'est relu", option=option, ref=ref)
+    if depuis and not outils.git_reussit(projet.racine, "merge-base", "--is-ancestor", depuis, "HEAD"):
+        return trad("--since {ref} n'est pas un ancêtre de HEAD : une seconde revue se mesure depuis le commit relu "
+                    "par la première, que la branche contient ; rien n'est relu", ref=depuis)
+    return None
+
+
 def contient_le_lot(projet: config.Projet, base: str, depuis: str | None = None) -> bool:
     """`base` contient déjà le lot (ADR-0075) : avec `depuis`, le commit relu
     par la première revue y est déjà ; sans, rien n'en diffère hors de la
-    mémoire, ni un commit, ni l'arbre."""
+    mémoire depuis leur ancêtre commun (ADR-0081), ni un commit, ni
+    l'arbre : un commit que `base` a reçu d'ailleurs n'y change rien."""
     if depuis:
         return outils.git_reussit(projet.racine, "merge-base", "--is-ancestor", depuis, base)
-    return outils.git_reussit(projet.racine, "diff", "--quiet", base, "--", ".",
-                              f":(exclude){projet.chemins.memoire}")
+    return outils.git_reussit(projet.racine, "diff", "--quiet", _debut(projet.racine, base), *_hors_memoire(projet))
 
 
 def base_par_defaut(projet: config.Projet, depuis: str | None = None) -> tuple[str | None, str | None]:
-    """La base du lot sans `--base`, et ce que le dossier en dit (ADR-0075).
-    Une branche distante qui contient déjà le lot, poussé avant sa revue,
-    n'y laisse rien : il se mesure alors depuis l'ancêtre commun de HEAD et
-    de la branche par défaut. Si celui-ci le contient aussi, la base reste,
-    et la note dit pourquoi le dossier est vide, et quoi lancer."""
-    base = base_du_lot(projet.racine)
-    if not base or base != _amont(projet.racine) or not contient_le_lot(projet, base, depuis):
+    """La base du lot sans `--base`, et ce que le dossier en dit (ADR-0075,
+    ADR-0081). Une branche distante qui contient déjà le lot, poussé avant
+    sa revue, n'y laisse rien : il se mesure alors depuis l'ancêtre commun
+    de HEAD et de la branche par défaut. Si celui-ci le contient aussi, ou
+    qu'il n'y en a pas, la base reste, et la note dit pourquoi le dossier
+    est vide, et quoi lancer. Une branche distante qui porte déjà des
+    commits du lot, ou d'un lot d'avant, le dit aussi."""
+    racine = projet.racine
+    base = base_du_lot(racine)
+    amont = _amont(racine)
+    if not base or base != amont:
         return base, None
-    defaut = outils.branche_par_defaut(projet.racine) or base
-    commun = outils.base_de_travail(projet.racine)
-    if commun and not contient_le_lot(projet, commun, depuis):
+    defaut = outils.branche_par_defaut(racine) or base
+    devinee = outils.branche_par_defaut_devinee(racine)
+    commun = None if devinee else outils.base_de_travail(racine)
+    seconde = f" --since {depuis}" if depuis else ""
+    # Une branche distante restée en arrière de la branche par défaut, que
+    # la branche a reprise depuis son dernier push (une fusion par
+    # écrasement, son image locale gardée) : son ancêtre commun avec HEAD
+    # précède celui de la branche par défaut, et ramènerait le lot fusionné.
+    debut_amont = debut_du_lot(racine, base)
+    if commun and debut_amont and debut_amont != commun and outils.git_reussit(
+            racine, "merge-base", "--is-ancestor", debut_amont, commun):
+        return commun, trad("(la branche distante {amont} est restée en arrière de {defaut}, que la branche a reprise "
+                            "depuis son dernier push, après une fusion par écrasement peut-être : le lot se mesure "
+                            "depuis {commun}, l'ancêtre commun de HEAD et de {defaut} ; s'il commence plus tard, "
+                            "`socle review --base <le commit d'avant le lot>{seconde}`)",
+                            amont=base, defaut=defaut, commun=commun, seconde=seconde)
+    if not contient_le_lot(projet, base, depuis):
+        n = _commits_hors_memoire(projet, commun, _debut(racine, base)) if commun else 0
+        if not n:
+            return base, None
+        return base, trad("(la branche distante {amont} porte déjà {n} commit(s) hors de la mémoire depuis {commun}, "
+                          "l'ancêtre commun de HEAD et de {defaut}, que ce dossier ne montre pas : si le lot en "
+                          "comprend, `socle review --base <le commit d'avant le lot>{seconde}`)",
+                          amont=base, n=n, commun=commun, defaut=defaut, seconde=seconde)
+    if devinee:
+        return base, trad("(la branche distante {amont} contient déjà le lot, et ce clone ne connaît pas la branche "
+                          "par défaut : ni `origin/HEAD`, ni `main`, ni `master`. Un lot déjà poussé se relit depuis "
+                          "le commit d'avant lui : `socle review --base <ce commit>{seconde}`)",
+                          amont=base, seconde=seconde)
+    if not commun:
+        return base, trad("(la branche distante {amont} contient déjà le lot, et HEAD n'a pas d'ancêtre commun avec la "
+                          "branche par défaut {defaut} dans ce clone, superficiel peut-être (`git fetch --unshallow`). "
+                          "Un lot déjà poussé se relit depuis le commit d'avant lui : `socle review --base <ce "
+                          "commit>{seconde}`)", amont=base, defaut=defaut, seconde=seconde)
+    if not contient_le_lot(projet, commun, depuis):
         return commun, trad("(la branche distante {amont} contient déjà le lot : il se mesure depuis {commun}, "
-                            "l'ancêtre commun de HEAD et de {defaut} ; s'il commence plus tard, `socle review "
-                            "--base <le commit d'avant le lot>`)", amont=base, commun=commun, defaut=defaut)
+                            "l'ancêtre commun de HEAD et de {defaut}, sur {n} commit(s) hors de la mémoire ; s'il "
+                            "commence plus tard, `socle review --base <le commit d'avant le lot>{seconde}`)",
+                            amont=base, commun=commun, defaut=defaut, seconde=seconde,
+                            n=_commits_hors_memoire(projet, commun, "HEAD"))
     return base, trad("(la branche distante {amont} contient déjà le lot, et la branche par défaut {defaut} aussi : "
                       "rien à relire depuis elles. Un lot déjà poussé se relit depuis le commit d'avant lui : "
-                      "`socle review --base <ce commit>`)", amont=base, defaut=defaut)
+                      "`socle review --base <ce commit>{seconde}`)", amont=base, defaut=defaut, seconde=seconde)
 
 
 def _diff(projet: config.Projet, base: str) -> tuple[str, list[str]]:
-    """Le diff du lot contre `base`, l'arbre compris, la mémoire mise à part :
-    elle se donne par ses sujets, plus bas."""
-    exclure = f":(exclude){projet.chemins.memoire}"
-    diff = outils.git(projet.racine, "diff", base, "--", ".", exclure, check=False)
-    fichiers = outils.git(projet.racine, "diff", "--name-only", base, "--", ".", exclure, check=False).split()
+    """Le diff du lot depuis l'ancêtre commun de `base` et de HEAD
+    (ADR-0081), l'arbre compris, la mémoire mise à part : elle se donne par
+    ses sujets, plus bas."""
+    debut = _debut(projet.racine, base)
+    diff = outils.git(projet.racine, "diff", debut, *_hors_memoire(projet), check=False)
+    fichiers = outils.git(projet.racine, "diff", "--name-only", debut, *_hors_memoire(projet), check=False).split()
     return diff, fichiers
 
 
-def sujets_fermes(projet: config.Projet, base: str) -> list:
-    """Les sujets du backlog que le lot touche et qui sont clos : ce qu'il
-    prétend avoir fait, que le relecteur confronte au code."""
-    touches = set(outils.git(projet.racine, "diff", "--name-only", base, "--", projet.chemins.backlog,
-                             check=False).split())
-    mem = memoire.Memoire.charger(projet.racine)
-    return [e for e in mem.entrees("B") if e.fichier in touches and e.statut in memoire.BACKLOG_CLOS
-            and not memoire.est_prive(e.fichier)]
-
-
 def sujets_du_lot(projet: config.Projet, base: str) -> tuple[list, list]:
-    """Les sujets du backlog que le lot touche, quel que soit leur statut
-    (ADR-0073) : ceux qu'il sert, qui existaient à sa base ou qu'il clôt,
-    dont le « Fait quand » est la barre du relecteur ; puis ceux qu'il ouvre
-    sans les clore, ce qu'il renvoie au backlog."""
-    touches = set(outils.git(projet.racine, "diff", "--name-only", base, "--", projet.chemins.backlog,
+    """Les sujets du backlog que le lot touche (ADR-0073), mesurés depuis
+    l'ancêtre commun de `base` et de HEAD (ADR-0081) : ceux qu'il sert,
+    dont le « Fait quand » est la barre du relecteur, qui existaient à son
+    début et dont il change le statut ou le « Fait quand », ou qu'il ouvre
+    et clôt ; puis ceux qu'il ouvre sans les clore, ce qu'il renvoie au
+    backlog. Un sujet dont il ne change que le reste (un `après`, un
+    constat ajouté, sa place parmi les clos) n'est ni l'un ni l'autre."""
+    debut = _debut(projet.racine, base)
+    touches = set(outils.git(projet.racine, "diff", "--name-only", debut, "--", projet.chemins.backlog,
                              check=False).split())
-    a_la_base = outils.git(projet.racine, "ls-tree", "-r", "--name-only", base, "--", projet.chemins.backlog,
-                           check=False).split()
-    existants = {m.group(1) for nom in a_la_base if (m := re.match(r"(B-\d+)", Path(nom).name))}
+    avant = memoire.Memoire.charger(projet.racine, debut)
     mem = memoire.Memoire.charger(projet.racine)
     servis, ouverts = [], []
     for e in mem.entrees("B"):
         if e.fichier not in touches or memoire.est_prive(e.fichier):
             continue
-        (servis if e.id in existants or e.statut in memoire.BACKLOG_CLOS else ouverts).append(e)
+        ancien = avant.entree(e.id)
+        if ancien is None:
+            (servis if e.statut in memoire.BACKLOG_CLOS else ouverts).append(e)
+        elif e.statut != ancien.statut or memoire.criteres(e) != memoire.criteres(ancien):
+            servis.append(e)
     return servis, ouverts
 
 
@@ -126,9 +201,10 @@ def messages_depuis(racine, depuis: str) -> list[str]:
 def decisions_ecrites(projet: config.Projet, base: str) -> list:
     """Les décisions et les demandes que le lot ajoute à la mémoire : la
     spécification ou le modèle de menace écrits avant son code, que ses
-    sujets, plus anciens, ne citent pas (ADR-0073)."""
-    ajoutes = set(outils.git(projet.racine, "diff", "--name-only", "--diff-filter=A", base, "--",
-                             projet.chemins.memoire, check=False).split())
+    sujets, plus anciens, ne citent pas (ADR-0073), depuis l'ancêtre commun
+    de `base` et de HEAD (ADR-0081)."""
+    ajoutes = set(outils.git(projet.racine, "diff", "--name-only", "--diff-filter=A", _debut(projet.racine, base),
+                             "--", projet.chemins.memoire, check=False).split())
     mem = memoire.Memoire.charger(projet.racine)
     return [e for e in mem.entrees() if e.fichier in ajoutes and e.id.startswith(("ADR-", "D-"))
             and not memoire.est_prive(e.fichier)]
@@ -175,7 +251,7 @@ def dossier_demande(projet: config.Projet, ident: str) -> str | None:
 
 
 # La consigne du relecteur (ADR-0042, ADR-0044, ADR-0073), en trois parties :
-# son rôle, sa barre, les deux classes de ses constats.
+# son rôle, sa barre, les classes de ses constats (D-0112, D-0116).
 CONSIGNE_ROLE = a_traduire(
     "Tu relis le lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce dossier, et "
     "tu peux lire le dépôt pour vérifier un constat, mais tu ne modifies rien. Pour éprouver une commande "
@@ -193,10 +269,14 @@ CONSIGNE_CLASSES = a_traduire(
     "Classe chaque constat. **Bloquant** : il contredit un critère coché ou une décision citée, fait régresser "
     "ce qui marchait avant le lot, perd des données, ou contourne un garde-fou dans son modèle de menace ; un "
     "garde-fou que le lot pose ou change sans modèle de menace écrit est lui-même un constat bloquant. **Pour le "
-    "backlog** : tout le reste, dont un contournement hors du modèle de menace, un critère que le lot ne coche "
-    "pas, un défaut voisin, une amélioration. Seuls les bloquants se corrigent dans le lot. Rends deux listes "
-    "numérotées, « Bloquants » puis « Pour le backlog », chaque constat avec son fichier et sa ligne, ce qui "
-    "casse et comment le vérifier, et, pour un bloquant, ce qu'il contredit ; ou « aucun constat ».")
+    "backlog** : un constat qui ne bloque pas, s'il peut se produire dans l'usage normal du projet, ou si rien "
+    "ne rattrape ensuite son effet ; un contournement hors du modèle de menace, un critère que le lot ne coche "
+    "pas, un défaut voisin, une amélioration, jugés de même. **Écarté** : un constat exotique (un geste rare, "
+    "une forme qu'on n'écrit que pour contourner, un cas jamais reproduit) dont l'effet est rattrapé, par un "
+    "contrôle, la CI ou une erreur que l'agent voit aussitôt ; et un constat infondé. Seuls les bloquants se "
+    "corrigent dans le lot. Rends trois listes numérotées, « Bloquants », « Pour le backlog » puis « Écartés », "
+    "chaque constat avec son fichier et sa ligne, ce qui casse et comment le vérifier, pour un bloquant ce qu'il "
+    "contredit, pour un écarté pourquoi ; ou « aucun constat ».")
 CONSIGNE_SECONDE = a_traduire(
     "Seconde revue : ce diff corrige des constats bloquants d'une première revue, que disent les messages de ses "
     "commits ci-dessous ; le reste du lot a déjà été relu. Ne juge que cette correction : un bloquant mal "
@@ -210,7 +290,12 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
     et celles qu'ils citent (ADR-0073). Avec `depuis`, le dossier d'une seconde revue : le
     diff depuis ce commit, les messages de ses commits, et toujours les
     sujets du lot entier, depuis `base`. Sans `base`, celle de
-    `base_par_defaut` (ADR-0075)."""
+    `base_par_defaut` (ADR-0075). Le lot se mesure depuis l'ancêtre commun
+    de la base et de HEAD ; une référence qui ne le mesure pas lève
+    `ReferenceRefusee` (ADR-0081)."""
+    refus = refus_des_references(projet, base, depuis)
+    if refus:
+        raise ReferenceRefusee(refus)
     note = None
     if not base:
         base, note = base_par_defaut(projet, depuis)
@@ -219,6 +304,16 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
     if not base:
         lignes.append(trad("(aucune base connue : ni branche distante, ni branche par défaut ; rien à relire)"))
         return "\n".join(lignes) + "\n"
+    debut = debut_du_lot(projet.racine, base)
+    if not debut:
+        raise ReferenceRefusee(trad("aucun ancêtre commun entre HEAD et {base} dans ce clone : rien ne mesure le lot. "
+                                    "Un clone superficiel s'approfondit par `git fetch --unshallow` ; sinon, `socle "
+                                    "review --base <le commit d'avant le lot>`", base=base))
+    # La base elle-même quand elle est l'ancêtre commun : son nom se lit
+    # mieux que son SHA.
+    tel_quel = outils.git(projet.racine, "rev-parse", "--verify", "-q", f"{base}^{{commit}}",
+                          check=False).strip() == debut
+    origine = base if tel_quel else debut
     if note:
         lignes += [note, ""]
     if depuis:
@@ -229,8 +324,12 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
         lignes += [trad("## Le diff de la correction ({n} fichier(s), depuis {base})", n=len(fichiers),
                         base=depuis), ""]
     else:
-        diff, fichiers = _diff(projet, base)
-        lignes += [trad("## Le diff du lot ({n} fichier(s), depuis {base})", n=len(fichiers), base=base), ""]
+        diff, fichiers = _diff(projet, debut)
+        if tel_quel:
+            lignes += [trad("## Le diff du lot ({n} fichier(s), depuis {base})", n=len(fichiers), base=base), ""]
+        else:
+            lignes += [trad("## Le diff du lot ({n} fichier(s), depuis {commun}, l'ancêtre commun de HEAD et de "
+                            "{base})", n=len(fichiers), commun=debut, base=base), ""]
     if not diff.strip():
         lignes.append(trad("(aucun changement hors de la mémoire : rien à relire)"))
     else:
@@ -238,8 +337,8 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
         lignes += ["```diff", montre.rstrip("\n"), "```"]
         if len(montre) < len(diff):
             lignes.append(trad("(diff tronqué : {n} caractère(s) de plus non montrés ; `git diff {base}` les "
-                               "donne)", n=len(diff) - len(montre), base=depuis or base))
-    servis, ouverts = sujets_du_lot(projet, base)
+                               "donne)", n=len(diff) - len(montre), base=depuis or origine))
+    servis, ouverts = sujets_du_lot(projet, debut)
     if servis:
         lignes += ["", trad("## Les sujets du lot : leur critère « Fait quand » est ta barre"), ""]
         for s in servis:
@@ -247,7 +346,7 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
     if ouverts:
         lignes += ["", trad("## Les sujets que le lot ouvre : ce qu'il renvoie au backlog"), ""]
         lignes += [f"- {s.id} — {s.titre}" for s in ouverts]
-    ecrites = decisions_ecrites(projet, base)
+    ecrites = decisions_ecrites(projet, debut)
     if ecrites:
         lignes += ["", trad("## Les décisions et les demandes que le lot écrit"), ""]
         for e in ecrites:

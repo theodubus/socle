@@ -7,6 +7,47 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-15-c — La revue trie les constats exotiques, et son relecteur reçoit le modèle le plus capable
+
+Un constat de la revue qui ne bloque pas va au backlog s'il peut se
+produire dans l'usage normal du projet, ou si rien ne rattrape ensuite son
+effet ; un constat exotique dont l'effet est rattrapé (par un contrôle, la
+CI ou une erreur que l'agent voit aussitôt), ou un constat infondé, est
+écarté, et le récap dit pourquoi. La consigne du relecteur
+(`python3 .socle/socle review`) le dit, et lui fait rendre trois listes,
+« Bloquants », « Pour le backlog » puis « Écartés ». Sous Claude Code, le
+relecteur reçoit explicitement, à son lancement, le modèle le plus capable
+disponible jusqu'à Opus, jamais un moindre que celui qui a implémenté le
+lot, quel que soit celui de la session ; Fable seulement si l'humain le
+demande. Le modèle de menace d'un garde-fou s'écrit dans la section du
+sujet ou dans la décision qu'il cite. La section du socle d'AGENTS.md
+change (la règle du tri, un texte resserré), ainsi que le skill
+`socle-review`, une copie protégée, et le guide `HELP.md`.
+
+À faire : rien, sinon suivre le tri à la prochaine revue.
+
+## 2026-11-15-b — Le dossier de la revue mesure le lot depuis l'ancêtre commun, et refuse une référence inconnue
+
+`python3 .socle/socle review` mesure le lot depuis l'ancêtre commun de
+HEAD et de sa base : la branche par défaut qui a avancé, ou un commit
+poussé d'ailleurs sur la branche distante, n'entrent plus dans le diff ni
+dans les sujets. Seuls les sujets dont le lot change le statut ou le
+« Fait quand » font la barre du relecteur ; un `après` changé, un constat
+ajouté ou un sujet clos rangé par `socle archive` n'y sont plus. Un
+`--base` ou un `--since` inconnus, un `--since` qui n'est pas un ancêtre
+de HEAD, une base sans ancêtre commun avec HEAD sont refusés (code 2), au
+lieu d'un dossier vide. Le dossier dit ce que la branche distante porte
+déjà du lot, sur combien de commits il mesure un lot déjà poussé, et la
+vraie raison d'un dossier vide (branche par défaut devinée, clone
+superficiel) ; sous `--since`, la commande qu'il propose garde `--since`.
+Après une fusion par écrasement, une branche repartie de la branche par
+défaut ne ramène plus le lot fusionné dans la revue du suivant.
+Le skill `socle-review`, une copie protégée, change.
+
+À faire : un lot déjà poussé en tout ou en partie, ou sur une branche qui
+porte des lots déjà relus, se relit par `python3 .socle/socle review
+--base <le commit d'avant le lot>`.
+
 ## 2026-11-15-a — Le skill socle-batch dit quand compacter et quel modèle pour quel travail
 
 La section « La consommation » du skill `socle-batch` a deux règles de

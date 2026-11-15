@@ -154,8 +154,10 @@ quand » des sujets du lot et, pour un garde-fou, son modèle de menace,
 écrit avant le code : ce que le garde-fou arrête, ce qu'il laisse passer.
 L'agent corrige dans le lot les constats bloquants (un critère contredit,
 une régression, une perte de données, un contournement dans le modèle de
-menace), envoie les autres au backlog, où vous les voyez, et écarte les
-infondés ; son récap dit combien.
+menace) ; il envoie au backlog, où vous les voyez, ceux qui peuvent se
+produire dans l'usage normal du projet ou dont rien ne rattrape ensuite
+l'effet, et écarte les autres, exotiques et rattrapés, ou infondés. Son
+récap dit combien, et pourquoi chacun est écarté.
 
 **Livrer.** Par défaut, l'agent fait tout sur une branche de
 développement et garde une seule pull request ouverte, à laquelle chaque

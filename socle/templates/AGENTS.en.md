@@ -14,20 +14,20 @@ memory. Under Claude Code, the `SessionStart` hook does it on its own; under
 another agent, run it first. Nothing that is not in it is established.
 What the human wrote themselves since the agent's last commit (an approval,
 an answer in their terminal), the state lists: cite it to them in the next
-reply, by its identifier and its link, since the command gave them a number
-they cannot find in the conversation.
+reply, by its identifier and its link, which the conversation did not give
+them.
 
-If the state was not injected when a Claude Code session started, the
-agent's hooks are not loaded: the session started outside the project root.
-Tell the human before any work, and push nothing; `socle state` also shows
-it at the top, and the pre-commit hook then refuses the commit. Never write a
-Claude Code setting yourself to restore the hooks.
+If the state was not injected when a Claude Code session started, its
+hooks are not loaded (the session started outside the project root;
+`socle state` says so at the top, and the pre-commit hook then refuses the
+commit): tell the human before any work, push nothing, and never write a
+Claude Code setting yourself to restore them.
 
 An instruction from the human given in the conversation, that holds beyond
 the turn (a rule, a preference, a prohibition), is written into the memory
 before going on: in the active work if it concerns the work in progress,
-otherwise in the journal, with its exact text. A compaction summary does not
-always keep it, and a new session only has the memory.
+otherwise in the journal, with its exact text: a compaction may lose it,
+and a new session only has the memory.
 
 ### The memory, in `memory/`
 
@@ -48,7 +48,7 @@ An identifier is computed (`python3 .socle/socle new <type> "title"`), it is
 never guessed. In case of conflict, the order of authority is: the code and
 the tests, then the canonical memory, then the journal.
 
-**Private memory**, if the policy chooses one (`[private] mode`): nothing private is copied to public, neither a `P…` identifier, nor its content, nor in a commit message, a pull request or a comment; unavailable (the state says so), nothing is concluded about what depends on it. Where to write, moving an entry, committing in companion mode, a review before publication: the skill `socle-private-memory`.
+**Private memory**, if the policy chooses one (`[private] mode`): nothing private is copied to public, neither a `P…` identifier, nor its content, nor in a commit message, a pull request or a comment; unavailable (the state says so), nothing is concluded about what depends on it. How to work with it: the skill `socle-private-memory`.
 
 ### Autonomy policy (`.socle/policy.toml`, changed by the human only)
 
@@ -101,12 +101,11 @@ must be read again. `socle new` puts in the index fingerprint.
 ### Skills
 
 A rare procedure is read in its skill, which the agent loads on its
-description: `socle-request` (writing a request, relaying an answer,
-recording a decision taken in session), `socle-private-memory` (the
-private memory), `socle-batch` (running a batch, from forming it to delivering
-it), `socle-review` (the adversarial review of a batch, before its
-delivery) and `socle-resume` (in a cloud session, at every turn that
-acts: resuming alone after a usage limit), in `.claude/skills/`, laid by the installer and
+description: `socle-request` (requests, a decision taken in session),
+`socle-private-memory` (the private memory), `socle-batch` (running a
+batch), `socle-review` (the review of a batch, before its delivery) and
+`socle-resume` (in a cloud session, at every turn that acts: resuming
+after a usage limit), in `.claude/skills/`, laid by the installer and
 protected; another agent reads their `SKILL.md` at that path.
 
 A project procedure that comes back (the journal shows the first time) is
@@ -127,14 +126,16 @@ milestone they serve; a low-priority topic if convenient), then gets
 going; it stops at the end of the batch, or as soon as a decision is up
 to the human. It does not change a priority the human gave. The batch is
 kept in the backlog (`form: batch`) and run following the `socle-batch`
-skill. Before the
-push of a batch that changes code, a specification or a test, it has it
-reviewed by a reviewer without context (the `socle-review` skill), and its
-recap gives the findings. The reviewer judges the batch against the “Done
-when” of its topics: a topic whose design is not settled writes its
-specification before its code, a topic that adds or changes a guardrail,
-its threat model (its `## Threat model` section). Only blocking findings
-are fixed in the batch; the others go to the backlog.
+skill. Before the push of a batch that changes code, a specification or a
+test, it has it reviewed by a reviewer without context, against the “Done
+when” of its topics (the `socle-review` skill). A topic whose design is
+not settled writes its specification before its code; a topic that adds
+or changes a guardrail, its threat model (its `## Threat model` section,
+or the decision it cites). Only blocking findings are fixed in the batch;
+another goes to the backlog if it can occur in the project's normal use,
+or if nothing catches its effect afterwards; otherwise, exotic and
+caught, or unfounded, it is dismissed. The recap gives the findings, and
+why each dismissed one is.
 
 By default, everything happens on one development branch, with only one
 pull request open at a time: each finished batch is added to it, the
@@ -170,7 +171,7 @@ guardrails (`proto/` by default): the CI does not judge it on push.
 | Where | What |
 | --- | --- |
 | `.claude/settings.json` | Claude Code hooks: `SessionStart` (derived state; in a cloud session, the adapter's tools), `PreToolUse` (refusals), `Stop` (end-of-turn checks) |
-| `.socle/git-hooks/` | git hooks: `pre-commit` (fast checks), `prepare-commit-msg` (`Socle-Hooks`, `Socle-Hooks-Since-Commit` trailers), `commit-msg` (private memory leaks; a function with neither test nor waiver, a fix without a test, an agent commit without any agent hook, as warnings), `pre-push` (`verify --fast` on the last commit, the pushed range judged as the CI will judge it, review before publication) |
+| `.socle/git-hooks/` | git hooks: `pre-commit` (fast checks), `prepare-commit-msg` (`Socle-Hooks`, `Socle-Hooks-Since-Commit` trailers), `commit-msg` (private memory leaks; as warnings, a function with neither test nor waiver, a fix without a test, an agent commit without its hooks), `pre-push` (`verify --fast` on the last commit, the pushed range judged as in CI, review before publication) |
 | `.github/workflows/socle.yml` | CI: adapter capabilities, all checks against the base, socle self-test |
 @@LIGNE_MUTATION@@
 | `.git/socle/hooks.log` | local trace of every hook that fires, not versioned, shared by all worktrees of the repository |
