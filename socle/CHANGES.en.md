@@ -7,6 +7,27 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-15-a — The socle-batch skill says when to compact and which model for which work
+
+The "Consumption" section of the `socle-batch` skill has two more rules.
+The agent does not compact by itself: it writes the memory (active work,
+journal), then asks the human to compact, at the end of a batch if the
+human keeps the session beyond it, and before any wait that may exceed an
+hour without changing sessions; near a limit, the threshold that changes
+sessions prevails; after the pause, compacting rereads the whole
+conversation at full price. The model is the one the quality of the work
+calls for, never a lesser one to stay within a limit: a limit delays a
+batch, it does not lighten it. Among those that do it equally well, the
+one that uses the least of the limit per token, above all for the
+orchestrating conversation; the human chooses the session's, on the
+agent's advice; the model set by the project's instructions prevails, and
+a subagent receives its own explicitly at launch.
+
+To do: the skill is in the request for the update's protected files; once
+it is in place, ask for compaction at the moments it gives, advise the
+human on the session's model, and name the model of each subagent at
+launch.
+
 ## 2026-11-14-k — The agent's hook sees what cp -t, find -delete, xargs, bash -ec, sort -o and python -c write
 
 The agent's hook now judges these writes to a protected file: `cp`, `ln`,
