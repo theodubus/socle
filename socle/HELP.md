@@ -265,21 +265,28 @@ hors du projet (`/tmp/…`). Une commande qu'il ne sait pas juger (plus de
 ou accolades ouvertes à la fois, un jugement qui plante ou passe
 5 secondes) est refusée si elle peut écrire : la découper. Il refuse
 aussi la suppression d'un dossier qui contient le projet (`rm -rf ..`, un
-`mv`, un `git clean` ou un `find` qui supprime depuis un tel dossier), et
-celle du projet par un `find` qui part de sa racine sans qu'un filtre de
-nom ou de chemin garde ce qu'il supprime (`find . -delete`, `find . -type
-f -delete`, `find . -delete -name '*.pyc'`, dont le filtre vient après
-l'action) ; un dossier voisin du projet, et un dossier du projet, restent
-libres. Ce hook arrête les erreurs d'un agent
+`mv`, un `git clean` ou un `find` qui supprime depuis un tel dossier, la
+destination d'un `rsync --delete`, les sources d'un `rsync
+--remove-source-files`, le chemin d'un `git worktree remove`, un `python3
+-c` qui le passe en toutes lettres à `shutil.rmtree`), celle du projet
+lui-même par ces autres programmes (un sous-agent qui retire son propre
+worktree, `git worktree remove .`, ou par la fin de son chemin, que git
+cherche d'abord parmi ses worktrees : `git worktree remove agent-x`), et
+celle du projet par un `find` qui
+part de sa racine sans qu'un filtre de nom ou de chemin garde ce qu'il
+supprime (`find . -delete`, `find . -type f -delete`, `find . -delete
+-name '*.pyc'`, dont le filtre vient après l'action) ; un dossier voisin
+du projet, et un dossier du projet, restent libres (l'orchestrateur, à la
+racine, retire le worktree d'un sous-agent). Ce hook arrête les erreurs d'un agent
 coopératif, qui ne cherche pas à contourner ses garde-fous, avant qu'elles agissent. Il juge les formes du shell
 qu'un agent écrit dans son travail, et, quelle qu'en soit la forme, ce que
 rien ne rattrape ensuite : supprimer le projet ou un dossier qui le
 contient, une action externe irréversible, une fuite de la mémoire privée
-dans ce qui se publie. La suppression du projet lui échappe encore quand
-un autre programme que `rm`, `mv`, `git clean` ou `find` la fait
-(`rsync --delete`, `git worktree remove`, un `python3 -c` qui appelle
-`shutil.rmtree`, `xargs rm`) : rien ne la rattrape, et ces commandes ne
-se lancent pas vers le projet ni vers un dossier qui le contient. Il ne modélise pas tout bash : une écriture d'un
+dans ce qui se publie. La suppression du projet lui échappe encore par
+`xargs rm`, par une commande du shell que lance un `python3 -c`
+(`os.system`, `subprocess`) ou par un chemin que son script construit au
+vol : rien ne la rattrape, et ces commandes ne se lancent pas vers le
+projet ni vers un dossier qui le contient. Il ne modélise pas tout bash : une écriture d'un
 fichier protégé sous une forme qu'on n'écrit que pour contourner (un
 `eval`, `IFS`, un chemin construit au vol dans un autre langage) est hors
 de son modèle, comme des formes qui lui échappent (une part inconnue qui

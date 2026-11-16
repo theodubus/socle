@@ -7,6 +7,70 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-15-e — The agent's hook refuses deleting the project through rsync --delete, git worktree remove and python -c
+
+The agent's hook refuses deleting the project, or a directory that
+contains it, through programs other than `rm`, `mv`, `git clean` and
+`find`: the destination of an `rsync --delete` (and its variants,
+`--del`, `--delete-after`…), the sources of an `rsync
+--remove-source-files`, the path of a `git worktree remove` or a `git
+worktree move`, also read the way git looks it up first, by the end of
+the path of one of its worktrees (`git worktree remove agent-x`, run in
+`.claude/worktrees/agent-x`), and the paths a `python -c` writes out in
+full for `shutil.rmtree`, `shutil.move`, `os.rename` or `os.replace`. A
+`find -exec` of one of them counts as a `find -exec rm`. Until now,
+`rsync -a --delete empty/ ..`, `git worktree remove .` run by a subagent
+in its worktree and `python3 -c "import shutil; shutil.rmtree('..')"`
+passed.
+The orchestrator, at the project root, still removes a subagent's
+worktree (`git worktree remove -f -f .claude/worktrees/agent-x`, or
+`agent-x`), a subagent another one's, and a directory of the project or
+next to it stays free.
+
+To do: nothing. To empty a directory, target a directory of the project,
+or outside it a directory that does not contain it, its path written out
+in full.
+
+## 2026-11-15-d — The agent's hook judges the body of a function written without parentheses
+
+The agent's hook reads `function name { …; }`, without parentheses, like
+`name() { …; }`: each command of its body is judged, whether the body
+follows the name on the same line or on the next one, and what it changes
+does not carry over to what follows. Until now, the command read had
+`function` for its program, and nothing in its body was judged: `function
+f { git push --force origin main; }; f` and `function f { rm -rf ..; };
+f` passed. Another body that bash accepts (`if`, `while`, `for`, a
+subshell) is judged as if it ran where it is written: a directory it
+changes becomes unknown after it, and a write into the project that
+follows it is refused, as after `name() if …`. A group written at the head
+of the subshell that serves as a function's body (`f() ( { cd x; }; … )`)
+is no longer read as the body of that function.
+
+Two regressions of this reading are closed in turn. On a call to a
+function whose body `{ …; }` changes the directory or a variable, the
+hook makes what it changes unknown and judges what follows as an unknown
+state: a deletion of the project from the directory such a call leaves
+behind (`function f { cd memory; }; f; rm -rf ../../<root>`) is refused,
+normal use (`f() { ls; }; f; rm -rf build`) stays free. The call is
+resolved when it happens, with what the functions the function calls
+change, step by step, including a function defined after it or inside it
+(`g() { f; }; f() { cd memory; }; g`); it counts behind `time` and `time
+-p`, and in an `eval` or a substitution (`eval f`, `x=$(f; …)`), which
+know the command's functions; a `bash -c`, another process, does not
+know them. A quoted or escaped reserved word (`"function"`, `\function`,
+`$'function'`, and a `}` that closed a body too early) is no longer read
+as reserved: bash runs it as a command, and the group or body that
+follows is judged as bash runs it in place.
+
+To do: nothing. A force push or a deletion of the project written in such
+a function, or let through by its call or by a quoted reserved word,
+which the hook let through, is refused. A new refusal, harmless this
+time: a write or a deletion through a relative path that follows a call
+to a function whose body changes directory (`f() { cd memory; }; f; rm
+-rf build`) is refused, as the hook no longer knows where it starts. To
+run it, write its absolute path in full, or do the `cd` outside the
+function (`cd memory; rm -rf build`).
+
 ## 2026-11-15-c — The review sorts out exotic findings, and its reviewer receives the most capable model
 
 A review finding that does not block goes to the backlog if it can occur

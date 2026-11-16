@@ -7,6 +7,71 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-15-e — Le hook de l'agent refuse la suppression du projet par rsync --delete, git worktree remove et python -c
+
+Le hook de l'agent refuse la suppression du projet, ou d'un dossier qui
+le contient, par d'autres programmes que `rm`, `mv`, `git clean` et
+`find` : la destination d'un `rsync --delete` (et ses variantes,
+`--del`, `--delete-after`…), les sources d'un `rsync
+--remove-source-files`, le chemin d'un `git worktree remove` ou d'un `git
+worktree move`, lu aussi comme git le cherche d'abord, par la fin du
+chemin d'un de ses worktrees (`git worktree remove agent-x`, lancé dans
+`.claude/worktrees/agent-x`), et les chemins qu'un `python -c` écrit en
+toutes lettres pour `shutil.rmtree`, `shutil.move`, `os.rename` ou
+`os.replace`. Un `find -exec` de l'un d'eux compte comme un `find -exec
+rm`. Jusqu'ici,
+`rsync -a --delete vide/ ..`, `git worktree remove .` lancé par un
+sous-agent dans son worktree et `python3 -c "import shutil;
+shutil.rmtree('..')"` passaient. L'orchestrateur, à la racine du projet,
+retire toujours le worktree d'un sous-agent (`git worktree remove -f -f
+.claude/worktrees/agent-x`, ou `agent-x`), un sous-agent celui d'un autre,
+et un dossier du projet ou voisin de lui reste libre.
+
+À faire : rien. Pour vider un dossier, viser un dossier du projet, ou
+hors de lui un dossier qui ne le contient pas, son chemin écrit en toutes
+lettres.
+
+## 2026-11-15-d — Le hook de l'agent juge le corps d'une fonction écrite sans parenthèses
+
+Le hook de l'agent lit `function nom { …; }`, sans parenthèses, comme
+`nom() { …; }` : chaque commande de son corps se juge, que le corps
+suive le nom sur la même ligne ou sur la suivante, et ce qu'il change ne
+vaut pas pour la suite. Jusqu'ici, la commande lue avait pour programme
+`function`, et rien de son corps ne se jugeait : `function f { git push
+--force origin main; }; f` et `function f { rm -rf ..; }; f` passaient.
+Un autre corps que bash admet (`if`, `while`, `for`, un sous-shell) se
+juge comme s'il s'exécutait là où il s'écrit : un dossier qu'il change
+devient inconnu après lui, et une écriture dans le projet qui le suit est
+refusée, comme après `nom() if …`. Un groupe écrit en tête du sous-shell
+qui sert de corps à une fonction (`f() ( { cd x; }; … )`) ne se lit plus
+comme le corps de cette fonction.
+
+Deux régressions de cette lecture sont fermées à leur tour. À l'appel
+d'une fonction dont le corps `{ …; }` change le dossier ou une variable,
+le hook rend inconnu ce qu'elle change et juge la suite comme un état
+inconnu : une suppression du projet depuis le dossier qu'un tel appel
+laisse derrière lui (`function f { cd memory; }; f; rm -rf
+../../<racine>`) est refusée, l'usage normal (`f() { ls; }; f; rm -rf
+build`) reste libre. L'appel se résout au moment où il se fait, avec ce
+que changent les fonctions que la fonction appelle, de proche en proche,
+une fonction définie après elle ou dans elle comprise (`g() { f; }; f()
+{ cd memory; }; g`) ; il vaut derrière `time` et `time -p`, et dans un
+`eval` ou une substitution (`eval f`, `x=$(f; …)`), qui connaissent les
+fonctions de la commande ; un `bash -c`, un autre processus, ne les
+connaît pas. Un mot réservé cité ou échappé (`"function"`,
+`\function`, `$'function'`, et un `}` qui fermait trop tôt un corps)
+n'est plus lu comme réservé : bash le lance comme une commande, et le
+groupe ou le corps qui suit se juge comme bash l'exécute sur place.
+
+À faire : rien. Un push forcé ou une suppression du projet écrits dans
+une telle fonction, ou passés par son appel ou par un mot réservé cité,
+que le hook laissait passer, sont refusés. Un refus nouveau, sans danger
+cette fois : une écriture ou une suppression par un chemin relatif qui
+suit l'appel d'une fonction dont le corps change de dossier (`f() { cd
+memory; }; f; rm -rf build`) est refusée, le hook ne sachant plus d'où
+elle part. Pour la lancer, écrire son chemin absolu en toutes lettres, ou
+faire le `cd` hors de la fonction (`cd memory; rm -rf build`).
+
 ## 2026-11-15-c — La revue trie les constats exotiques, et son relecteur reçoit le modèle le plus capable
 
 Un constat de la revue qui ne bloque pas va au backlog s'il peut se

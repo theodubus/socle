@@ -20,7 +20,9 @@ rend « les hooks tournent-ils ? » vérifiable.
 
 from __future__ import annotations
 
+import ast
 import dataclasses
+import fnmatch
 import glob
 import json
 import os
@@ -463,10 +465,15 @@ def suppressions(c: commandes.Commande) -> list[tuple[str, bool]]:
     contiennent, tels qu'elle les écrit (B-0208) : les arguments de `rm`, les
     sources d'un `mv` (pas sa destination), ce que balaie `git clean` (ses
     chemins, ou son dossier, sous ses `-C`) et les points de départ d'un
-    `find` qui supprime (`-delete`, ou `-exec rm`). Chacun avec `True` quand
-    supprimer la racine du projet elle-même compte : un `find` qu'aucun
-    filtre de nom ou de chemin ne garde la viderait. Pour les autres, la
-    racine est déjà un dossier qui contient un fichier protégé."""
+    `find` qui supprime (`-delete`, ou un `-exec` qui supprime ce qu'il
+    trouve) ; et, d'un autre programme (B-0228), ce que supprime un `rsync`
+    (`_supprime_par_rsync`), le worktree que retire ou déplace `git
+    worktree` et ce qu'un `python -c` supprime en toutes lettres
+    (`_supprimes_par_python`). Chacun avec `True` quand supprimer la racine
+    du projet elle-même compte : un `find` qu'aucun filtre de nom ou de
+    chemin ne garde la viderait, et un autre programme ne l'écrit pas
+    (`ecrits`). Pour `rm`, `mv` et `git clean`, la racine est déjà un
+    dossier qui contient un fichier protégé."""
     nom, argv = c.programme, c.argv[1:]
     if nom == "rm":
         return [(x, False) for x in commandes.options_et_arguments(argv)[1] if x]
@@ -474,9 +481,196 @@ def suppressions(c: commandes.Commande) -> list[tuple[str, bool]]:
         return [(x, False) for x in _sources_de_mv(argv) if x]
     if nom == "find":
         return _departs_de_find(c)
+    if nom == "rsync":
+        return [(x, True) for x in _supprime_par_rsync(argv)]
     if nom == "git" and commandes.git_sous_commande(c.argv)[0] == "clean":
         return [(x, False) for x in _balaye_par_git_clean(c.argv)]
+    if nom == "git" and commandes.git_sous_commande(c.argv)[0] == "worktree":
+        return [(x, True) for x in _retire_par_git_worktree(c.argv)]
+    script = _script_python(c)
+    if script is not None:
+        return [(x, True) for x in _supprimes_par_python(script)]
     return []
+
+
+# Les options de `rsync` qui suppriment dans la destination ce que les
+# sources n'ont pas, et celles d'un essai à blanc ou d'une liste, qui ne
+# touchent à rien (B-0228).
+RSYNC_SUPPRIME = frozenset(("--del", "--delete", "--delete-before", "--delete-during", "--delete-delay",
+                            "--delete-after", "--delete-excluded"))
+RSYNC_A_BLANC = frozenset(("--dry-run", "--list-only"))
+# Les options courtes de `rsync` qui prennent une valeur, collée au groupe ou
+# l'argument suivant, et les longues qui la prennent en argument suivant
+# quand elles n'ont pas de `=`.
+RSYNC_COURTES_A_VALEUR = "efBTM@"
+RSYNC_LONGUES_A_VALEUR = frozenset((
+    "--rsh", "--rsync-path", "--filter", "--exclude", "--include", "--exclude-from", "--include-from",
+    "--files-from", "--block-size", "--temp-dir", "--remote-option", "--modify-window", "--backup-dir", "--suffix",
+    "--compare-dest", "--copy-dest", "--link-dest", "--partial-dir", "--max-delete", "--max-size", "--min-size",
+    "--max-alloc", "--chmod", "--chown", "--usermap", "--groupmap", "--copy-as", "--timeout", "--contimeout",
+    "--bwlimit", "--port", "--sockopts", "--address", "--protocol", "--iconv", "--checksum-seed",
+    "--checksum-choice", "--cc", "--compress-choice", "--zc", "--compress-level", "--zl", "--skip-compress",
+    "--log-file", "--log-file-format", "--out-format", "--log-format", "--password-file", "--early-input",
+    "--write-batch", "--only-write-batch", "--read-batch", "--info", "--debug", "--stderr", "--outbuf",
+    "--stop-after", "--stop-at", "--time-limit"))
+# Un chemin que `rsync` lit sur un autre hôte : un `:` avant toute barre
+# oblique (`hôte:chemin`, `hôte::module`, `rsync://`).
+RSYNC_DISTANT = re.compile(r"[^/]*:")
+
+
+def _supprime_par_rsync(argv: list[str]) -> list[str]:
+    """Ce que supprime un `rsync` (`argv` sans le programme), tel qu'il
+    l'écrit : sa destination, le dernier argument, s'il supprime ce que les
+    sources n'ont pas (`--delete` et ses variantes), et ses sources s'il en
+    retire les fichiers copiés (`--remove-source-files`) ; un chemin distant
+    n'est pas du projet. Ses options se lisent où qu'elles soient, la valeur
+    de celles qui en prennent une avec elles (`-e ssh`, `--exclude .git`) ;
+    rien pour un essai à blanc (`-n`, `--dry-run`) ni pour une liste (un
+    seul argument, `--list-only`) (B-0228)."""
+    args, supprime, retire, i, fin = [], False, False, 0, False
+    while i < len(argv):
+        a = argv[i]
+        i += 1
+        if fin or a == "-" or not a.startswith("-"):
+            args.append(a)
+        elif a == "--":
+            fin = True
+        elif a.startswith("--"):
+            cle = a.split("=", 1)[0]
+            if cle in RSYNC_A_BLANC:
+                return []
+            supprime = supprime or cle in RSYNC_SUPPRIME
+            retire = retire or cle == "--remove-source-files"
+            if cle in RSYNC_LONGUES_A_VALEUR and "=" not in a:
+                i += 1
+        else:
+            for k, o in enumerate(a[1:], 1):
+                if o == "n":
+                    return []
+                if o in RSYNC_COURTES_A_VALEUR:
+                    if k == len(a) - 1:
+                        i += 1
+                    break
+    if len(args) < 2:
+        return []
+    res = args[-1:] if supprime else []
+    res += args[:-1] if retire else []
+    return [x for x in res if x and not RSYNC_DISTANT.match(x)]
+
+
+def _git_global(argv: list[str]) -> tuple[str, int]:
+    """Le dossier où travaille un `git` (`argv` entier, depuis `git`), ses
+    `-C` joints (`""` : le dossier de la commande), et la place de sa
+    sous-commande, derrière ses options globales."""
+    base, i = "", 1
+    while i < len(argv) and argv[i].startswith("-"):
+        if argv[i] == "-C" and i + 1 < len(argv):
+            base = posixpath.join(base, argv[i + 1])
+        i += 2 if argv[i] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
+    return base, i
+
+
+def _retire_par_git_worktree(argv: list[str], suffixe: bool = False) -> list[str]:
+    """Le worktree que retire `git worktree remove` (`-f`, `--force`,
+    répétés), ou que déplace `git worktree move`, comme les sources d'un
+    `mv` (`argv` entier, depuis `git`), rapporté à ses `-C` (B-0228). Avec
+    `suffixe`, son argument tel qu'il est écrit, que git cherche d'abord
+    comme la fin du chemin d'un de ses worktrees, quels que soient ses `-C`
+    (`_trouve_par_son_suffixe`)."""
+    base, i = _git_global(argv)
+    reste = argv[i + 1:]
+    if not reste or reste[0] not in ("remove", "move"):
+        return []
+    chemins = [x for x in commandes.options_et_arguments(reste[1:])[1][:1] if x]
+    return chemins if suffixe or not base else [posixpath.join(base, x) for x in chemins]
+
+
+def _nommes_par_leur_suffixe(c: commandes.Commande) -> list[str]:
+    """Ce que git cherche d'abord comme la fin du chemin d'un de ses
+    worktrees, tel que la commande l'écrit : l'argument d'un `git worktree
+    remove` ou `move`, et les points de départ d'un `find` qui le lui passe
+    par `-exec` (`{}`), avec ce qu'il trouve sous eux (`départ/*`)."""
+    if c.programme == "git" and commandes.git_sous_commande(c.argv)[0] == "worktree":
+        return _retire_par_git_worktree(c.argv, suffixe=True)
+    if c.programme == "find":
+        departs, actions = _lire_find(c)
+        if any(sous is not None and SONDE in _nommes_par_leur_suffixe(sous) for sous, _ in actions):
+            return [y for x in departs for y in (x, posixpath.join(x, "*"))]
+    return []
+
+
+# Les fonctions de python qui suppriment, avec ce qu'il contient, le chemin
+# qu'elles reçoivent en premier, ou le déplacent comme les sources d'un `mv`
+# (`(module, nom)` ; `rmtree` sous tout nom de module, ou importé seul), et
+# les classes d'un chemin de `pathlib` (B-0228).
+PYTHON_SUPPRIME = frozenset((("shutil", "move"), ("os", "rename"), ("os", "replace"), ("os", "renames")))
+PYTHON_PATH = frozenset(("Path", "PurePath", "PosixPath", "PurePosixPath"))
+
+
+def _nom_appele(f: ast.expr) -> tuple[str | None, str | None]:
+    """Ce qu'appelle un appel de python : le texte de ce qui porte la
+    fonction (`os.path`), ou `None` pour un nom seul, et son nom."""
+    if isinstance(f, ast.Attribute):
+        return ast.unparse(f.value), f.attr
+    return None, f.id if isinstance(f, ast.Name) else None
+
+
+def _est_un_path(n: ast.expr) -> bool:
+    """L'expression est-elle un `Path(…)`, résolu ou non (`.resolve()`,
+    `.absolute()`)."""
+    while (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+           and n.func.attr in ("resolve", "absolute") and not n.args):
+        n = n.func.value
+    return isinstance(n, ast.Call) and _nom_appele(n.func)[1] in PYTHON_PATH
+
+
+def _chemin_ecrit(n: ast.expr | None) -> str | None:
+    """Le chemin qu'une expression de python écrit en toutes lettres : une
+    chaîne, un `Path(…)` ou un `os.path.join(…)` de tels chemins, joints par
+    `/`, résolu ou non ; `None` pour un chemin construit autrement."""
+    if isinstance(n, ast.Constant) and isinstance(n.value, str):
+        return n.value
+    if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Div):
+        parts = [_chemin_ecrit(n.left), _chemin_ecrit(n.right)]
+    elif isinstance(n, ast.Call) and not n.keywords:
+        module, nom = _nom_appele(n.func)
+        if nom in ("resolve", "absolute") and module is not None and not n.args:
+            return _chemin_ecrit(n.func.value)
+        if nom not in PYTHON_PATH and (module, nom) not in (("os.path", "join"), ("posixpath", "join")):
+            return None
+        parts = [_chemin_ecrit(a) for a in n.args] or ["."]
+    else:
+        return None
+    return None if None in parts else posixpath.join(*parts)
+
+
+def _supprimes_par_python(script: str) -> list[str]:
+    """Les chemins qu'un script de python supprime avec ce qu'ils
+    contiennent, lus dans son arbre et écrits en toutes lettres
+    (`_chemin_ecrit`) : le chemin de `rmtree` (`shutil.rmtree`, `path=`), la
+    source de `shutil.move`, `os.rename`, `os.replace`, `os.renames`
+    (`src=`), et le `Path` que `rename` ou `replace` déplace. Un chemin
+    construit au vol (`os.getcwd()`, `sys.argv[1]`, une variable) n'en est
+    pas, hors du modèle du hook (ADR-0080) ; rien pour un script que python
+    ne lirait pas (B-0228)."""
+    try:
+        res = []
+        for n in ast.walk(ast.parse(script)):
+            if not isinstance(n, ast.Call):
+                continue
+            module, nom = _nom_appele(n.func)
+            if nom == "rmtree" or (module, nom) in PYTHON_SUPPRIME:
+                cles = {k.arg: k.value for k in n.keywords}
+                cible = n.args[0] if n.args else cles.get("path", cles.get("src"))
+            elif nom in ("rename", "replace") and isinstance(n.func, ast.Attribute) and _est_un_path(n.func.value):
+                cible = n.func.value
+            else:
+                continue
+            if chemin := _chemin_ecrit(cible):
+                res.append(chemin)
+        return res
+    except (SyntaxError, ValueError, RecursionError, MemoryError):
+        return []
 
 
 def _sources_de_mv(argv: list[str]) -> list[str]:
@@ -615,14 +809,16 @@ def _expression_find(argv: list[str], i: int) -> list[tuple[list[str] | None, tu
 
 def _departs_de_find(c: commandes.Commande) -> list[tuple[str, bool]]:
     """Les points de départ d'un `find` qui supprime ce qu'il trouve
-    (`-delete`, ou `-exec`, `-execdir`, `-ok`, `-okdir` qui lancent `rm`),
-    `.` s'il n'en nomme aucun ; chacun avec `True` quand une de ces actions
-    n'est gardée par aucun filtre de nom ou de chemin (`_expression_find`) :
-    il supprimerait le point de départ et tout ce qu'il contient, quels que
+    (`-delete`, ou `-exec`, `-execdir`, `-ok`, `-okdir` qui lancent `rm`, ou
+    un programme qui supprime `{}` selon `suppressions`, B-0228), `.` s'il
+    n'en nomme aucun ; chacun avec `True` quand une de ces actions n'est
+    gardée par aucun filtre de nom ou de chemin (`_expression_find`) : il
+    supprimerait le point de départ et tout ce qu'il contient, quels que
     soient ses autres tests (`-type`, `-empty`). Rien pour un `find` qui ne
     supprime pas."""
     departs, actions = _lire_find(c)
-    gardes = [garde for sous, garde in actions if sous is None or sous.argv[0].rsplit("/", 1)[-1] == "rm"]
+    gardes = [garde for sous, garde in actions if sous is None or sous.programme == "rm"
+              or any(SONDE in x for x, _ in suppressions(sous))]
     return [(x, any(libre for libre, _ in gardes)) for x in departs] if gardes else []
 
 
@@ -631,11 +827,7 @@ def _balaye_par_git_clean(argv: list[str]) -> list[str]:
     chemins, ou son dossier, rapportés à ses `-C` ; rien pour un essai à
     blanc (`-n`, `--dry-run`). `-e` (`--exclude`) prend une valeur, collée
     au groupe ou l'argument suivant."""
-    base, i = "", 1
-    while i < len(argv) and argv[i].startswith("-"):
-        if argv[i] == "-C" and i + 1 < len(argv):
-            base = posixpath.join(base, argv[i + 1])
-        i += 2 if argv[i] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
+    base, i = _git_global(argv)
     chemins, j, fin, reste = [], 0, False, argv[i + 1:]
     while j < len(reste):
         a = reste[j]
@@ -1161,12 +1353,14 @@ def ecritures_jugees(projet: config.Projet, cmd: str, cwd: str | None = None,
         res += _ecrivains_illisibles(projet, c, cmd, environnement, cache)
         mots = _ecrits_hors_remise(projet, c, remise_en_etat(projet, c, cmd, depart), depart)
         supprimes = dict(suppressions(c))
-        if not mots and not supprimes:
+        suffixes = _nommes_par_leur_suffixe(c)
+        if not mots and not supprimes and not suffixes:
             continue
         variables = commandes.variables_de(c, environnement)
-        for mot in dict.fromkeys(mots + list(supprimes)):
+        for mot in dict.fromkeys(mots + list(supprimes) + suffixes):
             _dans_le_delai(limite)
-            genre = {"ecrit": mot in mots, "supprime": mot in supprimes, "racine_comprise": supprimes.get(mot, False)}
+            genre = {"ecrit": mot in mots, "supprime": mot in supprimes, "racine_comprise": supprimes.get(mot, False),
+                     "suffixe": mot in suffixes}
             mot = mot.strip("'\"")
             try:
                 for forme in commandes.accolades(mot):
@@ -1184,12 +1378,14 @@ def _dit(mot: str, chemin: str) -> str:
 
 
 def _juger_forme(projet: config.Projet, c: commandes.Commande, mot: str, forme: str, variables: dict,
-                 cache: dict, depart: str, elargi: bool, **genre) -> list[tuple[str, str]]:
+                 cache: dict, depart: str, elargi: bool, suffixe: bool = False, **genre) -> list[tuple[str, str]]:
     """Les constats d'`ecritures_jugees` pour une forme d'un mot que `c`
     écrit ou supprime (une par accolade ; `genre`, comme `_juger_chemin`). Développé, le mot se juge entier et, s'il
     porte une variable ou une substitution, mot par mot : hors des
     guillemets, le shell le couperait en mots, que le découpage ne
-    distingue plus d'un mot entre guillemets (B-0171)."""
+    distingue plus d'un mot entre guillemets (B-0171). Un mot que git
+    cherche comme la fin du chemin d'un worktree (`suffixe`) se juge aussi
+    ainsi (`_trouve_par_son_suffixe`)."""
     d, inconnus = commandes.developper(forme, variables)
     champs = [d]
     if re.search(r"[$`]", forme):
@@ -1199,9 +1395,36 @@ def _juger_forme(projet: config.Projet, c: commandes.Commande, mot: str, forme: 
             champs += [x for x in re.split("[" + re.escape(separateurs) + "]+", d) if x]
     res: list[tuple[str, str]] = []
     for champ in dict.fromkeys(champs):
-        if champ:  # un mot vide : le shell n'écrit rien
+        if not champ:  # un mot vide : le shell n'écrit rien
+            continue
+        if suffixe:
+            res += _trouve_par_son_suffixe(projet.racine, mot, champ)
+        if genre["ecrit"] or genre["supprime"]:
             res += _juger_chemin(projet, c, mot, champ, inconnus, cache, depart, elargi, **genre)
     return res
+
+
+def _trouve_par_son_suffixe(racine: Path, mot: str, d: str) -> list[tuple[str, str]]:
+    """Le constat pour l'argument `d`, développé, d'un `git worktree remove`
+    ou `move`. Git cherche d'abord, parmi ses worktrees, celui dont le
+    chemin finit par lui, à une frontière de dossier, s'il est le seul, et
+    ne le lit qu'ensuite comme un chemin relatif (`find_worktree`,
+    J-2026-11-15-O) : `git worktree remove agent-x`, lancé dans
+    `.claude/worktrees/agent-x`, le retire. Refusé si la racine, ou un
+    dossier qui la contient, a un chemin qui finit par lui, sans égard à la
+    casse (`core.ignorecase`) ; une part inconnue vaut tout texte, et un
+    motif, ce qu'il filtre. Sans appel à git, qui dirait si ce dossier est
+    un worktree et le seul de ce suffixe : un refus de trop accepté. Un
+    chemin absolu, que git compare entier, se juge comme un chemin."""
+    if d.startswith("/"):
+        return []
+    fin, motif = d.casefold(), "*/" + d.replace(commandes.INCONNU, "*").casefold()
+    for r in dict.fromkeys((racine, racine.resolve())):
+        for p in (r, *r.parents):
+            if str(p).casefold().endswith("/" + fin) or fnmatch.fnmatchcase(str(p).casefold(), motif):
+                return [("supprime", trad("{chemin}, que git trouve par la fin de son chemin, `{mot}`",
+                                          chemin=str(p), mot=mot))]
+    return []
 
 
 def _juger_chemin(projet: config.Projet, c: commandes.Commande, mot: str, d: str, inconnus: list[str],

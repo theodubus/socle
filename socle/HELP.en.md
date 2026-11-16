@@ -259,20 +259,27 @@ outside the bodies of its heredocs, more than 32 parentheses or braces
 open at once, a judgment that crashes or takes over 5 seconds) is refused
 if it can write: split it. It also refuses deleting a directory that
 contains the project (`rm -rf ..`, an `mv`, a `git clean` or a `find` that
-deletes from such a directory), and deleting the project by a `find` that
-starts from its root with no name or path filter guarding what it deletes
-(`find . -delete`, `find . -type f -delete`, `find . -delete -name
-'*.pyc'`, whose filter comes after the action); a directory next to the
-project, and a directory of the project, stay free. This hook stops the mistakes of a cooperative agent, one that does
+deletes from such a directory, the destination of an `rsync --delete`,
+the sources of an `rsync --remove-source-files`, the path of a `git
+worktree remove`, a `python3 -c` that passes it written out in full to
+`shutil.rmtree`), deleting the project itself by these other programs (a
+subagent removing its own worktree, `git worktree remove .`, or by the
+end of its path, which git looks up first among its worktrees: `git
+worktree remove agent-x`), and
+deleting the project by a `find` that starts from its root with no name
+or path filter guarding what it deletes (`find . -delete`, `find . -type
+f -delete`, `find . -delete -name '*.pyc'`, whose filter comes after the
+action); a directory next to the project, and a directory of the
+project, stay free (the orchestrator, at the root, removes a subagent's
+worktree). This hook stops the mistakes of a cooperative agent, one that does
 not try to get around its guardrails, before they take effect. It judges the shell forms an agent writes in its work, and,
 whatever its form, what nothing catches afterwards: deleting the project
 or a directory that contains it, an irreversible external action, a leak
 of the private memory into what gets published. Deleting the project
-still escapes it when a program other than `rm`, `mv`, `git clean` or
-`find` does it (`rsync --delete`, `git worktree remove`, a `python3 -c`
-that calls `shutil.rmtree`, `xargs rm`): nothing catches it, and these
-commands are not run against the project or a directory that contains
-it. It does not model all of
+still escapes it through `xargs rm`, through a shell command that a
+`python3 -c` launches (`os.system`, `subprocess`) or through a path its
+script builds on the fly: nothing catches it, and these commands are not
+run against the project or a directory that contains it. It does not model all of
 bash: a write to a protected file in a form one writes only to get around
 it (an `eval`, `IFS`, a path built on the fly in another language) is
 outside its model, as are forms that escape it (an unknown part that is

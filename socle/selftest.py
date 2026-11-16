@@ -1461,6 +1461,86 @@ def _cas() -> list[Cas]:
             "find .. -name '*.pyc' -delete", "find . -delete", "find . -delete -name '*.pyc'",
             "find . \\( -type f \\) -delete")])
 
+    @defaut("suppression-par-un-autre-programme", "dossier qui contient le projet, ou le projet lui-même, supprimé par "
+            "un autre programme que `rm`, `mv`, `git clean` ou `find` : la destination d'un `rsync --delete`, les "
+            "sources d'un `rsync --remove-source-files`, le worktree de l'agent retiré par `git worktree remove`, un "
+            "`python3 -c` qui passe son chemin en toutes lettres à `shutil.rmtree`, un `find -exec` de l'un d'eux",
+            "agent", "suppression du projet")
+    def _(a, c):
+        # B-0228 : la lecture de ces programmes se prouve à part de celle de
+        # `rm` et des siens (`suppression-du-projet`) ; leur refus est le même.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "rsync -a --delete vide/ ..", "rsync -a vide/ .. --delete-after --exclude .git",
+            "rsync -a --remove-source-files . /tmp/sauve", "git worktree remove --force .",
+            f"git worktree remove -f -f {c}", f"cd .. && git worktree remove {c.name}",
+            "python3 -c \"import shutil; shutil.rmtree('..')\"",
+            f"python3 -I -c \"import shutil; shutil.rmtree('{c}')\"",
+            "find .. -maxdepth 0 -exec git worktree remove {} \\;")])
+
+    @defaut("worktree-par-son-suffixe", "worktree de l'agent retiré ou déplacé depuis lui par `git worktree remove` "
+            "ou `move` qui le nomme par la fin de son chemin (`agent-x`, `.claude/worktrees/agent-x`), que git "
+            "cherche parmi ses worktrees avant de le lire comme un chemin relatif", "agent", "suppression du projet")
+    def _(a, c):
+        # La revue du lot B-0234 (J-2026-11-15-O) : le hook ne lisait le
+        # worktree que comme un chemin relatif au dossier de la commande.
+        arbre = c / ".claude/worktrees/sous-agent"
+        a.git(c, "worktree", "add", "-q", "-b", "sous-agent", str(arbre))
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "git worktree remove .claude/worktrees/sous-agent", "git worktree remove -f -f sous-agent",
+            "git worktree move sous-agent /tmp/ailleurs")], cwd=arbre)
+
+    @defaut("fonction-sans-parentheses", "dossier qui contient le projet supprimé, ou push forcé, dans le corps d'une "
+            "fonction `function nom { …; }` écrite sans parenthèses, son corps sur la même ligne ou la suivante",
+            "agent", "suppression du projet")
+    def _(a, c):
+        # B-0232 : la commande lue avait pour programme `function`, et rien de
+        # son corps ne se jugeait. Un défaut à part, et non une forme de plus
+        # de `suppression-du-projet` : c'est la lecture de la définition qui
+        # se prouve, pour ce que rien ne rattrape, la suppression comme le push.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "function f { rm -rf ..; }; f", "function f\n{\n  rm -rf ..\n}\nf",
+            "function f { git push --force origin travail; }; f",
+            "function f if git push --force origin travail; then :; fi")])
+
+    @defaut("appel-de-fonction", "suppression du projet depuis le dossier qu'une fonction appelée laisse derrière "
+            "elle, son corps `{ … }` ayant changé de dossier ou de variable, ou appelé une fonction définie après "
+            "lui, et l'appel derrière `time`, dans un `eval` ou dans une substitution (la seconde revue du lot "
+            "B-0234, ses deux passes)", "agent", "écriture illisible")
+    def _(a, c):
+        # B-0232 : à l'appel d'une fonction dont le corps change le dossier,
+        # le hook ne suivait rien, et `../../<racine>`, sans danger depuis la
+        # racine, visait le projet depuis le dossier laissé derrière. L'appel
+        # rend inconnu ce que le corps change (ADR-0072, point 6). Aussi la
+        # forme `f() { … }` (troisième constat), un appel par une fonction qui
+        # en appelle une autre, et une redéfinition. La seconde passe de la
+        # revue (J-2026-11-16-B) : une fonction appelée définie après celle
+        # qui l'appelle, ou dans elle, `time f`, et l'appel dans un `eval` ou
+        # une substitution (B-0250).
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            f"function f {{ cd memory; }}; f; rm -rf ../../{c.name}",
+            f"f() {{ cd memory; }}; f; rm -rf ../../{c.name}",
+            f"f() {{ cd memory; }}; g() {{ f; }}; g; rm -rf ../../{c.name}",
+            f"f() {{ ls; }}; f() {{ cd memory; }}; f; rm -rf ../../{c.name}",
+            f"g() {{ f; }}; f() {{ cd memory; }}; g; rm -rf ../../{c.name}",
+            f"f() {{ g() {{ cd memory; }}; g; }}; f; rm -rf ../../{c.name}",
+            f"f() {{ cd memory; }}; time -p f; rm -rf ../../{c.name}",
+            f"f() {{ cd memory; }}; eval f; rm -rf ../../{c.name}",
+            f"f() {{ cd memory; }}; x=$(f; rm -rf ../../{c.name})")])
+
+    @defaut("mot-reserve-cite", "mot réservé cité ou échappé lu comme réservé : le groupe qui suit `\"function\"` "
+            "s'exécute sur place, ou un `}` cité ferme trop tôt le corps d'une fonction, et une suppression du "
+            "projet passe (la seconde revue du lot B-0234, bloquant 3)", "agent", "écriture protégée")
+    def _(a, c):
+        # B-0232 : `"function"`, `\function`, `$'function'` et `'function'` se
+        # lisaient comme réservés ; bash les lance comme une commande, puis
+        # exécute sur place le groupe qui suit, dont le `cd`. Un `}` cité ne
+        # ferme plus trop tôt le corps d'une fonction (quatrième constat).
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            f'"function" f\n{{ cd memory; }}\nrm -rf ../../{c.name}',
+            f"\\function f\n{{ cd memory; }}\nrm -rf ../../{c.name}",
+            f"$'function' f\n{{ cd memory; }}\nrm -rf ../../{c.name}",
+            f'f() {{ cd memory; "}}"; rm -rf ../../{c.name}; }}; f')])
+
     @defaut("protege-mot-reserve", "fichier protégé écrit par le shell derrière un mot réservé (`then`, `else`, "
             "`do`, `!`, `{`), par la variable d'un `for`, après un groupe dans un pipeline ou après la définition "
             "d'une fonction", "agent", "écriture protégée")
@@ -2050,6 +2130,62 @@ def _temoins() -> list[tuple[str, Callable]]:
                 or etage_outil(a, c, "Bash", {"command": "find . -name '*.pyc' -delete && mv calc.py .."})
                 or etage_outil(a, c, "Bash", {"command": "find build -delete"})
                 or etage_outil(a, c, "Bash", {"command": f"cd {ailleurs} && rm -rf ./*"}))
+
+    @temoin("l'orchestrateur, à la racine du projet, retire le worktree d'un sous-agent, et `rsync --delete`, `git "
+            "worktree remove` ou `python3 -c` qui suppriment un dossier du projet ou voisin de lui passent le hook de "
+            "l'agent (B-0228)")
+    def _(a, c):
+        # Le pendant sain de `suppression-par-un-autre-programme` : seul ce
+        # qui contient le projet, ou le projet lui-même, est refusé.
+        ailleurs = a.dossier.parent / (a.dossier.name + "-ailleurs")
+        return (etage_outil(a, c, "Bash", {"command": "git worktree remove .claude/worktrees/agent-x"})
+                or etage_outil(a, c, "Bash", {"command": "git worktree remove -f -f .claude/worktrees/agent-x"})
+                or etage_outil(a, c, "Bash", {"command": f"rsync -a --delete build/ {ailleurs}/sauve"})
+                or etage_outil(a, c, "Bash", {"command": f"rsync -a --delete ./ {ailleurs}/sauve"})
+                or etage_outil(a, c, "Bash", {"command": "python3 -c \"import shutil; shutil.rmtree('build')\""}))
+
+    @temoin("l'orchestrateur, à la racine, retire le worktree d'un sous-agent par la fin de son chemin, et un "
+            "sous-agent retire ou déplace un worktree voisin du sien, sans refus du hook de l'agent (B-0228)")
+    def _(a, c):
+        # Le pendant sain de `worktree-par-son-suffixe` : seul est refusé ce
+        # qui finit le chemin de l'arbre jugé, ou d'un dossier qui le contient.
+        arbre = c / ".claude/worktrees/sous-agent"
+        a.git(c, "worktree", "add", "-q", "-b", "sous-agent", str(arbre))
+        return (etage_outil(a, c, "Bash", {"command": "git worktree remove -f -f sous-agent"})
+                or etage_outil(a, c, "Bash", {"command": "git worktree remove -f -f voisin"}, cwd=arbre)
+                or etage_outil(a, c, "Bash", {"command": "git worktree remove .claude/worktrees/voisin"}, cwd=arbre)
+                or etage_outil(a, c, "Bash", {"command": "git worktree move voisin /tmp/ailleurs"}, cwd=arbre))
+
+    @temoin("une fonction `function nom { …; }` sans parenthèses dont le corps ne fait rien d'irréversible passe le "
+            "hook de l'agent, et son corps ne s'exécute pas là où il s'écrit (B-0232)")
+    def _(a, c):
+        # Le pendant sain de `fonction-sans-parentheses` : le corps se juge
+        # comme toute commande, et rend en se fermant l'état d'avant lui.
+        return (etage_outil(a, c, "Bash", {"command": "function f { ls; }; f"})
+                or etage_outil(a, c, "Bash", {"command": "function nettoyer\n{\n  rm -rf build\n}\nnettoyer"})
+                or etage_outil(a, c, "Bash", {"command": "function f { cd .socle; }; echo ok > policy.toml"}))
+
+    @temoin("l'appel d'une fonction qui ne change ni dossier ni variable ne rend rien inconnu, seul, derrière "
+            "`time`, dans un `eval` ou une substitution, ni celui d'une fonction qui en appelle une autre définie "
+            "après elle, et un préfixe programme (`command f`) ou une substitution ne laissent rien fuir (B-0232)")
+    def _(a, c):
+        # Le pendant sain d'`appel-de-fonction` : seul l'appel d'une fonction
+        # dont le corps change le dossier ou une variable rend la suite
+        # inconnue ; l'usage normal reste libre.
+        return (etage_outil(a, c, "Bash", {"command": "f() { ls; }; f; rm -rf build"})
+                or etage_outil(a, c, "Bash", {"command": "f() { echo x > /tmp/y; }; f; echo ok > notes.txt"})
+                or etage_outil(a, c, "Bash", {"command": "f() { cd memory; }; command f; echo ok > notes.txt"})
+                or etage_outil(a, c, "Bash", {"command": "g() { f; }; f() { ls; }; g; rm -rf build"})
+                or etage_outil(a, c, "Bash", {"command": "f() { ls; }; time -p f; x=$(f); eval f; rm -rf build"})
+                or etage_outil(a, c, "Bash", {"command": "f() { cd memory; }; x=$(f); rm -rf build"}))
+
+    @temoin("un mot réservé cité, lu comme un mot et non comme une structure, passe le hook de l'agent quand il ne "
+            "vise rien de protégé (B-0232)")
+    def _(a, c):
+        # Le pendant sain de `mot-reserve-cite` : un mot réservé entre
+        # guillemets est un argument comme un autre.
+        return (etage_outil(a, c, "Bash", {"command": 'echo "}" ; echo done'})
+                or etage_outil(a, c, "Bash", {"command": 'echo "function" "{" "then"'}))
 
     @temoin("un fichier protégé changé par erreur, remis à son état du dernier commit, et un fichier apparu sous un "
             "chemin protégé, supprimé, passent le hook de l'agent (D-0098)")

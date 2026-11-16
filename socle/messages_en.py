@@ -115,6 +115,8 @@ MESSAGES: dict[str, str] = {
         "them all off).",
     "{chemin}, par `{mot}`":
         "{chemin}, through `{mot}`",
+    "{chemin}, que git trouve par la fin de son chemin, `{mot}`":
+        "{chemin}, which git finds by the end of its path, `{mot}`",
     "{chemin}, cité par `{qui}`, un écrivain que le hook ne sait pas lire : il peut l'écrire ; un fichier protégé "
     "se lit par `cat` ou par l'outil de lecture":
         "{chemin}, cited by `{qui}`, a writer the hook cannot read: it may write it; a protected file is read with "
@@ -2743,6 +2745,36 @@ MESSAGES: dict[str, str] = {
         "directory that contains the project deleted by the shell: `rm -rf ..`, a `cd` then `../..`, the sources of an "
         "`mv`, `git clean` under `-C ..`, a `find` that deletes from a directory that contains it, or from the root "
         "without a name or path filter guarding its deletion",
+    "worktree de l'agent retiré ou déplacé depuis lui par `git worktree remove` ou `move` qui le nomme par la fin de "
+    "son chemin (`agent-x`, `.claude/worktrees/agent-x`), que git cherche parmi ses worktrees avant de le lire comme "
+    "un chemin relatif":
+        "the agent's worktree removed or moved from inside it by `git worktree remove` or `move` naming it by the end "
+        "of its path (`agent-x`, `.claude/worktrees/agent-x`), which git looks up among its worktrees before reading "
+        "it as a relative path",
+    "dossier qui contient le projet, ou le projet lui-même, supprimé par un autre programme que `rm`, `mv`, `git "
+    "clean` ou `find` : la destination d'un `rsync --delete`, les sources d'un `rsync --remove-source-files`, le "
+    "worktree de l'agent retiré par `git worktree remove`, un `python3 -c` qui passe son chemin en toutes lettres à "
+    "`shutil.rmtree`, un `find -exec` de l'un d'eux":
+        "directory that contains the project, or the project itself, deleted by a program other than `rm`, `mv`, "
+        "`git clean` or `find`: the destination of an `rsync --delete`, the sources of an `rsync "
+        "--remove-source-files`, the agent's worktree removed by `git worktree remove`, a `python3 -c` that passes "
+        "its path written out in full to `shutil.rmtree`, a `find -exec` of one of them",
+    "dossier qui contient le projet supprimé, ou push forcé, dans le corps d'une fonction `function nom { …; }` "
+    "écrite sans parenthèses, son corps sur la même ligne ou la suivante":
+        "directory that contains the project deleted, or force push, in the body of a function `function name { …; }` "
+        "written without parentheses, its body on the same line or the next one",
+    "suppression du projet depuis le dossier qu'une fonction appelée laisse derrière elle, son corps `{ … }` ayant "
+    "changé de dossier ou de variable, ou appelé une fonction définie après lui, et l'appel derrière `time`, dans un "
+    "`eval` ou dans une substitution (la seconde revue du lot B-0234, ses deux passes)":
+        "deletion of the project from the directory a called function leaves behind, its body `{ … }` having "
+        "changed the directory or a variable, or called a function defined after it, and the call behind `time`, "
+        "in an `eval` or in a substitution (the second review of batch B-0234, both its passes)",
+    "mot réservé cité ou échappé lu comme réservé : le groupe qui suit `\"function\"` s'exécute sur place, ou un `}` "
+    "cité ferme trop tôt le corps d'une fonction, et une suppression du projet passe (la seconde revue du lot "
+    "B-0234, bloquant 3)":
+        "quoted or escaped reserved word read as reserved: the group that follows `\"function\"` runs in place, or a "
+        "quoted `}` closes a function's body too early, and a deletion of the project passes (the second review of "
+        "batch B-0234, blocker 3)",
     "fichier protégé écrit par le shell derrière un mot réservé (`then`, `else`, `do`, `!`, `{`), par la "
     "variable d'un `for`, après un groupe dans un pipeline ou après la définition d'une fonction":
         "protected file written by the shell behind a reserved word (`then`, `else`, `do`, `!`, `{`), through a "
@@ -2908,6 +2940,29 @@ MESSAGES: dict[str, str] = {
         "deleting a directory next to the project, a directory of the project, a `find` without a filter under a "
         "directory of the project and a `find` that filters what it deletes under the root pass the agent's hook "
         "(B-0208)",
+    "l'orchestrateur, à la racine, retire le worktree d'un sous-agent par la fin de son chemin, et un sous-agent "
+    "retire ou déplace un worktree voisin du sien, sans refus du hook de l'agent (B-0228)":
+        "the orchestrator, at the root, removes a subagent's worktree by the end of its path, and a subagent removes "
+        "or moves a worktree next to its own, without a refusal from the agent's hook (B-0228)",
+    "l'orchestrateur, à la racine du projet, retire le worktree d'un sous-agent, et `rsync --delete`, `git worktree "
+    "remove` ou `python3 -c` qui suppriment un dossier du projet ou voisin de lui passent le hook de l'agent "
+    "(B-0228)":
+        "the orchestrator, at the project root, removes a subagent's worktree, and `rsync --delete`, `git worktree "
+        "remove` or `python3 -c` deleting a directory of the project or next to it pass the agent's hook (B-0228)",
+    "une fonction `function nom { …; }` sans parenthèses dont le corps ne fait rien d'irréversible passe le hook de "
+    "l'agent, et son corps ne s'exécute pas là où il s'écrit (B-0232)":
+        "a function `function name { …; }` without parentheses whose body does nothing irreversible passes the "
+        "agent's hook, and its body does not run where it is written (B-0232)",
+    "l'appel d'une fonction qui ne change ni dossier ni variable ne rend rien inconnu, seul, derrière `time`, dans "
+    "un `eval` ou une substitution, ni celui d'une fonction qui en appelle une autre définie après elle, et un "
+    "préfixe programme (`command f`) ou une substitution ne laissent rien fuir (B-0232)":
+        "a call to a function that changes neither directory nor variable makes nothing unknown, alone, behind "
+        "`time`, in an `eval` or a substitution, nor does a call to a function that calls another defined after "
+        "it, and a program prefix (`command f`) or a substitution lets nothing leak (B-0232)",
+    "un mot réservé cité, lu comme un mot et non comme une structure, passe le hook de l'agent quand il ne vise "
+    "rien de protégé (B-0232)":
+        "a quoted reserved word, read as a word and not as a structure, passes the agent's hook when it targets "
+        "nothing protected (B-0232)",
     "message de commit passé par un fichier relatif au dossier courant de l'agent, qui cite un terme privé":
         "commit message passed through a file relative to the agent's current directory, which cites a private term",
     "mode compagnon : un message de commit passé par un fichier du dossier courant de l'agent, qui ne cite aucun "
