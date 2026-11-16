@@ -7,6 +7,90 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-16-e — Le guide ne cite plus un identifiant de la mémoire du dépôt du socle
+
+Le guide (`python3 .socle/socle help`), à « Approuver ses propres
+changements protégés », citait un identifiant de la mémoire du dépôt qui
+fabrique le socle, qu'un projet équipé ne connaît pas. Il ne le cite
+plus ; un test garde le guide de tout identifiant de cette mémoire.
+
+À faire : rien.
+
+## 2026-11-16-d — Former un lot balaie tout le backlog ouvert, et un sujet ouvert rejoint aussitôt son lot
+
+Le skill `socle-batch` dit désormais qu'en formant un lot, l'agent balaie
+tout le backlog ouvert, pas seulement le prochain jalon : chaque sujet prêt
+auquel la règle d'un lot s'applique (les mêmes fichiers, le même garde-fou
+ou les mêmes tests) y entre, sans le demander à l'humain ; qu'un sujet
+ouvert ensuite rejoint aussitôt le lot ouvert dont la règle s'applique à
+lui, s'il est prêt, dans le prochain lot pas encore en cours, jamais dans
+le lot en cours, où seuls les bloquants de sa revue se corrigent ; et qu'un
+lot qui ne tient plus en une session se coupe en deux lots,
+sur leurs fichiers. Le récap dit chaque placement ; la priorité reste à
+l'humain.
+
+À faire : rien de plus que de suivre le skill ; c'est une copie protégée,
+dans la demande de l'installeur.
+
+## 2026-11-16-c — Chaque modèle demandé tourne sur la dernière version de sa famille
+
+Le skill `socle-batch` dit désormais que chaque modèle demandé, pour un
+sous-agent comme pour la session, tourne sur la dernière version de sa
+famille : sous Claude Code, l'alias `opus` de l'outil `Agent` a désigné un
+Opus plus ancien que celui de la session, sans que rien le dise. Le
+compte rendu de chaque sous-agent nomme le modèle qui l'a servi
+(`modelUsage` le confirme en session cloud, une fois le tour fini) ;
+l'agent lance un sous-agent sans `model` pour qu'il hérite de la session
+quand l'alias désigne une version plus ancienne, ou le dit à l'humain ; le
+relecteur suit la même règle (le skill `socle-review`) ; le récap du lot
+dit la version qui a servi chaque sous-agent.
+
+À faire : rien de plus que de suivre le skill ; c'est une copie protégée,
+dans la demande de l'installeur.
+
+## 2026-11-16-b — L'état dit ce qu'attendent les sujets en attente : un sujet ou une demande
+
+La dernière ligne de l'ordre du backlog, dans l'état et dans le rappel de
+fin de tour, disait « n sujet(s) attendent un sujet ouvert » de tout sujet
+qui n'était pas prêt, y compris de celui qui n'attend qu'une demande sans
+réponse. Elle se dédouble : « n sujet(s) attendent un sujet ouvert » compte
+ceux qui attendent un sujet, « n sujet(s) attendent une demande sans
+réponse » ceux qui attendent une demande ; un sujet qui attend les deux
+compte dans les deux lignes.
+
+À faire : rien.
+
+## 2026-11-16-a — Le hook de l'agent borné aux formes qu'un agent écrit : le guide donne la règle et les formes connues qu'il ne juge pas
+
+Le guide (`python3 .socle/socle help`) dit ce que juge le hook de
+l'agent : les formes du shell qu'un agent écrit dans son travail, pour
+tout effet ; pour ce que rien ne rattrape ensuite (supprimer le projet ou
+un dossier qui le contient, une action externe irréversible, une fuite de
+la mémoire privée, la part de la mémoire qui ne se publie pas), il refuse
+aussi ce qu'il ne sait pas lire. Un trou n'ouvre un sujet que si sa forme
+est de celles qu'un agent écrit (vue dans une session d'agent, un skill
+ou une documentation courante) ; une autre forme s'inscrit d'une ligne
+dans la liste des formes connues que le hook ne juge pas, que le guide
+donne désormais : `time` devant une commande composée, les motifs d'un
+`case`, `find -exec sudo …`, un `return` dans une fonction, l'appel
+indirect d'une fonction, une fonction nommée comme une commande ou
+définie par un `eval`, `eval -- f`, `git --config-env`, ce qu'un `eval`
+change d'autre qu'un appel, une fonction appelée depuis un autre dossier,
+`echo .. | xargs rm`, `xargs git worktree remove`, ce que lance ou
+construit un `python3 -c`, `coproc`. Jusqu'ici, le guide disait que le
+hook jugeait, quelle qu'en soit la forme, ce que rien ne rattrape.
+
+La consigne du relecteur (`python3 .socle/socle review`) et le skill
+`socle-review`, une copie protégée, le disent aussi : une forme du shell
+qu'un agent n'écrit pas dans son travail, et qui échappe au hook, ne se
+classe ni bloquante, même refusée avant le lot par accident, ni pour le
+backlog ; elle s'écarte, d'une ligne, pour la liste. Le tri des autres
+constats ne change pas. Le hook lui-même ne change pas.
+
+À faire : rien. Une suppression du projet par `find … | xargs rm` lui
+échappe encore : ne pas la lancer vers le projet ni vers un dossier qui
+le contient.
+
 ## 2026-11-15-e — Le hook de l'agent refuse la suppression du projet par rsync --delete, git worktree remove et python -c
 
 Le hook de l'agent refuse la suppression du projet, ou d'un dossier qui

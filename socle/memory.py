@@ -640,7 +640,9 @@ def criteres(e: Entree) -> list[tuple[bool, str]]:
 class Ordre:
     """Ce qui vient ensuite : les sujets prêts (ouverts, pas encore en cours,
     dont tout ce qu'ils attendent est clos), le prochain jalon et ce qui lui
-    reste, le nombre de sujets qui attendent un sujet non clos, et le
+    reste, le nombre de sujets qui attendent encore, et, parmi eux, ceux qui
+    attendent un sujet non clos et ceux qui attendent une demande sans
+    réponse (un sujet qui attend les deux compte dans les deux), et le
     prochain lot avec l'avancement de ses sujets."""
 
     prets: list[Entree]
@@ -654,6 +656,10 @@ class Ordre:
     # (identifiant, mot interne), dans l'ordre de son `après` (ADR-0079).
     lot: Entree | None = None
     avancement: list[tuple[str, str]] = field(default_factory=list)
+    # Parmi ceux qui attendent, ceux qui attendent un sujet non clos, et
+    # ceux qui attendent une demande sans réponse (D-0064, B-0153).
+    attendent_un_sujet: int = 0
+    attendent_une_demande: int = 0
 
 
 def ordre(mem: "Memoire") -> Ordre | None:
@@ -706,7 +712,13 @@ def ordre(mem: "Memoire") -> Ordre | None:
                    key=lambda i: (i not in restants, rang.get(priorite(sujets[i]), 2), i))
     basses = [i for i in prets if priorite(sujets[i]) == "basse"]
     prets = [i for i in prets if i not in basses]
-    attente = len(a_prendre) - len(prets) - len(basses)
+    # Ce qu'attendent ceux qui ne sont pas prêts : un sujet, une demande, ou
+    # les deux (B-0153).
+    attendus_ouverts = {i: [d for d in dependances(sujets[i]) if ouvert(d)]
+                        for i in a_prendre if i not in prets and i not in basses}
+    attente = len(attendus_ouverts)
+    attente_sujet = sum(1 for ds in attendus_ouverts.values() if any(d in sujets for d in ds))
+    attente_demande = sum(1 for ds in attendus_ouverts.values() if any(d in demandes for d in ds))
 
     def ou_en_est(i: str) -> str:
         """Où en est ce qu'un lot attend, en mot interne : le statut d'un
@@ -723,7 +735,7 @@ def ordre(mem: "Memoire") -> Ordre | None:
     avancement = [(d, ou_en_est(d)) for d in dict.fromkeys(dependances(lot))
                   if not (d in sujets and est_lot(sujets[d]))] if lot else []
     return Ordre([sujets[i] for i in prets], sujets[jalon] if jalon else None, restants, attente,
-                 [sujets[i] for i in basses], lot, avancement)
+                 [sujets[i] for i in basses], lot, avancement, attente_sujet, attente_demande)
 
 
 # Où en est ce qu'un lot attend, tel que l'état le dit ; un sujet clos ou
@@ -765,8 +777,10 @@ def lignes_ordre(mem: "Memoire", plafond: int | None = 8, titre: int | None = No
         if basses is not None and len(o.basses) > basses:
             ids = trad("{ids} … et {n} autre(s)", ids=ids, n=len(o.basses) - basses)
         res.append(trad("prêts aussi, de priorité basse : {ids}", ids=ids))
-    if o.en_attente:
-        res.append(trad("{n} sujet(s) attendent un sujet ouvert", n=o.en_attente))
+    if o.attendent_un_sujet:
+        res.append(trad("{n} sujet(s) attendent un sujet ouvert", n=o.attendent_un_sujet))
+    if o.attendent_une_demande:
+        res.append(trad("{n} sujet(s) attendent une demande sans réponse", n=o.attendent_une_demande))
     return res
 
 

@@ -125,6 +125,8 @@ necessarily everything that is ready (the topics, their size, the
 milestone they serve; a low-priority topic if convenient), then gets
 going; it stops at the end of the batch, or as soon as a decision is up
 to the human. It does not change a priority the human gave. The batch is
+formed by sweeping the whole open backlog; a topic opened later joins the
+next batch whose rule applies to it, never the one in progress. It is
 kept in the backlog (`form: batch`) and run following the `socle-batch`
 skill. Before the push of a batch that changes code, a specification or a
 test, it has it reviewed by a reviewer without context, against the “Done
@@ -134,7 +136,9 @@ or changes a guardrail, its threat model (its `## Threat model` section,
 or the decision it cites). Only blocking findings are fixed in the batch;
 another goes to the backlog if it can occur in the project's normal use,
 or if nothing catches its effect afterwards; otherwise, exotic and
-caught, or unfounded, it is dismissed. The recap gives the findings, and
+caught, or unfounded, it is dismissed. A shell form an agent does not
+write in its work, and that escapes the hook, is dismissed whatever its
+effect: the guide gives the list of known forms. The recap gives the findings, and
 why each dismissed one is.
 
 By default, everything happens on one development branch, with only one

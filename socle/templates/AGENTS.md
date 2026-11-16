@@ -125,8 +125,10 @@ sans attendre de message. Il annonce d'abord le lot, pas forcément tout ce
 qui est prêt (les sujets, leur taille, le jalon qu'ils servent ; un sujet de
 priorité basse s'il est commode), puis s'y met ; il s'arrête à la fin du
 lot, ou dès qu'une décision revient à l'humain. Il ne change pas une
-priorité que l'humain a donnée. Le lot se garde au backlog (`forme : lot`)
-et se mène selon le skill `socle-batch`. Avant le push d'un lot qui change
+priorité que l'humain a donnée. Le lot se forme en balayant tout le
+backlog ouvert ; un sujet ouvert ensuite rejoint le prochain lot dont la
+règle s'applique à lui, jamais celui en cours. Il se garde au backlog
+(`forme : lot`) et se mène selon le skill `socle-batch`. Avant le push d'un lot qui change
 du code, une spécification ou un test, il le fait relire par un relecteur
 sans contexte, contre le « Fait quand » de ses sujets (le skill
 `socle-review`). Un sujet dont la conception n'est pas tranchée écrit sa
@@ -135,7 +137,9 @@ son modèle de menace (sa section `## Modèle de menace`, ou la décision
 qu'il cite). Seuls les constats bloquants se corrigent dans le lot ; un
 autre va au backlog s'il peut se produire dans l'usage normal du projet,
 ou si rien ne rattrape ensuite son effet ; sinon, exotique et rattrapé,
-ou infondé, il s'écarte. Le récap dit les constats, et pourquoi chaque
+ou infondé, il s'écarte. Une forme du shell qu'un agent n'écrit pas dans
+son travail, et qui échappe au hook, s'écarte quel qu'en soit l'effet :
+le guide donne la liste des formes connues. Le récap dit les constats, et pourquoi chaque
 écarté l'est.
 
 Par défaut, tout se fait sur une branche de développement, avec une seule

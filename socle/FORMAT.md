@@ -195,8 +195,9 @@ où en est chacun de ses sujets et de ses demandes ; les sujets
 prêts, ouverts et pas encore en cours, dont tout ce qu'ils attendent est
 clos ou répondu, ceux du prochain jalon d'abord, puis par priorité ; à
 part, les prêts de priorité basse, que l'agent prend quand c'est commode ;
-et le nombre de sujets qui attendent encore. Le rappel de fin de tour le
-redonne. Le contrôle de l'ordre refuse un `après` qui nomme autre chose
+et le nombre de sujets qui attendent encore, selon ce qu'ils attendent :
+un sujet, une demande sans réponse, ou les deux. Le rappel de fin de tour
+le redonne. Le contrôle de l'ordre refuse un `après` qui nomme autre chose
 qu'un sujet ou une demande, un sujet qui s'attend lui-même de proche en
 proche, un sujet `fait` avant ce qu'il attend (un jalon ne se clôt pas
 sur des tâches ouvertes, ni un lot sur des sujets ouverts, ni un sujet sur

@@ -56,7 +56,10 @@ python3 .socle/socle review
    explicitement à son lancement (`model`) le modèle le plus capable
    disponible jusqu'à Opus, jamais un moindre que celui qui a implémenté
    le lot, quel que soit celui de la session, que la règle du modèle de
-   `socle-batch` peut faire moins coûteux ; Fable, s'il est disponible,
+   `socle-batch` peut faire moins coûteux, sur la dernière version de sa
+   famille : si l'alias en désigne une plus ancienne, il hérite de la
+   session, sans `model`, comme cette règle le dit, et son compte rendu
+   nomme le modèle qui l'a servi ; Fable, s'il est disponible,
    seulement si l'humain le demande. Il reçoit aussi les instructions du
    projet et peut lire le dépôt, mais ni la conversation ni le
    raisonnement de l'agent, et le dossier lui dit de ne rien modifier :
@@ -84,6 +87,13 @@ Le relecteur les classe ; l'agent vérifie chaque classement.
   rattrapé, par un contrôle, la CI ou une erreur que l'agent voit
   aussitôt ; et un constat infondé. Une ligne du récap dit pourquoi
   chacun est écarté.
+- **Une forme du shell qu'un agent n'écrit pas** dans son travail (ni
+  vue dans une session d'agent, ni dans un skill, ni dans une
+  documentation courante), et qui échappe au hook de l'agent : elle ne se
+  classe pas bloquante, même refusée avant le lot par accident, ni pour
+  le backlog, quel qu'en soit l'effet. Elle s'écarte, et va d'une ligne à
+  la liste des formes connues que le hook ne juge pas, que tient le guide
+  du socle (`python3 .socle/socle help`).
 
 Ne rien poster sur GitHub : l'humain lit le récap, pas la revue. Le récap
 le dit en une ligne : `Revue : <b> bloquants, corrigés ; <n> au backlog

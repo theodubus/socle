@@ -273,10 +273,14 @@ CONSIGNE_CLASSES = a_traduire(
     "ne rattrape ensuite son effet ; un contournement hors du modèle de menace, un critère que le lot ne coche "
     "pas, un défaut voisin, une amélioration, jugés de même. **Écarté** : un constat exotique (un geste rare, "
     "une forme qu'on n'écrit que pour contourner, un cas jamais reproduit) dont l'effet est rattrapé, par un "
-    "contrôle, la CI ou une erreur que l'agent voit aussitôt ; et un constat infondé. Seuls les bloquants se "
-    "corrigent dans le lot. Rends trois listes numérotées, « Bloquants », « Pour le backlog » puis « Écartés », "
-    "chaque constat avec son fichier et sa ligne, ce qui casse et comment le vérifier, pour un bloquant ce qu'il "
-    "contredit, pour un écarté pourquoi ; ou « aucun constat ».")
+    "contrôle, la CI ou une erreur que l'agent voit aussitôt ; et un constat infondé. Une forme du shell qu'un "
+    "agent n'écrit pas dans son travail (ni vue dans une session d'agent, ni dans un skill, ni dans une "
+    "documentation courante), et qui échappe au hook de l'agent, ne se classe pas bloquante, même refusée avant "
+    "le lot par accident, ni pour le backlog, quel qu'en soit l'effet : écarte-la, d'une ligne, pour la liste "
+    "des formes connues que le hook ne juge pas, dans le guide du socle (`python3 .socle/socle help`). Seuls "
+    "les bloquants se corrigent dans le lot. Rends trois listes numérotées, « Bloquants », « Pour le backlog » "
+    "puis « Écartés », chaque constat avec son fichier et sa ligne, ce qui casse et comment le vérifier, pour "
+    "un bloquant ce qu'il contredit, pour un écarté pourquoi ; ou « aucun constat ».")
 CONSIGNE_SECONDE = a_traduire(
     "Seconde revue : ce diff corrige des constats bloquants d'une première revue, que disent les messages de ses "
     "commits ci-dessous ; le reste du lot a déjà été relu. Ne juge que cette correction : un bloquant mal "

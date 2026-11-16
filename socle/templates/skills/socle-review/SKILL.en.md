@@ -53,7 +53,10 @@ python3 .socle/socle review
    as is: nothing is added to it, nothing removed. It receives explicitly
    at launch (`model`) the most capable model available up to Opus, never
    a lesser one than the one that implemented the batch, whatever the
-   session's, which the model rule of `socle-batch` may make cheaper;
+   session's, which the model rule of `socle-batch` may make cheaper, on
+   the latest version of its family: if the alias designates an older
+   one, it inherits the session's, without `model`, as that rule says, and
+   its report names the model that served it;
    Fable, if available, only if the human asks for it. It also receives
    the project's instructions and can read the repository, but neither the
    conversation nor the agent's reasoning, and the brief tells it to
@@ -82,6 +85,13 @@ The reviewer classifies them; the agent checks each classification.
   is caught, by a check, the CI or an error the agent sees at once; and
   an unfounded finding. One line of the recap says why each is
   dismissed.
+- **A shell form an agent does not write** in its work (seen neither in
+  an agent session, nor in a skill, nor in current documentation), and
+  that escapes the agent's hook: it is not classed as blocking, even if
+  refused before the batch by accident, nor for the backlog, whatever its
+  effect. It is dismissed, and goes in one line to the list of known
+  forms the hook does not judge, which the socle's guide keeps
+  (`python3 .socle/socle help`).
 
 Post nothing on GitHub: the human reads the recap, not the review. The
 recap says it in one line: `Review: <b> blocking, fixed; <n> to the

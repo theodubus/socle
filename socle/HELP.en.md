@@ -236,7 +236,7 @@ without approval is refused. When the change comes from the human:
 `python3 .socle/socle approve --text "<reason>"`, then commit. This
 command is reserved to the human. The agent never writes to a protected
 file, except to put it back as it was at the last commit when it changed
-it by mistake (D-0098), Claude Code's settings excepted, which the human
+it by mistake, Claude Code's settings excepted, which the human
 keeps for themselves: `git restore --source=HEAD --staged --worktree --
 <path>` or `git checkout HEAD -- <path>`, each path written out in full,
 or `rm <path>` for a file that appeared under a protected path and that
@@ -271,22 +271,68 @@ or path filter guarding what it deletes (`find . -delete`, `find . -type
 f -delete`, `find . -delete -name '*.pyc'`, whose filter comes after the
 action); a directory next to the project, and a directory of the
 project, stay free (the orchestrator, at the root, removes a subagent's
-worktree). This hook stops the mistakes of a cooperative agent, one that does
-not try to get around its guardrails, before they take effect. It judges the shell forms an agent writes in its work, and,
-whatever its form, what nothing catches afterwards: deleting the project
-or a directory that contains it, an irreversible external action, a leak
-of the private memory into what gets published. Deleting the project
-still escapes it through `xargs rm`, through a shell command that a
-`python3 -c` launches (`os.system`, `subprocess`) or through a path its
-script builds on the fly: nothing catches it, and these commands are not
-run against the project or a directory that contains it. It does not model all of
-bash: a write to a protected file in a form one writes only to get around
-it (an `eval`, `IFS`, a path built on the fly in another language) is
-outside its model, as are forms that escape it (an unknown part that is
-itself `..`, an option set by the shell's profile, a variable Claude Code
-sets only for its hooks…); the guarantee is then the protected-files
-check, at the end of the turn, at commit and in CI, and a hole of that
-kind opens no backlog subject.
+worktree).
+
+**What the agent's hook judges.** The agent's hook stops the mistakes of
+a cooperative agent before they take effect. It judges the shell forms an
+agent writes in its work, for every effect; for what nothing catches
+afterwards (deleting the project or a directory that contains it, an
+irreversible external action, a leak of the private memory, the part of
+the memory that is not published), it also refuses what it cannot read.
+A hole opens a topic if its form is one an agent writes in its work:
+seen in an agent session, a skill or current documentation. Another form
+is entered in one line in the list of known forms the hook does not
+judge, without a topic; in the review of a batch of the hook, it is not
+a blocking finding, even if refused before the batch by accident. A
+cooperative agent does not try to get around its guardrails. Deleting
+the project still escapes it through `find … | xargs rm`, a form an
+agent writes: do not run it against the project or a directory that
+contains it.
+
+The known forms the hook does not judge: no agent writes them in its
+work; they pass, or are refused by accident. Each says what the hook
+misreads in it, and the release note that enters it.
+
+- `time` before a compound command (`time { …; }`, `time if …`): read
+  as a simple command (2026-11-16-a).
+- The patterns of a `case`: each branch is read as if it ran
+  (2026-11-16-a).
+- `find -exec sudo …`, `env`, `nice` or another prefix: the launched
+  command is read without removing its prefix (2026-11-16-a).
+- A `return` in the body of a function: only the directory where the
+  body ends counts (2026-11-16-a).
+- The indirect call of a function (`$fn`, `"${fn}"`, `run f` through a
+  `"$@"` wrapper): the called function is not known (2026-11-16-a).
+- A function named like a command the hook follows (`cd() { …; }`):
+  read as that command (2026-11-16-a).
+- A function defined by an `eval`, and `eval -- f`: neither the
+  definition nor the call is seen (2026-11-16-a).
+- `git --config-env` and `--attr-source` with a separate value: the
+  option hides the subcommand (2026-11-16-a).
+- What an `eval` changes other than a function call (`eval "cd x"`):
+  does not hold for what follows (2026-11-16-a).
+- A function called from another directory than the one it is written
+  in, or that calls another one defined after it, or through a
+  substitution or an `eval` in its body: its body is judged at its
+  definition (2026-11-16-a).
+- `echo .. | xargs rm`: `xargs` is judged only by the protected paths it
+  cites (2026-11-16-a).
+- `xargs git worktree remove`: the path read from the input is not
+  judged (2026-11-16-a).
+- The shell command a `python3 -c` launches (`os.system`,
+  `subprocess`): the script is judged only by its paths (2026-11-16-a).
+- A path a `python3 -c` script builds on the fly: only a path written
+  out in full is judged (2026-11-16-a).
+- `coproc`: neither a reserved word nor a prefix for the hook
+  (2026-11-16-a).
+
+The hook does not model all of bash: a write to a protected file in a
+form one writes only to get around it (an `eval`, `IFS`, a path built on
+the fly in another language) is outside its model, as are forms that
+escape it (an unknown part that is itself `..`, an option set by the
+shell's profile, a variable Claude Code sets only for its hooks…); the
+guarantee is then the protected-files check, at the end of the turn, at
+commit and in CI, and a hole of that kind opens no backlog subject.
 
 **Doing what the agent cannot do.** Pushing to the default branch,
 publishing, setting up a service, deleting a remote branch, setting a tag

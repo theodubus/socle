@@ -1,6 +1,6 @@
 ---
 name: socle-batch
-description: Run a batch of backlog topics, from forming it to delivering it: one subagent per topic, the review without context before any push, integration, CI, merge, one session per batch and the handover to the next. Use when the agent forms or announces a batch, at each of its steps, and when resuming a batch in progress.
+description: Run a batch of backlog topics, from forming it to delivering it: one subagent per topic, the review without context before any push, integration, CI, merge, one session per batch. Use when the agent forms or announces a batch, at each of its steps, and when resuming a batch in progress.
 ---
 
 # Running a batch
@@ -13,9 +13,12 @@ itself only a change of a few lines.
 
 ## Forming and announcing
 
-1. The next batch is in the state (`next batch`). Otherwise, form it: the
-   ready topics of the next milestone and of high priority first, what
-   fits in one session. It is kept in the backlog:
+1. The next batch is in the state (`next batch`). Otherwise, form it
+   over the whole open backlog, without asking: the ready topics its
+   rule applies to, those of the next milestone and of high priority
+   first, what fits in one session. The rest, like a ready topic opened
+   later, goes to the next batch not yet in progress whose rule applies;
+   the recap states each placement. It is kept in the backlog:
    `python3 .socle/socle new backlog "Batch …"`, then `form: batch` and
    `after:` its topics and the previous batch; its body says what brings
    them together and names what is not a topic.
@@ -43,7 +46,7 @@ closed if its criteria are met; python3 .socle/socle verify --fast.
 Forbidden: pushing, touching a wake-up, writing a protected file, changing
 an expected value or deleting a test (report it), fixing a neighbouring
 defect (a backlog topic).
-Report: the commit, what the tests prove, the choices, what remains.
+Report: your model, the commit, what the tests prove, the choices, what remains.
 ```
 
 **Without subagents**, the agent runs the batch alone, in the same order:
@@ -69,9 +72,8 @@ rewritten.
    `python3 .socle/socle verify --fast`.
 3. Push; open the pull request if there is none, only one open. Wait for
    the CI of the head commit: the "CI" line of `python3 .socle/socle state`
-   says `success` (or `failure`) on its short SHA, never on an earlier
-   commit. An announced wait has its wake-up (under Claude Code,
-   `send_later`) to come back to it.
+   says `success` (or `failure`) on its short SHA. An announced wait has
+   its wake-up (under Claude Code, `send_later`).
 4. The merge is the one the project's instructions give: by default, the
    human merges, and the next batch is added to the same pull request. If
    they let the agent merge its own: green CI on the head commit, review
@@ -81,25 +83,20 @@ rewritten.
    last commit of the pull request, with the batch's closure: its topics
    closed, it becomes `done`, then `python3 .socle/socle archive`. After
    the merge, the local branch restarts from the default branch and is
-   pushed only with the first commit of the next batch: pushed with
-   nothing more, it would recreate the remote branch the merge deleted.
+   pushed only with the first commit of the next batch: pushed alone, it would recreate the deleted remote branch.
 
 ## Consumption
 
-Each step of the orchestration (launching a subagent, receiving its
-report, integrating, checking the CI) rereads the whole conversation, and
-resuming after more than an hour's pause rereads it at full price.
+Each step of the orchestration rereads the whole conversation.
 
 - One batch per session: the orchestrating conversation stays short.
 - Two subagents at a time at most; only one beyond 75% of the week; none
   beyond 85% of the week or 60% of the five-hour window: finish the step
-  in progress, then change sessions. Under Claude Code in a cloud session,
-  both windows are read in `list_events` (`kinds: ["rate_limit_event"]`,
-  `utilization` of `five_hour` and of `seven_day`), before each launch and
-  at each report.
+  in progress, then change sessions. In a Claude Code cloud
+  session, `list_events` gives them (`kinds: ["rate_limit_event"]`,
+  `utilization`), before each launch and at each report.
 - A nearby limit changes the order of topics, never the depth of the work
-  on one of them: a topic that needs more thought is started anyway, and
-  finished after the reset.
+  on one of them: a topic that needs more thought is started anyway.
 - A subagent is not resumed after more than five minutes' pause: a new one
   receives the instructions and the findings.
 - A wait of more than an hour (a long CI, an answer from the human, the
@@ -107,18 +104,20 @@ resuming after more than an hour's pause rereads it at full price.
 - The agent does not compact by itself: it writes the memory (active
   work, journal), then asks the human to (under Claude Code, `/compact`),
   at the end of a batch if the human keeps the session beyond it, and
-  before any wait that may exceed an hour without changing sessions (a
-  long CI, an answer from the human, the night). Near a limit, the
+  before any wait that may exceed an hour without changing sessions. Near
+  a limit, the
   threshold above prevails: change sessions. After the pause, it is too
-  late: compacting then rereads the whole conversation at full price.
+  late: compacting would reread it at full price.
 - The model: the one the quality of the work calls for, never a lesser
   one to stay within a limit: a limit delays a batch, it does not lighten
   it. Among those that do it equally well, the one that uses the least of
-  the limit per token, above all for the orchestrating conversation,
-  reread at each call; the human chooses the session's, on the agent's
+  the limit per token, above all for the orchestrating conversation; the human chooses the session's, on the agent's
   advice. The one set by the project's
   instructions prevails. A subagent receives its own explicitly at launch
-  (`Agent` tool: `model`).
+  (`Agent` tool: `model`), on the latest version of its family: if the
+  alias (`opus`…) designates an older one, without `model`, it inherits
+  the session's; otherwise, tell the human. Its report and the recap name
+  its model.
 
 ## Changing sessions
 
@@ -128,8 +127,7 @@ up first, so that a new session restarts from the repository alone:
 
 1. nothing that lives only in the container: everything is pushed, and a
    commit not yet reviewed leaves as a patch (`git format-patch`) in a
-   handover folder of the repository, removed when the batch is
-   integrated;
+   handover folder of the repository, removed at its integration;
 2. the isolated copies and their branches removed;
 3. the active work, written before the merge, gives the batch and what is
    waiting (a report, a CI, a request);

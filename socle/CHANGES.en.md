@@ -7,6 +7,88 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-16-e — The guide no longer cites an identifier of the socle repository's memory
+
+The guide (`python3 .socle/socle help`), under approving one's own
+protected changes, cited an identifier of the memory of the repository
+that makes the socle, which an equipped project does not know. It no
+longer does; a test keeps the guide free of any identifier of that memory.
+
+To do: nothing.
+
+## 2026-11-16-d — Forming a batch sweeps the whole open backlog, and an opened topic joins its batch at once
+
+The `socle-batch` skill now says that when forming a batch, the agent
+sweeps the whole open backlog, not only the next milestone: every ready
+topic to which the rule of a batch applies (the same files, the same
+guardrail or the same tests) goes into it, without asking the human; that
+a topic opened later joins at once the open batch whose rule applies to
+it, if it is ready, in the next batch not yet in progress, never in the
+batch in progress, where only the blocking findings of its review are
+fixed; and that a batch that no longer fits in one session splits into two
+batches, along their files. The recap states each placement; the priority
+remains the human's.
+
+To do: nothing beyond following the skill; it is a protected copy, in the
+installer's request.
+
+## 2026-11-16-c — Each requested model runs on the latest version of its family
+
+The `socle-batch` skill now says that each requested model, for a
+subagent as for the session, runs on the latest version of its family:
+under Claude Code, the `opus` alias of the `Agent` tool designated an
+older Opus than the session's, with nothing saying so. Each subagent's
+report names the model that served it (`modelUsage` confirms it in a cloud
+session, once the turn is over); the agent launches a subagent without
+`model` so that it inherits the session's when the alias designates an
+older version, or tells the human; the reviewer follows the same rule (the
+`socle-review` skill); the batch recap states the version that served each
+subagent.
+
+To do: nothing beyond following the skill; it is a protected copy, in the
+installer's request.
+
+## 2026-11-16-b — The state says what waiting topics wait on: a topic or a request
+
+The last line of the backlog order, in the state and in the end-of-turn
+reminder, said "n topic(s) wait on an open topic" of every topic that was
+not ready, including one that only waits on an unanswered request. It now
+splits in two: "n topic(s) wait on an open topic" counts those waiting on a
+topic, "n topic(s) wait on an unanswered request" those waiting on a
+request; a topic waiting on both counts in both lines.
+
+To do: nothing.
+
+## 2026-11-16-a — The agent's hook bounded to the forms an agent writes: the guide gives the rule and the known forms it does not judge
+
+The guide (`python3 .socle/socle help`) says what the agent's hook
+judges: the shell forms an agent writes in its work, for every effect;
+for what nothing catches afterwards (deleting the project or a directory
+that contains it, an irreversible external action, a leak of the private
+memory, the part of the memory that is not published), it also refuses
+what it cannot read. A hole opens a topic only if its form is one an
+agent writes (seen in an agent session, a skill or current
+documentation); another form is entered in one line in the list of known
+forms the hook does not judge, which the guide now gives: `time` before a
+compound command, the patterns of a `case`, `find -exec sudo …`, a
+`return` in a function, the indirect call of a function, a function
+named like a command or defined by an `eval`, `eval -- f`, `git
+--config-env`, what an `eval` changes other than a call, a function
+called from another directory, `echo .. | xargs rm`, `xargs git worktree
+remove`, what a `python3 -c` launches or builds, `coproc`. Until now, the
+guide said the hook judged, whatever its form, what nothing catches.
+
+The reviewer's brief (`python3 .socle/socle review`) and the
+`socle-review` skill, a protected copy, say it too: a shell form an agent
+does not write in its work, and that escapes the hook, is classed neither
+as blocking, even if refused before the batch by accident, nor for the
+backlog; it is dismissed, in one line, for the list. The sorting of other
+findings does not change. The hook itself does not change.
+
+To do: nothing. Deleting the project through `find … | xargs rm` still
+escapes it: do not run it against the project or a directory that
+contains it.
+
 ## 2026-11-15-e — The agent's hook refuses deleting the project through rsync --delete, git worktree remove and python -c
 
 The agent's hook refuses deleting the project, or a directory that
