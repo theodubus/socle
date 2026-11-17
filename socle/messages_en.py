@@ -19,10 +19,6 @@ MESSAGES: dict[str, str] = {
     "est une autre, `git fetch origin <elle>` la fait connaître":
         "  ^ guessed: this clone has no `origin/HEAD`, no `main`, no `master`; if the remote repository's default "
         "branch is another one, `git fetch origin <it>` makes it known",
-    "sujet `{ident}` disparu du backlog : un sujet clos se range par `socle archive`, il ne s'efface pas":
-        "topic `{ident}` gone from the backlog: a closed topic is filed by `socle archive`, it is not erased",
-    "range les sujets clos du backlog à l'écart des ouverts":
-        "files the closed backlog topics apart from the open ones",
     "\n!! hooks git non branchés : `git config core.hooksPath .socle/git-hooks`":
         "\n!! git hooks not wired: `git config core.hooksPath .socle/git-hooks`",
     "SHA fabriqué : {sha} n'est pas un objet de ce dépôt, alors que son préfixe {prefixe} en est un. Le SHA complet "
@@ -942,10 +938,6 @@ MESSAGES: dict[str, str] = {
     "(`socle show --index decisions`)":
         "new decision `{ident}` without `read : decisions@…`: look at the decision index before adding one (`socle "
         "show --index decisions`)",
-    "sujet nouveau `{ident}` sans `lu : backlog@…` : consulter le backlog avant d'y ajouter, pour ne pas dupliquer "
-    "(`socle show --index backlog`)":
-        "new topic `{ident}` without `read : backlog@…`: look at the backlog before adding to it, so as not to "
-        "duplicate (`socle show --index backlog`)",
     "`{ident}` s'appuie sur `{cite}` sans montrer l'avoir lu : citer `{cite}@<empreinte>`, l'empreinte que donne "
     "`socle show {cite}`":
         "`{ident}` relies on `{cite}` without showing it was read: cite `{cite}@<fingerprint>`, the fingerprint "
@@ -1283,26 +1275,12 @@ MESSAGES: dict[str, str] = {
         "the git hook).",
     "Chaque couche et le fichier d'instructions ont un plafond de taille.":
         "Each layer and the instructions file have a size cap.",
-    "Chaque sujet a une origine ; un sujet clos a une référence, et il est rangé avec les clos ; un sujet fait a "
-    "coché tout ce que dit sa section « Fait quand ».":
-        "Each topic has an origin; a closed topic has a reference, and it is filed with the closed ones; a done topic "
-        "has checked everything its “Done when” section says.",
-    "Un sujet n'attend (`après`) que des sujets du backlog ou des demandes, jamais lui-même de proche en proche, et "
-    "ne se dit fait qu'une fois clos ce qu'il attend : un jalon ne se clôt pas sur des tâches ouvertes, ni un sujet "
-    "sur une demande sans réponse.":
-        "A topic waits (`after`) only on backlog topics or requests, never on itself step by step, and is done only "
-        "once what it waits on is closed: a milestone does not close over open tasks, nor a topic over an unanswered "
-        "request.",
-    "`{id}` : `après` ne nomme que des sujets du backlog ou des demandes ({valeur})":
-        "`{id}`: `after` names only backlog topics or requests ({valeur})",
     "`{id}` est fait avant `{dep}`, qu'il attend, encore « {statut} »":
         "`{id}` is done before `{dep}`, which it waits on, still “{statut}”",
     "`{id}` est fait avant `{dep}`, qu'il attend, encore sans réponse":
         "`{id}` is done before `{dep}`, which it waits on, still unanswered",
     "`{id}` : `priorité` vaut `haute` ou `basse`, la normale ne s'écrit pas ({valeur})":
         "`{id}`: `priority` is `high` or `low`, the normal one is not written ({valeur})",
-    "`{id}` est clos « fait » avec un critère de « Fait quand » non coché : {criteres}":
-        "`{id}` is closed “done” with an unchecked “Done when” criterion: {criteres}",
     "`{id}` s'attend lui-même : {cycle}":
         "`{id}` waits on itself: {cycle}",
     "décision posée à l'humain dans le widget de questions de l'agent":
@@ -1337,18 +1315,8 @@ MESSAGES: dict[str, str] = {
         "pull request to merge cited without its link",
     "sujet du backlog qui s'attend lui-même (`après`)":
         "backlog topic that waits on itself (`after`)",
-    "jalon fait alors que la tâche qu'il attend est ouverte":
-        "milestone done while the task it waits on is open",
-    "un jalon qui attend une tâche ouverte, dans l'ordre, passe le commit et la CI":
-        "a milestone that waits on an open task, in order, passes the commit and the CI",
-    "prochain jalon : {id} — {titre} ; reste : {restants}":
-        "next milestone: {id} — {titre}; left: {restants}",
     "rien, il se clôt":
         "nothing, it can close",
-    "prochain lot : {id} — {titre} ; {clos} clos sur {total} ; reste : {restants}":
-        "next batch: {id} — {titre}; {clos} closed out of {total}; left: {restants}",
-    "prêt":
-        "ready",
     "attend":
         "waiting",
     "sans réponse":
@@ -1357,20 +1325,8 @@ MESSAGES: dict[str, str] = {
         "unknown",
     "Selon l'ordre du backlog :":
         "According to the backlog's order:",
-    "prêt : {id} — {titre}":
-        "ready: {id} — {titre}",
-    "prêt : {id} — {titre} (priorité haute)":
-        "ready: {id} — {titre} (high priority)",
-    "prêts aussi, de priorité basse : {ids}":
-        "also ready, low priority: {ids}",
     "{ids} … et {n} autre(s)":
         "{ids} … and {n} more",
-    "… et {n} autre(s) prêt(s)":
-        "… and {n} more ready",
-    "{n} sujet(s) attendent un sujet ouvert":
-        "{n} topic(s) wait on an open topic",
-    "{n} sujet(s) attendent une demande sans réponse":
-        "{n} topic(s) wait on an unanswered request",
     "Du code a changé et la mémoire non : la fin de tour attend sa mise à jour.":
         "Code changed and the memory did not: the end of turn waits for its update.",
     "Durcir un garde-fou est libre ; l'assouplir exige une demande validée qui cite la clé (politique, point 1).":
@@ -1412,8 +1368,6 @@ MESSAGES: dict[str, str] = {
         "Every fix delivers a test that fails on the parent commit and passes on the fix, checked by running it.",
     "Tout dispositif du dépôt est nommé dans la documentation.":
         "Every device of the repository is named in the documentation.",
-    "Tout identifiant, commit, fichier, lien ou chemin cité existe.":
-        "Every cited identifier, commit, file, link or path exists.",
     "Tout module qui porte du code est dans le cliquet de mutation, et le cliquet ne nomme que des modules qui "
     "existent.":
         "Every module that holds code is in the mutation ratchet, and the ratchet only names modules that exist.",
@@ -2328,8 +2282,6 @@ MESSAGES: dict[str, str] = {
     "privée (`socle new request \"…\" --private`)":
         "a request is read where the human reads: withdraw it (`withdrawn : <reason>` in its metadata) and open a "
         "private one (`socle new request \"…\" --private`)",
-    "`{ident}` : seuls un fait, un sujet, une entrée de journal ou une décision se basculent":
-        "`{ident}`: only a fact, a topic, a journal entry or a decision can be moved",
     "`{ident}` est archivée dans `{parent}` : c'est cette entrée de journal qui se bascule":
         "`{ident}` is archived in `{parent}`: it is that journal entry that is moved",
     "`{ident}` archive {liste}, que d'autres entrées citent peut-être : leurs renvois publics ne survivraient pas à "
@@ -3045,18 +2997,12 @@ MESSAGES: dict[str, str] = {
         "existing case of a case file changed without human approval",
     "un cas ajouté à un fichier de cas passe le commit et la CI":
         "a case added to a case file passes the commit and the CI",
-    "avec `request` : des questions de cadrage d'un sujet, ouvertes, auxquelles l'humain répond librement":
-        "with `request`: framing questions about a topic, open, which the human answers freely",
     "`--questions` ne vaut que pour une demande (`request`)":
         "`--questions` applies only to a request (`request`)",
     "sujet du backlog d'une priorité ni haute ni basse":
         "backlog topic with a priority neither high nor low",
     "sujet fait alors que la demande qu'il attend est sans réponse":
         "topic done while the request it waits on is unanswered",
-    "sujet fait avec un critère de « Fait quand » non coché":
-        "topic done with an unchecked “Done when” criterion",
-    "un sujet de priorité haute fait après la réponse qu'il attendait, ses critères cochés, passe le commit et la CI":
-        "a high-priority topic done after the answer it waited for, its criteria checked, passes the commit and the CI",
     "un fichier protégé changé sous une demande en attente, poussée : le tour finit, le commit attend":
         "a protected file changed under a pending request, pushed: the turn ends, the commit waits",
     "un fichier protégé sous une demande en attente, poussée, la CI du socle exigée : il se commite et se pousse":
@@ -3093,24 +3039,10 @@ MESSAGES: dict[str, str] = {
         "the agent locks the private memory: only its setup is reserved to the human",
     "une écriture ordinaire passe le hook de l'agent":
         "an ordinary write passes the agent's hook",
-    "`{id}` est clos (« {statut} ») mais reste parmi les sujets ouverts : `python3 .socle/socle archive` le range "
-    "dans `{dossier}/`":
-        "`{id}` is closed (“{statut}”) but stays among the open topics: `python3 .socle/socle archive` files it in "
-        "`{dossier}/`",
-    "`{id}` est rangé parmi les sujets clos alors qu'il est « {statut} » : `python3 .socle/socle archive` le remet "
-    "parmi les ouverts":
-        "`{id}` is filed among the closed topics while it is “{statut}”: `python3 .socle/socle archive` puts it back "
-        "among the open ones",
-    "{n} sujet(s) rangé(s) : les clos dans `{dossier}/`, les ouverts hors de lui":
-        "{n} topic(s) filed: the closed ones in `{dossier}/`, the open ones outside it",
     "le backlog est déjà rangé":
         "the backlog is already in order",
-    "backlog : {n} sujet(s) clos rangé(s) dans `{dossier}/`":
-        "backlog: {n} closed topic(s) filed in `{dossier}/`",
     "sujet clos, avec sa référence, laissé parmi les ouverts":
         "closed topic, with its reference, left among the open ones",
-    "un sujet clos, rangé avec les clos par `socle archive`, passe la CI":
-        "a closed topic, filed with the closed ones by `socle archive`, passes the CI",
     "Pousser un commit sur la branche par défaut qui modifie ce fichier (une ligne de commentaire suffit ; c'est "
     "un fichier protégé, que l'humain approuve) : GitHub n'enregistre un workflow qu'au push qui modifie son "
     "fichier, pas toujours au premier push qui le pose. Puis vérifier dans l'onglet Actions qu'il y apparaît":
@@ -3326,4 +3258,327 @@ MESSAGES: dict[str, str] = {
         "`approve` answer pushed without the guardrail key it authorizes to relax",
     "une réponse « valider » poussée avec la clé des garde-fous qu'elle autorise à relâcher part sans avertissement":
         "an `approve` answer pushed with the guardrail key it authorizes to relax leaves without a warning",
+    'Chaque entrée du backlog a une origine ; une entrée close a une référence, et elle est rangée avec les closes ; une entrée faite a coché tout ce que dit sa section, « Satisfait quand » pour un besoin, « Fait quand » pour les autres formes (ADR-0083).':
+        'Each backlog entry has an origin; a closed entry has a reference, and it is filed with the closed ones; a done entry has checked everything its section says, “Satisfied when” for a need, “Done when” for the other forms (ADR-0083).',
+    'Le backlog en quatre formes, chacune son préfixe (ADR-0083).':
+        'The backlog in four forms, each with its prefix (ADR-0083).',
+    'TITRE':
+        'TITLE',
+    "Tout identifiant, commit, fichier, lien ou chemin cité existe ; un ancien numéro se résout vers l'entrée renumérotée (ADR-0083).":
+        'Every cited identifier, commit, file, link or path exists; a former number resolves to the renumbered entry (ADR-0083).',
+    "Une entrée du backlog n'attend (`après`) que des entrées du backlog ou des demandes, jamais elle-même de proche en proche, et ne se dit faite qu'une fois clos ce qu'elle attend : un jalon ne se clôt pas sur des besoins ouverts, ni un lot sur des tâches ouvertes, ni une entrée sur une demande sans réponse.":
+        'A backlog entry waits (`after`) only on backlog entries or requests, never on itself step by step, and is done only once what it waits on is closed: a milestone does not close over open needs, nor a batch over open tasks, nor an entry over an unanswered request.',
+    "`--need {besoin}` : aucun besoin ouvert de ce nom ; une tâche nomme le besoin ouvert qu'elle sert":
+        '`--need {besoin}`: no open need of that name; a task names the open need it serves',
+    '`--task` ne vaut que pour un besoin (`need`) : il crée le besoin et sa tâche':
+        '`--task` only applies to a need (`need`): it creates the need and its task',
+    "`après` qui nomme l'ancien numéro d'une entrée renumérotée":
+        '`after` naming the former number of a renumbered entry',
+    "`{ancien}` est l'ancien numéro de `{id}` : il ne se réattribue jamais, `socle renumber {ancien}` donne à l'entrée qui le prend le prochain libre":
+        '`{ancien}` is the former number of `{id}`: it is never reassigned, `socle renumber {ancien}` gives the entry that takes it the next free one',
+    '`{ident}` : seuls un fait, une entrée du backlog, une entrée de journal ou une décision se basculent':
+        '`{ident}`: only a fact, a backlog entry, a journal entry or a decision can be moved',
+    '`{id}` ({forme}) attend `{dep}` ({forme_dep}) : {regle}':
+        '`{id}` ({forme}) waits on `{dep}` ({forme_dep}): {regle}',
+    "`{id}` ({forme}) écrit `besoin` : seule une tâche nomme le besoin qu'elle sert":
+        '`{id}` ({forme}) writes `need`: only a task names the need it serves',
+    '`{id}` ({forme}) écrit une priorité : un lot ni un jalon ne sont jamais prêts, elle se donne à un besoin ou à une tâche':
+        '`{id}` ({forme}) writes a priority: neither a batch nor a milestone is ever ready, it is given to a need or a task',
+    '`{id}` : `après` ne nomme que des entrées du backlog ou des demandes ({valeur})':
+        '`{id}`: `after` names only backlog entries or requests ({valeur})',
+    '`{id}` : `besoin : {besoin}` ne nomme pas un besoin du backlog':
+        '`{id}`: `need : {besoin}` does not name a need of the backlog',
+    "`{id}` : `{champ}` nomme `{ancien}`, ancien numéro de `{actuel}` : il nomme l'identifiant actuel":
+        '`{id}`: `{champ}` names `{ancien}`, former number of `{actuel}`: it names the current identifier',
+    '`{id}` : entrée nouvelle ({forme}) sans sa section « {section} »':
+        '`{id}`: new entry ({forme}) without its “{section}” section',
+    '`{id}` est clos (« {statut} ») avec une tâche ouverte : {taches}':
+        '`{id}` is closed (“{statut}”) with an open task: {taches}',
+    '`{id}` est clos (« {statut} ») mais reste parmi les entrées ouvertes : `python3 .socle/socle archive` le range dans `{dossier}/`':
+        '`{id}` is closed (“{statut}”) but stays among the open entries: `python3 .socle/socle archive` files it in `{dossier}/`',
+    '`{id}` est clos « fait » avec un critère de « {section} » non coché : {criteres}':
+        '`{id}` is closed “done” with an unchecked “{section}” criterion: {criteres}',
+    '`{id}` est dans {n} lots ({lots}) : une tâche est dans un lot au plus':
+        '`{id}` is in {n} batches ({lots}): a task is in one batch at most',
+    "`{id}` est fait sans tâche faite : un besoin se ferme quand ses tâches sont closes, l'une au moins faite ; sinon il s'abandonne":
+        '`{id}` is done without a done task: a need closes when its tasks are closed, at least one of them done; otherwise it is abandoned',
+    "`{id}` est rangé parmi les entrées closes alors qu'il est « {statut} » : `python3 .socle/socle archive` le remet parmi les ouvertes":
+        '`{id}` is filed among the closed entries while it is “{statut}”: `python3 .socle/socle archive` puts it back among the open ones',
+    "`{id}` est un besoin : sa section est « Satisfait quand », un résultat ; « Fait quand » est celle d'une tâche":
+        "`{id}` is a need: its section is “Satisfied when”, a result; “Done when” is a task's",
+    "`{id}` est une tâche : sa section est « Fait quand », qu'un test vérifie ; « Satisfait quand » est celle d'un besoin":
+        "`{id}` is a task: its section is “Done when”, which a test checks; “Satisfied when” is a need's",
+    "`{id}` est une tâche sans besoin : elle nomme celui qu'elle sert, `besoin : B-NNNN`":
+        '`{id}` is a task without a need: it names the one it serves, `need : B-NNNN`',
+    "`{id}` écrit `forme : {valeur}` : la forme d'une entrée du backlog se lit sur son préfixe, `B-` besoin, `T-` tâche, `L-` lot, `JA-` jalon":
+        '`{id}` writes `form : {valeur}`: the form of a backlog entry is read from its prefix, `B-` need, `T-` task, `L-` batch, `JA-` milestone',
+    'aucun, il se clôt':
+        'none, it closes',
+    'avec `need` : crée aussi sa tâche, quand la correction est évidente':
+        'with `need`: also creates its task, when the fix is obvious',
+    "avec `request` : des questions de cadrage d'un besoin, ouvertes, auxquelles l'humain répond librement":
+        'with `request`: framing questions about a need, open, which the human answers freely',
+    'avec `task` : le besoin ouvert que la tâche sert':
+        'with `task`: the open need the task serves',
+    'backlog : {n} entrée(s) close(s) rangée(s) dans `{dossier}/`':
+        'backlog: {n} closed entry(ies) filed in `{dossier}/`',
+    "backlog : {n} lot(s) et jalon(s) renumérotés ({liste}) ; l'ancien numéro se résout":
+        'backlog: {n} batch(es) and milestone(s) renumbered ({liste}); the former number resolves',
+    'backlog : {n} tâche(s) posée(s) pour les besoins des lots ouverts ({premiere} à {derniere}), leurs critères à récrire en livrables':
+        'backlog: {n} task(s) set for the needs of the open batches ({premiere} to {derniere}), their criteria to be rewritten as deliverables',
+    "backlog : priorité retirée de {n} lot(s) et jalon(s) ({liste}) : ils n'étaient déjà jamais prêts, elle ne changeait aucun ordre ; elle se donne à un besoin ou à une tâche":
+        'backlog: priority removed from {n} batch(es) and milestone(s) ({liste}): they were already never ready, it changed no order; it is given to a need or a task',
+    'backlog : « Fait quand » devient « Satisfait quand » dans {n} besoin(s)':
+        'backlog: “Done when” becomes “Satisfied when” in {n} need(s)',
+    'besoin':
+        'need',
+    'besoin abandonné avec sa tâche encore ouverte':
+        'need abandoned with its task still open',
+    'besoin fait sans aucune tâche faite':
+        'need done without any done task',
+    'besoin fait, sa tâche faite, avec un critère de « Satisfait quand » non coché':
+        'need done, its task done, with an unchecked “Satisfied when” criterion',
+    'besoin nouveau sans sa section « Satisfait quand »':
+        'new need without its “Satisfied when” section',
+    "besoin ouvert dont la section est « Fait quand », celle d'une tâche":
+        "open need whose section is “Done when”, a task's",
+    "besoin qui écrit `besoin`, le champ d'une tâche":
+        "need that writes `need`, a task's field",
+    'besoins à découper en tâches : {ids}':
+        'needs to split into tasks: {ids}',
+    'besoins à fermer, leurs tâches closes : {ids}':
+        'needs to close, their tasks closed: {ids}',
+    'demande':
+        'request',
+    "entrée `{ident}` disparue du backlog : une entrée close se range par `socle archive`, elle ne s'efface pas":
+        'entry `{ident}` gone from the backlog: a closed entry is filed by `socle archive`, it is not erased',
+    "entrée nouvelle du backlog `{ident}` sans `lu : backlog@…` : consulter le backlog avant d'y ajouter, pour ne pas dupliquer (`socle show --index backlog`)":
+        'new backlog entry `{ident}` without `read : backlog@…`: look at the backlog before adding to it, so as not to duplicate (`socle show --index backlog`)',
+    "entrée nouvelle sous l'ancien numéro d'une entrée renumérotée":
+        'new entry under the former number of a renumbered entry',
+    'entrée ouverte du backlog qui écrit encore `forme`':
+        'open backlog entry that still writes `form`',
+    'jalon':
+        'milestone',
+    "jalon fait alors que le besoin qu'il attend est ouvert":
+        'milestone done while the need it waits on is open',
+    'lot':
+        'batch',
+    'lot qui attend un besoin, et non sa tâche':
+        'batch that waits on a need, not on its task',
+    "lot qui écrit une priorité, lui qui n'est jamais prêt":
+        'batch that writes a priority, though it is never ready',
+    'prochain jalon : {id} — {titre} ; besoins ouverts : {restants}':
+        'next milestone: {id} — {titre}; open needs: {restants}',
+    'prochain lot : {id} — {titre} ; {clos} close(s) sur {total} ; reste : {restants}':
+        'next batch: {id} — {titre}; {clos} closed out of {total}; left: {restants}',
+    'prête':
+        'ready',
+    'prêtes aussi, de priorité basse : {ids}':
+        'also ready, low priority: {ids}',
+    'tâche':
+        'task',
+    'tâche faite avec un critère de « Fait quand » non coché':
+        'task done with an unchecked “Done when” criterion',
+    "tâche ouverte qui porte « Satisfait quand », la section d'un besoin":
+        "open task that carries “Satisfied when”, a need's section",
+    'tâche prête : {id} — {titre}':
+        'ready task: {id} — {titre}',
+    'tâche prête : {id} — {titre} (priorité haute)':
+        'ready task: {id} — {titre} (high priority)',
+    'tâche que deux lots attendent':
+        'task two batches wait on',
+    'tâche qui ne nomme pas son besoin':
+        'task that does not name its need',
+    'tâche dont le champ `besoin` nomme un lot, et non un besoin':
+        'task whose `need` field names a batch, not a need',
+    'tâche nouvelle sans sa section « Fait quand »':
+        'new task without its “Done when” section',
+    "entrée renumérotée citée par son ancien numéro, sous une empreinte inventée":
+        'renumbered entry cited by its former number, under an invented fingerprint',
+    "une entrée renumérotée par la migration, qui porte `ancien`, et sa citation par l'ancien numéro sous l'empreinte de sa version actuelle passent le commit et la CI":
+        'an entry renumbered by the migration, which carries `former`, and its citation by the former number under the fingerprint of its current version pass the commit and the CI',
+    "la migration n'a pas posé `ancien : B-0001` sur {id}":
+        'the migration did not set `former : B-0001` on {id}',
+    'un besoin attend des besoins et des demandes':
+        'a need waits on needs and requests',
+    'un besoin clos après sa tâche faite, rangés avec les clos par `socle archive`, passent la CI':
+        'a need closed after its task is done, filed with the closed ones by `socle archive`, pass the CI',
+    'un besoin et sa tâche posés par `socle new need --task`, un lot qui attend la tâche et un jalon qui attend le besoin, chacun dans sa forme, passent le commit et la CI':
+        'a need and its task set by `socle new need --task`, a batch that waits on the task and a milestone that waits on the need, each in its form, pass the commit and the CI',
+    "un jalon attend ses besoins, des demandes et le jalon d'avant":
+        'a milestone waits on its needs, requests and the previous milestone',
+    "un jalon qui attend un besoin ouvert, dans l'ordre, passe le commit et la CI":
+        'a milestone that waits on an open need, in order, passes the commit and the CI',
+    "un lot attend ses tâches, des demandes et le lot d'avant":
+        'a batch waits on its tasks, requests and the previous batch',
+    'une tâche attend des tâches, des besoins et des demandes':
+        'a task waits on tasks, needs and requests',
+    "une tâche de priorité haute faite après la réponse qu'elle attendait, ses critères cochés, passe le commit et la CI":
+        'a high-priority task done after the answer it waited for, its criteria checked, passes the commit and the CI',
+    'une tâche nomme son besoin : `socle new task "…" --need B-NNNN`, et `--need` ne vaut que pour elle':
+        'a task names its need: `socle new task "…" --need B-NNNN`, and `--need` only applies to it',
+    "{ancien} est l'ancien numéro de {ident}":
+        '{ancien} is the former number of {ident}',
+    '{n} entrée(s) attendent une demande sans réponse':
+        '{n} entry(ies) wait on an unanswered request',
+    '{n} entrée(s) attendent une entrée ouverte du backlog':
+        '{n} entry(ies) wait on an open backlog entry',
+    '{n} entrée(s) rangée(s) : les closes dans `{dossier}/`, les ouvertes hors de lui':
+        '{n} entry(ies) filed: the closed ones in `{dossier}/`, the open ones outside it',
+    '… et {n} autre(s) tâche(s) prête(s)':
+        '… and {n} more ready task(s)',
+    "range les entrées closes du backlog à l'écart des ouvertes":
+        'files the closed backlog entries apart from the open ones',
+    # L'historique des revues d'un lot (ADR-0084).
+    '`{id}` est clos « fait » sans le recul de sa dernière passe de revue : {raison}':
+        '`{id}` is closed "done" without the step back of its last review pass: {raison}',
+    '`{id}` est clos « fait » avant ce que sa dernière passe de revue exige : {raison}':
+        '`{id}` is closed "done" before what its last review pass requires: {raison}',
+    "le lot dont c'est la passe de revue, qui s'écrit dans sa section « Revues » (par défaut : le lot en cours du "
+    "backlog)":
+        'the batch this review pass belongs to, written in its "Reviews" section (default: the batch in progress '
+        'in the backlog)',
+    "la passe {n} n'a pas son recul : un paragraphe qui commence par « Recul : »":
+        'pass {n} has no step back: a paragraph that starts with "Step back:"',
+    'le recul de la passe {n} a {mots} mot(s) : il en faut {seuil} au moins, qui répondent aux trois questions':
+        'the step back of pass {n} has {mots} word(s): it needs at least {seuil}, answering the three questions',
+    "le recul de la passe {n} ne finit ni par « continuer » ni par « s'arrêter » : son dernier mot est sa décision, "
+    "et ce qui rendra la passe suivante différente s'écrit avant":
+        'the step back of pass {n} ends with neither "continue" nor "stop": its last word is its decision, and what '
+        'will make the next pass different is written before it',
+    "Ce lot a déjà eu des passes de revue : voici les causes de leurs bloquants, telles que l'agent les a "
+    "consignées. Pour chaque bloquant que tu trouves, dis s'il a la même cause que l'un d'eux, « même cause : » "
+    "suivi de celle-ci, ou une cause nouvelle, « cause nouvelle ».":
+        'This batch has already had review passes: here are the causes of their blockers, as the agent recorded '
+        'them. For each blocker you find, say whether it has the same cause as one of them, "same cause:" followed '
+        'by that cause, or a new cause, "new cause".',
+    "Y répondre dans la passe {n}, d'un paragraphe qui commence par « Recul : », de soixante mots au moins, dont "
+    "le dernier mot est « continuer », ce qui rendra la passe suivante différente écrit avant, ou « s'arrêter ». "
+    "S'arrêter, c'est une demande à l'humain, qui cite le lot ({lot}), que le paragraphe nomme (`D-NNNN`) et que "
+    "le lot attend par son `après` : ce qui tourne, en clair, la règle qui le fait tourner, et une proposition qui "
+    "la borne. L'agent avance ailleurs jusqu'à sa réponse, seule à lever l'arrêt.":
+        'Answer them in pass {n}, in a paragraph that starts with "Step back:", of at least sixty words, whose last '
+        'word is "continue", with what will make the next pass different written before it, or "stop". Stopping '
+        'is a request to the human, which cites the batch ({lot}), which the paragraph names (`D-NNNN`) and which '
+        'the batch waits for through its `after`: what goes round, in plain words, the rule that makes it go round, '
+        'and a proposal that bounds it. The agent moves on elsewhere until the answer, the only thing that lifts '
+        'the stop.',
+    "Le recul de la passe {n} finit donc par « s'arrêter » : une demande à l'humain, qui cite le lot ({lot}), que "
+    "le paragraphe nomme (`D-NNNN`) et que le lot attend par son `après` : ce qui tourne, en clair, la règle qui le "
+    "fait tourner, et une proposition qui la borne. L'agent avance ailleurs jusqu'à sa réponse, seule à lever "
+    "l'arrêt.":
+        'The step back of pass {n} therefore ends with "stop": a request to the human, which cites the batch '
+        '({lot}), which the paragraph names (`D-NNNN`) and which the batch waits for through its `after`: what goes '
+        'round, in plain words, the rule that makes it go round, and a proposal that bounds it. The agent moves on '
+        'elsewhere until the answer, the only thing that lifts the stop.',
+    'Les bloquants de cette passe ont-ils la même cause que ceux de la précédente ?':
+        "Do this pass's blockers have the same cause as the previous pass's?",
+    "Les entrées que le lot ouvre sont-elles de même nature que celles qu'il ferme ?":
+        'Are the entries the batch opens of the same nature as those it closes?',
+    "Les lots clos qui ont touché les mêmes fichiers ont-ils déjà ouvert ce genre d'entrées ?":
+        'Have the closed batches that touched the same files already opened this kind of entries?',
+    'socle review : la passe {n} du lot {lot} est refusée — {raison}.':
+        'socle review: pass {n} of batch {lot} is refused — {raison}.',
+    "## L'historique du lot ({chemin})":
+        "## The batch's history ({chemin})",
+    'la passe {n} ne consigne pas le regard du relecteur sur {m} bloquant(s), « · même cause » ou « · cause '
+    'nouvelle » au bout de sa ligne : {causes}':
+        'pass {n} does not record the reviewer\'s view on {m} blocker(s), "· same cause" or "· new cause" at the '
+        'end of its line: {causes}',
+    "le relecteur a vu une même cause revenir deux passes de suite, aux passes {a} et {b} : « continuer » est "
+    "refusé, le lot s'arrête":
+        'the reviewer saw a same cause come back two passes in a row, at passes {a} and {b}: "continue" is '
+        'refused, the batch stops',
+    'passe {n} du lot {lot} écrite dans {chemin} : au retour du relecteur, y écrire une ligne « - Bloquant : <sa '
+    'cause, en quelques mots> » par bloquant, suivie à partir de la deuxième passe du regard du relecteur, « · '
+    'même cause » ou « · cause nouvelle », et « - Ouvre : <les entrées que la passe ouvre> » ; puis, avant la '
+    'passe suivante ou la clôture du lot, son recul, « Recul : … »':
+        'pass {n} of batch {lot} written in {chemin}: when the reviewer returns, write in it one line "- Blocker: '
+        '<its cause, in a few words>" per blocker, followed from the second pass on by the reviewer\'s view, "· '
+        'same cause" or "· new cause", and "- Opens: <the entries the pass opens>"; then, before the next pass or '
+        'the closing of the batch, its step back, "Step back: …"',
+    "## Le second regard : les causes des passes d'avant":
+        '## The second look: the causes of the earlier passes',
+    "{n} lots sont en cours ({lots}) : `socle review --batch L-NNNN` nomme celui de cette revue ; rien n'est relu":
+        '{n} batches are in progress ({lots}): `socle review --batch L-NNNN` names the one of this review; nothing '
+        'is reviewed',
+    '- rien':
+        '- none',
+    '## Ce que git donne depuis le début du lot ({debut})':
+        '## What git gives since the start of the batch ({debut})',
+    'Les entrées que le lot a ouvertes :':
+        'The entries the batch has opened:',
+    "Les entrées qu'il a closes :":
+        'The entries it has closed:',
+    'Les lots clos qui ont touché les mêmes fichiers :':
+        'The closed batches that touched the same files:',
+    '## Trois questions, de nature et non de nombre':
+        '## Three questions, of nature and not of number',
+    "le recul de la passe {n} s'arrête sans nommer sa demande (`D-NNNN`), la décision qu'il pose à l'humain":
+        'the step back of pass {n} stops without naming its request (`D-NNNN`), the decision it puts to the human',
+    "le lot s'est arrêté à la passe {n}, et attend la réponse à {demandes} : il avance ailleurs jusque-là":
+        'the batch stopped at pass {n}, and waits for the answer to {demandes}: it moves on elsewhere until then',
+    "l'arrêt de la passe {n} n'est levé par aucune des demandes que nomme son recul ({demandes}) : seule le lève la "
+    "réponse de l'humain à une demande qui cite le lot ({lot}) ; une demande retirée, ou qui ne le cite pas, ne le "
+    "lève pas":
+        'the stop of pass {n} is lifted by none of the requests its step back names ({demandes}): only the '
+        'human\'s answer to a request that cites the batch ({lot}) lifts it; a withdrawn request, or one that does '
+        'not cite it, does not',
+    "(aucun lot en cours au backlog : cette passe ne s'écrit dans aucun lot ; `socle review --batch L-NNNN` nomme "
+    "le sien)":
+        '(no batch in progress in the backlog: this pass is written in no batch; `socle review --batch L-NNNN` '
+        'names its own)',
+    "(la passe {n} du lot {lot} : rien n'a changé hors de la mémoire depuis le commit qu'elle a relu ; son dossier "
+    "se redonne, rien ne s'écrit)":
+        '(pass {n} of batch {lot}: nothing has changed outside the memory since the commit it reviewed; its '
+        'brief is given again, nothing is written)',
+    '- passe {n} : {cause}':
+        '- pass {n}: {cause}',
+    "--batch {nom} : aucun lot de ce nom au backlog public ; rien n'est relu":
+        '--batch {nom}: no batch of that name in the public backlog; nothing is reviewed',
+    "--batch {nom} : le lot est clos (« {statut} ») ; une passe s'écrit dans un lot ouvert ; rien n'est relu":
+        '--batch {nom}: the batch is closed ("{statut}"); a pass is written in an open batch; nothing is reviewed',
+    '- … et {n} de plus':
+        '- … and {n} more',
+    '- passe {n} : aucun bloquant consigné':
+        '- pass {n}: no blocker recorded',
+    "deuxième passe de revue d'un lot sans le recul de la première":
+        "second review pass of a batch without the first one's step back",
+    'lot relu clos « fait » sans le recul de sa dernière passe':
+        'reviewed batch closed "done" without the step back of its last pass',
+    "passe de plus d'un lot arrêté dont la demande attend sa réponse":
+        'one more pass of a stopped batch whose request waits for its answer',
+    "passe de plus d'un lot arrêté sur une demande ancienne, répondue, qui ne cite pas le lot":
+        'one more pass of a batch stopped on an old, answered request that does not cite the batch',
+    "lot relu clos « fait » dont la dernière passe, la deuxième, a un bloquant sans le regard du relecteur":
+        'reviewed batch closed "done" whose last pass, the second, has a blocker without the reviewer\'s view',
+    "lot relu clos « fait » sur « continuer » après deux passes de suite où le relecteur voit une même cause revenir":
+        'reviewed batch closed "done" on "continue" after two passes in a row where the reviewer sees a same cause '
+        'come back',
+    'lot relu clos « fait » sur un arrêt dont la demande attend sa réponse':
+        'reviewed batch closed "done" on a stop whose request waits for its answer',
+    'un lot arrêté dont la demande, qui cite le lot, a sa réponse, `socle review` produit sa passe suivante':
+        'a stopped batch whose request, which cites the batch, has its answer, `socle review` produces its next '
+        'pass',
+    "un lot relu clos « fait » avec le recul de sa dernière passe, et le regard du relecteur sur son bloquant, passe "
+    "le commit et la CI":
+        'a reviewed batch closed "done" with the step back of its last pass, and the reviewer\'s view on its '
+        'blocker, passes the commit and the CI',
+    "un lot relu clos « fait » sur « continuer » après une seule passe où le relecteur voit une cause revenir passe "
+    "le commit et la CI":
+        'a reviewed batch closed "done" on "continue" after a single pass where the reviewer sees a cause come back '
+        'passes the commit and the CI',
+    "un lot relu clos « fait » sur un arrêt dont la demande, qui cite le lot, a sa réponse passe le commit et la CI":
+        'a reviewed batch closed "done" on a stop whose request, which cites the batch, has its answer passes the '
+        'commit and the CI',
+    "une deuxième passe de revue après le recul de la première, `socle review` la produit et l'écrit dans le lot":
+        "a second review pass after the first one's step back, `socle review` produces it and writes it in the "
+        "batch",
+    '« continuer » après deux passes de suite où le relecteur voit une même cause revenir':
+        '"continue" after two passes in a row where the reviewer sees a same cause come back',
+    '« continuer » après une seule passe où le relecteur voit une cause revenir, `socle review` produit la '
+    'suivante':
+        '"continue" after a single pass where the reviewer sees a cause come back, `socle review` produces the '
+        'next one',
 }

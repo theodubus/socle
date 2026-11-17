@@ -37,7 +37,7 @@ and a new session only has the memory.
 | Active | `memory/active.md` | work in progress, next steps; rewritten, kept short |
 | Decisions | `memory/decisions/` | one ADR per file, the project's only decision register; only its status changes afterwards |
 | Journal | `memory/journal/` | one dated entry per event; append only |
-| Backlog | `@@BACKLOG@@` | topics with status and origin, ordered by `after` (topics or requests), their milestones and their priority (the state computes the ready ones); done when their “Done when” is checked, closed with a reference, then filed by `socle archive` |
+| Backlog | `@@BACKLOG@@` | four forms, each with its prefix: need `B-` (“Satisfied when”), task `T-` that names its need (“Done when”), batch `L-` of tasks, milestone `JA-` of needs; ordered by `after`, with their priority (the state computes the ready tasks); closed with a reference, then filed by `socle archive` |
 | Requests | `memory/requests/` | human decisions in a queue, under the contract of the skill `socle-request` |
 
 An entry: `## F-NNNN — title`, then a line `> status : measured · proof : commit:<sha>`.
@@ -72,7 +72,7 @@ request; never in the agent's question widget, where the human reads raw
 text with no links to follow (the hook refuses it). What the human settles
 in the conversation, of their own accord or on a short question asked in
 the text of the answer, is recorded at once in the same way, in session.
-How: the skill `socle-request`. A topic whose specification depends on an
+How: the skill `socle-request`. A need whose specification depends on an
 intention the memory does not state is first framed by open questions
 (`socle new request --questions`); a specification is submitted before its
 code.
@@ -84,16 +84,16 @@ and the last ten decisions, under a cap; what a `!! cut` line says is
 missing is read at once. The rest is read when it is needed, without
 waiting to be asked:
 
-- a cited identifier (`F-`, `B-`, `ADR-`, `D-`, `J-`) is read before relying
+- a cited identifier (`F-`, `B-`, `T-`, `L-`, `JA-`, `ADR-`, `D-`, `J-`) is read before relying
   on it: `python3 .socle/socle show <ID>`, which also gives its fingerprint;
 - before a design decision, `socle show --index decisions` says whether it
   has already been made: it is not reopened without a new fact;
-- before opening a topic, the backlog (`socle show --index backlog`) says
-  whether it already exists;
+- before opening a backlog entry, its index (`socle show --index
+  backlog`) says whether it already exists;
 - to know why something is the way it is, search the journal
   (`grep -rn "<word>" memory/journal/`).
 
-Reading is proven: a new decision, request or backlog topic cites what it
+Reading is proven: a new decision, request or backlog entry cites what it
 read with its fingerprint (`ADR-NNNN@xxxxxxxx`, `read : decisions@…`,
 `read : backlog@…`). A stale or invented fingerprint is refused; the entry
 must be read again. `socle new` puts in the index fingerprint.
@@ -119,24 +119,26 @@ the text.
 
 ### Delivering the work
 
-As long as nothing is up to the human, the agent chains the ready topics
+As long as nothing is up to the human, the agent chains the ready tasks
 without waiting for a message. It first announces the batch, not
-necessarily everything that is ready (the topics, their size, the
-milestone they serve; a low-priority topic if convenient), then gets
+necessarily everything that is ready (the tasks, their size, the
+milestone they serve; a low-priority task if convenient), then gets
 going; it stops at the end of the batch, or as soon as a decision is up
-to the human. It does not change a priority the human gave. The batch is
-formed by sweeping the whole open backlog; a topic opened later joins the
-next batch whose rule applies to it, never the one in progress. It is
-kept in the backlog (`form: batch`) and run following the `socle-batch`
+to the human. It does not change a priority the human gave. A need
+without an open task is first split into tasks. The batch is formed by
+sweeping the whole open backlog; a task opened later joins the next
+batch whose rule applies to it, never the one in progress. It is kept in
+the backlog (`socle new batch`) and run following the `socle-batch`
 skill. Before the push of a batch that changes code, a specification or a
 test, it has it reviewed by a reviewer without context, against the “Done
-when” of its topics (the `socle-review` skill). A topic whose design is
-not settled writes its specification before its code; a topic that adds
+when” of its tasks (the `socle-review` skill). A need whose design is
+not settled writes its specification before its code; a need that adds
 or changes a guardrail, its threat model (its `## Threat model` section,
 or the decision it cites). Only blocking findings are fixed in the batch;
 another goes to the backlog if it can occur in the project's normal use,
 or if nothing catches its effect afterwards; otherwise, exotic and
-caught, or unfounded, it is dismissed. A shell form an agent does not
+caught, or unfounded, it is dismissed. In the backlog, it becomes a task
+if its fix is clear, a need otherwise. A shell form an agent does not
 write in its work, and that escapes the hook, is dismissed whatever its
 effect: the guide gives the list of known forms. The recap gives the findings, and
 why each dismissed one is.
@@ -144,7 +146,7 @@ why each dismissed one is.
 By default, everything happens on one development branch, with only one
 pull request open at a time: each finished batch is added to it, the
 human merges it whenever they want, and the branch then starts again from
-the default branch. One pull request per topic, only if the human chose
+the default branch. One pull request per task, only if the human chose
 it (a fact of the memory says so). A new session that finds another
 session's pull request open asks the human to merge it first, or to let
 it continue on it. A prototype not meant to be merged is done on a
@@ -156,8 +158,8 @@ guardrails (`proto/` by default): the CI does not judge it on push.
 - `python3 .socle/socle verify --fast` passes (the `Stop` hook checks it); `verify` runs everything.
 - If code changed, the memory did too: active work, journal, backlog.
 - If code tied to a doc changed (`[[docmap]]` in the guardrails), the doc changes in the same work, or the commit that changes this code carries the trailer `Waive-doc: <reason>`, which covers that commit only.
-- A fix (subject `fix:` or trailer `Fixes: B-NNNN`) delivers a test that fails on the parent commit.
-- A public function added or changed is named by at least one test, or a commit waives it by name with its reason (`Waive-test: f, g — <reason>`). Existing code found without tests: the test is written right away if it is within the scope of the work, otherwise a topic goes to the backlog.
+- A fix (title `fix:` or trailer `Fixes: T-NNNN`) delivers a test that fails on the parent commit.
+- A public function added or changed is named by at least one test, or a commit waives it by name with its reason (`Waive-test: f, g — <reason>`). Existing code found without tests: the test is written right away if it is within the scope of the work, otherwise a need goes to the backlog.
 - An action only the human can take (refused by the hook, a service setting, a file they hold) goes to the backlog with `for : human`.
 - **Every intervention that acted ends with a recap, then two lines**: `For you:` — what is up to the human, pending decisions and actions to take, or "nothing" —, each item understandable without the agent's reasoning (what it is, why, what their answer changes), and `Next:` — the proposed next step (next milestone, what remains before it), and what the agent is waiting for if it is waiting for something (a CI run, a match: what, and until when). The state computes what is up to the human; the `Stop` hook refuses to conclude without the two lines.
 - **A file to read, or a pull request, is given by its link**: the human reads in the conversation or on GitHub, not in the agent's container. `python3 .socle/socle url <path|ID>` gives the permalink, once the file is pushed; a pending request cited without its link, a relative link, or a path between backticks that does not exist in the repository make the end of turn refused. A path in another repository is written `repo:path`, the repository linked somewhere in the project by its address (failing that, declared in `[references] repos` of the guardrails); an unknown repository is reported.

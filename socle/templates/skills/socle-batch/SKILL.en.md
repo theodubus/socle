@@ -1,11 +1,11 @@
 ---
 name: socle-batch
-description: Run a batch of backlog topics, from forming it to delivering it: one subagent per topic, the review without context before any push, integration, CI, merge, one session per batch. Use when the agent forms or announces a batch, at each of its steps, and when resuming a batch in progress.
+description: Run a batch of backlog tasks, from forming it to delivering it: one subagent per task, the review without context before any push, integration, CI, merge, one session per batch. Use when the agent forms or announces a batch, at each of its steps, and when resuming a batch in progress.
 ---
 
 # Running a batch
 
-A batch gathers ready topics that are handled together: those that touch
+A batch gathers ready tasks that are handled together: those that touch
 the same files, the same guardrail or the same tests, which one review
 will judge together. The agent running it orchestrates: it announces,
 delegates, has the work reviewed, integrates and delivers; it implements
@@ -14,43 +14,43 @@ itself only a change of a few lines.
 ## Forming and announcing
 
 1. The next batch is in the state (`next batch`). Otherwise, form it
-   over the whole open backlog, without asking: the ready topics its
-   rule applies to, those of the next milestone and of high priority
-   first, what fits in one session. The rest, like a ready topic opened
-   later, goes to the next batch not yet in progress whose rule applies;
-   the recap states each placement. It is kept in the backlog:
-   `python3 .socle/socle new backlog "Batch …"`, then `form: batch` and
-   `after:` its topics and the previous batch; its body says what brings
-   them together and names what is not a topic.
-2. Read each topic (`python3 .socle/socle show <ID>`), announce the batch
-   to the human (the topics, their size, the milestone served), and set it
+   over the whole open backlog, without asking: the ready tasks its rule
+   applies to, those of the next milestone and of high priority first,
+   what fits in one session; a need to split gets its tasks first. The
+   rest, like a task opened later, goes to the next batch not yet in
+   progress whose rule applies; the recap states each placement. It is
+   kept in the backlog: `python3 .socle/socle new batch "Batch …"`, then
+   `after:` the previous batch and its tasks; its body says what brings
+   them together.
+2. Read each task (`python3 .socle/socle show <ID>`), announce the batch
+   to the human (the tasks, their size, the milestone served), and set it
    `in progress`.
 3. In a Claude Code cloud session, arm the wake-ups (skill
    `socle-resume`).
 4. Start from a clean, pushed work branch.
 
-## One subagent per topic
+## One subagent per task
 
 Under Claude Code: the `Agent` tool, in an isolated copy of the repository
 (`isolation: "worktree"`), in the background; two at a time at most.
 It does not have the conversation: its instructions read on their own.
 
 ```text
-You implement a topic of this repository in your isolated copy. The
+You implement a task of this repository in your isolated copy. The
 project's instructions apply. Start with: git merge --ff-only <work branch>
-Topic: python3 .socle/socle show <ID>, then <the choice already made, where to look, the known traps>.
+Task: python3 .socle/socle show <ID>, then <the choice already made, where to look, the known traps>.
 Deliver, in one commit, without pushing: the threat model of a guardrail
 or the specification of an undecided design, first; the code and its
-tests; the documentation touched; a journal entry; the topic checked and
+tests; the documentation touched; a journal entry; the task checked and
 closed if its criteria are met; python3 .socle/socle verify --fast.
 Forbidden: pushing, touching a wake-up, writing a protected file, changing
 an expected value or deleting a test (report it), fixing a neighbouring
-defect (a backlog topic).
+defect (a need in the backlog).
 Report: your model, the commit, what the tests prove, the choices, what remains.
 ```
 
 **Without subagents**, the agent runs the batch alone, in the same order:
-one topic after the other, one commit each, the review on the whole batch.
+one task after the other, one commit each, the review on the whole batch.
 
 ## The review, before any push
 
@@ -65,7 +65,7 @@ rewritten.
 
 1. On the work branch: `git merge --ff-only` of the subagent's branch if
    its commit follows the head, otherwise `git merge --squash`, then a
-   commit that reuses its message. Two topics that took the same
+   commit that reuses its message. Two tasks that took the same
    identifier: the second one integrated is renumbered; an identifier the
    default branch also took: `python3 .socle/socle renumber <ID>`.
 2. Remove the isolated copy and its branch;
@@ -80,8 +80,8 @@ rewritten.
    done, no pending request on its content, giving the expected head
    commit.
 5. The active work and the journal are written before the merge, in the
-   last commit of the pull request, with the batch's closure: its topics
-   closed, it becomes `done`, then `python3 .socle/socle archive`. After
+   last commit of the pull request, with the batch's closure: its tasks
+   closed and its step back written, it becomes `done`, then `python3 .socle/socle archive`. After
    the merge, the local branch restarts from the default branch and is
    pushed only with the first commit of the next batch: pushed alone, it would recreate the deleted remote branch.
 
@@ -95,8 +95,8 @@ Each step of the orchestration rereads the whole conversation.
   in progress, then change sessions. In a Claude Code cloud
   session, `list_events` gives them (`kinds: ["rate_limit_event"]`,
   `utilization`), before each launch and at each report.
-- A nearby limit changes the order of topics, never the depth of the work
-  on one of them: a topic that needs more thought is started anyway.
+- A nearby limit changes the order of tasks, never the depth of the work:
+  a task that needs more thought is started anyway.
 - A subagent is not resumed after more than five minutes' pause: a new one
   receives the instructions and the findings.
 - A wait of more than an hour (a long CI, an answer from the human, the
@@ -140,6 +140,6 @@ of the next one in a block to copy:
 Resume the work of this repository, in a new session.
 First: read the state the startup injects; a "!! cut" line says what is
 missing from it and where to read it. Then the active work, and apply them.
-The batch: <the state's batch, its topics in order>, following the socle-batch skill.
+The batch: <the state's batch, its tasks in order>, following the socle-batch skill.
 What is waiting: <a report, a CI, a request> | nothing.
 ```

@@ -1205,13 +1205,29 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
     if ancien:
         journal.append(trad("mise à jour : moteur {avant} → {version}", avant=ancien.get("version", "amont"),
                             version=VERSION))
-        # Les sujets clos quittent les ouverts : une fois, à la
-        # mise à jour, puis par `socle archive`.
-        from socle import archive as archivage, memory as memoire
+        # Le backlog en quatre formes (ADR-0083), puis les entrées closes
+        # hors des ouvertes : à la mise à jour, puis par `socle archive`.
+        from socle import archive as archivage, memory as memoire, migration
 
+        bilan = migration.migrer_backlog(cible)
+        if bilan.renumerotees:
+            journal.append(trad("backlog : {n} lot(s) et jalon(s) renumérotés ({liste}) ; l'ancien numéro se "
+                                "résout", n=len(bilan.renumerotees),
+                                liste=", ".join(f"{a} → {n}" for a, n in bilan.renumerotees)))
+        if bilan.priorites:
+            journal.append(trad("backlog : priorité retirée de {n} lot(s) et jalon(s) ({liste}) : ils n'étaient "
+                                "déjà jamais prêts, elle ne changeait aucun ordre ; elle se donne à un besoin ou à "
+                                "une tâche", n=len(bilan.priorites), liste=", ".join(bilan.priorites)))
+        if bilan.taches:
+            journal.append(trad("backlog : {n} tâche(s) posée(s) pour les besoins des lots ouverts ({premiere} à "
+                                "{derniere}), leurs critères à récrire en livrables", n=len(bilan.taches),
+                                premiere=bilan.taches[0], derniere=bilan.taches[-1]))
+        if bilan.sections:
+            journal.append(trad("backlog : « Fait quand » devient « Satisfait quand » dans {n} besoin(s)",
+                                n=bilan.sections))
         ranges = archivage.ranger_backlog(cible)
         if ranges:
-            journal.append(trad("backlog : {n} sujet(s) clos rangé(s) dans `{dossier}/`", n=len(ranges),
+            journal.append(trad("backlog : {n} entrée(s) close(s) rangée(s) dans `{dossier}/`", n=len(ranges),
                                 dossier=memoire.DOSSIER_CLOS))
 
     # Ce que le projet a porté des adaptateurs maintenus se lit avant que le

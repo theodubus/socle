@@ -26,7 +26,7 @@ depends on an intention the memory does not state.
 
 ## Where to look
 
-<A link to the backlog topic, and to what the memory says about it.>
+<A link to the backlog need, and to what the memory says about it.>
 
 What to check: that each question asks for your intention, not for a
 choice the agent could make alone.

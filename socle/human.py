@@ -205,11 +205,11 @@ def a_faire(projet: config.Projet) -> list[Element]:
         res.append(Element("action", trad("approuver la spécification `{chemin}` : aucune demande ne vous l'a "
                                           "soumise ; l'agent la soumet", chemin=c), url or ""))
     mem = memoire.Memoire.charger(projet.racine)
-    for e in mem.entrees("B"):
+    for e in mem.entrees(memoire.BACKLOG):
         if e.archivee or e.statut in memoire.BACKLOG_CLOS:
             continue
         if langue.valeur(memoire.nettoyer(e.meta.get("pour", ""))) == "humain":
-            # Le lien du sujet, où vit son mode d'emploi : commandes,
+            # Le lien de l'entrée, où vit son mode d'emploi : commandes,
             # résultats attendus.
             url, _ = liens.lien(projet, e.id)
             res.append(Element("action", f"{e.id} — {e.titre}", url or trad("(pas encore poussé : pas de lien)")))

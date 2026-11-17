@@ -59,7 +59,7 @@ le chantier actif et les worktrees.
 ```text
 Reprise après limite (<fenêtre>) — <dépôt>, branche <branche>.
 Avant tout : la vérification du skill socle-resume.
-Lot : <les sujets>.
+Lot : <ses tâches>.
 Sous-agents en cours : <chacun : son identifiant, sa tâche, ce qu'il doit rendre> | aucun.
 ```
 

@@ -26,7 +26,7 @@ de ce sujet dépend d'une intention que la mémoire ne dit pas.
 
 ## Où regarder
 
-<Un lien vers le sujet du backlog, et vers ce que la mémoire en dit.>
+<Un lien vers le besoin du backlog, et vers ce que la mémoire en dit.>
 
 Ce qu'il faut vérifier : que chaque question demande ton intention, et
 non un choix que l'agent pourrait trancher seul.

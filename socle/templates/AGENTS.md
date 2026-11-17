@@ -37,7 +37,7 @@ session neuve n'a que la mémoire.
 | Actif | `memory/active.md` | chantier en cours, prochaines étapes ; réécrit, borné |
 | Décisions | `memory/decisions/` | une ADR par fichier, le seul registre des décisions du projet ; seul son statut change ensuite |
 | Journal | `memory/journal/` | une entrée datée par événement ; ajout seul |
-| Backlog | `@@BACKLOG@@` | sujets avec statut et origine, ordonnés par `après` (sujets ou demandes), leurs jalons et leur priorité (l'état en calcule les prêts) ; faits quand leur « Fait quand » est coché, clos avec une référence, puis rangés par `socle archive` |
+| Backlog | `@@BACKLOG@@` | quatre formes, chacune son préfixe : besoin `B-` (« Satisfait quand »), tâche `T-` qui nomme son besoin (« Fait quand »), lot `L-` de tâches, jalon `JA-` de besoins ; ordonnées par `après`, avec leur priorité (l'état en calcule les tâches prêtes) ; closes avec une référence, puis rangées par `socle archive` |
 | Demandes | `memory/requests/` | décisions humaines en file, au contrat du skill `socle-request` |
 
 Une entrée : `## F-NNNN — titre`, puis une ligne `> statut : mesuré · preuve : commit:<sha>`.
@@ -72,7 +72,7 @@ demande ; jamais dans le widget de questions de l'agent, où l'humain lit un
 texte brut sans liens à suivre (le hook le refuse). Ce que l'humain tranche
 dans la conversation, de lui-même ou sur une question courte posée dans le
 texte de la réponse, se consigne aussitôt de même, en séance. Comment : le
-skill `socle-request`. Un sujet dont la spécification dépend d'une intention
+skill `socle-request`. Un besoin dont la spécification dépend d'une intention
 que la mémoire ne dit pas se cadre d'abord par des questions ouvertes
 (`socle new request --questions`) ; une spécification se soumet avant son
 code.
@@ -84,18 +84,18 @@ et les dix dernières décisions, sous une borne ; ce qu'une ligne `!! coupé`
 dit manquer se lit aussitôt. Le reste se lit quand il sert, sans attendre
 qu'on le demande :
 
-- un identifiant cité (`F-`, `B-`, `ADR-`, `D-`, `J-`) se lit avant de
+- un identifiant cité (`F-`, `B-`, `T-`, `L-`, `JA-`, `ADR-`, `D-`, `J-`) se lit avant de
   s'appuyer dessus : `python3 .socle/socle show <ID>`, qui donne aussi son
   empreinte ;
 - avant une décision de conception, `socle show --index decisions` dit si
   elle est déjà prise : on ne la rouvre pas sans fait nouveau ;
-- avant d'ouvrir un sujet, le backlog (`socle show --index backlog`) dit
-  s'il existe déjà ;
+- avant d'ouvrir une entrée du backlog, son index (`socle show --index
+  backlog`) dit si elle existe déjà ;
 - pour savoir pourquoi une chose est ainsi, chercher dans le journal
   (`grep -rn "<mot>" memory/journal/`).
 
-La lecture se prouve : une décision, une demande ou un sujet de backlog
-nouveaux citent ce qu'ils ont lu avec son empreinte (`ADR-NNNN@xxxxxxxx`,
+La lecture se prouve : une décision, une demande ou une entrée du backlog
+nouvelles citent ce qu'elles ont lu avec son empreinte (`ADR-NNNN@xxxxxxxx`,
 `lu : decisions@…`, `lu : backlog@…`). Une empreinte périmée ou inventée est
 refusée ; il faut relire l'entrée. `socle new` pose l'empreinte de l'index.
 
@@ -120,24 +120,26 @@ se cite dans le texte.
 
 ### Livrer le travail
 
-Tant que rien ne revient à l'humain, l'agent enchaîne les sujets prêts
+Tant que rien ne revient à l'humain, l'agent enchaîne les tâches prêtes
 sans attendre de message. Il annonce d'abord le lot, pas forcément tout ce
-qui est prêt (les sujets, leur taille, le jalon qu'ils servent ; un sujet de
-priorité basse s'il est commode), puis s'y met ; il s'arrête à la fin du
-lot, ou dès qu'une décision revient à l'humain. Il ne change pas une
-priorité que l'humain a donnée. Le lot se forme en balayant tout le
-backlog ouvert ; un sujet ouvert ensuite rejoint le prochain lot dont la
-règle s'applique à lui, jamais celui en cours. Il se garde au backlog
-(`forme : lot`) et se mène selon le skill `socle-batch`. Avant le push d'un lot qui change
+qui est prêt (les tâches, leur taille, le jalon qu'elles servent ; une
+tâche de priorité basse si elle est commode), puis s'y met ; il s'arrête à
+la fin du lot, ou dès qu'une décision revient à l'humain. Il ne change pas
+une priorité que l'humain a donnée. Un besoin sans tâche ouverte se
+découpe d'abord en tâches. Le lot se forme en balayant tout le backlog
+ouvert ; une tâche ouverte ensuite rejoint le prochain lot dont la règle
+s'applique à elle, jamais celui en cours. Il se garde au backlog
+(`socle new batch`) et se mène selon le skill `socle-batch`. Avant le push d'un lot qui change
 du code, une spécification ou un test, il le fait relire par un relecteur
-sans contexte, contre le « Fait quand » de ses sujets (le skill
-`socle-review`). Un sujet dont la conception n'est pas tranchée écrit sa
-spécification avant son code ; un sujet qui pose ou change un garde-fou,
+sans contexte, contre le « Fait quand » de ses tâches (le skill
+`socle-review`). Un besoin dont la conception n'est pas tranchée écrit sa
+spécification avant son code ; un besoin qui pose ou change un garde-fou,
 son modèle de menace (sa section `## Modèle de menace`, ou la décision
 qu'il cite). Seuls les constats bloquants se corrigent dans le lot ; un
 autre va au backlog s'il peut se produire dans l'usage normal du projet,
 ou si rien ne rattrape ensuite son effet ; sinon, exotique et rattrapé,
-ou infondé, il s'écarte. Une forme du shell qu'un agent n'écrit pas dans
+ou infondé, il s'écarte. Au backlog, il devient une tâche si sa
+correction est claire, un besoin sinon. Une forme du shell qu'un agent n'écrit pas dans
 son travail, et qui échappe au hook, s'écarte quel qu'en soit l'effet :
 le guide donne la liste des formes connues. Le récap dit les constats, et pourquoi chaque
 écarté l'est.
@@ -145,7 +147,7 @@ le guide donne la liste des formes connues. Le récap dit les constats, et pourq
 Par défaut, tout se fait sur une branche de développement, avec une seule
 pull request ouverte à la fois : chaque lot fini s'y ajoute, l'humain la
 fusionne quand il veut, et la branche repart alors de la branche par
-défaut. Une pull request par sujet, seulement si l'humain l'a choisi (un
+défaut. Une pull request par tâche, seulement si l'humain l'a choisi (un
 fait de la mémoire le dit). Une session neuve qui trouve ouverte la pull
 request d'une autre demande à l'humain de la fusionner d'abord, ou de
 l'autoriser à y continuer. Un prototype qu'on ne compte pas fusionner se
@@ -157,8 +159,8 @@ des garde-fous (`proto/` par défaut) : la CI ne la juge pas aux envois.
 - `python3 .socle/socle verify --fast` passe (le hook `Stop` le vérifie) ; `verify` exécute tout.
 - Si du code a changé, la mémoire aussi : chantier actif, journal, backlog.
 - Si du code associé à une doc a changé (`[[docmap]]` des garde-fous), la doc change dans le même travail, ou le commit qui change ce code porte le trailer `Dispense-doc: <raison>`, qui ne vaut que pour lui.
-- Un correctif (sujet `fix:` ou trailer `Corrige: B-NNNN`) livre un test qui échoue sur le commit parent.
-- Une fonction publique ajoutée ou modifiée est nommée par au moins un test, ou un commit la dispense nommément avec sa raison (`Dispense-test: f, g — <raison>`). Du code existant découvert sans test : le test s'écrit tout de suite s'il est dans le périmètre du travail, sinon un sujet va au backlog.
+- Un correctif (titre `fix:` ou trailer `Corrige: T-NNNN`) livre un test qui échoue sur le commit parent.
+- Une fonction publique ajoutée ou modifiée est nommée par au moins un test, ou un commit la dispense nommément avec sa raison (`Dispense-test: f, g — <raison>`). Du code existant découvert sans test : le test s'écrit tout de suite s'il est dans le périmètre du travail, sinon un besoin va au backlog.
 - Une action que seul l'humain peut faire (refusée par le hook, réglage d'un service, fichier qu'il détient) va au backlog avec `pour : humain`.
 - **Toute intervention qui a agi se termine par un récap, puis deux lignes** : `Pour toi :` — ce qui revient à l'humain, décisions en attente et actions à faire, ou « rien » —, chaque point compréhensible sans le raisonnement de l'agent (ce que c'est, pourquoi, ce que change sa réponse), et `Ensuite :` — la suite proposée (prochain jalon, ce qu'il reste à faire avant), et ce que l'agent attend s'il attend quelque chose (une CI, un match : quoi, et jusqu'à quand). L'état calcule ce qui revient à l'humain ; le hook `Stop` refuse de conclure sans les deux lignes.
 - **Un fichier à lire, ou une pull request, se donne par son lien** : l'humain lit dans la conversation ou sur GitHub, pas dans le conteneur de l'agent. `python3 .socle/socle url <chemin|ID>` donne le permalien, une fois le fichier poussé ; une demande en attente citée sans son lien, un lien relatif, ou un chemin entre accents graves qui n'existe pas dans le dépôt font refuser la fin du tour. Un chemin d'un autre dépôt s'écrit `depot:chemin`, le dépôt lié quelque part dans le projet par son adresse (à défaut, déclaré dans `[references] repos` des garde-fous) ; un dépôt inconnu est signalé.

@@ -39,7 +39,7 @@ format lisible par script :
 | Chantier actif | le travail en cours et les prochaines étapes |
 | Décisions | une décision par fichier, avec ses raisons |
 | Journal | une entrée datée par événement, en ajout seul |
-| Backlog | les sujets à traiter, un par fichier, dans leur ordre : ce que chacun attend, sa priorité, les jalons, et ce qui le rend fait |
+| Backlog | le travail à faire, une entrée par fichier, en quatre formes : le besoin (un défaut à corriger, une fonction à ajouter), la tâche qui le sert, le lot de tâches menées et relues ensemble, le jalon qui réunit des besoins ; chacune avec ce qu'elle attend, sa priorité et ce qui la rend faite |
 | Demandes | les décisions qui attendent l'humain, puis sa réponse |
 
 À chaque session, l'agent reçoit l'état du projet, calculé depuis git et la
@@ -67,7 +67,7 @@ un seuil, supprimer un test, changer un résultat attendu) fait l'objet
 d'une **demande** : un document qui se lit sans le contexte de la session,
 avec les options et une recommandation. L'humain répond dans la
 conversation ; la réponse est consignée mot pour mot. Quand son intention
-manque pour spécifier un sujet, l'agent lui pose des questions ouvertes
+manque pour spécifier un besoin, l'agent lui pose des questions ouvertes
 plutôt que de deviner ; chaque spécification lui est soumise avant son
 code.
 
@@ -75,11 +75,13 @@ code.
 validation. Les fichiers qui encadrent l'agent (politique, hooks, CI) ne
 changent qu'avec l'accord de l'humain.
 
-**Le rythme.** Tant que rien n'attend l'humain, l'agent enchaîne les sujets
-prêts, par lots qu'il annonce avant de s'y mettre. Avant de livrer un lot,
+**Le rythme.** Tant que rien n'attend l'humain, l'agent enchaîne les tâches
+prêtes, par lots qu'il annonce avant de s'y mettre. Avant de livrer un lot,
 il le fait relire par un autre agent, qui n'a pas sa conversation et
 cherche ce que les contrôles ne voient pas : un code qui passe ses tests
-mais contredit la décision qu'il applique. Il livre sur une seule
+mais contredit la décision qu'il applique. Un lot garde l'historique de ses revues :
+quand il tourne en rond, l'agent s'en aperçoit lui-même et soumet à
+l'humain une proposition pour en sortir. Il livre sur une seule
 pull request ouverte à la fois, que l'humain fusionne quand il veut. Chaque
 intervention se termine par ce qui revient à l'humain, chaque point
 compréhensible seul, et par la suite prévue.

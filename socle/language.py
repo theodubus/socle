@@ -41,16 +41,20 @@ CHAMPS = {
     "sujet": {"fr": "sujet", "en": "about"},
     "apres": {"fr": "après", "en": "after"},
     "priorite": {"fr": "priorité", "en": "priority"},
+    "besoin": {"fr": "besoin", "en": "need"},
+    "ancien": {"fr": "ancien", "en": "former"},
 }
 
-# Statuts, par type d'entrée : « abandoned » est un sujet abandonné ou une
-# décision abandonnée selon le type.
+# Statuts, par type d'entrée : « abandoned » est une entrée du backlog
+# abandonnée ou une décision abandonnée selon le type. Les quatre formes du
+# backlog (ADR-0083) ont les mêmes.
+_STATUTS_BACKLOG = {"ouvert": {"fr": "ouvert", "en": "open"}, "en-cours": {"fr": "en cours", "en": "in progress"},
+                    "bloque": {"fr": "bloqué", "en": "blocked"}, "fait": {"fr": "fait", "en": "done"},
+                    "abandonne": {"fr": "abandonné", "en": "abandoned"}}
 STATUTS = {
     "F": {"mesure": {"fr": "mesuré", "en": "measured"}, "suppose": {"fr": "supposé", "en": "assumed"},
           "refute": {"fr": "réfuté", "en": "refuted"}, "valide": {"fr": "validé", "en": "validated"}},
-    "B": {"ouvert": {"fr": "ouvert", "en": "open"}, "en-cours": {"fr": "en cours", "en": "in progress"},
-          "bloque": {"fr": "bloqué", "en": "blocked"}, "fait": {"fr": "fait", "en": "done"},
-          "abandonne": {"fr": "abandonné", "en": "abandoned"}},
+    **{t: _STATUTS_BACKLOG for t in ("B", "T", "L", "JA")},
     "ADR": {"proposee": {"fr": "proposée", "en": "proposed"}, "acceptee": {"fr": "acceptée", "en": "accepted"},
             "remplacee": {"fr": "remplacée", "en": "superseded"}, "rejetee": {"fr": "rejetée", "en": "rejected"},
             "abandonnee": {"fr": "abandonnée", "en": "abandoned"}},
@@ -61,9 +65,29 @@ VALEURS = {"humain": {"fr": "humain", "en": "human"}, "seance": {"fr": "séance"
            "jalon": {"fr": "jalon", "en": "milestone"}, "lot": {"fr": "lot", "en": "batch"},
            "haute": {"fr": "haute", "en": "high"}, "basse": {"fr": "basse", "en": "low"}}
 
-# La section d'un sujet du backlog qui dit ce qui le rend fait (D-0064) :
-# des cases à cocher, toutes cochées avant de le clore « fait ».
+# La section d'une tâche (et d'un lot ou d'un jalon qui en a une) qui dit ce
+# qui la rend faite (D-0064) : des cases à cocher, toutes cochées avant de la
+# clore « fait ». Celle d'un besoin dit le résultat qui le satisfait
+# (ADR-0083).
 FAIT_QUAND = {"fr": "Fait quand", "en": "Done when"}
+SATISFAIT_QUAND = {"fr": "Satisfait quand", "en": "Satisfied when"}
+
+# La section « Revues » d'un lot (D-0124, ADR-0084) : ses passes de revue,
+# leurs bloquants et le regard du relecteur sur chacun, puis le recul et sa
+# décision. `socle review` en écrit une part, l'agent le reste ; le moteur
+# relit les deux.
+REVUES = {
+    "revues": {"fr": "Revues", "en": "Reviews"},
+    "passe": {"fr": "Passe", "en": "Pass"},
+    "commits": {"fr": "Commits", "en": "Commits"},
+    "bloquant": {"fr": "Bloquant", "en": "Blocker"},
+    "ouvre": {"fr": "Ouvre", "en": "Opens"},
+    "meme-cause": {"fr": "même cause", "en": "same cause"},
+    "cause-nouvelle": {"fr": "cause nouvelle", "en": "new cause"},
+    "recul": {"fr": "Recul", "en": "Step back"},
+    "continuer": {"fr": "continuer", "en": "continue"},
+    "s-arreter": {"fr": "s'arrêter", "en": "stop"},
+}
 
 # L'en-tête d'un fichier : `<!-- socle: couche=canonique zone=publique -->`.
 ENTETE = {"couche": {"fr": "couche", "en": "layer"}, "zone": {"fr": "zone", "en": "zone"}}
@@ -143,16 +167,34 @@ TEXTES = {
 SQUELETTES = {
     "fr": {
         "F": "> statut : supposé · source : <d'où vient ce fait>\n\n<le fait, et ce qui le prouverait>",
-        "B": "> statut : ouvert · origine : <J-… ou commit:… où le sujet est apparu> · lu : backlog@{lu}\n\n"
-             "<ce qu'il faut faire, et pourquoi>",
+        "B": "> statut : ouvert · origine : <J-… ou commit:… où le besoin est apparu> · lu : backlog@{lu}\n\n"
+             "<le défaut à corriger ou la fonction à ajouter : ses constats ou sa motivation, et sa spécification "
+             "s'il n'est pas tranché>\n\n## Satisfait quand\n\n- [ ] <un résultat, jamais une implémentation>",
+        "T": "> statut : ouvert · origine : <J-… ou commit:… où la tâche est apparue> · besoin : {besoin} · "
+             "lu : backlog@{lu}\n\n<le livrable, en principe un commit>\n\n## Fait quand\n\n"
+             "- [ ] <ce qu'un test vérifie>",
+        "L": "> statut : ouvert · origine : <J-… ou commit:… où le lot est formé> · lu : backlog@{lu}\n\n"
+             "<ce qui réunit ses tâches, les fichiers qu'elles touchent ; son `après` nomme le lot d'avant, puis "
+             "ses tâches>",
+        "JA": "> statut : ouvert · origine : <J-… ou commit:… où le jalon est posé> · lu : backlog@{lu}\n\n"
+              "<le but que servent ses besoins ; son `après` nomme le jalon d'avant, puis ses besoins>",
         "J": "<ce qui s'est passé, avec ses références>",
         "ADR": "> statut : proposée · date : {date} · lu : decisions@{lu}\n\n## Contexte\n\n<ce qui oblige à décider>\n\n"
                "## Décision\n\n<ce qui est décidé>\n\n## Conséquences\n\n<ce que ça change, et comment le défaire>",
     },
     "en": {
         "F": "> status : assumed · source : <where this fact comes from>\n\n<the fact, and what would prove it>",
-        "B": "> status : open · origin : <J-… or commit:… where the topic came up> · read : backlog@{lu}\n\n"
-             "<what to do, and why>",
+        "B": "> status : open · origin : <J-… or commit:… where the need came up> · read : backlog@{lu}\n\n"
+             "<the defect to fix or the feature to add: its findings or its motivation, and its specification "
+             "if it is not settled>\n\n## Satisfied when\n\n- [ ] <a result, never an implementation>",
+        "T": "> status : open · origin : <J-… or commit:… where the task came up> · need : {besoin} · "
+             "read : backlog@{lu}\n\n<the deliverable, as a rule one commit>\n\n## Done when\n\n"
+             "- [ ] <what a test checks>",
+        "L": "> status : open · origin : <J-… or commit:… where the batch is formed> · read : backlog@{lu}\n\n"
+             "<what brings its tasks together, the files they touch; its `after` names the previous batch, then "
+             "its tasks>",
+        "JA": "> status : open · origin : <J-… or commit:… where the milestone is set> · read : backlog@{lu}\n\n"
+              "<the goal its needs serve; its `after` names the previous milestone, then its needs>",
         "J": "<what happened, with its references>",
         "ADR": "> status : proposed · date : {date} · read : decisions@{lu}\n\n## Context\n\n<what forces a decision>\n\n"
                "## Decision\n\n<what is decided>\n\n## Consequences\n\n<what it changes, and how to undo it>",

@@ -11,7 +11,7 @@ from socle.private import acces, mode
 
 # Les entrées qu'une bascule déplace : une demande se lit là où l'humain lit,
 # elle se retire et se pose à nouveau en privé.
-BASCULABLES = ("F", "B", "J", "ADR")
+BASCULABLES = ("F", "B", "T", "L", "JA", "J", "ADR")
 
 
 def basculer(projet: config.Projet, ident: str, jour: str) -> list[str]:
@@ -37,8 +37,8 @@ def basculer(projet: config.Projet, ident: str, jour: str) -> list[str]:
         raise ValueError(trad("une demande se lit là où l'humain lit : la retirer (`retirée : <raison>` dans "
                               'ses métadonnées) et en poser une privée (`socle new request "…" --private`)'))
     if e.type not in BASCULABLES:
-        raise ValueError(trad("`{ident}` : seuls un fait, un sujet, une entrée de journal ou une décision se "
-                              "basculent", ident=ident))
+        raise ValueError(trad("`{ident}` : seuls un fait, une entrée du backlog, une entrée de journal ou une "
+                              "décision se basculent", ident=ident))
     if e.archivee:
         raise ValueError(trad("`{ident}` est archivée dans `{parent}` : c'est cette entrée de journal qui se "
                               "bascule", ident=ident, parent=e.parent))
@@ -51,11 +51,11 @@ def basculer(projet: config.Projet, ident: str, jour: str) -> list[str]:
     lg = langue.du_projet(projet)
     copie = _copie_privee(e, nouvel, lg)
     fichier = mem.fichiers[e.fichier]
-    # Une décision et un sujet du backlog ont chacun leur fichier : il se
+    # Une décision et une entrée du backlog ont chacune leur fichier : il se
     # copie en privé, et un fichier public garde l'identifiant.
-    propre = {"ADR": ch.decisions, "B": ch.backlog}.get(e.type)
+    propre = ch.decisions if e.type == "ADR" else ch.backlog if e.type in memoire.BACKLOG else None
     if propre and e.fichier.startswith(propre + "/"):
-        # Le dossier du fichier, pas celui de la couche : un sujet clos garde
+        # Le dossier du fichier, pas celui de la couche : une entrée close garde
         # sa place parmi les clos, en public comme en privé.
         couche, (dossier, nom) = memoire.TYPES[e.type], e.fichier.rsplit("/", 1)
         prive_rel = ch.dans_prive(f"{dossier}/{nouvel}{nom[len(ident):]}")

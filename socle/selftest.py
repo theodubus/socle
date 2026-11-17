@@ -112,6 +112,22 @@ BACKLOG_ESSAI = """
 
 Demandé pour l'essai.
 """
+# La section d'un besoin nouveau (ADR-0083).
+SATISFAIT_ESSAI = "\n## Satisfait quand\n\n- [ ] le module le fait\n"
+
+
+def tache_essai(a, c: Path, statut: str = "ouvert", criteres: str = "- [x] le test passe") -> str:
+    """La tâche T-0001 du besoin B-0001, dans sa forme : son besoin, sa
+    lecture de l'index, son « Fait quand »."""
+    return (f"\n## T-0001 — Écrire triple et son test\n\n> statut : {statut} · origine : {a.journal} · "
+            f"besoin : B-0001 · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n\n"
+            f"## Fait quand\n\n{criteres}\n")
+
+
+def lot_essai(a, c: Path, ident: str, apres: str, champs: str = "") -> str:
+    """Un lot qui attend `apres`."""
+    return (f"\n## {ident} — Le lot de la multiplication\n\n> statut : ouvert · origine : {a.journal} · "
+            f"après : {apres}{champs} · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
 
 
 @dataclass
@@ -633,7 +649,7 @@ def _collision(a: "Atelier", c: Path) -> str:
 
     def prendre(titre: str):
         ajouter_sujet(c, f"\n## B-0002 — {titre}\n\n> statut : ouvert · origine : {a.journal} · "
-                f"lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
+                f"lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n{SATISFAIT_ESSAI}")
 
     a.git(c, "switch", "-q", "-c", "autre")
     prendre("Documenter le module")
@@ -646,12 +662,13 @@ def _collision(a: "Atelier", c: Path) -> str:
 
 
 def ajouter_sujet(c: Path, bloc: str):
-    """Un sujet de plus au backlog, écrit `## B-… — titre`, ses métadonnées,
-    son corps : dans son propre fichier, son titre remonté d'un niveau."""
+    """Une entrée de plus au backlog, écrite `## B-… — titre` (ou `T-`,
+    `L-`, `JA-`), ses métadonnées, son corps : dans son propre fichier, son
+    titre remonté d'un niveau."""
     from socle import config, memory as memoire, utils as outils
 
     ch = config.FORMAT_ACTUEL
-    m = re.match(r"\s*## (B-\d{4}) — (.+)", bloc)
+    m = re.match(r"\s*## ((?:B|T|L|JA)-\d{4}) — (.+)", bloc)
     texte = "<!-- socle: couche=backlog zone=publique -->\n" + bloc.strip("\n").replace("## ", "# ", 1) + "\n"
     rel = f"{ch.backlog}/{m[1]}-{memoire.nom_de_fichier(m[2])}.md"
     # Un sujet clos va d'emblée avec les clos.
@@ -672,6 +689,96 @@ def _clore(c: Path, ident: str):
     p = c / _sujet(c, ident)
     p.write_text(re.sub(r"(?m)^> statut : ouvert( · [^\n]*)?$",
                         lambda m: "> statut : fait" + (m[1] or "") + " · ref : fichier:calc.py", p.read_text(), count=1))
+
+
+def _renumeroter_en_lot(c: Path, ident: str) -> str:
+    """Le besoin `ident`, écrit lot comme avant ADR-0083 (`forme : lot`),
+    renuméroté par la migration de la mise à jour : il prend le préfixe `L-`
+    et garde son ancien numéro (`ancien : ident`). Rend son numéro nouveau,
+    que les branches d'autres cas, poussées sur l'origine, peuvent décaler."""
+    from socle import migration
+
+    remplacer(c, _sujet(c, ident), "> statut : ouvert", "> statut : ouvert · forme : lot")
+    return dict(migration.migrer_backlog(c).renumerotees)[ident]
+
+
+def _citer_par_l_ancien_numero(a: Atelier, c: Path, ancien: str, h: str):
+    """Une entrée de journal qui cite une entrée renumérotée par son ancien
+    numéro, sous l'empreinte `h`."""
+    ajouter(c, "memory/journal/" + a.journal[2:9] + ".md",
+            f"\n## {a.journal[:-1]}B — Constat\n\nVoir {ancien}@{h}.\n")
+    maj_memoire(c, "Le backlog migré en quatre formes.")
+
+
+# L'historique des revues d'un lot (ADR-0084) : les corrections successives
+# du code, une par passe, et ce que l'agent consigne au retour du relecteur.
+CORRECTIONS = ("return x * FACTEUR", "return (x * FACTEUR)", "return (FACTEUR * x)", "return ((x * FACTEUR))",
+               "return FACTEUR * (x)")
+
+
+def _recul_essai(decision: str, demande: str = "") -> str:
+    """Un recul d'au moins soixante mots, qui finit par `decision`."""
+    return ("\nRecul : les bloquants de cette passe n'ont pas la cause de ceux de la précédente ; les entrées que "
+            "le lot ouvre sont de la nature de celles qu'il ferme, des corrections du module de calcul ; aucun lot "
+            "clos qui a touché ces fichiers n'en a ouvert de semblables" + (f", et la demande {demande} le dit"
+                                                                             if demande else "") +
+            ". La passe suivante ne relira que la correction de la multiplication, avec le test qui la prouve, ce "
+            f"qui la rend différente de celle-ci, et de toutes celles qui la précèdent dans ce lot : {decision}.\n")
+
+
+def _bloquant_essai(regard: str = "") -> str:
+    return f"\n- Bloquant : la correction change la lecture du facteur{regard}\n- Ouvre : rien\n"
+
+
+def _passes(a: Atelier, c: Path, consignes: list[str]) -> str:
+    """Le lot L-0001 en cours, qui attend la tâche T-0001 ; puis, pour
+    chaque consigne, une correction du code commitée, une passe de `socle
+    review` et la consigne ajoutée au lot ; enfin une passe de plus : la
+    sortie de `socle review` s'il la refuse, rien s'il la produit."""
+    ajouter_sujet(c, tache_essai(a, c))
+    ajouter_sujet(c, lot_essai(a, c, "L-0001", "T-0001").replace("> statut : ouvert", "> statut : en cours"))
+    precedent = "return FACTEUR * x"
+    for i, consigne in enumerate([*consignes, None]):
+        remplacer(c, "calc.py", precedent, CORRECTIONS[i])
+        precedent = CORRECTIONS[i]
+        a.commit(c, f"la passe {i + 1}")
+        r = a.socle(c, "review")
+        if consigne is None:
+            return "" if r.returncode == 0 else r.stdout + r.stderr
+        if r.returncode != 0:
+            raise RuntimeError(r.stdout + r.stderr)
+        ajouter(c, _sujet(c, "L-0001"), consigne)
+    return ""
+
+
+def _lot_relu_clos(a: Atelier, c: Path, *suivantes: str):
+    """La tâche T-0001 faite, et le lot L-0001 qui l'attendait clos « fait »,
+    sa passe 1 suivie de son recul, puis une passe par consigne de
+    `suivantes`, à partir de la deuxième."""
+    revues = ("\n## Revues\n\n### Passe 1 — 2026-11-16\n\nCommits : 1a2b3c4..5d6e7f8\n" + _bloquant_essai() +
+              _recul_essai("continuer"))
+    for i, consigne in enumerate(suivantes, start=2):
+        revues += f"\n### Passe {i} — 2026-11-{15 + i}\n\nCommits : 5d6e7f8..9a8b7c6\n" + consigne
+    ajouter_sujet(c, tache_essai(a, c, statut="fait · ref : fichier:calc.py"))
+    ajouter_sujet(c, lot_essai(a, c, "L-0001", "T-0001", " · ref : fichier:calc.py").replace(
+        "> statut : ouvert", "> statut : fait") + revues)
+    maj_memoire(c, "Le lot de la multiplication relu et clos.")
+
+
+def _demande_du_lot(a: Atelier, c: Path, empreinte_du_lot: str = "") -> str:
+    """La demande D-0001 d'un arrêt du lot L-0001 : elle cite le lot, que
+    seule sa réponse débloque (ADR-0084, point 6), avec son empreinte quand
+    un contrôle juge la demande."""
+    h = f"@{empreinte_du_lot}" if empreinte_du_lot else ""
+    return demande_bonne(a, c).replace(
+        "## Où regarder", f"- L-0001{h} — le lot qui s'est arrêté sur cette question.\n\n## Où regarder", 1)
+
+
+def _lot_clos_sur_un_arret(a: Atelier, c: Path):
+    """Le lot L-0001 clos « fait » sur un arrêt à sa passe 2, et la demande
+    D-0001 de cet arrêt, qui le cite, encore sans réponse."""
+    _lot_relu_clos(a, c, _bloquant_essai(" · même cause") + _recul_essai("s'arrêter", "D-0001"))
+    (c / "memory/requests/D-0001-refactor.md").write_text(_demande_du_lot(a, c, empreinte(a, c, "L-0001")))
 
 
 def _declarer_ui_tierce(a: Atelier, c: Path):
@@ -1244,11 +1351,11 @@ def _cas() -> list[Cas]:
         remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : ouvert · après : B-0001")
         return etage_git(a, c)
 
-    @defaut("fait-avant-ce-qu-il-attend", "jalon fait alors que la tâche qu'il attend est ouverte", "git",
+    @defaut("fait-avant-ce-qu-il-attend", "jalon fait alors que le besoin qu'il attend est ouvert", "git",
             "memoire.ordre")
     def _(a, c):
-        ajouter_sujet(c, "\n## B-0002 — Livrer la multiplication\n\n"
-                         f"> statut : fait · origine : {a.journal} · ref : fichier:calc.py · forme : jalon · "
+        ajouter_sujet(c, "\n## JA-0001 — Livrer la multiplication\n\n"
+                         f"> statut : fait · origine : {a.journal} · ref : fichier:calc.py · "
                          f"après : B-0001 · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
         return etage_git(a, c)
 
@@ -1271,13 +1378,168 @@ def _cas() -> list[Cas]:
                          f"lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
         return etage_git(a, c)
 
-    @defaut("fait-avec-critere-ouvert", "sujet fait avec un critère de « Fait quand » non coché", "git",
+    @defaut("fait-avec-critere-ouvert", "tâche faite avec un critère de « Fait quand » non coché", "git",
             "memoire.backlog")
     def _(a, c):
-        ajouter_sujet(c, "\n## B-0002 — Livrer la multiplication\n\n"
-                         f"> statut : fait · origine : {a.journal} · ref : fichier:calc.py · "
-                         f"lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n\n"
-                         "## Fait quand\n\n- [x] le test passe\n- [ ] le guide le dit\n")
+        ajouter_sujet(c, tache_essai(a, c, statut="fait · ref : fichier:calc.py",
+                                     criteres="- [x] le test passe\n- [ ] le guide le dit"))
+        return etage_git(a, c)
+
+    @defaut("besoin-fait-case-vide", "besoin fait, sa tâche faite, avec un critère de « Satisfait quand » non "
+            "coché", "git", "memoire.backlog")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c, statut="fait · ref : fichier:calc.py"))
+        remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : fait · ref : fichier:calc.py")
+        ajouter(c, _sujet(c, "B-0001"), "\n## Satisfait quand\n\n- [x] triple existe\n- [ ] le guide le dit\n")
+        return etage_git(a, c)
+
+    # La structure du backlog (ADR-0083) : un refus, un défaut.
+
+    @defaut("forme-ecrite", "entrée ouverte du backlog qui écrit encore `forme`", "git", "memoire.formes")
+    def _(a, c):
+        remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : ouvert · forme : lot")
+        return etage_git(a, c)
+
+    @defaut("besoin-hors-d-une-tache", "besoin qui écrit `besoin`, le champ d'une tâche", "git", "memoire.formes")
+    def _(a, c):
+        remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : ouvert · besoin : B-0001")
+        return etage_git(a, c)
+
+    @defaut("priorite-d-un-lot", "lot qui écrit une priorité, lui qui n'est jamais prêt", "git", "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c))
+        ajouter_sujet(c, lot_essai(a, c, "L-0001", "T-0001", " · priorité : haute"))
+        return etage_git(a, c)
+
+    @defaut("tache-sans-besoin", "tâche qui ne nomme pas son besoin", "git", "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c).replace(" · besoin : B-0001", ""))
+        return etage_git(a, c)
+
+    @defaut("besoin-qui-n-est-pas-un-besoin", "tâche dont le champ `besoin` nomme un lot, et non un besoin", "git",
+            "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c).replace(" · besoin : B-0001", " · besoin : L-0001"))
+        ajouter_sujet(c, lot_essai(a, c, "L-0001", "T-0001"))
+        return etage_git(a, c)
+
+    @defaut("tache-nouvelle-sans-section", "tâche nouvelle sans sa section « Fait quand »", "git", "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c).split("\n## Fait quand")[0] + "\n")
+        return etage_git(a, c)
+
+    @defaut("tache-dans-deux-lots", "tâche que deux lots attendent", "git", "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c))
+        ajouter_sujet(c, lot_essai(a, c, "L-0001", "T-0001"))
+        ajouter_sujet(c, lot_essai(a, c, "L-0002", "T-0001"))
+        return etage_git(a, c)
+
+    @defaut("lot-qui-attend-un-besoin", "lot qui attend un besoin, et non sa tâche", "git", "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, lot_essai(a, c, "L-0001", "B-0001"))
+        return etage_git(a, c)
+
+    @defaut("apres-par-un-ancien-numero", "`après` qui nomme l'ancien numéro d'une entrée renumérotée", "git",
+            "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c))
+        ajouter_sujet(c, lot_essai(a, c, "L-0001", "T-0001", " · ancien : B-0002"))
+        remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : ouvert · après : B-0002")
+        return etage_git(a, c)
+
+    @defaut("ancien-numero-reattribue", "entrée nouvelle sous l'ancien numéro d'une entrée renumérotée", "git",
+            "memoire.format")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c))
+        ajouter_sujet(c, lot_essai(a, c, "L-0001", "T-0001", " · ancien : B-0001"))
+        return etage_git(a, c)
+
+    @defaut("besoin-clos-tache-ouverte", "besoin abandonné avec sa tâche encore ouverte", "git", "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c))
+        remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : abandonné · ref : fichier:calc.py")
+        return etage_git(a, c)
+
+    @defaut("besoin-fait-sans-tache-faite", "besoin fait sans aucune tâche faite", "git", "memoire.formes")
+    def _(a, c):
+        remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : fait · ref : fichier:calc.py")
+        return etage_git(a, c)
+
+    @defaut("fait-quand-d-un-besoin", "besoin ouvert dont la section est « Fait quand », celle d'une tâche", "git",
+            "memoire.formes")
+    def _(a, c):
+        ajouter(c, _sujet(c, "B-0001"), "\n## Fait quand\n\n- [ ] triple existe\n")
+        return etage_git(a, c)
+
+    @defaut("satisfait-quand-d-une-tache", "tâche ouverte qui porte « Satisfait quand », la section d'un besoin",
+            "git", "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c) + SATISFAIT_ESSAI)
+        return etage_git(a, c)
+
+    @defaut("besoin-nouveau-sans-section", "besoin nouveau sans sa section « Satisfait quand »", "git",
+            "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, "\n## B-0002 — Ajouter une fonction quadruple\n\n"
+                         f"> statut : ouvert · origine : {a.journal} · lu : backlog@{empreinte(a, c, 'backlog')}"
+                         "\n\nPour l'essai.\n")
+        return etage_git(a, c)
+
+    # L'historique des revues d'un lot (ADR-0084, D-0124 point 8) : deux refus
+    # de `socle review`, et celui du contrôle à la clôture ; puis l'arrêt.
+
+    @defaut("passe-sans-recul", "deuxième passe de revue d'un lot sans le recul de la première", "revue",
+            "revue sans recul")
+    def _(a, c):
+        return _passes(a, c, [_bloquant_essai()])
+
+    @defaut("continuer-apres-deux-causes-revenues", "« continuer » après deux passes de suite où le relecteur voit "
+            "une même cause revenir", "revue", "continuer refusé")
+    def _(a, c):
+        return _passes(a, c, [_bloquant_essai() + _recul_essai("continuer"),
+                              _bloquant_essai(" · même cause") + _recul_essai("continuer"),
+                              _bloquant_essai(" · même cause : passe 2") + _recul_essai("continuer")])
+
+    @defaut("lot-arrete-sans-reponse", "passe de plus d'un lot arrêté dont la demande attend sa réponse", "revue",
+            "lot arrêté")
+    def _(a, c):
+        (c / "memory/requests/D-0001-refactor.md").write_text(_demande_du_lot(a, c))
+        return _passes(a, c, [_bloquant_essai() + _recul_essai("s'arrêter", "D-0001")])
+
+    @defaut("lot-arrete-sur-une-autre-demande", "passe de plus d'un lot arrêté sur une demande ancienne, répondue, "
+            "qui ne cite pas le lot", "revue", "arrêt non levé")
+    def _(a, c):
+        (c / "memory/requests/D-0001-refactor.md").write_text(demande_bonne(a, c))
+        (c / "memory/requests/D-0001-refactor.answer.toml").write_text('reponse = "valider"\n')
+        return _passes(a, c, [_bloquant_essai() + _recul_essai("s'arrêter", "D-0001")])
+
+    @defaut("lot-clos-sans-recul", "lot relu clos « fait » sans le recul de sa dernière passe", "git",
+            "memoire.backlog")
+    def _(a, c):
+        _lot_relu_clos(a, c, _bloquant_essai(" · cause nouvelle"))
+        return etage_git(a, c)
+
+    # La clôture applique à la dernière passe les règles qui refuseraient une
+    # passe de plus (ADR-0084).
+
+    @defaut("lot-clos-sans-regard", "lot relu clos « fait » dont la dernière passe, la deuxième, a un bloquant sans le "
+            "regard du relecteur", "git", "memoire.backlog")
+    def _(a, c):
+        _lot_relu_clos(a, c, _bloquant_essai() + _recul_essai("continuer"))
+        return etage_git(a, c)
+
+    @defaut("lot-clos-apres-deux-causes-revenues", "lot relu clos « fait » sur « continuer » après deux passes de suite "
+            "où le relecteur voit une même cause revenir", "git", "memoire.backlog")
+    def _(a, c):
+        revenue = _bloquant_essai(" · même cause") + _recul_essai("continuer")
+        _lot_relu_clos(a, c, revenue, revenue)
+        return etage_git(a, c)
+
+    @defaut("lot-clos-arrete-sans-reponse", "lot relu clos « fait » sur un arrêt dont la demande attend sa réponse",
+            "git", "memoire.backlog")
+    def _(a, c):
+        _lot_clos_sur_un_arret(a, c)
         return etage_git(a, c)
 
     # Au-delà du tableau du cadrage.
@@ -1949,6 +2211,13 @@ def _cas() -> list[Cas]:
                 f"\n## {a.journal[:-1]}B — Constat\n\nVoir F-0001@{perimee}.\n")
         return etage_git(a, c)
 
+    @defaut("citation-par-un-ancien-numero", "entrée renumérotée citée par son ancien numéro, sous une empreinte "
+            "inventée", "git", "memoire.lectures")
+    def _(a, c):
+        _renumeroter_en_lot(c, "B-0001")
+        _citer_par_l_ancien_numero(a, c, "B-0001", "deadbeef")
+        return etage_git(a, c)
+
     @defaut("identifiant-pris-deux-fois", "identifiant que la branche par défaut a pris aussi", "ci", "memoire.collisions")
     def _(a, c):
         r = a.socle(c, "check", "--stage", "ci", "--base", _collision(a, c))
@@ -2258,15 +2527,90 @@ def _temoins() -> list[tuple[str, Callable]]:
         _poser_skill(c, SKILL_ESSAI)
         return etage_git(a, c) or etage_ci(a, c)
 
-    @temoin("un jalon qui attend une tâche ouverte, dans l'ordre, passe le commit et la CI")
+    @temoin("un jalon qui attend un besoin ouvert, dans l'ordre, passe le commit et la CI")
     def _(a, c):
-        ajouter_sujet(c, "\n## B-0002 — Livrer la multiplication\n\n"
-                         f"> statut : ouvert · origine : {a.journal} · forme : jalon · après : B-0001 · "
+        ajouter_sujet(c, "\n## JA-0001 — Livrer la multiplication\n\n"
+                         f"> statut : ouvert · origine : {a.journal} · après : B-0001 · "
                          f"lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
         maj_memoire(c, "Le jalon de la multiplication posé.")
         return etage_git(a, c) or etage_ci(a, c)
 
-    @temoin("un sujet de priorité haute fait après la réponse qu'il attendait, ses critères cochés, passe le "
+    @temoin("une entrée renumérotée par la migration, qui porte `ancien`, et sa citation par l'ancien numéro sous "
+            "l'empreinte de sa version actuelle passent le commit et la CI")
+    def _(a, c):
+        nouvel = _renumeroter_en_lot(c, "B-0001")
+        if "ancien : B-0001" not in (c / _sujet(c, nouvel)).read_text():
+            return trad("la migration n'a pas posé `ancien : B-0001` sur {id}", id=nouvel)
+        _citer_par_l_ancien_numero(a, c, "B-0001", empreinte(a, c, nouvel))
+        return etage_git(a, c) or etage_ci(a, c)
+
+    @temoin("un besoin et sa tâche posés par `socle new need --task`, un lot qui attend la tâche et un jalon qui "
+            "attend le besoin, chacun dans sa forme, passent le commit et la CI")
+    def _(a, c):
+        r = a.socle(c, "new", "need", "Ajouter une fonction quadruple", "--task", "Écrire quadruple et son test")
+        if r.returncode != 0 or "T-0001" not in r.stdout:
+            return r.stdout + r.stderr
+        for ident in ("B-0002", "T-0001"):
+            p = c / _sujet(c, ident)
+            p.write_text(re.sub(r"<J-…[^>]*>", a.journal, re.sub(r"- \[ \] <[^>]*>", "- [ ] quadruple existe",
+                                                                     p.read_text())))
+        ajouter_sujet(c, lot_essai(a, c, "L-0001", "T-0001"))
+        ajouter_sujet(c, "\n## JA-0001 — Le module complet\n\n"
+                         f"> statut : ouvert · origine : {a.journal} · après : B-0001, B-0002 · "
+                         f"lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
+        maj_memoire(c, "Le lot de la quadruple formé.")
+        return etage_git(a, c) or etage_ci(a, c)
+
+    # L'historique des revues d'un lot (ADR-0084) : le témoin sain de chaque
+    # refus de `socle review`, et celui du contrôle à la clôture.
+
+    @temoin("une deuxième passe de revue après le recul de la première, `socle review` la produit et l'écrit dans "
+            "le lot")
+    def _(a, c):
+        sortie = _passes(a, c, [_bloquant_essai() + _recul_essai("continuer")])
+        if sortie:
+            return sortie
+        return "" if "### Passe 2 — " in (c / _sujet(c, "L-0001")).read_text() else "### Passe 2 ?"
+
+    @temoin("« continuer » après une seule passe où le relecteur voit une cause revenir, `socle review` produit la "
+            "suivante")
+    def _(a, c):
+        return _passes(a, c, [_bloquant_essai() + _recul_essai("continuer"),
+                              _bloquant_essai(" · même cause") + _recul_essai("continuer"),
+                              _bloquant_essai(" · cause nouvelle") + _recul_essai("continuer")])
+
+    @temoin("un lot arrêté dont la demande, qui cite le lot, a sa réponse, `socle review` produit sa passe suivante")
+    def _(a, c):
+        (c / "memory/requests/D-0001-refactor.md").write_text(_demande_du_lot(a, c))
+        (c / "memory/requests/D-0001-refactor.answer.toml").write_text('reponse = "valider"\n')
+        return _passes(a, c, [_bloquant_essai() + _recul_essai("s'arrêter", "D-0001")])
+
+    @temoin("un lot relu clos « fait » avec le recul de sa dernière passe, et le regard du relecteur sur son "
+            "bloquant, passe le commit et la CI")
+    def _(a, c):
+        _lot_relu_clos(a, c, _bloquant_essai(" · cause nouvelle") + _recul_essai("continuer"))
+        return etage_git(a, c) or etage_ci(a, c)
+
+    @temoin("un lot relu clos « fait » sur « continuer » après une seule passe où le relecteur voit une cause revenir "
+            "passe le commit et la CI")
+    def _(a, c):
+        _lot_relu_clos(a, c, _bloquant_essai(" · même cause") + _recul_essai("continuer"),
+                       _bloquant_essai(" · cause nouvelle") + _recul_essai("continuer"))
+        return etage_git(a, c) or etage_ci(a, c)
+
+    @temoin("un lot relu clos « fait » sur un arrêt dont la demande, qui cite le lot, a sa réponse passe le commit et "
+            "la CI")
+    def _(a, c):
+        _lot_clos_sur_un_arret(a, c)
+        pousser(a, c)
+        (c / "citation.txt").write_text("oui")
+        r = a.socle(c, "answer", "D-0001", "valider", "--relayed", "--by", "Théo", "--quote-file", "citation.txt")
+        if r.returncode != 0:
+            return r.stdout + r.stderr
+        (c / "citation.txt").unlink()
+        return etage_git(a, c) or etage_ci(a, c)
+
+    @temoin("une tâche de priorité haute faite après la réponse qu'elle attendait, ses critères cochés, passe le "
             "commit et la CI")
     def _(a, c):
         (c / "memory/requests/D-0001-refactor.md").write_text(demande_bonne(a, c))
@@ -2276,10 +2620,7 @@ def _temoins() -> list[tuple[str, Callable]]:
         if r.returncode != 0:
             return r.stdout + r.stderr
         (c / "citation.txt").unlink()
-        ajouter_sujet(c, "\n## B-0002 — Livrer la multiplication\n\n"
-                         f"> statut : fait · origine : {a.journal} · ref : fichier:calc.py · après : D-0001 · "
-                         f"priorité : haute · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n\n"
-                         "## Fait quand\n\n- [x] le test passe\n")
+        ajouter_sujet(c, tache_essai(a, c, statut="fait · ref : fichier:calc.py · après : D-0001 · priorité : haute"))
         maj_memoire(c, "La multiplication livrée.")
         return etage_git(a, c) or etage_ci(a, c)
 
@@ -2732,8 +3073,9 @@ def _temoins() -> list[tuple[str, Callable]]:
         r = a.socle(c, "check", "--stage", "ci", "--base", point)
         return "" if r.returncode == 0 else r.stdout + r.stderr
 
-    @temoin("un sujet clos, rangé avec les clos par `socle archive`, passe la CI")
+    @temoin("un besoin clos après sa tâche faite, rangés avec les clos par `socle archive`, passent la CI")
     def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c, statut="fait · ref : fichier:calc.py"))
         _clore(c, "B-0001")
         r = a.socle(c, "archive")
         if r.returncode != 0 or not list((c / "memory/backlog/closed").glob("B-0001-*.md")):
@@ -2746,7 +3088,8 @@ def _temoins() -> list[tuple[str, Callable]]:
         f1 = f"F-0001@{empreinte(a, c, 'F-0001')}"
         ajouter(c, "memory/decisions/ADR-0001-une-seule-multiplication.md", ADR_ESSAI.format(lu=lu, fait=f1))
         ajouter_sujet(c, "\n## B-0002 — Ajouter une fonction quadruple\n\n"
-                f"> statut : ouvert · origine : {a.journal} · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n")
+                f"> statut : ouvert · origine : {a.journal} · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n"
+                f"{SATISFAIT_ESSAI}")
         return etage_git(a, c)
 
     @temoin("un commit d'agent fait dans un autre worktree porte la trace des hooks et passe la CI")
@@ -2927,6 +3270,12 @@ RAISONS_AGENT = {
     "geste sans valider": "que seule une réponse `valider` autorise à changer",
     "question en widget": "widget de questions de l'agent",
     "demandes.reponse-seule": "Poussée seule, elle ne couvrira pas ce changement",
+    # `socle review` ne nomme pas de contrôle non plus : il refuse une passe
+    # de revue que l'historique du lot refuse (ADR-0084).
+    "revue sans recul": "n'a pas son recul",
+    "continuer refusé": "« continuer » est refusé, le lot s'arrête",
+    "lot arrêté": "et attend la réponse à",
+    "arrêt non levé": "n'est levé par aucune des demandes que nomme son recul",
 }
 
 

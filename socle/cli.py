@@ -134,7 +134,10 @@ def cmd_next_id(args) -> int:
     return 0
 
 
-TYPES_CLI = {"fact": "F", "backlog": "B", "adr": "ADR", "journal": "J", "request": "D"}
+# Les quatre formes du backlog ont chacune leur commande (ADR-0083) ;
+# `backlog` n'en est plus une.
+TYPES_CLI = {"fact": "F", "need": "B", "task": "T", "batch": "L", "milestone": "JA", "adr": "ADR", "journal": "J",
+             "request": "D"}
 
 
 def cmd_new(args) -> int:
@@ -149,6 +152,20 @@ def cmd_new(args) -> int:
     if questions and type_ != "D":
         print(trad("`--questions` ne vaut que pour une demande (`request`)"), file=sys.stderr)
         return 2
+    besoin, tache = getattr(args, "need", None), getattr(args, "task", None)
+    if (besoin is not None) != (type_ == "T"):
+        print(trad("une tâche nomme son besoin : `socle new task \"…\" --need B-NNNN`, et `--need` ne vaut "
+                   "que pour elle"), file=sys.stderr)
+        return 2
+    if tache is not None and type_ != "B":
+        print(trad("`--task` ne vaut que pour un besoin (`need`) : il crée le besoin et sa tâche"), file=sys.stderr)
+        return 2
+    if besoin is not None:
+        cible = mem.entree(besoin)
+        if cible is None or not memoire.est_besoin(cible) or cible.statut in memoire.BACKLOG_CLOS:
+            print(trad("`--need {besoin}` : aucun besoin ouvert de ce nom ; une tâche nomme le besoin ouvert "
+                       "qu'elle sert", besoin=besoin), file=sys.stderr)
+            return 2
     # Avec une mémoire privée, le contenu nouveau est privé par défaut
     # (cadrage, règles de classement, point 3), couche par couche selon la
     # politique (`[private] layers`). Une demande ne devient privée que
@@ -182,17 +199,23 @@ def cmd_new(args) -> int:
     squelette = langue.SQUELETTES[lg].get(type_, "")
     # Ce qui s'affiche avant l'identifiant, imprimé une fois l'entrée
     # écrite : une sortie coupée (`| head -1`) ne l'empêche plus.
-    index = ""
+    index, ensuite = "", ""
     if type_ == "F":
         chemin = lieu(ch.canonique)
         _ajouter(chemin, f"\n## {ident} — {titre}\n\n{squelette}\n", langue.entete_fichier("canonique", zone, lg))
-    elif type_ == "B":
-        # Le backlog s'affiche avec le sujet ajouté : un doublon se voit ici.
+    elif type_ in memoire.BACKLOG:
+        # Le backlog s'affiche avec l'entrée ajoutée : un doublon se voit ici.
         index = _texte_index(mem, "backlog")
-        bloc = squelette.format(lu=memoire.empreinte_index(mem, "backlog"))
-        # Un fichier par sujet, comme une décision.
-        chemin = lieu(ch.backlog) / f"{ident}-{memoire.nom_de_fichier(titre)}.md"
-        outils.ecrire(chemin, f"{langue.entete_fichier('backlog', zone, lg)}\n# {ident} — {titre}\n\n{bloc}\n")
+        chemin = _poser_backlog(lieu(ch.backlog), zone, lg, ident, titre, squelette,
+                                memoire.empreinte_index(mem, "backlog"), besoin)
+        if tache is not None:
+            # Le besoin et sa tâche quand la correction est évidente : la
+            # tâche a lu l'index où son besoin figure déjà.
+            apres = memoire.Memoire.charger(racine)
+            ident_t = apres.prochain_id("T", prive=prive, pris_ailleurs=identifiants.pris_ailleurs(racine, "T"))
+            chemin_t = _poser_backlog(lieu(ch.backlog), zone, lg, ident_t, tache, langue.SQUELETTES[lg]["T"],
+                                      memoire.empreinte_index(apres, "backlog"), ident)
+            ensuite = f"{ident_t}\t{chemin_t.relative_to(racine)}"
     elif type_ == "J":
         bloc = f"\n## {ident} — {titre}\n\n{squelette}\n"
         dossier = lieu(ch.journal)
@@ -226,6 +249,8 @@ def cmd_new(args) -> int:
     if index:
         print(index)
     print(f"{ident}\t{chemin.relative_to(racine)}")
+    if ensuite:
+        print(ensuite)
     if type_ == "D":
         # Le contrat, avant qu'elle soit écrite et non au refus du lint ;
         # après l'identifiant, que la première ligne garde (ADR-0058).
@@ -233,6 +258,17 @@ def cmd_new(args) -> int:
 
         print(demandes.contrat(projet, str(Path(ch.demandes) / chemin.name), questions=questions))
     return 0
+
+
+def _poser_backlog(dossier: Path, zone: str, lg: str, ident: str, titre: str, squelette: str, lu: str,
+                   besoin: str | None) -> Path:
+    """Une entrée du backlog dans son propre fichier, comme une décision."""
+    from socle import memory as memoire
+
+    chemin = dossier / f"{ident}-{memoire.nom_de_fichier(titre)}.md"
+    bloc = squelette.format(lu=lu, besoin=besoin or "")
+    outils.ecrire(chemin, f"{langue.entete_fichier('backlog', zone, lg)}\n# {ident} — {titre}\n\n{bloc}\n")
+    return chemin
 
 
 def _ajouter(chemin: Path, bloc: str, entete: str | None = None):
@@ -258,6 +294,11 @@ def cmd_show(args) -> int:
         _afficher_index(mem, args.index)
     for ident in args.ids:
         e = mem.entree(ident)
+        if e is None and mem.resoudre(ident) is not None:
+            # Un ancien numéro (ADR-0083) : l'entrée qui le porte désormais.
+            e = mem.resoudre(ident)
+            print(trad("{ancien} est l'ancien numéro de {ident}", ancien=ident, ident=e.id))
+            ident = e.id
         if e is None:
             print(trad("{ident} : aucune entrée de ce nom dans la mémoire", ident=ident), file=sys.stderr)
             code = 1
@@ -407,13 +448,17 @@ def cmd_review(args) -> int:
         print(texte, end="")
         return 0
     try:
-        texte = revue.dossier(_projet(args), args.base, args.max_bytes, getattr(args, "since", None))
-    except revue.ReferenceRefusee as refus:
+        texte, note = revue.relire(_projet(args), args.base, args.max_bytes, getattr(args, "since", None),
+                                   getattr(args, "batch", None))
+    except (revue.ReferenceRefusee, revue.PasseRefusee) as refus:
         # Une référence qui ne mesure pas le lot (ADR-0081) : un dossier vide
-        # ou étranger, qu'un relecteur jugerait sans constat, ne part pas.
-        print(refus, file=sys.stderr)
+        # ou étranger, qu'un relecteur jugerait sans constat, ne part pas. Une
+        # passe que l'historique du lot refuse (ADR-0084) non plus.
+        print(refus, file=sys.stderr, end="" if str(refus).endswith("\n") else "\n")
         return 2
     print(texte, end="")
+    if note:
+        print(note, file=sys.stderr)
     return 0
 
 
@@ -834,8 +879,11 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("type", choices=sorted(TYPES_CLI))
     s.add_argument("title")
     s.add_argument("--questions", action="store_true",
-                   help=trad("avec `request` : des questions de cadrage d'un sujet, ouvertes, auxquelles l'humain "
-                             "répond librement"))
+                   help=trad("avec `request` : des questions de cadrage d'un besoin, ouvertes, auxquelles "
+                             "l'humain répond librement"))
+    s.add_argument("--need", metavar="B-NNNN", help=trad("avec `task` : le besoin ouvert que la tâche sert"))
+    s.add_argument("--task", metavar=trad("TITRE"), help=trad("avec `need` : crée aussi sa tâche, quand la "
+                                                             "correction est évidente"))
     zone = s.add_mutually_exclusive_group()
     zone.add_argument("--private", action="store_true", help=trad("dans la mémoire privée (défaut quand elle "
                                                                   "existe)"))
@@ -882,6 +930,9 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
                                                        "première revue, et les sujets du lot entier"))
     s.add_argument("--request", metavar="D-NNNN", help=trad("le dossier de la relecture à froid de cette demande, "
                                                             "pour un lecteur qui n'a que son texte"))
+    s.add_argument("--batch", metavar="L-NNNN", help=trad("le lot dont c'est la passe de revue, qui s'écrit dans sa "
+                                                          "section « Revues » (par défaut : le lot en cours du "
+                                                          "backlog)"))
     s.set_defaults(f=cmd_review)
 
     s = sp.add_parser("answer", help=trad("répondre à une demande ; l'agent y relaie (--relayed) ta réponse "
@@ -976,7 +1027,7 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("id")
     s.set_defaults(f=cmd_renumber)
 
-    s = sp.add_parser("archive", help=trad("range les sujets clos du backlog à l'écart des ouverts"))
+    s = sp.add_parser("archive", help=trad("range les entrées closes du backlog à l'écart des ouvertes"))
     s.set_defaults(f=cmd_archive)
 
 

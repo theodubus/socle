@@ -8,7 +8,7 @@ Ce qui revient maintenant à l'agent (cadrage, section « Initialisation ») :
    les décisions, sans le réécrire. Chaque fait tiré du document est
    « supposé », avec le document pour source
    (`source : fichier:memory/archives/<document>#<section>`) ; chaque
-   objectif devient un sujet du backlog, avec la même origine.
+   objectif devient un besoin du backlog, avec la même origine.
 3. **Un dépôt existant** : les faits mesurés par l'audit sont posés ;
    ajouter seulement ce qu'une commande ou un fichier prouve, le reste est
    « supposé » ou devient une question.

@@ -363,9 +363,12 @@ def references_inventees(projet: config.Projet, rel: str, avant: str | None, apr
     base = outils.base_de_travail(projet.racine)
     commits = outils.git(projet.racine, "rev-list", "--reverse", f"{base}..HEAD", check=False).split() if base else []
     plage = lp.Plage(projet.racine, memoire.Memoire.charger(projet.racine, base) if base else None, mem, commits)
+    # Un ancien numéro (ADR-0083) se résout : son empreinte se juge contre
+    # l'entrée qui le porte désormais.
+    anciens = mem.anciens()
     for ident, h, ligne in memoire.citations(apres):
         soi = lp.entree_englobante(mem, rel, ligne)
-        if ident in defs and not lp.deja_citee(soi, f"{ident}@{h}", mem_avant, avant or "") \
+        if (ident in defs or ident in anciens) and not lp.deja_citee(soi, f"{ident}@{h}", mem_avant, avant or "") \
                 and not lp.entree_lue(plage, rel, soi, ident, h):
             fautes.append(trad("`{ident}@{h}` (ligne {ligne}) n'est pas l'empreinte de la version actuelle de "
                                "{ident} : la relire, `python3 .socle/socle show {ident}`",

@@ -8,7 +8,7 @@ What now falls to the agent (brief, "Initialization" section):
    without rewriting it. Each fact drawn from the document is "assumed",
    with the document as its source
    (`source : file:memory/archives/<document>#<section>`); each goal becomes
-   a backlog topic, with the same origin.
+   a backlog need, with the same origin.
 3. **An existing repository**: the facts measured by the audit are laid
    down; only add what a command or a file proves, the rest is "assumed" or
    becomes a question.

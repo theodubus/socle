@@ -684,7 +684,7 @@ def _backlog(mem: memoire.Memoire, borne: bool = False) -> list[tuple[int, list[
     puis ce qui est en cours ou bloqué, et ce qui vient ensuite, qui se
     relisent (`socle show --index backlog`) et partent les premiers ; avec
     `borne`, chaque liste plafonnée et les titres raccourcis."""
-    backlog = [e for e in mem.entrees("B") if not e.archivee]
+    backlog = [e for e in mem.entrees(memoire.BACKLOG) if not e.archivee]
     par = Counter(e.statut for e in backlog)
     res = [(INFO, [trad("backlog  : {ouverts} ouvert(s), {en_cours} en cours, {bloques} bloqué(s), {clos} clos",
                         ouverts=par.get("ouvert", 0), en_cours=par.get("en-cours", 0),

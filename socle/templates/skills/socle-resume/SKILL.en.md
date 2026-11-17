@@ -59,7 +59,7 @@ active work and the worktrees.
 ```text
 Resume after limit (<window>) — <repository>, branch <branch>.
 First of all: the check of the skill socle-resume.
-Batch: <the topics>.
+Batch: <its tasks>.
 Subagents under way: <each: its id, its task, what it must return> | none.
 ```
 

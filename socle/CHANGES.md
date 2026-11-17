@@ -7,6 +7,97 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-17-a — Une forme du shell que le hook ne juge pas se signale au dépôt du socle
+
+Le skill `socle-review` disait d'inscrire une forme du shell qu'un agent
+n'écrit pas, écartée par la revue d'un lot, dans la liste des formes
+connues du guide. Dans un projet équipé, le guide est sous le moteur
+installé, protégé : l'agent ne peut pas l'écrire. Le skill dit désormais
+que le récap nomme la forme, et que « Pour toi » propose à l'humain de la
+signaler au dépôt du socle (https://github.com/theodubus/socle), qui
+tient la liste.
+
+À faire : rien ; le skill `socle-review` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-16-g — Un lot garde l'historique de ses revues, et s'arrête sur un recul écrit
+
+`socle review` écrit désormais chaque passe de revue du lot en cours (ou
+de celui que `--batch L-NNNN` nomme) dans la section `## Revues` de son
+entrée : sa date et les commits relus. L'agent y consigne la cause de
+chaque bloquant, et les entrées que la passe ouvre ; une session neuve lit
+cet historique tel quel. À partir de la deuxième passe, le dossier donne
+au relecteur les causes des bloquants d'avant, et lui fait dire, pour
+chaque bloquant nouveau, s'il a la même cause que l'un d'eux. Avant toute
+passe au-delà de la première, `socle review` exige le recul de la
+précédente : un paragraphe qui commence par « Recul : », répond en
+soixante mots au moins à trois questions de nature, et finit par
+« continuer » ou par « s'arrêter ». Il le refuse sinon, en montrant
+l'historique, les entrées ouvertes et closes depuis le début du lot, les
+lots clos qui ont touché les mêmes fichiers et les trois questions. Il
+refuse « continuer » après deux passes de suite où le relecteur voit une
+même cause revenir, et toute passe tant que l'arrêt n'est pas levé : seule
+le lève la réponse de l'humain à une demande que le recul nomme et qui
+cite le lot, jamais une demande retirée, ni une ancienne, même répondue,
+qui ne le cite pas. Le contrôle `memoire.backlog` applique les mêmes
+règles à la dernière passe d'un lot relu clos `fait` : il le refuse sans
+son recul, sans le regard du relecteur sur un bloquant, sur un
+« continuer » après deux causes revenues, ou sur un arrêt que rien n'a
+levé.
+
+À faire : marquer `en cours` le lot qu'on mène, pour que ses passes s'y
+écrivent ; au retour du relecteur, y consigner les bloquants ; écrire le
+recul avant la passe suivante et avant la clôture ; s'arrêter, c'est
+poser une demande à l'humain, qui cite le lot et dit ce qui tourne, la
+règle qui le fait tourner et une proposition qui la borne. Les skills `socle-review` et
+`socle-batch` le disent ; ce sont des copies protégées, dans la demande de
+l'installeur.
+
+## 2026-11-16-f — Le backlog en quatre formes, chacune son préfixe : besoin, tâche, lot et jalon
+
+Une entrée du backlog a désormais l'une de quatre formes, que son préfixe
+dit : un besoin (`B-`), un défaut à corriger ou une fonction à ajouter,
+avec sa section « Satisfait quand », un résultat ; une tâche (`T-`), un
+livrable qui nomme son besoin (`besoin : B-NNNN`), avec sa section « Fait
+quand », qu'un test vérifie ; un lot (`L-`), les tâches menées et relues
+ensemble ; un jalon (`JA-`), les besoins qui servent un même but. Le champ
+`forme` disparaît. Chaque forme n'attend que ce qui lui revient : un lot,
+ses tâches et le lot d'avant ; un jalon, ses besoins et le jalon d'avant.
+Seule une tâche est prête ; elle prend la priorité de son besoin et attend
+ce qu'il attend. Un besoin se ferme quand ses tâches sont closes, l'une au
+moins faite. L'état dit le prochain jalon et ses besoins ouverts, le
+prochain lot et ses tâches, les tâches prêtes, les besoins à découper et
+ceux à fermer. Les commandes `socle new need`, `socle new task "…" --need
+B-NNNN`, `socle new batch` et `socle new milestone` remplacent `socle new
+backlog`, qui disparaît ; `socle new need "…" --task "…"` pose le besoin et
+sa tâche. Un contrôle nouveau, `memoire.formes`, refuse de remélanger les
+formes.
+
+La mise à jour migre le backlog : chaque lot devient `L-` et chaque jalon
+`JA-`, clos compris, en gardant son ancien numéro (`ancien : B-NNNN`), que
+`socle show` et les contrôles des références résolvent, et sans sa
+priorité : un lot ou un jalon n'était déjà jamais pris, elle ne changeait
+aucun ordre, et `memoire.formes` la refuse désormais ; la mise à jour
+nomme chaque entrée dont elle l'a retirée. Toute autre entrée reste un
+besoin, sa section « Fait quand » renommée « Satisfait quand » ; chaque
+besoin qu'attend un lot ouvert reçoit une tâche qui reprend ses critères,
+vers laquelle sa section renvoie, et que le lot attend à sa place ; un
+jalon attend les besoins de ses lots. Les mentions se récrivent dans le
+backlog et le chantier actif ; le journal, les décisions et les demandes
+gardent l'ancien numéro. Une citation par l'ancien numéro (`B-NNNN@…`) se
+juge contre l'entrée renumérotée, comme celle de son identifiant actuel :
+une empreinte périmée ou inventée y est refusée.
+
+À faire : relire ce que la mise à jour a migré (`python3 .socle/socle
+state`, le backlog), et commiter la migration avec elle. Puis, en prenant
+chaque besoin : le découper en tâches s'il demande plusieurs livrables, et
+récrire ses critères en résultats, ceux de ses tâches en livrables qu'un
+test vérifie. Un constat de revue devient une tâche si sa correction est
+claire, un besoin sinon. Les skills `socle-batch` et `socle-review` le
+disent ; ce sont des copies protégées, dans la demande de l'installeur.
+Le guide, la page publique et les gabarits des questions de cadrage et
+de l'initialisation disent « besoin » là où ils disaient « sujet ».
+
 ## 2026-11-16-e — Le guide ne cite plus un identifiant de la mémoire du dépôt du socle
 
 Le guide (`python3 .socle/socle help`), à « Approuver ses propres

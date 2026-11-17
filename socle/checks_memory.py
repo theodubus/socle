@@ -14,10 +14,14 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from socle import config, requests as demandes, language as langue, links as liens, memory as memoire, utils as outils
-from socle.messages import trad
+from socle.messages import a_traduire, trad
 from socle.context import controle
 
-TYPE_DE_COUCHE = {v: k for k, v in memoire.TYPES.items()}
+# Les types qu'une couche porte : le backlog en a quatre, un par forme
+# (ADR-0083).
+TYPES_DE_COUCHE: dict[str, set[str]] = {}
+for _type, _couche in memoire.TYPES.items():
+    TYPES_DE_COUCHE.setdefault(_couche, set()).add(_type)
 TRANSITIONS_ADR = {
     ("proposee", "acceptee"), ("proposee", "rejetee"), ("proposee", "abandonnee"),
     ("acceptee", "remplacee"), ("acceptee", "abandonnee"),
@@ -64,11 +68,22 @@ def format_memoire(ctx, r):
             r.erreur("memoire.format", trad("titre d'entrée illisible : « {titre} » — l'entrée n'est pas lue ; "
                                             "forme attendue : `## J-AAAA-MM-JJ-X — titre`", titre=titre[:60]), chemin, ligne)
 
-    for ident, defs in ctx.memoire.definitions().items():
-        if len(defs) > 1:
-            lieux = ", ".join(f"{d.fichier}:{d.ligne}" for d in defs)
+    defs = ctx.memoire.definitions()
+    for ident, defs_ in defs.items():
+        if len(defs_) > 1:
+            lieux = ", ".join(f"{d.fichier}:{d.ligne}" for d in defs_)
             r.erreur("memoire.format", trad("`{ident}` est défini {n} fois ({lieux})",
-                                            ident=ident, n=len(defs), lieux=lieux), defs[0].fichier, defs[0].ligne)
+                                            ident=ident, n=len(defs_), lieux=lieux), defs_[0].fichier, defs_[0].ligne)
+    # Un ancien numéro ne se réattribue jamais (ADR-0083) : il se résout vers
+    # l'entrée renumérotée, et une entrée nouvelle qui le prendrait
+    # détournerait chaque citation du journal.
+    for e in ctx.memoire.entrees(memoire.BACKLOG):
+        for ancien in e.anciens:
+            if ancien in defs:
+                d = defs[ancien][0]
+                r.erreur("memoire.format", trad("`{ancien}` est l'ancien numéro de `{id}` : il ne se réattribue "
+                                                "jamais, `socle renumber {ancien}` donne à l'entrée qui le prend le "
+                                                "prochain libre", ancien=ancien, id=e.id), d.fichier, d.ligne)
 
 
 def _format_entrees(r, chemin, f, couche, prive):
@@ -78,7 +93,7 @@ def _format_entrees(r, chemin, f, couche, prive):
             r.erreur("memoire.format", trad("`{id}` défini dans le chantier actif, qui est réécrit : un "
                                             "identifiant stable vit dans une couche durable", id=e.id), chemin, e.ligne)
         return
-    attendu = TYPE_DE_COUCHE[couche]
+    attendus = TYPES_DE_COUCHE[couche]
     # `AAAA-MM.md`, puis `AAAA-MM-2.md`… quand le mois dépasse son budget.
     if couche == "journal" and not re.match(r"^\d{4}-\d{2}(?:-[2-9]|-[1-9]\d+)?\.md$", nom):
         r.erreur("memoire.format", trad("un fichier de journal se nomme `AAAA-MM.md`, ou `AAAA-MM-N.md` quand "
@@ -95,10 +110,10 @@ def _format_entrees(r, chemin, f, couche, prive):
             r.erreur("memoire.format", trad("`{id}` : un identifiant privé commence par P", id=e.id) if prive
                      else trad("`{id}` : un identifiant public ne commence pas par P", id=e.id), chemin, e.ligne)
         if e.parent is not None:
-            if couche != "journal" or e.type not in ("F", "B"):
+            if couche != "journal" or e.type not in ("F", *memoire.BACKLOG):
                 r.erreur("memoire.format", trad("`{id}` imbriqué hors d'une archive de journal", id=e.id), chemin, e.ligne)
             continue
-        if e.type != attendu:
+        if e.type not in attendus:
             r.erreur("memoire.format", trad("`{id}` n'a pas sa place dans la couche « {couche} »",
                                             id=e.id, couche=couche), chemin, e.ligne)
             continue
@@ -209,7 +224,7 @@ def _basculee(ctx, chemin: str) -> str | None:
 
 def _nom_basculee(chemin: str) -> str | None:
     dossier, _, nom = chemin.rpartition("/")
-    m = re.match(r"^((?:ADR|B)-\d{4})-.+\.md$", nom)
+    m = re.match(r"^((?:ADR|JA|B|T|L)-\d{4})-.+\.md$", nom)
     if not m or not memoire.est_memoire(chemin):
         return None
     remplacant = f"{dossier}/{m[1]}-{BASCULEE}.md"
@@ -321,8 +336,10 @@ def textes_scannes(ctx) -> dict[str, str]:
 
 @controle("memoire.references")
 def references(ctx, r):
-    """Tout identifiant, commit, fichier, lien ou chemin cité existe."""
+    """Tout identifiant, commit, fichier, lien ou chemin cité existe ; un
+    ancien numéro se résout vers l'entrée renumérotée (ADR-0083)."""
     defs = ctx.memoire.definitions()
+    anciens = ctx.memoire.anciens()
     prive_dispo = any(est_prive(c) for c in ctx.memoire.fichiers)
     autres: dict[str, list[tuple[str, int, str]]] = {}
     textes = textes_scannes(ctx)
@@ -350,7 +367,7 @@ def references(ctx, r):
             if ident.startswith("P"):
                 if not est_prive(chemin) or not prive_dispo:
                     continue  # fuite : `memoire.prive` ; indisponible : signalé à part
-            if ident not in defs:
+            if ident not in defs and ident not in anciens:
                 signaler(trad("`{ident}` ne désigne aucune entrée de la mémoire", ident=ident), chemin, ligne, ident)
         for i, ligne, code in memoire.lignes_hors_code(texte):
             if code:
@@ -633,12 +650,15 @@ def lectures(ctx, r):
     defs = mem.definitions()
     nouveaux = set(defs) - set(base.definitions())
     plage = lp.Plage(ctx.racine, base, mem, [c["sha"] for c in ctx.commits])
+    # Un ancien numéro (ADR-0083) se résout, et son empreinte se juge contre
+    # l'entrée qui le porte désormais.
+    anciens = mem.anciens()
 
     for chemin, texte in sorted(textes_scannes(ctx).items()):
         avant = ctx.lire_base(chemin) or ""
         for ident, h, ligne in memoire.citations(texte):
             soi = lp.entree_englobante(mem, chemin, ligne)
-            if ident not in defs or lp.deja_citee(soi, f"{ident}@{h}", base, avant):
+            if (ident not in defs and ident not in anciens) or lp.deja_citee(soi, f"{ident}@{h}", base, avant):
                 continue
             if not lp.entree_lue(plage, chemin, soi, ident, h):
                 r.erreur("memoire.lectures", trad("`{ident}@{h}` ne correspond pas à la version actuelle de "
@@ -666,10 +686,13 @@ def lectures(ctx, r):
             r.erreur("memoire.lectures", trad("décision nouvelle `{ident}` sans `lu : decisions@…` : consulter "
                                               "l'index des décisions avant d'en ajouter une (`socle show "
                                               "--index decisions`)", ident=ident), e.fichier, e.ligne)
-        if e.type == "B" and not any(i == "backlog" for i, _, _ in memoire.citations_index(e.texte)):
-            r.erreur("memoire.lectures", trad("sujet nouveau `{ident}` sans `lu : backlog@…` : consulter le "
-                                              "backlog avant d'y ajouter, pour ne pas dupliquer (`socle show "
-                                              "--index backlog`)", ident=ident), e.fichier, e.ligne)
+        # Une entrée renumérotée (ADR-0083) n'est pas nouvelle : son ancien
+        # numéro était à la base.
+        if e.type in memoire.BACKLOG and not any(a in base.definitions() for a in e.anciens) \
+                and not any(i == "backlog" for i, _, _ in memoire.citations_index(e.texte)):
+            r.erreur("memoire.lectures", trad("entrée nouvelle du backlog `{ident}` sans `lu : backlog@…` : "
+                                              "consulter le backlog avant d'y ajouter, pour ne pas dupliquer "
+                                              "(`socle show --index backlog`)", ident=ident), e.fichier, e.ligne)
         if e.type in ("ADR", "D"):
             texte = sans_question_de_seance(e.texte)
             prouves = {i for i, _, _ in memoire.citations(texte)}
@@ -733,42 +756,64 @@ def collisions(ctx, r):
 
 @controle("memoire.backlog")
 def backlog(ctx, r):
-    """Chaque sujet a une origine ; un sujet clos a une référence, et il est rangé avec les clos ; un sujet
-    fait a coché tout ce que dit sa section « Fait quand »."""
-    for e in ctx.memoire.entrees("B"):
+    """Chaque entrée du backlog a une origine ; une entrée close a une référence, et elle est rangée avec les
+    closes ; une entrée faite a coché tout ce que dit sa section, « Satisfait quand » pour un besoin, « Fait
+    quand » pour les autres formes (ADR-0083).
+
+    Un lot relu ne se clôt « fait » que si la dernière passe de sa section « Revues » le permet, selon les règles
+    qui refuseraient une passe de plus (D-0124, ADR-0084) : son recul, le regard du relecteur sur chacun de ses
+    bloquants à partir de la deuxième, pas de « continuer » après deux passes de suite où une même cause revient, et
+    un arrêt levé par la réponse de l'humain à une demande qui cite le lot ; un lot sans passe, qui ne changeait ni
+    code, ni spécification, ni test, n'en a pas."""
+    for e in ctx.memoire.entrees(memoire.BACKLOG):
         if e.basculee:
             continue
         if not e.refs("origine"):
             r.erreur("memoire.backlog", trad("`{id}` sans `origine` (entrée de journal, commit ou demande)",
                                              id=e.id), e.fichier, e.ligne)
         clos = e.statut in memoire.BACKLOG_CLOS
-        # Fait quand ce que dit sa section « Fait quand » est fait (D-0064).
+        # Faite quand ce que dit sa section est fait (D-0064).
         ouverts = [texte for coche, texte in memoire.criteres(e) if not coche]
         if e.statut == "fait" and ouverts:
-            r.erreur("memoire.backlog", trad("`{id}` est clos « fait » avec un critère de « Fait quand » non coché : "
-                                             "{criteres}", id=e.id, criteres=" ; ".join(ouverts[:3])),
+            r.erreur("memoire.backlog", trad("`{id}` est clos « fait » avec un critère de « {section} » non coché : "
+                                             "{criteres}", id=e.id, criteres=" ; ".join(ouverts[:3]),
+                                             section=SECTIONS[memoire.est_besoin(e)]),
                      e.fichier, e.ligne)
+        # Les règles qui refuseraient une passe de plus, sans ce que git donne.
+        passes = memoire.passes(e) if memoire.est_lot(e) and e.statut == "fait" else []
+        refus = memoire.refus_de_la_suite(ctx.memoire, e, passes) if passes else None
+        if refus:
+            nature, raison = refus
+            r.erreur("memoire.backlog", trad("`{id}` est clos « fait » sans le recul de sa dernière passe de revue : "
+                                             "{raison}", id=e.id, raison=raison) if nature == "recul" else
+                     trad("`{id}` est clos « fait » avant ce que sa dernière passe de revue exige : {raison}",
+                          id=e.id, raison=raison), e.fichier, e.ligne)
         if clos and not e.refs("ref"):
             r.erreur("memoire.backlog", trad("`{id}` est clos (« {statut} ») sans `ref` vers ce qui l'a clos",
                                              id=e.id, statut=e.statut), e.fichier, e.ligne)
-        # Un sujet clos quitte les ouverts.
+        # Une entrée close quitte les ouvertes.
         if memoire.couche_attendue(e.fichier) == "backlog" and clos != memoire.parmi_les_clos(e.fichier):
-            r.erreur("memoire.backlog", trad("`{id}` est clos (« {statut} ») mais reste parmi les sujets ouverts : "
+            r.erreur("memoire.backlog", trad("`{id}` est clos (« {statut} ») mais reste parmi les entrées ouvertes : "
                                              "`python3 .socle/socle archive` le range dans `{dossier}/`",
                                              id=e.id, statut=e.statut, dossier=memoire.DOSSIER_CLOS) if clos else
-                     trad("`{id}` est rangé parmi les sujets clos alors qu'il est « {statut} » : `python3 "
-                          ".socle/socle archive` le remet parmi les ouverts", id=e.id, statut=e.statut),
+                     trad("`{id}` est rangé parmi les entrées closes alors qu'il est « {statut} » : `python3 "
+                          ".socle/socle archive` le remet parmi les ouvertes", id=e.id, statut=e.statut),
                      e.fichier, e.ligne)
+
+
+# Le nom de la section des critères, selon que l'entrée est un besoin.
+SECTIONS = {True: langue.SATISFAIT_QUAND["fr"], False: langue.FAIT_QUAND["fr"]}
 
 
 @controle("memoire.ordre")
 def ordre(ctx, r):
-    """Un sujet n'attend (`après`) que des sujets du backlog ou des demandes,
-    jamais lui-même de proche en proche, et ne se dit fait qu'une fois clos
-    ce qu'il attend : un jalon ne se clôt pas sur des tâches ouvertes, ni un
-    sujet sur une demande sans réponse. Sa priorité, s'il en a une, est
-    haute ou basse."""
-    sujets = {e.id: e for e in ctx.memoire.entrees("B") if not e.archivee and not e.basculee}
+    """Une entrée du backlog n'attend (`après`) que des entrées du backlog ou
+    des demandes, jamais elle-même de proche en proche, et ne se dit faite
+    qu'une fois clos ce qu'elle attend : un jalon ne se clôt pas sur des
+    besoins ouverts, ni un lot sur des tâches ouvertes, ni une entrée sur une
+    demande sans réponse. Sa priorité, si elle en a une, est haute ou
+    basse."""
+    sujets = {e.id: e for e in ctx.memoire.entrees(memoire.BACKLOG) if not e.archivee and not e.basculee}
     demandes = {e.id: e for e in ctx.memoire.entrees("D") if not e.basculee}
     for e in sujets.values():
         p = memoire.priorite(e)
@@ -778,8 +823,8 @@ def ordre(ctx, r):
         if "apres" not in e.meta:
             continue
         refs = e.refs("apres")
-        if not refs or any(t != "id" or not re.fullmatch(r"P?[BD]-\d{4}", c) for t, c in refs):
-            r.erreur("memoire.ordre", trad("`{id}` : `après` ne nomme que des sujets du backlog ou des demandes "
+        if not refs or any(t != "id" or not re.fullmatch(r"P?(?:B|T|L|JA|D)-\d{4}", c) for t, c in refs):
+            r.erreur("memoire.ordre", trad("`{id}` : `après` ne nomme que des entrées du backlog ou des demandes "
                                            "({valeur})", id=e.id, valeur=e.meta["apres"]), e.fichier, e.ligne)
         if e.statut == "fait":
             for d in memoire.dependances(e):
@@ -789,7 +834,7 @@ def ordre(ctx, r):
                 elif d in demandes and not memoire.demande_close(ctx.memoire, demandes[d]):
                     r.erreur("memoire.ordre", trad("`{id}` est fait avant `{dep}`, qu'il attend, encore sans réponse",
                                                    id=e.id, dep=d), e.fichier, e.ligne)
-    # Un cycle se dit une fois, depuis le plus petit de ses sujets.
+    # Un cycle se dit une fois, depuis la plus petite de ses entrées.
     for depart in sorted(sujets):
         pile = [[depart]]
         while pile:
@@ -801,6 +846,121 @@ def ordre(ctx, r):
                                                cycle=" → ".join(chemin + [depart])), e.fichier, e.ligne)
                 break
             pile += [chemin + [d] for d in suivants if d in sujets and d > depart and d not in chemin]
+
+
+# Le nom d'une forme, dans un message.
+NOMS_DE_FORME = {"B": a_traduire("besoin"), "T": a_traduire("tâche"), "L": a_traduire("lot"),
+                 "JA": a_traduire("jalon"), "D": a_traduire("demande")}
+# Ce que chaque forme attend, dans un message (D-0123, point 2).
+REGLES_D_ATTENTE = {
+    "B": a_traduire("un besoin attend des besoins et des demandes"),
+    "T": a_traduire("une tâche attend des tâches, des besoins et des demandes"),
+    "L": a_traduire("un lot attend ses tâches, des demandes et le lot d'avant"),
+    "JA": a_traduire("un jalon attend ses besoins, des demandes et le jalon d'avant"),
+}
+
+
+@controle("memoire.formes")
+def formes(ctx, r):
+    """Le backlog en quatre formes, chacune son préfixe (ADR-0083). Une entrée
+    ouverte n'écrit pas de `forme`, ni un champ que sa forme n'a pas ; une
+    tâche nomme son besoin et n'est que dans un lot ; chaque forme n'attend
+    que ce qu'elle attend, par son identifiant actuel ; un besoin porte
+    « Satisfait quand », une tâche « Fait quand », et l'entrée nouvelle sa
+    section ; un besoin ne se clôt qu'une fois ses tâches closes, et « fait »
+    que si l'une l'est. Ce qui est clos avant la migration reste tel quel :
+    la forme se juge sur les entrées ouvertes, la clôture sur une clôture
+    nouvelle."""
+    mem, base = ctx.memoire, ctx.memoire_base
+    entrees = {e.id: e for e in mem.entrees(memoire.BACKLOG) if not e.archivee and not e.basculee}
+    anciens = mem.anciens()
+    defs_base = base.definitions() if base is not None else None
+    lots_de: dict[str, list[str]] = {}
+    taches_de: dict[str, list[memoire.Entree]] = {}
+    for e in entrees.values():
+        if memoire.est_lot(e):
+            for d in dict.fromkeys(memoire.dependances(e)):
+                lots_de.setdefault(d, []).append(e.id)
+        if memoire.est_tache(e) and memoire.besoin_de(e):
+            taches_de.setdefault(memoire.besoin_de(e), []).append(e)
+
+    def nom(type_: str) -> str:
+        return trad(NOMS_DE_FORME.get(type_, type_))
+
+    def actuel(e, champ: str, d: str) -> bool:
+        """`d` n'est pas un ancien numéro ; sinon, le dire."""
+        if d in anciens and d not in entrees:
+            r.erreur("memoire.formes", trad("`{id}` : `{champ}` nomme `{ancien}`, ancien numéro de `{actuel}` : il "
+                                            "nomme l'identifiant actuel", id=e.id, champ=champ, ancien=d,
+                                            actuel=anciens[d].id), e.fichier, e.ligne)
+            return False
+        return True
+
+    for e in sorted(entrees.values(), key=lambda x: x.id):
+        clos = e.statut in memoire.BACKLOG_CLOS
+        if not clos:
+            if "forme" in e.meta:
+                r.erreur("memoire.formes", trad("`{id}` écrit `forme : {valeur}` : la forme d'une entrée du backlog "
+                                                "se lit sur son préfixe, `B-` besoin, `T-` tâche, `L-` lot, `JA-` "
+                                                "jalon", id=e.id, valeur=memoire.nettoyer(e.meta["forme"])),
+                         e.fichier, e.ligne)
+            if "besoin" in e.meta and not memoire.est_tache(e):
+                r.erreur("memoire.formes", trad("`{id}` ({forme}) écrit `besoin` : seule une tâche nomme le besoin "
+                                                "qu'elle sert", id=e.id, forme=nom(e.type)), e.fichier, e.ligne)
+            if memoire.priorite(e) and (memoire.est_lot(e) or memoire.est_jalon(e)):
+                r.erreur("memoire.formes", trad("`{id}` ({forme}) écrit une priorité : un lot ni un jalon ne sont "
+                                                "jamais prêts, elle se donne à un besoin ou à une tâche",
+                                                id=e.id, forme=nom(e.type)), e.fichier, e.ligne)
+            if memoire.est_tache(e):
+                b = memoire.besoin_de(e)
+                if b is None:
+                    r.erreur("memoire.formes", trad("`{id}` est une tâche sans besoin : elle nomme celui qu'elle sert, "
+                                                    "`besoin : B-NNNN`", id=e.id), e.fichier, e.ligne)
+                elif actuel(e, "besoin", b) and not (b in entrees and memoire.est_besoin(entrees[b])):
+                    r.erreur("memoire.formes", trad("`{id}` : `besoin : {besoin}` ne nomme pas un besoin du backlog",
+                                                    id=e.id, besoin=b), e.fichier, e.ligne)
+                lots = lots_de.get(e.id, [])
+                if len(lots) > 1:
+                    r.erreur("memoire.formes", trad("`{id}` est dans {n} lots ({lots}) : une tâche est dans un lot "
+                                                    "au plus", id=e.id, n=len(lots), lots=", ".join(lots)),
+                             e.fichier, e.ligne)
+            for d in memoire.dependances(e):
+                type_d = memoire.type_d_id(d)
+                if not actuel(e, "après", d) or type_d is None:
+                    continue
+                if type_d not in memoire.ATTENDUS[e.type]:
+                    r.erreur("memoire.formes", trad("`{id}` ({forme}) attend `{dep}` ({forme_dep}) : {regle}",
+                                                    id=e.id, forme=nom(e.type), dep=d, forme_dep=nom(type_d),
+                                                    regle=trad(REGLES_D_ATTENTE[e.type])), e.fichier, e.ligne)
+            if memoire.est_besoin(e) and memoire.SECTION_FAIT_QUAND.search(e.corps):
+                r.erreur("memoire.formes", trad("`{id}` est un besoin : sa section est « Satisfait quand », un "
+                                                "résultat ; « Fait quand » est celle d'une tâche", id=e.id),
+                         e.fichier, e.ligne)
+            if memoire.est_tache(e) and memoire.SECTION_SATISFAIT_QUAND.search(e.corps):
+                r.erreur("memoire.formes", trad("`{id}` est une tâche : sa section est « Fait quand », qu'un test "
+                                                "vérifie ; « Satisfait quand » est celle d'un besoin", id=e.id),
+                         e.fichier, e.ligne)
+        if defs_base is None:
+            continue
+        # L'entrée à la base, sous son numéro, sous l'ancien, ou celle dont une
+        # copie privée vient (une bascule n'est pas une entrée nouvelle).
+        avant = next((defs_base[i][0] for i in (e.id, *e.anciens, *e.depuis) if i in defs_base), None)
+        if avant is None and (memoire.est_besoin(e) or memoire.est_tache(e)) \
+                and not memoire.section_de(e).search(e.corps):
+            r.erreur("memoire.formes", trad("`{id}` : entrée nouvelle ({forme}) sans sa section « {section} »", id=e.id,
+                                            forme=nom(e.type), section=SECTIONS[memoire.est_besoin(e)]),
+                     e.fichier, e.ligne)
+        if memoire.est_besoin(e) and clos and (avant is None or avant.statut not in memoire.BACKLOG_CLOS):
+            siennes = taches_de.get(e.id, [])
+            ouvertes = [t.id for t in siennes if t.statut not in memoire.BACKLOG_CLOS]
+            if ouvertes:
+                r.erreur("memoire.formes", trad("`{id}` est clos (« {statut} ») avec une tâche ouverte : {taches}",
+                                                id=e.id, statut=e.statut, taches=", ".join(ouvertes)),
+                         e.fichier, e.ligne)
+            elif e.statut == "fait" and not any(t.statut == "fait" for t in siennes):
+                r.erreur("memoire.formes", trad("`{id}` est fait sans tâche faite : un besoin se ferme quand ses "
+                                                "tâches sont closes, l'une au moins faite ; sinon il s'abandonne",
+                                                id=e.id), e.fichier, e.ligne)
 
 
 # --------------------------------------------------------------------------
@@ -974,9 +1134,12 @@ def ajout_seul(ctx, r):
 
 
 def _comparer(ctx, r, avant: dict, apres: dict):
+    # Une entrée du backlog renumérotée (ADR-0083) se retrouve par son
+    # ancien numéro.
+    anciens = {x: d[0] for d in apres.values() for x in d[0].anciens}
     for ident, defs in avant.items():
         a = defs[0]
-        b = apres.get(ident, [None])[0]
+        b = apres.get(ident, [anciens.get(ident)])[0]
         if a.basculee:
             if b is None or not b.basculee or _norm(a.texte) != _norm(b.texte):
                 r.erreur("memoire.ajout-seul", trad("`{ident}` basculée dans la mémoire privée : elle reste "
@@ -1025,12 +1188,12 @@ def _comparer(ctx, r, avant: dict, apres: dict):
                 if _norm(a.corps) and _norm(a.corps) not in _norm(b.corps):
                     r.erreur("memoire.ajout-seul", trad("fait `{ident}` réfuté : son texte se garde, barré ; "
                                                         "il ne se réécrit pas", ident=ident), b.fichier, b.ligne)
-        elif a.type == "B":
-            # Un sujet ne quitte pas le backlog : clos, il se range avec les
-            # clos.
+        elif a.type in memoire.BACKLOG:
+            # Une entrée ne quitte pas le backlog : close, elle se range avec
+            # les closes.
             if b is None or b.archivee and not a.archivee:
-                r.erreur("memoire.ajout-seul", trad("sujet `{ident}` disparu du backlog : un sujet clos se range "
-                                                    "par `socle archive`, il ne s'efface pas", ident=ident),
+                r.erreur("memoire.ajout-seul", trad("entrée `{ident}` disparue du backlog : une entrée close se "
+                                                    "range par `socle archive`, elle ne s'efface pas", ident=ident),
                          a.fichier, a.ligne)
         elif a.type == "D":
             if b is None:

@@ -7,6 +7,96 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-17-a — A shell form the hook does not judge is reported to the socle's repository
+
+The `socle-review` skill said to enter a shell form an agent does not
+write, dismissed by the review of a batch, in the guide's list of known
+forms. In an equipped project, the guide sits under the installed engine,
+protected: the agent cannot write it. The skill now says that the recap
+names the form, and that “For you” suggests the human report it to the
+socle's repository (https://github.com/theodubus/socle), which keeps the
+list.
+
+To do: nothing; the `socle-review` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-16-g — A batch keeps the history of its reviews, and stops on a written step back
+
+`socle review` now writes each review pass of the batch in progress (or
+of the one `--batch L-NNNN` names) in the `## Reviews` section of its
+entry: its date and the reviewed commits. The agent records there the
+cause of each blocker, and the entries the pass opens; a new session
+reads this history as it is. From the second pass on, the brief gives
+the reviewer the causes of the earlier blockers, and has it say, for
+each new blocker, whether it has the same cause as one of them. Before
+any pass beyond the first, `socle review` requires the step back of the
+previous one: a paragraph that starts with “Step back:”, answers three
+questions of nature in at least sixty words, and ends with “continue” or
+“stop”. Otherwise it refuses, showing the history, the entries opened
+and closed since the start of the batch, the closed batches that touched
+the same files and the three questions. It refuses “continue” after two
+passes in a row where the reviewer sees a same cause come back, and any
+pass while the stop is not lifted: only the human's answer to a request
+that the step back names and that cites the batch lifts it, never a
+withdrawn request, nor an old one, even answered, that does not cite it.
+The `memoire.backlog` check applies the same rules to the last pass of a
+reviewed batch closed `done`: it refuses it without its step back,
+without the reviewer's view on a blocker, on a “continue” after two
+causes that came back, or on a stop that nothing has lifted.
+
+To do: mark `in progress` the batch being carried out, so that its
+passes are written in it; when the reviewer returns, record the blockers
+there; write the step back before the next pass and before the closing;
+stopping means putting a request to the human, which cites the batch and
+says what goes round, the rule that makes it go round and a proposal that
+bounds it.
+The `socle-review` and `socle-batch` skills say so; they are protected
+copies, in the installer's request.
+
+## 2026-11-16-f — The backlog in four forms, each with its prefix: need, task, batch and milestone
+
+A backlog entry now has one of four forms, which its prefix states: a need
+(`B-`), a defect to fix or a feature to add, with its “Satisfied when”
+section, a result; a task (`T-`), a deliverable that names its need
+(`need : B-NNNN`), with its “Done when” section, which a test checks; a
+batch (`L-`), the tasks carried out and reviewed together; a milestone
+(`JA-`), the needs that serve one goal. The `form` field goes away. Each
+form waits only on what is its own: a batch, on its tasks and the previous
+batch; a milestone, on its needs and the previous milestone. Only a task is
+ready; it takes its need's priority and waits on what its need waits on. A
+need closes when its tasks are closed, at least one of them done. The
+state gives the next milestone and its open needs, the next batch and its
+tasks, the ready tasks, the needs to split and those to close. The commands
+`socle new need`, `socle new task "…" --need B-NNNN`, `socle new batch` and
+`socle new milestone` replace `socle new backlog`, which goes away;
+`socle new need "…" --task "…"` sets the need and its task. A new check,
+`memoire.formes`, refuses mixing the forms again.
+
+The update migrates the backlog: each batch becomes `L-` and each milestone
+`JA-`, closed ones included, keeping its former number (`former : B-NNNN`),
+which `socle show` and the reference checks resolve, and without its
+priority: a batch or a milestone was already never taken, it changed no
+order, and `memoire.formes` now refuses it; the update names each entry it
+removed it from. Every other entry stays a need, its “Done when” section
+renamed “Satisfied when”; each need an open batch waits on gets a task
+that takes its criteria, to which its section refers, and that the batch
+waits on in its place; a milestone waits on its batches' needs. Mentions
+are rewritten in the backlog and the active work; the journal, the
+decisions and the requests keep the former number. A citation by the
+former number (`B-NNNN@…`) is judged against the renumbered entry, like
+one by its current identifier: a stale or invented fingerprint is refused
+there.
+
+To do: review what the update migrated (`python3 .socle/socle state`, the
+backlog), and commit the migration with it. Then, when taking each need:
+split it into tasks if it calls for several deliverables, and rewrite its
+criteria as results, its tasks' as deliverables a test checks. A review
+finding becomes a task if its fix is clear, a need otherwise. The
+`socle-batch` and `socle-review` skills say so; they are protected copies,
+in the installer's request.
+The guide, the public page and the framing-questions and initialization
+templates say “need” where they said “topic”.
+
 ## 2026-11-16-e — The guide no longer cites an identifier of the socle repository's memory
 
 The guide (`python3 .socle/socle help`), under approving one's own

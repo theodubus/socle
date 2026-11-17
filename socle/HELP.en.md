@@ -10,7 +10,7 @@ The path in short:
 
 1. **Getting started**, once: describe the project, give the agent its
    tools, push, protect the branch.
-2. **Working with the agent**: give it tasks, read its recaps.
+2. **Working with the agent**: give it work, read its recaps.
 3. **Answering the agent** when a decision belongs to the human.
 4. **Occasional actions**: approve one's own changes, update, act where the
    agent cannot.
@@ -96,7 +96,7 @@ session receives two states.
 
 ## 2. Working with the agent
 
-Tasks are given to the agent as usual. At the start of each session, it
+Work is given to the agent as usual. At the start of each session, it
 receives the project's state, the active work, the titles of the facts and
 the last ten decisions; it works, and the checks verify it at each step.
 This start-up stays under `[startup] max_bytes` of the guardrails, a cap
@@ -110,14 +110,18 @@ together, fits in its share: at its allowed size, it is never cut.
 **Planning.** From the brief, the agent writes a short specification and a
 short architecture in the project's documentation: each choice as an ADR,
 each open question as a request (as framing questions when your
-intention is missing, section 3), each task as a backlog topic, with its
-what it waits on (`after`: another topic, or a request until it is
-answered) and what makes it done (a “Done when” section, as checkboxes,
-all checked before closing it), grouped in milestones. It submits each
-document as a request. Just ask it to; the state then gives the next
-milestone and the ready topics. Topics that are handled together, because
-they touch the same files or the same tests, the agent gathers into a
-batch (`form: batch`), which the state shows with the progress of each.
+intention is missing, section 3). The backlog has four forms of entry,
+each with its prefix: a **need** (`B-`), a defect to fix or a feature to
+add, with what satisfies it (“Satisfied when”, a result); a **task**
+(`T-`), a deliverable that serves a need, with what makes it done (“Done
+when”, which a test checks); a **batch** (`L-`), the tasks that touch the
+same files, carried out and reviewed together; a **milestone** (`JA-`),
+the needs that serve one goal. Each says what it waits on (`after`:
+another entry, or a request until it is answered), and its boxes are all
+checked before closing it. It submits each document as a request. Just
+ask it to; the state then gives the next milestone, the next batch and
+the progress of its tasks, the ready tasks, and the needs to split into
+tasks or to close.
 
 **Specifications and test cases.** The project declares where its
 specifications live (`[specs] paths` in the guardrails): the state tells
@@ -127,14 +131,15 @@ expected results: adding a case is free, but changing or removing an
 existing case requires your approval, like an expected value written in a
 test.
 
-**Prioritising.** A topic can carry `priority: high` or `priority: low`;
-the normal one is not written. Telling the agent is enough, and it does
-not change a priority the human gave. The ready topics are sorted by
-priority, and the low-priority ones stay apart: the agent takes them only
+**Prioritising.** A need or a task can carry `priority: high` or
+`priority: low`; the normal one is not written, and a task takes its
+need's. Telling the agent is enough, and it does not change a priority
+the human gave. The ready tasks are sorted by priority, and the
+low-priority ones stay apart: the agent takes them only
 when convenient, and says so when announcing the batch.
 
 **Chaining.** As long as nothing is up to the human, the agent chains the
-ready topics without waiting for a message. Before starting, it announces
+ready tasks without waiting for a message. Before starting, it announces
 the batch it will work on: stopping or redirecting it takes one message.
 It stops at the end of the batch, or as soon as a decision is up to the
 human.
@@ -142,19 +147,25 @@ human.
 **Having it reviewed.** Before delivering a batch that changes code, a
 specification or a test, the agent has it reviewed by a reviewer without
 context, who tries to find fault with it against the “Done when”
-criterion of the batch's topics and, for a guardrail, its threat model,
+criterion of the batch's tasks and, for a guardrail, its threat model,
 written before the code: what the guardrail stops, what it lets through.
 The agent fixes the blocking findings in the batch (a contradicted
 criterion, a regression, a data loss, a bypass within the threat model);
 it sends to the backlog, where you see them, those that can occur in the
-project's normal use or whose effect nothing catches afterwards, and
-dismisses the others, exotic and caught, or unfounded. Its recap says how
+project's normal use or whose effect nothing catches afterwards, as a
+task if its fix is clear, as a need otherwise, and dismisses the others, exotic and caught, or unfounded. Its recap says how
 many, and why each is dismissed.
+
+**When a batch goes round in circles.** The agent keeps the history of
+each batch's reviews, and notices it by itself. It then stops and puts a
+request to you: what goes round, the rule that makes it go round, and a
+proposal to get out of it. The batch waits for your answer while the
+agent moves on elsewhere.
 
 **Delivering.** By default, the agent does everything on one development
 branch and keeps only one pull request open, to which each finished batch
 is added: merge it whenever you want, once its CI is green. One pull
-request per topic, each to merge, is chosen in the starting questions, or
+request per task, each to merge, is chosen in the starting questions, or
 later by telling the agent, which writes it as a fact of the memory.
 
 A prototype not meant to be merged is done on a disposable branch, named
@@ -179,7 +190,7 @@ and what your answer changes.
 
 At any time, `python3 .socle/socle state` gives the project's state: the
 commit, the CI, the backlog and what comes next (the next milestone, the
-next batch, the ready topics), the pending requests, what is up to the human.
+next batch, the ready tasks), the pending requests, what is up to the human.
 The memory is read in `memory/`.
 
 A project procedure that comes back, the agent writes as a skill in
@@ -215,13 +226,13 @@ at once, word for word, like a request. What needs context, approving a
 document included, comes as a request, with its link; never in the
 agent's question widget, which the hook refuses.
 
-**Framing questions.** When a topic's specification depends on an
+**Framing questions.** When a need's specification depends on an
 intention the memory does not state, the agent asks open questions, each
 with its assumption, in a request whose link it gives. Answer them
 freely, in one or several messages (`answers`), or `approve` its
 assumptions: it records the text as is, then submits the specification
 that follows from it. Telling it "ask me your questions about this
-topic" is enough to request them.
+need" is enough to request them.
 
 **A review before publication**, if the policy requires it: the agent
 shows what goes out to the public repository, the human gives their

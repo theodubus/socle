@@ -10,7 +10,7 @@ Le parcours en bref :
 
 1. **Démarrer**, une fois : décrire le projet, donner ses outils à
    l'agent, pousser, protéger la branche.
-2. **Travailler avec l'agent** : lui confier des tâches, lire ses
+2. **Travailler avec l'agent** : lui confier du travail, lire ses
    récapitulatifs.
 3. **Répondre à l'agent** quand une décision revient à l'humain.
 4. **Les gestes occasionnels** : approuver ses propres changements, mettre
@@ -102,7 +102,7 @@ reçoit deux états.
 
 ## 2. Travailler avec l'agent
 
-Les tâches se confient à l'agent comme d'habitude. Au démarrage de chaque
+Le travail se confie à l'agent comme d'habitude. Au démarrage de chaque
 session, il reçoit l'état du projet, le chantier actif, les titres des faits
 et les dix dernières décisions ; il travaille, et les contrôles le vérifient
 à chaque étape. Ce démarrage tient sous `[startup] max_bytes` des
@@ -117,15 +117,19 @@ permise, il n'est jamais coupé.
 **Planifier.** Depuis le cadrage, l'agent écrit une spécification et une
 architecture courtes dans la documentation du projet : chaque choix en
 ADR, chaque question ouverte en demande (en questions de cadrage quand
-votre intention manque, section 3), chaque tâche en sujet du backlog,
-avec ce qu'elle attend (`après` : un autre sujet, ou une demande jusqu'à
-sa réponse) et ce qui la rend faite (une section « Fait quand », en cases
-à cocher, toutes cochées avant de la clore), groupée en jalons. Il soumet
-chaque document en demande. Il suffit de le lui demander ; l'état donne
-ensuite le prochain jalon et les sujets prêts. Les sujets qui se
-traitent ensemble, parce qu'ils touchent les mêmes fichiers ou les mêmes
-tests, l'agent les réunit en un lot (`forme : lot`), que l'état montre
-avec l'avancement de chacun.
+votre intention manque, section 3). Le backlog a quatre formes d'entrée,
+chacune son préfixe : un **besoin** (`B-`), un défaut à corriger ou une
+fonction à ajouter, avec ce qui le satisfait (« Satisfait quand », un
+résultat) ; une **tâche** (`T-`), un livrable qui sert un besoin, avec ce
+qui la rend faite (« Fait quand », qu'un test vérifie) ; un **lot**
+(`L-`), les tâches qui touchent les mêmes fichiers, menées et relues
+ensemble ; un **jalon** (`JA-`), les besoins qui servent un même but.
+Chacune dit ce qu'elle attend (`après` : une autre entrée, ou une demande
+jusqu'à sa réponse), et ses cases sont toutes cochées avant de la clore.
+Il soumet chaque document en demande. Il suffit de le lui demander ;
+l'état donne ensuite le prochain jalon, le prochain lot et l'avancement
+de ses tâches, les tâches prêtes, et les besoins à découper en tâches ou
+à fermer.
 
 **Spécifications et cas d'essai.** Le projet déclare où vivent ses
 spécifications (`[specs] paths` des garde-fous) : l'état vous signale
@@ -135,34 +139,42 @@ résultats attendus : y ajouter un cas est libre, mais changer ou retirer
 un cas existant exige votre validation, comme une valeur attendue écrite
 dans un test.
 
-**Prioriser.** Un sujet peut porter `priorité : haute` ou
-`priorité : basse` ; la normale ne s'écrit pas. Le dire à l'agent suffit,
-et il ne change pas une priorité que l'humain a donnée. Les sujets prêts
-se rangent par priorité, et ceux de priorité basse restent à part :
+**Prioriser.** Un besoin ou une tâche peut porter `priorité : haute` ou
+`priorité : basse` ; la normale ne s'écrit pas, et une tâche prend celle
+de son besoin. Le dire à l'agent suffit, et il ne change pas une priorité
+que l'humain a donnée. Les tâches prêtes se rangent par priorité, et
+celles de priorité basse restent à part :
 l'agent ne les prend que s'ils sont commodes, et le dit en annonçant le
 lot.
 
 **Enchaîner.** Tant que rien ne revient à l'humain, l'agent enchaîne les
-sujets prêts sans attendre de message. Avant de s'y lancer, il annonce le
+tâches prêtes sans attendre de message. Avant de s'y lancer, il annonce le
 lot qu'il va traiter : l'arrêter ou le réorienter se fait d'un message.
 Il s'arrête à la fin du lot, ou dès qu'une décision revient à l'humain.
 
 **Faire relire.** Avant de livrer un lot qui change du code, une
 spécification ou un test, l'agent le fait relire par un relecteur sans
 contexte, qui cherche à le prendre en défaut contre le critère « Fait
-quand » des sujets du lot et, pour un garde-fou, son modèle de menace,
+quand » des tâches du lot et, pour un garde-fou, son modèle de menace,
 écrit avant le code : ce que le garde-fou arrête, ce qu'il laisse passer.
 L'agent corrige dans le lot les constats bloquants (un critère contredit,
 une régression, une perte de données, un contournement dans le modèle de
 menace) ; il envoie au backlog, où vous les voyez, ceux qui peuvent se
 produire dans l'usage normal du projet ou dont rien ne rattrape ensuite
-l'effet, et écarte les autres, exotiques et rattrapés, ou infondés. Son
+l'effet, en tâche si leur correction est claire, en besoin sinon, et
+écarte les autres, exotiques et rattrapés, ou infondés. Son
 récap dit combien, et pourquoi chacun est écarté.
+
+**Quand un lot tourne en rond.** L'agent garde l'historique des revues
+de chaque lot, et s'en aperçoit lui-même. Il s'arrête alors et vous pose
+une demande : ce qui tourne, la règle qui le fait tourner, et une
+proposition pour en sortir. Le lot attend votre réponse pendant que
+l'agent avance ailleurs.
 
 **Livrer.** Par défaut, l'agent fait tout sur une branche de
 développement et garde une seule pull request ouverte, à laquelle chaque
 lot fini s'ajoute : la fusionner quand on veut, une fois sa CI verte. Une
-pull request par sujet, chacune à fusionner, se choisit aux questions de
+pull request par tâche, chacune à fusionner, se choisit aux questions de
 départ, ou plus tard en le disant à l'agent, qui l'écrit en fait de la
 mémoire.
 
@@ -188,7 +200,7 @@ et ce que change votre réponse.
 
 À tout moment, `python3 .socle/socle state` donne l'état du projet : le
 commit, la CI, le backlog et ce qui vient ensuite (le prochain jalon, le
-prochain lot, les sujets prêts), les demandes en attente, ce qui revient à l'humain. La mémoire se lit dans `memory/`.
+prochain lot, les tâches prêtes), les demandes en attente, ce qui revient à l'humain. La mémoire se lit dans `memory/`.
 
 Une procédure du projet qui revient, l'agent l'écrit en skill dans
 `.claude/skills/`, avec une entrée au journal : il la charge ensuite à la
@@ -221,13 +233,13 @@ consigne aussitôt, mot pour mot, comme une demande. Ce qui demande du
 contexte, approuver un document compris, arrive en demande, avec son
 lien ; jamais dans le widget de questions de l'agent, que le hook refuse.
 
-**Des questions de cadrage.** Quand la spécification d'un sujet dépend
+**Des questions de cadrage.** Quand la spécification d'un besoin dépend
 d'une intention que la mémoire ne dit pas, l'agent pose des questions
 ouvertes, chacune avec son hypothèse, dans une demande dont il donne le
 lien. Y répondre librement, en un ou plusieurs messages (`reponses`), ou
 `valider` ses hypothèses : il consigne le texte tel quel, puis soumet la
 spécification qui en découle. Lui dire « pose-moi tes questions sur ce
-sujet » suffit à en demander.
+besoin » suffit à en demander.
 
 **Une relecture avant publication**, si la politique l'exige : l'agent
 montre ce qui part vers le dépôt public, l'humain donne son accord dans la

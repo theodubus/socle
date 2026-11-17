@@ -86,7 +86,7 @@ def renumeroter(projet: config.Projet, ident: str) -> list[str]:
     if e.type == "D" and any(c.endswith(memoire.SUFFIXE_REPONSE) and c.startswith(e.fichier.removesuffix(".md"))
                              for c in outils.fichiers_courants(racine)):
         raise ValueError(trad("`{ident}` a reçu sa réponse : une demande répondue est gelée", ident=ident))
-    pris = set(mem.definitions()) | pris_ailleurs(racine, e.type)
+    pris = set(mem.definitions()) | set(mem.anciens()) | pris_ailleurs(racine, e.type)
     defaut = outils.branche_par_defaut(racine)
     if defaut:
         pris |= set(memoire.Memoire.charger(racine, outils.resoudre(racine, defaut)).definitions())

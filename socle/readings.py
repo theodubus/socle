@@ -6,7 +6,9 @@ pour celle du commit de la plage où la citation paraît pour la première
 fois : une demande répondue est gelée et ne peut plus suivre l'entrée
 qu'elle cite. Une citation d'index (`backlog@…`, `decisions@…`) vaut pour
 toute version de l'index dans la plage, sans l'entrée qui cite ni celles du
-même type ajoutées après elle : l'index lu au début du travail reste lu,
+même type ajoutées après elle, ni, pour le backlog, sans celles que la
+plage ajoute dans d'autres formes (ADR-0083) : l'index lu au début du
+travail reste lu,
 et le verdict ne dépend plus de la base choisie, sinon pour s'élargir avec
 elle. Une citation déjà présente à la base dans la même
 entrée (ou dans celle dont elle vient) ne se rejuge pas ; hors de toute
@@ -71,18 +73,18 @@ class Plage:
                     break
         return min(rangs) if rangs else None
 
-    def changeant(self, type_: str) -> list[str]:
+    def changeant(self, type_: tuple[str, ...]) -> list[str]:
         """Les commits de la plage qui touchent un fichier où vivent des
         entrées de ce type : l'index ne change qu'avec eux."""
         if type_ not in self._changeants:
             self._changeants[type_] = self._changeant(type_)
         return self._changeants[type_]
 
-    def _changeant(self, type_: str) -> list[str]:
+    def _changeant(self, type_: tuple[str, ...]) -> list[str]:
         # Les décisions et les sujets du backlog vivent un par fichier : leur
         # dossier entier, pour ceux ajoutés en route.
         lieux = sorted({memoire.dossier_propre(c) or c for m in (self.courante, self.base) if m is not None
-                        for c, f in m.fichiers.items() if any(e.type == type_ for e in f.entrees)})
+                        for c, f in m.fichiers.items() if any(e.type in type_ for e in f.entrees)})
         if not lieux:
             return []
         return self._log("--", *lieux)
@@ -107,32 +109,52 @@ def deja_citee(soi: memoire.Entree | None, citation: str, avant: memoire.Memoire
     if avant is None:
         return False
     defs = avant.definitions()
-    return any(ident in defs and citation in defs[ident][0].texte for ident in (soi.id, *soi.depuis))
+    # Une entrée renumérotée (ADR-0083) garde ce qu'elle citait sous son
+    # ancien numéro.
+    return any(ident in defs and citation in defs[ident][0].texte
+               for ident in (soi.id, *soi.depuis, *soi.anciens))
 
 
 def entree_lue(plage: Plage, chemin: str, soi: memoire.Entree | None, ident: str, h: str) -> bool:
     """`ident@h` désigne la version actuelle de l'entrée, ou celle du commit
     où la citation paraît : son empreinte sans la ligne de métadonnées, ou
-    celle du texte entier, que portent les citations d'avant D-0086."""
-    e = plage.courante.entree(ident)
+    celle du texte entier, que portent les citations d'avant D-0086. Un
+    ancien numéro (ADR-0083) se résout : son empreinte se juge contre
+    l'entrée qui le porte, comme celle de l'identifiant actuel."""
+    e = plage.courante.resoudre(ident)
     if e is not None and h in memoire.empreintes_entree(e):
         return True
     k = plage.parution(chemin, f"{ident}@{h}", soi)
     if k is None:
         return False
-    e = plage.a(plage.commits[k]).entree(ident)
+    e = plage.a(plage.commits[k]).resoudre(ident)
     return e is not None and h in memoire.empreintes_entree(e)
 
 
-def _empreintes(m: memoire.Memoire, index: str, soi: memoire.Entree | None) -> set[str]:
+def _empreintes(m: memoire.Memoire, index: str, soi: memoire.Entree | None,
+                base: memoire.Memoire | None = None) -> set[str]:
     """L'index d'une version tel qu'affiché, sans l'entrée qui cite, et sans
     les entrées du même type ajoutées après elle : elle ne pouvait pas les
-    lire, et elles ne périment pas sa lecture."""
+    lire, et elles ne périment pas sa lecture. Pour le backlog, aussi sans
+    les entrées que la plage ajoute à la base dans une ou plusieurs formes,
+    chacune toutes ensemble : un besoin, sa tâche et leur lot s'écrivent dans
+    un ordre que leurs numéros ne disent pas d'une forme à l'autre
+    (ADR-0083) ; une entrée renumérotée n'est pas ajoutée."""
     if soi is None:
         return {memoire.empreinte_index(m, index)}
     sauf = {soi.id}
     apres = {n for n, d in m.definitions().items() if d[0].type == soi.type and n > soi.id}
-    return {memoire.empreinte_index(m, index, s) for s in (set(), sauf, apres, sauf | apres)}
+    variantes = {frozenset(), frozenset(sauf), frozenset(apres), frozenset(sauf | apres)}
+    if base is not None and index == "backlog":
+        connus = set(base.definitions())
+        neufs: dict[str, set[str]] = {}
+        for e in m.entrees(memoire.BACKLOG):
+            if e.id not in connus and not any(a in connus for a in e.anciens):
+                neufs.setdefault(e.type, set()).add(e.id)
+        # Chaque partie des formes ajoutées, de proche en proche.
+        for forme in sorted(neufs):
+            variantes |= {v | frozenset(neufs[forme]) for v in variantes}
+    return {memoire.empreinte_index(m, index, set(s)) for s in variantes}
 
 
 def index_lu(plage: Plage, chemin: str, soi: memoire.Entree | None, index: str, h: str) -> bool:
@@ -141,9 +163,9 @@ def index_lu(plage: Plage, chemin: str, soi: memoire.Entree | None, index: str, 
     été consulté, pas une version de son contenu : celle d'un commit
     postérieur à la citation, relue en route, vaut aussi."""
     for m in (plage.courante, plage.base):
-        if m is not None and h in _empreintes(m, index, soi):
+        if m is not None and h in _empreintes(m, index, soi, plage.base):
             return True
     # Du plus récent au plus ancien : la version lue est le plus souvent la
     # dernière.
-    return any(h in _empreintes(plage.a(sha), index, soi)
+    return any(h in _empreintes(plage.a(sha), index, soi, plage.base)
                for sha in reversed(plage.changeant(memoire.INDEX_TYPES[index])))
