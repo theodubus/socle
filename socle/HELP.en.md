@@ -127,6 +127,65 @@ tasks or to close. The whole roadmap, at a glance, reads in a terminal with
 `--by need` reads by need, `--by batch`, the default, by batch), on the page of each CI run, and in the
 conversation: ask the agent for “the roadmap”.
 
+The compact format aligns in columns the batches, strictly in their
+order of execution, each with its tasks closed out of the total, the
+batch in progress marked ▶. A milestone's heading, with its needs closed
+out of the total, is written each time the milestone changes from one
+batch to the next: a milestone whose batches alternate with another's
+comes back, and the batches that serve no milestone have the heading
+"Outside the milestones" in their place. The batch in progress and the
+next two, whatever their milestone, have a line each; outside this
+window, a run of batches of the same milestone fits on one line, and a
+single batch keeps its own (`--all` shows them all). It ends with what is
+outside the batches, counted, and with what comes next: the milestones
+with no batch, with their first open needs, then the needs in no
+milestone. It names no request. For example, the identifiers written here
+`X-NNNN`:
+
+```text
+JA-NNNN  Done before the new features           1/11 needs closed
+ ▶ L-NNNN  Backlog structure, going in circles  2/3   in progress
+   L-NNNN  Duration of the verification         0/2
+   L-NNNN  Rest of the backlog structure        1/5
+   …  L-NNNN to L-NNNN                          0/10
+Outside the batches: 4 needs with no task · 1 blocked (B-NNNN)
+Next: JA-NNNN The pilot equipped (B-NNNN) · then B-NNNN, B-NNNN
+```
+
+The detailed format, in Markdown, follows the same order under the same
+headings, and gives the batch in progress and the next two, each with the
+table of its tasks: their state as a symbol, which its key explains,
+their identifier, their need followed by their priority, their title up
+to its first colon, and what a waiting task waits on; the other batches,
+one line each, numbered in the order of execution. Read by need, each
+need, in the order of its batches, has the table of its tasks, with the
+batch of each. What is outside the batches follows, in
+tables of the same shape, each pending request with its link. The start
+of the same backlog:
+
+```markdown
+Key: ✓ done · ▶ in progress · ○ ready · ⏳ waiting · ✗ blocked · ⊘ abandoned · ↑ high priority · ↓ low priority
+
+### JA-NNNN — Done before the new features · 1/11 needs closed
+
+**1. L-NNNN — Backlog structure, going in circles** · in progress · 2/3
+
+| | Task | Need | |
+| --- | --- | --- | --- |
+| ✓ | T-NNNN | B-NNNN | The structure in four forms |
+| ✓ | T-NNNN | B-NNNN | The memory format |
+| ○ | T-NNNN | B-NNNN | The exotic form in the guide's list |
+
+**2. L-NNNN — Duration of the verification** · 0/2
+
+| | Task | Need | |
+| --- | --- | --- | --- |
+| ○ | T-NNNN | B-NNNN ↑ | Measure the duration of each step |
+| ⏳ | T-NNNN | B-NNNN ↑ | The suite on several cores · waits on T-NNNN |
+
+…
+```
+
 **Specifications and test cases.** The project declares where its
 specifications live (`[specs] paths` in the guardrails): the state tells
 you about any that no request has submitted to you. It also declares its
@@ -190,7 +249,10 @@ Each intervention of the agent that acted ends with two lines:
 - **"Next:"** — what comes next, and what the agent is waiting for.
 
 Each item of "For you" can be understood on its own: what it is, why,
-and what your answer changes.
+and what your answer changes. The agent writes its two lines as text: a
+line in a code block does not count, and an output it pastes there, like
+the compact roadmap and its own "Next:" line, does not stand for a
+recap.
 
 At any time, `python3 .socle/socle state` gives the project's state: the
 commit, the CI, the backlog and what comes next (the next milestone, the

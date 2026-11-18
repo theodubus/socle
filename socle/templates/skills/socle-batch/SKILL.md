@@ -81,9 +81,9 @@ une entrée de journal et une valeur attendue ne se réécrivent plus.
 5. Le chantier actif et le journal s'écrivent avant la fusion, dans le
    dernier commit de la pull request, avec la clôture du lot : ses tâches
    closes et son recul écrit, il passe `fait`, puis `python3 .socle/socle archive` ; le récap
-   de la clôture colle la sortie de `python3 .socle/socle roadmap`. Après la
-   fusion, la branche locale repart de la branche par défaut et ne se pousse qu'avec le premier commit du lot suivant : poussée seule,
-   elle recréerait la branche distante supprimée.
+   de la clôture colle la sortie de `python3 .socle/socle roadmap` dans un bloc de code. Après la
+   fusion, la branche locale repart de la branche par défaut et ne se pousse qu'avec le premier commit du lot suivant : seule,
+   elle recréerait la branche distante.
 
 ## La consommation
 

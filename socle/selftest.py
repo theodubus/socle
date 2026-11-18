@@ -513,6 +513,13 @@ def _adr_test_double(a: "Atelier", c: Path) -> str:
 
 DEPOT_ESSAI = "https://github.com/essai/calc"
 RECAP = "\n\nPour toi : rien.\nEnsuite : rien."
+# Le compact de `socle roadmap`, qui finit par sa propre ligne « Ensuite : »,
+# collé dans un bloc de code au récap de la clôture d'un lot : il ne tient
+# pas lieu de récap (ADR-0089).
+COMPACT_COLLE = ("JA-0001  Le premier jalon      0/1 besoins clos\n"
+                 " ▶ L-0001  Le premier lot  0/1  en cours\n"
+                 "Hors lot : rien\n"
+                 "Ensuite : JA-0002 Le second jalon (B-0002)")
 
 
 def _demande_nommant_le_test(a: "Atelier", c: Path) -> str:
@@ -2215,6 +2222,12 @@ def _cas() -> list[Cas]:
         maj_memoire(c, "Travail du tour.")
         return etage_stop(a, c, "J'ai mis à jour le chantier actif.\n\nPour toi : rien.")
 
+    @defaut("suite-dans-un-bloc-de-code", "fin d'intervention dont la seule ligne « Ensuite : » est celle d'une "
+            "sortie collée dans un bloc de code", "agent", "suite")
+    def _(a, c):
+        maj_memoire(c, "Travail du tour.")
+        return etage_stop(a, c, "Lot clos.\n\n```text\n" + COMPACT_COLLE + "\n```\n\nPour toi : rien.")
+
     @defaut("chemin-inexistant", "chemin donné à l'humain qui n'existe pas dans le dépôt", "agent", "liens")
     def _(a, c):
         maj_memoire(c, "Travail du tour.")
@@ -2959,6 +2972,13 @@ def _temoins() -> list[tuple[str, Callable]]:
         maj_memoire(c, "Travail du tour.")
         return etage_stop(a, c, "J'ai mis à jour le chantier actif. Tout passe.\n\nPour toi : rien.\n"
                           "Ensuite : le sujet suivant du backlog.")
+
+    @temoin("une fin d'intervention avec ses deux lignes en texte et un compact collé dans un bloc de code passe "
+            "le hook de fin de tour")
+    def _(a, c):
+        maj_memoire(c, "Travail du tour.")
+        return etage_stop(a, c, "Lot clos.\n\n```text\n" + COMPACT_COLLE + "\n```\n\nPour toi : rien.\n"
+                          "Ensuite : le lot suivant.")
 
     @temoin("des liens que l'humain peut suivre passent le hook de fin de tour")
     def _(a, c):

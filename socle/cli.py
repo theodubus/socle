@@ -860,7 +860,8 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("--by", choices=suite.LECTURES, default="batch",
                    help=trad("batch : lire par lot (défaut) ; need : par besoin, chacun avec ses tâches et le lot "
                              "de chacune"))
-    s.add_argument("--all", action="store_true", help=trad("en markdown, détailler tous les lots, ou tous les besoins"))
+    s.add_argument("--all", action="store_true", help=trad("en markdown, détailler tous les lots, ou tous les besoins ; "
+                                                           "en text, montrer chaque lot en sa ligne"))
     s.set_defaults(f=cmd_roadmap)
 
     s = sp.add_parser("check", help=trad("contrôles du socle, un code de sortie"))

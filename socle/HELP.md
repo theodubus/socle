@@ -135,6 +135,64 @@ de ses tâches, les tâches prêtes, et les besoins à découper en tâches ou
 `--by need` lit par besoin, `--by batch`, le défaut, par lot), sur la page de chaque exécution de la CI, et
 dans la conversation : demandez « la suite » à l'agent.
 
+Le format compact aligne en colonnes les lots, strictement dans leur
+ordre d'exécution, chacun avec ses tâches closes sur le total, le lot en
+cours marqué ▶. L'en-tête d'un jalon, avec ses besoins clos sur le
+total, s'écrit chaque fois que le jalon change d'un lot au suivant : un
+jalon dont les lots alternent avec ceux d'un autre revient, et les lots
+qui ne servent aucun jalon ont l'en-tête « Hors des jalons » à leur
+place. Le lot en cours et les deux suivants, quel que soit leur jalon,
+ont chacun leur ligne ; hors de cette fenêtre, une suite de lots d'un
+même jalon tient en une ligne, et un lot seul garde la sienne (`--all`
+les montre tous). Il finit par ce qui est hors des lots, compté, et par
+ce qui vient ensuite : les jalons sans lot, avec leurs premiers besoins
+ouverts, puis les besoins d'aucun jalon. Il ne nomme aucune demande. Par
+exemple, les identifiants écrits ici `X-NNNN` :
+
+```text
+JA-NNNN  Fini avant les nouvelles fonctions        1/11 besoins clos
+ ▶ L-NNNN  Structure du backlog, chantier en rond  2/3   en cours
+   L-NNNN  Durée de la vérification                0/2
+   L-NNNN  Suite de la structure du backlog        1/5
+   …  L-NNNN à L-NNNN                              0/10
+Hors lot : 4 besoins sans tâche · 1 bloqué (B-NNNN)
+Ensuite : JA-NNNN Le pilote équipé (B-NNNN) · puis B-NNNN, B-NNNN
+```
+
+Le format détaillé, en Markdown, suit le même ordre sous les mêmes
+en-têtes, et donne le lot en cours et les deux suivants, chacun avec le
+tableau de ses tâches : leur état en symbole, que sa légende explique,
+leur identifiant, leur besoin suivi de leur priorité, leur titre jusqu'à
+son premier deux-points, et ce qu'attend une tâche qui attend ; les
+autres lots, une ligne chacun, numérotés dans l'ordre d'exécution. Lu
+par besoin, chaque besoin, dans l'ordre de ses lots, a le tableau de ses
+tâches, avec le lot de chacune. Ce qui est hors des lots
+suit, en tableaux de même forme, chaque demande en attente avec son lien.
+Le début du même backlog :
+
+```markdown
+Légende : ✓ faite · ▶ en cours · ○ prête · ⏳ attend · ✗ bloquée · ⊘ abandonnée · ↑ priorité haute · ↓ priorité basse
+
+### JA-NNNN — Fini avant les nouvelles fonctions · 1/11 besoins clos
+
+**1. L-NNNN — Structure du backlog, chantier en rond** · en cours · 2/3
+
+| | Tâche | Besoin | |
+| --- | --- | --- | --- |
+| ✓ | T-NNNN | B-NNNN | La structure en quatre formes |
+| ✓ | T-NNNN | B-NNNN | Le format de la mémoire |
+| ○ | T-NNNN | B-NNNN | La forme exotique dans la liste du guide |
+
+**2. L-NNNN — Durée de la vérification** · 0/2
+
+| | Tâche | Besoin | |
+| --- | --- | --- | --- |
+| ○ | T-NNNN | B-NNNN ↑ | Mesurer la durée de chaque étape |
+| ⏳ | T-NNNN | B-NNNN ↑ | La suite sur plusieurs cœurs · attend T-NNNN |
+
+…
+```
+
 **Spécifications et cas d'essai.** Le projet déclare où vivent ses
 spécifications (`[specs] paths` des garde-fous) : l'état vous signale
 celle qu'aucune demande ne vous a soumise. Il déclare aussi ses fichiers
@@ -200,7 +258,10 @@ Chaque intervention de l'agent qui a agi se termine par deux lignes :
 - **« Ensuite : »** — la suite prévue, et ce que l'agent attend.
 
 Chaque point de « Pour toi » se comprend seul : ce que c'est, pourquoi,
-et ce que change votre réponse.
+et ce que change votre réponse. L'agent écrit ses deux lignes en texte :
+une ligne dans un bloc de code ne compte pas, et une sortie qu'il y
+colle, comme le compact de la suite et sa propre ligne « Ensuite : », ne
+tient pas lieu de récap.
 
 À tout moment, `python3 .socle/socle state` donne l'état du projet : le
 commit, la CI, le backlog et ce qui vient ensuite (le prochain jalon, le

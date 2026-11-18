@@ -7,6 +7,49 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-18-c — The project's roadmap in the approved formats: the compact one in columns, the detailed one in tables, in the order of execution; the recap is no longer read in a code block
+
+`socle roadmap` changes its rendering, not its content nor its options.
+The compact format aligns in columns, counted in characters, the batches
+strictly in their order of execution, each with its tasks closed out of
+the total, the batch in progress marked ▶. The heading of a milestone and
+its needs closed out of the total comes back each time the milestone
+changes from one batch to the next; “Outside the milestones” likewise
+heads, in their place, the batches that serve none. The batch in
+progress and the next two, whatever their milestone, have a line each;
+beyond them, each run of batches of the same milestone fits on one line,
+a single batch keeps its own, and `--all` unfolds everything. It no
+longer has a header line, and ends with two lines: “Outside the
+batches:”, the non-zero counts and the blocked entries named, and
+“Next:”, the milestones with no batch with their first open needs, then
+the needs in no milestone. It still names no request. The detailed format
+(`--format markdown`) keeps its title and its sentence, then gives a key
+to the symbols; in the same order, under the same headings, each batch of
+the window has its line (its rank in the order of execution, its title,
+its state if it is in progress or stopped, the requests it waits on, its
+tasks closed out of the total) and a table with one row per task: its
+state and its priority as symbols (✓ done, ▶ in progress, ○ ready,
+⏳ waiting, ✗ blocked, ⊘ abandoned; ↑ high, ↓ low), its identifier, its
+need, its title up to its first colon, and what it waits on; each other
+batch, one numbered line. Read by need (`--by need`), the needs come in
+the order of their batches, each with the table of its tasks and the
+batch of each. What is outside the batches keeps its sections, each as a
+table. The guide shows both formats.
+
+The end-of-turn hook no longer looks for the recap's two lines, “For
+you:” and “Next:”, nor for the patterns the policy gives in their place
+(`[human] recap_markers`), in a code block fenced by three backticks or
+three tildes; a block never closed runs to the end of the message. An
+output pasted in a block, like this compact one, which ends with its own
+“Next:” line, no longer stands for a recap; the `socle-batch` skill now
+says to paste the compact one in a code block into the recap of a
+batch's closing.
+
+To do: nothing in the project. The agent writes its two lines as text,
+never in a code block; the hook's refusal reminds it. The CI summary and
+the recap of a batch's closing take the new rendering by themselves; a
+project text that quoted the old one word for word is to be reviewed.
+
 ## 2026-11-18-b — The review dossier, its skill and the questions say task, need or entry, never “topic”
 
 The product's last texts that called a backlog entry a “topic”, and that

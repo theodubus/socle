@@ -82,7 +82,7 @@ rewritten.
 5. The active work and the journal are written before the merge, in the
    last commit of the pull request, with the batch's closure: its tasks
    closed and its step back written, it becomes `done`, then `python3 .socle/socle archive`; the closing
-   recap pastes the output of `python3 .socle/socle roadmap`. After
+   recap pastes the output of `python3 .socle/socle roadmap` in a code block. After
    the merge, the local branch restarts from the default branch and is
    pushed only with the first commit of the next batch: pushed alone, it would recreate the deleted remote branch.
 

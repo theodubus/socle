@@ -36,6 +36,11 @@ MARQUEURS_RECAP_EN = {
     "For you:": r"(?im)^[\W_]*for you[\s*_]*:",
     "Next:": r"(?im)^[\W_]*next[\s*_]*:",
 }
+# La clôture ouvrante d'un bloc de code délimité : trois accents graves ou
+# trois tildes au moins, en début de ligne ; une clôture d'accents graves
+# n'en porte pas d'autre sur sa ligne, sinon c'est du code en ligne. Les
+# lignes du récap ne se cherchent pas dans un tel bloc (ADR-0089).
+CLOTURE_OUVRANTE = re.compile(r"^[ \t]*(?P<cloture>`{3,}(?=[^`]*$)|~{3,})")
 
 
 # Le genre d'un élément, dit dans la langue du projet à l'affichage.
@@ -322,11 +327,33 @@ def dernier_message(transcript: Path) -> str | None:
     return None
 
 
+def _hors_des_blocs_de_code(message: str) -> str:
+    """Le message sans ses blocs de code délimités, clôtures comprises : de
+    la clôture ouvrante à la fermante, du même caractère, au moins aussi
+    longue et seule sur sa ligne ; un bloc jamais fermé court jusqu'à la fin
+    du message."""
+    gardees: list[str] = []
+    ouvert: str | None = None
+    for ligne in message.splitlines():
+        if ouvert is None:
+            m = CLOTURE_OUVRANTE.match(ligne)
+            if m:
+                ouvert = m.group("cloture")
+            else:
+                gardees.append(ligne)
+        elif re.fullmatch(rf"[ \t]*{re.escape(ouvert[0])}{{{len(ouvert)},}}[ \t]*", ligne):
+            ouvert = None
+    return "\n".join(gardees)
+
+
 def recap_manquant(projet: config.Projet, message: str) -> list[str]:
-    """Les lignes du récap absentes du message ; vide, le récap est complet."""
+    """Les lignes du récap absentes du message ; vide, le récap est complet.
+    Elles se cherchent hors des blocs de code délimités : une sortie collée
+    dans un bloc ne tient pas lieu de récap (ADR-0089)."""
     defaut = MARQUEURS_RECAP_EN if langue.du_projet(projet) == "en" else MARQUEURS_RECAP
     marqueurs = projet.pol("human", "recap_markers", defaut=defaut)
-    return [nom for nom, motif in marqueurs.items() if not re.search(motif, message)]
+    texte = _hors_des_blocs_de_code(message)
+    return [nom for nom, motif in marqueurs.items() if not re.search(motif, texte)]
 
 
 def prochaines_etapes(projet: config.Projet) -> str:
