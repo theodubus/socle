@@ -642,8 +642,8 @@ def sans_question_de_seance(texte: str) -> str:
 def lectures(ctx, r):
     """Une citation `ID@empreinte` ou `index@empreinte` ajoutée désigne une
     version que l'agent a pu lire (`socle.readings`) ; une
-    décision, une demande ou un sujet de backlog nouveaux prouvent ce qu'ils
-    ont lu avant d'être écrits."""
+    décision, une demande ou une entrée du backlog nouvelles prouvent ce
+    qu'elles ont lu avant d'être écrites."""
     from socle import readings as lp
 
     mem, base = ctx.memoire, ctx.memoire_base

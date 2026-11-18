@@ -228,6 +228,17 @@ tâche ouverte ni rien d'ouvert qu'ils attendent ; et le nombre d'entrées
 qui attendent encore, selon ce qu'elles attendent : une entrée du backlog,
 une demande sans réponse, ou les deux. Le rappel de fin de tour le redonne.
 
+`socle roadmap` en tire la suite entière, par les mêmes règles : chaque
+jalon et ses besoins clos sur le total ; les lots ouverts dans leur ordre
+d'exécution, chacun après les lots qu'il attend de proche en proche, l'en
+cours d'abord à choix égal, et où en est chacune de leurs tâches (faite,
+en cours, prête, ce qu'elle attend encore, bloquée) ; hors des lots, les
+tâches ouvertes qu'aucun lot n'attend, les besoins à découper et à
+fermer, les entrées bloquées, celles `pour : humain`, les demandes en
+attente, et les besoins ouverts qu'aucun jalon n'attend. Deux lots qui
+attendent un même lot sans que l'un attende l'autre y sont signalés : leur
+ordre n'est pas déduit, il est choisi par leur identifiant.
+
 Une tâche est faite quand sa section `## Fait quand` est cochée ; un
 besoin, quand ses tâches sont closes, l'une au moins faite, et sa section
 `## Satisfait quand` cochée ; un lot, quand ses tâches sont closes ; un
@@ -252,18 +263,23 @@ une tâche ouverte, ou fait sans tâche faite. Ce qui est clos avant la
 migration reste tel quel.
 
 Une entrée renumérotée garde son ancien numéro (`ancien : B-0235`) :
-`socle show`, les contrôles des références et la lecture prouvée le
-résolvent vers elle (une citation par l'ancien numéro se juge contre sa
-version actuelle), le
+`socle show`, `socle url`, les contrôles des références et la lecture
+prouvée le résolvent vers elle (une citation par l'ancien numéro se juge
+contre sa version actuelle), le
 journal, les décisions et les demandes le gardent, et il ne se réattribue
-jamais. La mise à jour migre un backlog d'avant ADR-0083 : un lot
+jamais. Un texte neuf cite l'identifiant actuel : le hook de l'agent
+refuse d'y écrire l'ancien numéro, sauf sur une ligne qui nomme aussi
+l'identifiant actuel (`B-0235 → L-0002`), et nomme l'identifiant à citer.
+
+La mise à jour migre un backlog d'avant ADR-0083 : un lot
 (`forme : lot`) devient `L-` et un jalon (`forme : jalon`) `JA-`, clos
 compris, sans sa priorité, qui ne changeait aucun ordre (l'installeur
 nomme chacun) ; toute autre entrée reste un besoin, sa section « Fait quand »
 renommée ; chaque besoin qu'attend un lot ouvert reçoit une tâche qui
-reprend ses critères, vers laquelle sa section renvoie, et que le lot
-attend à sa place ; un jalon attend les besoins de ses lots ; les
-mentions se récrivent dans le backlog et le chantier actif.
+reprend ses critères, chacun entier, vers laquelle sa section renvoie, et
+que le lot attend à sa place ; un jalon attend les besoins de ses lots ;
+une entrée close n'en vient à attendre rien d'ouvert ; les mentions se
+récrivent dans le backlog, le chantier actif et les tâches posées.
 
 Un besoin qui pose ou change un garde-fou écrit, avant son code, son
 modèle de menace : ce que le garde-fou arrête, ce qu'il laisse passer, dans

@@ -6,7 +6,7 @@
 ## Décision demandée
 
 Répondre librement aux questions de cadrage ci-dessous : la spécification
-de ce sujet dépend d'une intention que la mémoire ne dit pas.
+de ce besoin dépend d'une intention que la mémoire ne dit pas.
 
 ## Contexte
 
@@ -14,7 +14,7 @@ de ce sujet dépend d'une intention que la mémoire ne dit pas.
 
 **Le chantier.** <Le but du travail en cours et pourquoi il existe, ce qui est fait et ce qui reste ; les décisions passées de l'humain qui y mènent, dites par leur contenu et leur date, pas par leur numéro.>
 
-**La question.** <Le sujet à spécifier, ce que la mémoire en dit déjà, et ce qui manque pour le spécifier sans deviner.>
+**La question.** <Le besoin à spécifier, ce que la mémoire en dit déjà, et ce qui manque pour le spécifier sans deviner.>
 
 ## Questions
 
@@ -38,7 +38,7 @@ non un choix que l'agent pourrait trancher seul.
   que tu veux ; réversible.
 - **Valider les hypothèses** : effort nul ; risque, une hypothèse qui ne dit
   pas ton intention, notée « supposée », se corrige plus tard ; réversible.
-- **Refuser** : effort nul ; risque, le sujet attend, sans spécification ;
+- **Refuser** : effort nul ; risque, le besoin attend, sans spécification ;
   réversible.
 
 ## Conséquences
@@ -46,9 +46,9 @@ non un choix que l'agent pourrait trancher seul.
 Si tu réponds, l'agent consigne ton texte exact, puis écrit la
 spécification ou la décision qui en découle, et te la soumet dans une
 demande. Si tu valides les hypothèses, il les applique, notées
-« supposées ». Si tu refuses, le sujet attend. Si les questions ne se
+« supposées ». Si tu refuses, le besoin attend. Si les questions ne se
 comprennent pas (`contexte-insuffisant`), l'agent les réécrit. Sans
-réponse, le sujet attend aussi, et l'agent travaille sur autre chose.
+réponse, le besoin attend aussi, et l'agent travaille sur autre chose.
 
 ## Recommandation
 
@@ -58,5 +58,5 @@ réponse, le sujet attend aussi, et l'agent travaille sur autre chose.
 
 - `valider` — les hypothèses de l'agent s'appliquent, notées « supposées ».
 - `reponses` — le texte de ta réponse, en un ou plusieurs messages, donne les réponses ; l'agent le consigne tel quel.
-- `refuser` — le sujet attend, sans spécification.
+- `refuser` — le besoin attend, sans spécification.
 - `contexte-insuffisant` — la demande revient à l'agent, qui la réécrit en une demande qui la remplace.

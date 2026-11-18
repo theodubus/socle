@@ -39,10 +39,10 @@ python3 .socle/socle review
    et de sa base, la branche distante (sinon la branche par défaut ; si
    la branche distante contient déjà le lot, poussé avant sa revue, ou
    est restée en arrière de la branche par défaut après une fusion par
-   écrasement, l'ancêtre commun avec la branche par défaut, et il le dit), les sujets
-   dont le lot change le statut ou le « Fait quand », en entier, ceux
+   écrasement, l'ancêtre commun avec la branche par défaut, et il le dit), les entrées
+   dont le lot change le statut ou les critères, en entier, celles
    qu'il ouvre par leur titre, les décisions et les demandes que le lot
-   écrit, puis celles que ses sujets citent.
+   écrit, puis celles que ses entrées citent.
    `--base <ref>` change la base du lot ; pour une seconde revue,
    `--since <commit relu>` ne montre que le diff depuis le commit de la
    première, avec les messages des commits qui le corrigent. Une

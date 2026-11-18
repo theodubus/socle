@@ -37,6 +37,10 @@ MESSAGES: dict[str, str] = {
     "l'identifiant ; ne jamais en inventer un":
         "`{ident}` (line {ligne}) names no entry of the memory — create the entry first, or fix the identifier; "
         "never invent one",
+    "`{ident}` (ligne {ligne}) est l'ancien numéro de {actuel} : un texte neuf cite l'entrée par son identifiant "
+    "actuel, {actuel}, seul ou sur la même ligne que l'ancien":
+        "`{ident}` (line {ligne}) is the former number of {actuel}: a new text cites the entry by its current "
+        "identifier, {actuel}, alone or on the same line as the former one",
     "`commit:{cible}` n'existe pas dans ce dépôt — lire le SHA avec `git rev-parse`, jamais de tête":
         "`commit:{cible}` does not exist in this repository — read the SHA with `git rev-parse`, never from memory",
     "`{id}` passe à « validé » sans demande validée par l'humain : ce statut ne s'écrit que par l'humain (politique, "
@@ -194,6 +198,8 @@ MESSAGES: dict[str, str] = {
         "the CI and the engine. Propose the change in a request.",
     "référence inventée — {fautes}":
         "invented reference — {fautes}",
+    "ancien numéro — {fautes}":
+        "former number — {fautes}",
     "demande hors contrat (elle doit se lire sans le projet en tête) — {fautes} ; la procédure : le skill "
     "`socle-request`":
         "request out of contract (it must read without the project in mind) — {fautes}; the procedure: the skill "
@@ -363,16 +369,16 @@ MESSAGES: dict[str, str] = {
     "la politique dit ce que l'agent décide seul et ce qu'il te demande ; toi seul la modifies":
         "the policy says what the agent decides alone and what it asks you; only you change it",
     "Le travail se livre-t-il par une branche de développement, une seule pull request ouverte à la fois, ou "
-    "par une branche et une pull request par sujet ?":
+    "par une branche et une pull request par tâche ?":
         "Is the work delivered through one development branch, with only one pull request open at a time, or "
-        "through one branch and one pull request per topic?",
+        "through one branch and one pull request per task?",
     "une branche de développement : chaque lot fini s'ajoute à la pull request ouverte, que tu fusionnes quand "
     "tu veux":
         "one development branch: each finished batch is added to the open pull request, which you merge "
         "whenever you want",
-    "une pull request par sujet se relit sujet par sujet, mais il y en a une à fusionner par sujet ; le choix "
+    "une pull request par tâche se relit tâche par tâche, mais il y en a une à fusionner par tâche ; le choix "
     "devient un fait de la mémoire, que l'agent suit":
-        "a pull request per topic is reviewed topic by topic, but there is one to merge per topic; the choice "
+        "a pull request per task is reviewed task by task, but there is one to merge per task; the choice "
         "becomes a fact of the memory, which the agent follows",
     "Des contraintes à respecter (licence, dépendances, plateformes, délais) ?":
         "Any constraints to respect (licence, dependencies, platforms, deadlines)?",
@@ -1313,8 +1319,8 @@ MESSAGES: dict[str, str] = {
         "pull request {numero} cited without its link: give its address, which the human opens in one click",
     "pull request à fusionner citée sans son lien":
         "pull request to merge cited without its link",
-    "sujet du backlog qui s'attend lui-même (`après`)":
-        "backlog topic that waits on itself (`after`)",
+    "besoin qui s'attend lui-même (`après`)":
+        "need that waits on itself (`after`)",
     "rien, il se clôt":
         "nothing, it can close",
     "attend":
@@ -1398,10 +1404,10 @@ MESSAGES: dict[str, str] = {
         "without `AGENTS.md`, `CLAUDE.md` carrying the socle section, when the installer kept it because the project "
         "names it.",
     "Une citation `ID@empreinte` ou `index@empreinte` ajoutée désigne une version que l'agent a pu lire "
-    "(`socle.readings`) ; une décision, une demande ou un sujet de backlog nouveaux prouvent ce qu'ils ont "
-    "lu avant d'être écrits.":
+    "(`socle.readings`) ; une décision, une demande ou une entrée du backlog nouvelles prouvent ce qu'elles ont "
+    "lu avant d'être écrites.":
         "A citation `ID@fingerprint` or `index@fingerprint` that is added names a version the agent could read "
-        " (`socle.readings`); a new decision, request or backlog topic proves what it read before being "
+        " (`socle.readings`); a new decision, request or backlog entry proves what it read before being "
         "written.",
     "Une fonction publique ajoutée ou modifiée est nommée par au moins un test — ou une dispense motivée la nomme "
     "(`Dispense-test: f — <raison>`).":
@@ -1943,18 +1949,18 @@ MESSAGES: dict[str, str] = {
         "“Context”: the “{nom}” paragraph has fewer than {n} words",
     "Tu relis le lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce dossier, et tu peux lire le dépôt pour vérifier un constat, mais tu ne modifies rien. Pour éprouver une commande (l'installeur, un script), crée d'abord un dossier temporaire hors du dépôt (`mktemp -d`), et n'écris que là : chaque commande qui écrit y vise par son chemin absolu, jamais par le dossier courant, écrit en toutes lettres tel que `mktemp -d` l'a rendu, jamais par une variable, qui ne survit pas d'un appel à l'autre. Ton rôle est de le prendre en défaut.":
         "You review another agent's batch of work, without its conversation or its reasoning: you have this brief, and you may read the repository to check a finding, but you change nothing. To try a command (the installer, a script), first create a temporary directory outside the repository (`mktemp -d`), and write only there: each command that writes aims at it by its absolute path, never through the current directory, written out in full as `mktemp -d` returned it, never through a variable, which does not survive from one call to the next. Your role is to find fault with it.",
-    "Ta barre est celle des sujets du lot, plus bas : leur critère « Fait quand », les décisions qu'ils citent, et, pour un sujet qui pose ou change un garde-fou, son modèle de menace, ce que le garde-fou arrête et ce qu'il laisse passer. Cherche ce qui casse (un cas limite, une erreur de logique, une régression), ce qu'aucun test ne prouve, et ce qui contredit un critère ou une décision. Ne juge ni le style, ni ce que les contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests.":
-        "Your bar is that of the batch's topics, below: their “Done when” criterion, the decisions they cite, and, for a topic that adds or changes a guardrail, its threat model, what the guardrail stops and what it lets through. Look for what breaks (an edge case, a logic error, a regression), what no test proves, and what contradicts a criterion or a decision. Judge neither style nor what the automatic checks already judge: the form of the memory, the links, the presence of tests.",
+    "Ta barre est celle des entrées du backlog que sert le lot, plus bas : leurs critères (« Fait quand » d'une tâche, « Satisfait quand » d'un besoin), les décisions qu'elles citent, et, pour une entrée qui pose ou change un garde-fou, son modèle de menace, ce que le garde-fou arrête et ce qu'il laisse passer. Cherche ce qui casse (un cas limite, une erreur de logique, une régression), ce qu'aucun test ne prouve, et ce qui contredit un critère ou une décision. Ne juge ni le style, ni ce que les contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests.":
+        "Your bar is that of the backlog entries the batch serves, below: their criteria (a task's “Done when”, a need's “Satisfied when”), the decisions they cite, and, for an entry that adds or changes a guardrail, its threat model, what the guardrail stops and what it lets through. Look for what breaks (an edge case, a logic error, a regression), what no test proves, and what contradicts a criterion or a decision. Judge neither style nor what the automatic checks already judge: the form of the memory, the links, the presence of tests.",
     "Classe chaque constat. **Bloquant** : il contredit un critère coché ou une décision citée, fait régresser ce qui marchait avant le lot, perd des données, ou contourne un garde-fou dans son modèle de menace ; un garde-fou que le lot pose ou change sans modèle de menace écrit est lui-même un constat bloquant. **Pour le backlog** : un constat qui ne bloque pas, s'il peut se produire dans l'usage normal du projet, ou si rien ne rattrape ensuite son effet ; un contournement hors du modèle de menace, un critère que le lot ne coche pas, un défaut voisin, une amélioration, jugés de même. **Écarté** : un constat exotique (un geste rare, une forme qu'on n'écrit que pour contourner, un cas jamais reproduit) dont l'effet est rattrapé, par un contrôle, la CI ou une erreur que l'agent voit aussitôt ; et un constat infondé. Une forme du shell qu'un agent n'écrit pas dans son travail (ni vue dans une session d'agent, ni dans un skill, ni dans une documentation courante), et qui échappe au hook de l'agent, ne se classe pas bloquante, même refusée avant le lot par accident, ni pour le backlog, quel qu'en soit l'effet : écarte-la, d'une ligne, pour la liste des formes connues que le hook ne juge pas, dans le guide du socle (`python3 .socle/socle help`). Seuls les bloquants se corrigent dans le lot. Rends trois listes numérotées, « Bloquants », « Pour le backlog » puis « Écartés », chaque constat avec son fichier et sa ligne, ce qui casse et comment le vérifier, pour un bloquant ce qu'il contredit, pour un écarté pourquoi ; ou « aucun constat ».":
         "Classify each finding. **Blocking**: it contradicts a ticked criterion or a cited decision, breaks what worked before the batch, loses data, or bypasses a guardrail within its threat model; a guardrail the batch adds or changes without a written threat model is itself a blocking finding. **For the backlog**: a finding that does not block, if it can occur in the project's normal use, or if nothing catches its effect afterwards; a bypass outside the threat model, a criterion the batch does not tick, a neighbouring defect, an improvement, judged the same way. **Dismissed**: an exotic finding (a rare gesture, a form one only writes to get around something, a case never reproduced) whose effect is caught, by a check, the CI or an error the agent sees at once; and an unfounded finding. A shell form an agent does not write in its work (seen neither in an agent session, nor in a skill, nor in current documentation), and that escapes the agent's hook, is not classed as blocking, even if refused before the batch by accident, nor for the backlog, whatever its effect: dismiss it, in one line, for the list of known forms the hook does not judge, in the socle's guide (`python3 .socle/socle help`). Only blocking findings are fixed in the batch. Return three numbered lists, “Blocking”, “For the backlog” then “Dismissed”, each finding with its file and line, what breaks and how to verify it, for a blocking one what it contradicts, for a dismissed one why; or “no finding”.",
-    "Seconde revue : ce diff corrige des constats bloquants d'une première revue, que disent les messages de ses commits ci-dessous ; le reste du lot a déjà été relu. Ne juge que cette correction : un bloquant mal corrigé, ce qu'elle fait régresser, contre les mêmes sujets.":
-        "Second review: this diff fixes blocking findings of a first review, which the messages of its commits below state; the rest of the batch has already been reviewed. Judge only this fix: a blocking finding badly fixed, what it breaks, against the same topics.",
+    "Seconde revue : ce diff corrige des constats bloquants d'une première revue, que disent les messages de ses commits ci-dessous ; le reste du lot a déjà été relu. Ne juge que cette correction : un bloquant mal corrigé, ce qu'elle fait régresser, contre les mêmes entrées.":
+        "Second review: this diff fixes blocking findings of a first review, which the messages of its commits below state; the rest of the batch has already been reviewed. Judge only this fix: a blocking finding badly fixed, what it breaks, against the same entries.",
     "## Seconde revue":
         "## Second review",
     "## Le diff de la correction ({n} fichier(s), depuis {base})":
         "## The fix's diff ({n} file(s), since {base})",
-    "une seconde revue : le diff depuis ce commit, celui de la première revue, et les sujets du lot entier":
-        "a second review: the diff since this commit, the one of the first review, and the topics of the whole batch",
+    "une seconde revue : le diff depuis ce commit, celui de la première revue, et les tâches du lot entier":
+        "a second review: the diff since this commit, the one of the first review, and the tasks of the whole batch",
     "(aucune base connue : ni branche distante, ni branche par défaut ; rien à relire)":
         "(no known base: neither a remote branch nor a default branch; nothing to review)",
     "## Le diff du lot ({n} fichier(s), depuis {base})":
@@ -2011,13 +2017,13 @@ MESSAGES: dict[str, str] = {
         "deepened by `git fetch --unshallow`; otherwise, `socle review --base <the commit before the batch>`",
     "(diff tronqué : {n} caractère(s) de plus non montrés ; `git diff {base}` les donne)":
         "(diff truncated: {n} more character(s) not shown; `git diff {base}` gives them)",
-    "## Les sujets du lot : leur critère « Fait quand » est ta barre":
-        "## The batch's topics: their “Done when” criterion is your bar",
-    "## Les sujets que le lot ouvre : ce qu'il renvoie au backlog":
-        "## The topics the batch opens: what it sends to the backlog",
+    "## Les entrées du backlog que sert le lot : leurs critères sont ta barre":
+        "## The backlog entries the batch serves: their criteria are your bar",
+    "## Les entrées que le lot ouvre : ce qu'il renvoie au backlog":
+        "## The entries the batch opens: what it sends to the backlog",
     "## Les décisions et les demandes que le lot écrit":
         "## The decisions and requests the batch writes",
-    "## Les décisions et les demandes qu'ils citent":
+    "## Les décisions et les demandes qu'elles citent":
         "## The decisions and requests they cite",
     "répondre à une demande ; l'agent y relaie (--relayed) ta réponse donnée dans la conversation":
         "answer a request; the agent relays (--relayed) your answer given in the conversation",
@@ -2641,8 +2647,8 @@ MESSAGES: dict[str, str] = {
         "pull request description that cites a private identifier",
     "terme retiré de la liste privée sans validation humaine":
         "term removed from the private list without human approval",
-    "sujet « done » sans référence, écrit en anglais":
-        "“done” subject without a reference, written in English",
+    "besoin « done » sans référence, écrit en anglais":
+        "“done” need without a reference, written in English",
     "entrée publique « basculée » sans copie privée qui la reprenne":
         "public entry “moved” without a private copy that takes it over",
     "push vers le dépôt public sans relecture humaine":
@@ -2686,8 +2692,8 @@ MESSAGES: dict[str, str] = {
     "chemin écrit par le shell à travers une variable ou une substitution que le hook ne sait pas développer, dans "
     "le projet":
         "path written by the shell through a variable or a substitution the hook cannot expand, in the project",
-    "fichier protégé écrit par le shell après un sous-shell, une substitution, un pipeline ou une tâche de fond, dont "
-    "le dossier et les variables ne passent pas à la suite":
+    "fichier protégé écrit par le shell après un sous-shell, une substitution, un pipeline ou une commande en "
+    "arrière-plan, dont le dossier et les variables ne passent pas à la suite":
         "protected file written by the shell after a subshell, a substitution, a pipeline or a background job, whose "
         "directory and variables do not carry over",
     "fichier protégé écrit par le shell à travers `cd \"$OLDPWD\"`, une option de `cd`, les mots d'une variable, "
@@ -2867,8 +2873,8 @@ MESSAGES: dict[str, str] = {
         "entry cited in a version it no longer has",
     "identifiant que la branche par défaut a pris aussi":
         "identifier the default branch took too",
-    "sujet ajouté au backlog sans l'avoir consulté":
-        "subject added to the backlog without consulting it",
+    "besoin ajouté au backlog sans l'avoir consulté":
+        "need added to the backlog without consulting it",
     "défaut indexé, corrigé seulement sur disque":
         "defect in the index, fixed only on disk",
     "code changé sans mise à jour de la mémoire":
@@ -3017,8 +3023,8 @@ MESSAGES: dict[str, str] = {
         "encrypted mode: a private entry leaves encrypted and passes the commit and the CI",
     "ajouter un terme à la liste privée est libre : le commit et la CI passent":
         "adding a term to the private list is free: the commit and the CI pass",
-    "mode compagnon : un sujet public basculé dans la mémoire privée passe la fin de tour, le commit et la CI":
-        "companion mode: a public subject moved into the private memory passes the end of turn, the commit and the CI",
+    "mode compagnon : un besoin public basculé dans la mémoire privée passe la fin de tour, le commit et la CI":
+        "companion mode: a public need moved into the private memory passes the end of turn, the commit and the CI",
     "une mémoire en anglais : ses entrées, écrites par `socle new`, passent le commit et la CI":
         "a memory in English: its entries, written by `socle new`, pass the commit and the CI",
     "une valeur attendue changée sous une demande en attente, poussée : le tour finit, le commit attend":
@@ -3029,10 +3035,10 @@ MESSAGES: dict[str, str] = {
         "a case added to a case file passes the commit and the CI",
     "`--questions` ne vaut que pour une demande (`request`)":
         "`--questions` applies only to a request (`request`)",
-    "sujet du backlog d'une priorité ni haute ni basse":
-        "backlog topic with a priority neither high nor low",
-    "sujet fait alors que la demande qu'il attend est sans réponse":
-        "topic done while the request it waits on is unanswered",
+    "besoin d'une priorité ni haute ni basse":
+        "need with a priority neither high nor low",
+    "besoin fait alors que la demande qu'il attend est sans réponse":
+        "need done while the request it waits on is unanswered",
     "un fichier protégé changé sous une demande en attente, poussée : le tour finit, le commit attend":
         "a protected file changed under a pending request, pushed: the turn ends, the commit waits",
     "un fichier protégé sous une demande en attente, poussée, la CI du socle exigée : il se commite et se pousse":
@@ -3071,8 +3077,8 @@ MESSAGES: dict[str, str] = {
         "an ordinary write passes the agent's hook",
     "le backlog est déjà rangé":
         "the backlog is already in order",
-    "sujet clos, avec sa référence, laissé parmi les ouverts":
-        "closed topic, with its reference, left among the open ones",
+    "besoin clos, avec sa référence, laissé parmi les ouverts":
+        "closed need, with its reference, left among the open ones",
     "Pousser un commit sur la branche par défaut qui modifie ce fichier (une ligne de commentaire suffit ; c'est "
     "un fichier protégé, que l'humain approuve) : GitHub n'enregistre un workflow qu'au push qui modifie son "
     "fichier, pas toujours au premier push qui le pose. Puis vérifier dans l'onglet Actions qu'il y apparaît":
@@ -3426,6 +3432,12 @@ MESSAGES: dict[str, str] = {
         'new task without its “Done when” section',
     "entrée renumérotée citée par son ancien numéro, sous une empreinte inventée":
         'renumbered entry cited by its former number, under an invented fingerprint',
+    "entrée renumérotée mentionnée par son ancien numéro dans un texte neuf":
+        "renumbered entry mentioned by its former number in a new text",
+    "une entrée renumérotée mentionnée dans un texte neuf par son identifiant actuel, seul ou sur la ligne de "
+    "l'ancien, passe le hook de l'agent":
+        "a renumbered entry mentioned in a new text by its current identifier, alone or on the former number's "
+        "line, passes the agent hook",
     "une entrée renumérotée par la migration, qui porte `ancien`, et sa citation par l'ancien numéro sous l'empreinte de sa version actuelle passent le commit et la CI":
         'an entry renumbered by the migration, which carries `former`, and its citation by the former number under the fingerprint of its current version pass the commit and the CI',
     "la migration n'a pas posé `ancien : B-0001` sur {id}":
@@ -3611,4 +3623,115 @@ MESSAGES: dict[str, str] = {
     'suivante':
         '"continue" after a single pass where the reviewer sees a cause come back, `socle review` produces the '
         'next one',
+    # La suite du projet, `socle roadmap`.
+    'faite':
+        'done',
+    'abandonnée':
+        'abandoned',
+    'bloquée':
+        'blocked',
+    '{n} en cours':
+        '{n} in progress',
+    '{n} prête(s)':
+        '{n} ready',
+    '{n} qui attend(ent)':
+        '{n} waiting',
+    '{n} bloquée(s)':
+        '{n} blocked',
+    'priorité haute':
+        'high priority',
+    'priorité basse':
+        'low priority',
+    '{id} — {titre} : {clos} besoin(s) clos sur {total}':
+        '{id} — {titre}: {clos} need(s) closed out of {total}',
+    '{id} — {titre} : {avancement}':
+        '{id} — {titre}: {avancement}',
+    '{id} — {titre} : {clos} tâche(s) close(s) sur {total}':
+        '{id} — {titre}: {clos} task(s) closed out of {total}',
+    "hors des lots : {taches} tâche(s) ouverte(s), {decouper} besoin(s) à découper, {fermer} à fermer, "
+    "{bloques} entrée(s) bloquée(s), {humain} pour l'humain, {demandes} demande(s) en attente":
+        "outside the batches: {taches} open task(s), {decouper} need(s) to split, {fermer} to close, "
+        "{bloques} blocked entry(ies), {humain} for the human, {demandes} pending request(s)",
+    "ordre ambigu : {a} et {b} attendent tous deux {p}, sans ordre entre eux — que l'un attende l'autre":
+        "ambiguous order: {a} and {b} both wait on {p}, with no order between them — make one wait on the other",
+    '{clos} tâche(s) close(s) sur {total}':
+        '{clos} task(s) closed out of {total}',
+    'La suite du projet, calculée depuis le backlog — détaillée : `{commande} --format markdown`':
+        "The project's roadmap, computed from the backlog — detailed: `{commande} --format markdown`",
+    "Calculée depuis le backlog par `{commande} --format markdown` : rien n'y est écrit à la main.":
+        'Computed from the backlog by `{commande} --format markdown`: nothing in it is written by hand.',
+    ' — le prochain':
+        ' — the next one',
+    ' — lot(s) : {lots}':
+        ' — batch(es): {lots}',
+    ' — dans aucun lot':
+        ' — in no batch',
+    'jalons, dans leur ordre :':
+        'milestones, in their order:',
+    'ni jalon ni lot au backlog':
+        'no milestone and no batch in the backlog',
+    'après les jalons : {n} besoin(s) ouvert(s) dans aucun jalon':
+        'after the milestones: {n} open need(s) in no milestone',
+    '{etat} : {ids}':
+        '{etat}: {ids}',
+    'La suite du projet':
+        "The project's roadmap",
+    'Ni jalon ni lot au backlog.':
+        'No milestone and no batch in the backlog.',
+    'Demandes en attente':
+        'Pending requests',
+    ' … et {n} autre(s) : `--all`':
+        ' … and {n} more: `--all`',
+    '- **Après les jalons**, dans aucun jalon : {ids}{suite}':
+        '- **After the milestones**, in no milestone: {ids}{suite}',
+    'attend {ids}':
+        'waits on {ids}',
+    '{n} demande(s) sans réponse':
+        '{n} unanswered request(s)',
+    "besoins, dans l'ordre des lots :":
+        'needs, in the order of the batches:',
+    'lots, dans leur ordre (▶ en cours) :':
+        'batches, in their order (▶ in progress):',
+    'lot {id}':
+        'batch {id}',
+    'dans aucun lot':
+        'in no batch',
+    'besoin {id}':
+        'need {id}',
+    'Jalons, dans leur ordre':
+        'Milestones, in their order',
+    "Pour l'humain":
+        'For the human',
+    'Hors des lots':
+        'Outside the batches',
+    "Besoins, dans l'ordre des lots":
+        'Needs, in the order of the batches',
+    "Lots, dans leur ordre d'exécution":
+        'Batches, in their order of execution',
+    'Bloqués':
+        'Blocked',
+    'Les autres besoins':
+        'The other needs',
+    'Les lots suivants':
+        'The following batches',
+    'Besoins à fermer, leurs tâches closes':
+        'Needs to close, their tasks closed',
+    'Tâches dans aucun lot':
+        'Tasks in no batch',
+    'Besoins à découper en tâches':
+        'Needs to split into tasks',
+    ' — en cours':
+        ' — in progress',
+    "la suite du projet d'un coup d'œil : jalons, lots, tâches et besoins, calculés depuis le backlog":
+        "the project's roadmap at a glance: milestones, batches, tasks and needs, computed from the backlog",
+    'text : une ligne par jalon et par lot (défaut) ; markdown : le lot en cours et les deux suivants tâche par '
+    'tâche':
+        'text: one line per milestone and per batch (default); markdown: the batch in progress and the next two '
+        'task by task',
+    'batch : lire par lot (défaut) ; need : par besoin, chacun avec ses tâches et le lot de chacune':
+        'batch: read by batch (default); need: by need, each with its tasks and the batch of each',
+    'en markdown, détailler tous les lots, ou tous les besoins':
+        'in markdown, detail every batch, or every need',
+    "  la suite : `python3 .socle/socle roadmap` (détaillée : `--format markdown`)":
+        "  the roadmap: `python3 .socle/socle roadmap` (detailed: `--format markdown`)",
 }

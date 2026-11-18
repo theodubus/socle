@@ -7,7 +7,7 @@ description: Run a batch of backlog tasks, from forming it to delivering it: one
 
 A batch gathers ready tasks that are handled together: those that touch
 the same files, the same guardrail or the same tests, which one review
-will judge together. The agent running it orchestrates: it announces,
+judges. The agent running it orchestrates: it announces,
 delegates, has the work reviewed, integrates and delivers; it implements
 itself only a change of a few lines.
 
@@ -49,8 +49,8 @@ defect (a need in the backlog).
 Report: your model, the commit, what the tests prove, the choices, what remains.
 ```
 
-**Without subagents**, the agent runs the batch alone, in the same order:
-one task after the other, one commit each, the review on the whole batch.
+**Without subagents**, the agent runs the batch alone: one task after
+the other, one commit each, the review on the whole batch.
 
 ## The review, before any push
 
@@ -81,7 +81,8 @@ rewritten.
    commit.
 5. The active work and the journal are written before the merge, in the
    last commit of the pull request, with the batch's closure: its tasks
-   closed and its step back written, it becomes `done`, then `python3 .socle/socle archive`. After
+   closed and its step back written, it becomes `done`, then `python3 .socle/socle archive`; the closing
+   recap pastes the output of `python3 .socle/socle roadmap`. After
    the merge, the local branch restarts from the default branch and is
    pushed only with the first commit of the next batch: pushed alone, it would recreate the deleted remote branch.
 
@@ -90,7 +91,7 @@ rewritten.
 Each step of the orchestration rereads the whole conversation.
 
 - One batch per session: the orchestrating conversation stays short.
-- Two subagents at a time at most; only one beyond 75% of the week; none
+- Only one subagent beyond 75% of the week; none
   beyond 85% of the week or 60% of the five-hour window: finish the step
   in progress, then change sessions. In a Claude Code cloud
   session, `list_events` gives them (`kinds: ["rate_limit_event"]`,

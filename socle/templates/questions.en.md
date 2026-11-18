@@ -5,7 +5,7 @@
 
 ## Decision requested
 
-Answer the framing questions below freely: this topic's specification
+Answer the framing questions below freely: this need's specification
 depends on an intention the memory does not state.
 
 ## Context
@@ -14,7 +14,7 @@ depends on an intention the memory does not state.
 
 **The work.** <The goal of the work in progress and why it exists, what is done and what remains; the human's past decisions that lead to it, told by their content and date, not by their number.>
 
-**The question.** <The topic to specify, what the memory already says about it, and what is missing to specify it without guessing.>
+**The question.** <The need to specify, what the memory already says about it, and what is missing to specify it without guessing.>
 
 ## Questions
 
@@ -38,7 +38,7 @@ choice the agent could make alone.
   want; reversible.
 - **Approve the assumptions**: no effort; risk, an assumption that does not
   state your intent, marked "assumed", is corrected later; reversible.
-- **Reject**: no effort; risk, the topic waits, without a specification;
+- **Reject**: no effort; risk, the need waits, without a specification;
   reversible.
 
 ## Consequences
@@ -46,9 +46,9 @@ choice the agent could make alone.
 If you answer, the agent records your exact text, then writes the
 specification or decision that follows from it, and submits it to you in
 a request. If you approve the assumptions, it applies them, marked
-"assumed". If you reject, the topic waits. If the questions cannot be
+"assumed". If you reject, the need waits. If the questions cannot be
 understood (`insufficient-context`), the agent rewrites them. Without an
-answer, the topic waits too, and the agent works on something else.
+answer, the need waits too, and the agent works on something else.
 
 ## Recommendation
 
@@ -58,5 +58,5 @@ answer, the topic waits too, and the agent works on something else.
 
 - `approve` — the agent's assumptions apply, marked "assumed".
 - `answers` — your reply's text, in one or several messages, gives the answers; the agent records it as is.
-- `reject` — the topic waits, without a specification.
+- `reject` — the need waits, without a specification.
 - `insufficient-context` — the request goes back to the agent, which rewrites it as a request that replaces it.

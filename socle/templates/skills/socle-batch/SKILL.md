@@ -7,7 +7,7 @@ description: Mener un lot de tâches du backlog, de sa formation à sa livraison
 
 Un lot réunit les tâches prêtes qui se traitent ensemble : celles qui
 touchent les mêmes fichiers, le même garde-fou ou les mêmes tests, qu'une
-seule revue jugera ensemble. L'agent qui le mène orchestre : il annonce,
+seule revue juge. L'agent qui le mène orchestre : il annonce,
 délègue, fait relire, intègre et livre ; il n'implémente lui-même qu'un
 changement de quelques lignes.
 
@@ -49,8 +49,8 @@ voisin (un besoin au backlog).
 Compte rendu : ton modèle, le commit, ce que les tests prouvent, les choix, ce qui reste.
 ```
 
-**Sans sous-agents**, l'agent mène le lot seul, dans le même ordre : un
-tâche après l'autre, un commit chacune, la revue sur le lot entier.
+**Sans sous-agents**, l'agent mène le lot seul : une tâche après
+l'autre, un commit chacune, la revue sur le lot entier.
 
 ## La revue, avant tout push
 
@@ -70,8 +70,8 @@ une entrée de journal et une valeur attendue ne se réécrivent plus.
 2. Retirer la copie isolée et sa branche ;
    `python3 .socle/socle verify --fast`.
 3. Pousser ; ouvrir la pull request s'il n'y en a pas, une seule ouverte.
-   Attendre la CI du commit de tête : la ligne « CI » de
-   `python3 .socle/socle state` dit `success` sur son SHA court. Une attente annoncée a son réveil (sous Claude Code,
+   Attendre `success` sur le SHA court du commit de tête, ligne « CI »
+   de `python3 .socle/socle state`. Une attente annoncée a son réveil (sous Claude Code,
    `send_later`).
 4. La fusion est celle des instructions du projet : par défaut,
    l'humain fusionne, et le lot suivant s'ajoute à la même pull request.
@@ -80,7 +80,8 @@ une entrée de journal et une valeur attendue ne se réécrivent plus.
    donnant le commit de tête attendu.
 5. Le chantier actif et le journal s'écrivent avant la fusion, dans le
    dernier commit de la pull request, avec la clôture du lot : ses tâches
-   closes et son recul écrit, il passe `fait`, puis `python3 .socle/socle archive`. Après la
+   closes et son recul écrit, il passe `fait`, puis `python3 .socle/socle archive` ; le récap
+   de la clôture colle la sortie de `python3 .socle/socle roadmap`. Après la
    fusion, la branche locale repart de la branche par défaut et ne se pousse qu'avec le premier commit du lot suivant : poussée seule,
    elle recréerait la branche distante supprimée.
 
@@ -89,8 +90,7 @@ une entrée de journal et une valeur attendue ne se réécrivent plus.
 Chaque pas de l'orchestration relit toute la conversation.
 
 - Un lot par session : la conversation qui orchestre reste courte.
-- Deux sous-agents à la fois au plus ; un seul au-delà de 75 % de la
-  semaine ; aucun au-delà de 85 % de la semaine ou de 60 % de la fenêtre
+- Un seul sous-agent au-delà de 75 % de la semaine ; aucun au-delà de 85 % de la semaine ou de 60 % de la fenêtre
   de cinq heures : finir le pas en cours, puis changer de session. En session
   cloud de Claude Code, `list_events` les donne (`kinds:
   ["rate_limit_event"]`, `utilization`), avant chaque lancement et à

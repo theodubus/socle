@@ -91,7 +91,9 @@ waiting to be asked:
 - before opening a backlog entry, its index (`socle show --index
   backlog`) says whether it already exists;
 - to know why something is the way it is, search the journal
-  (`grep -rn "<word>" memory/journal/`).
+  (`grep -rn "<word>" memory/journal/`);
+- the roadmap, when the human asks for it: paste into the reply the output
+  of `python3 .socle/socle roadmap --format markdown`.
 
 Reading is proven: a new decision, request or backlog entry cites what it
 read with its fingerprint (`ADR-NNNN@xxxxxxxx`, `read : decisions@…`,
@@ -178,7 +180,7 @@ guardrails (`proto/` by default): the CI does not judge it on push.
 | --- | --- |
 | `.claude/settings.json` | Claude Code hooks: `SessionStart` (derived state; in a cloud session, the adapter's tools), `PreToolUse` (refusals), `Stop` (end-of-turn checks) |
 | `.socle/git-hooks/` | git hooks: `pre-commit` (fast checks), `prepare-commit-msg` (`Socle-Hooks`, `Socle-Hooks-Since-Commit` trailers), `commit-msg` (private memory leaks; as warnings, a function with neither test nor waiver, a fix without a test, an agent commit without its hooks), `pre-push` (`verify --fast` on the last commit, the pushed range judged as in CI, review before publication) |
-| `.github/workflows/socle.yml` | CI: adapter capabilities, all checks against the base, socle self-test |
+| `.github/workflows/socle.yml` | CI: adapter capabilities, all checks against the base, socle self-test, the project's roadmap as summary |
 @@LIGNE_MUTATION@@
 | `.git/socle/hooks.log` | local trace of every hook that fires, not versioned, shared by all worktrees of the repository |
 

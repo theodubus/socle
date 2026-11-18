@@ -208,7 +208,7 @@ def a_faire(projet: config.Projet) -> list[Element]:
     for e in mem.entrees(memoire.BACKLOG):
         if e.archivee or e.statut in memoire.BACKLOG_CLOS:
             continue
-        if langue.valeur(memoire.nettoyer(e.meta.get("pour", ""))) == "humain":
+        if memoire.pour_l_humain(e):
             # Le lien de l'entrée, où vit son mode d'emploi : commandes,
             # résultats attendus.
             url, _ = liens.lien(projet, e.id)

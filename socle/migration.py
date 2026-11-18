@@ -10,10 +10,11 @@ socle : mécanique, et idempotente sur le contenu.
   « Satisfait quand », une fois, tant que le backlog n'a ni tâche, ni lot,
   ni jalon à leur préfixe ;
 - chaque besoin qu'attend un lot ouvert reçoit une tâche qui reprend ses
-  critères, vers laquelle sa section renvoie (`docs.copie` refuse une
-  copie), et le lot l'attend à sa place ; un jalon attend les besoins de
-  ses lots ; un besoin qui attendait un lot ou un jalon attend ses besoins
-  et ses demandes encore ouverts ;
+  critères, chacun entier, et ses mentions récrites, vers laquelle sa
+  section renvoie (`docs.copie` refuse une copie), et le lot l'attend à sa
+  place ; un jalon attend les besoins de ses lots ; un besoin qui
+  attendait un lot ou un jalon attend ses besoins et ses demandes encore
+  ouverts ; une entrée close, jamais rien d'ouvert ;
 - les mentions d'un numéro changé se récrivent dans le backlog et le
   chantier actif, une citation `B-NNNN@…` en simple mention (l'empreinte
   d'une version qui n'existe plus sous ce numéro) ; ailleurs, le journal,
@@ -135,6 +136,13 @@ def migrer_backlog(racine: Path, lg: str | None = None) -> Bilan:
             return not memoire.demande_close(mem, demandes[i])
         return i in entrees and entrees[i].statut not in memoire.BACKLOG_CLOS
 
+    def attendable(e: memoire.Entree, x: str) -> bool:
+        """Ce qu'un lot développé dans l'`après` d'un jalon `e` lui fait
+        attendre : ouvert, tous ses besoins ; clos, ses besoins clos, jamais
+        un besoin ou une demande encore ouverts, que `memoire.ordre`
+        refuserait (T-0052)."""
+        return e.statut not in memoire.BACKLOG_CLOS or not ouvert(x)
+
     def besoins_de(i: str, vus: set[str]) -> list[str]:
         """Ce que rassemble un lot ou un jalon renuméroté : ses besoins, de
         proche en proche, et ses demandes."""
@@ -171,7 +179,7 @@ def migrer_backlog(racine: Path, lg: str | None = None) -> Bilan:
             liste = []
             for d in memoire.dependances(e):
                 if forme(d) == "L":
-                    liste += besoins_de(d, set())
+                    liste += [x for x in besoins_de(d, set()) if attendable(e, x)]
                 else:
                     liste.append(nouveaux.get(d, d))
             apres_nouveau[ancien] = list(dict.fromkeys(liste))
@@ -202,7 +210,10 @@ def migrer_backlog(racine: Path, lg: str | None = None) -> Bilan:
         if any(d in nouveaux for d in deps):
             liste = []
             for d in deps:
-                liste += [x for x in besoins_de(d, set()) if ouvert(x)] if d in nouveaux else [d]
+                # Ouverte, l'entrée n'attend que ce qui reste ouvert ; close,
+                # que ce qui est clos (T-0052).
+                liste += [x for x in besoins_de(d, set()) if ouvert(x) != (e.statut in memoire.BACKLOG_CLOS)] \
+                    if d in nouveaux else [d]
             liste = [x for x in dict.fromkeys(liste) if x != e.id]
             textes[e.fichier] = _remeta(textes.get(e.fichier, mem.fichiers[e.fichier].texte),
                                         remplacer={"apres": ", ".join(liste) if liste else None})
@@ -217,13 +228,19 @@ def migrer_backlog(racine: Path, lg: str | None = None) -> Bilan:
     # 5. Les mentions des numéros changés, dans le backlog et le chantier
     # actif.
     ch = projet.chemins
+    motif = re.compile(r"(?<![\w-])(%s)(?:@[0-9a-f]{8})?(?![\w-])" % "|".join(map(re.escape, nouveaux))) \
+        if nouveaux else None
+
+    def recrire(texte: str) -> str:
+        """Un texte, ses mentions des numéros changés récrites."""
+        return motif.sub(lambda m: nouveaux[m[1]], texte) if motif else texte
+
     if nouveaux:
-        motif = re.compile(r"(?<![\w-])(%s)(?:@[0-9a-f]{8})?(?![\w-])" % "|".join(map(re.escape, nouveaux)))
         cibles = [c for c in mem.fichiers if memoire.couche_attendue(c) == "backlog"]
         cibles += [c for c in (ch.actif, ch.dans_prive(ch.actif)) if (racine / c).is_file()]
         for c in cibles:
             avant = textes.get(c, mem.fichiers[c].texte if c in mem.fichiers else (racine / c).read_text("utf-8"))
-            apres = motif.sub(lambda m: nouveaux[m[1]], avant)
+            apres = recrire(avant)
             if apres != avant:
                 textes[c] = apres
         for ancien, nouvel in bilan.renumerotees:
@@ -237,25 +254,27 @@ def migrer_backlog(racine: Path, lg: str | None = None) -> Bilan:
     siennes: dict[str, list[str]] = {}
     for t, b, _ in poses:
         siennes.setdefault(b.id, []).append(t)
+    # Le besoin est lu avant la réécriture de ses mentions : le titre, les
+    # champs et les critères de sa tâche se récrivent à leur tour (T-0052).
     for i, ts in siennes.items():
         b = entrees[i]
-        criteres = memoire.criteres(b, memoire.SECTION_FAIT_QUAND) or memoire.criteres(b)
+        criteres = criteres_entiers(b)
         if criteres:
             coche = "x" if all(c for c, _ in criteres) else " "
             textes[b.fichier] = _renvoyer(textes.get(b.fichier, mem.fichiers[b.fichier].texte),
                                           f"- [{coche}] {_texte(lg, 'renvoi', taches=', '.join(ts))}")
     for t, b, lot in poses:
-        criteres = memoire.criteres(b, memoire.SECTION_FAIT_QUAND) or memoire.criteres(b)
-        cases = [f"- [{'x' if coche else ' '}] {texte}" for coche, texte in criteres] or \
+        cases = [f"- [{'x' if coche else ' '}] {recrire(texte)}" for coche, texte in criteres_entiers(b)] or \
             [f"- [ ] {_texte(lg, 'critere', besoin=b.id)}"]
-        champs = {"statut": b.statut, "origine": b.meta.get("origine") or b.id, "besoin": b.id}
+        champs = {"statut": b.statut, "origine": recrire(b.meta.get("origine") or b.id), "besoin": b.id}
         if b.statut in memoire.BACKLOG_CLOS and b.meta.get("ref"):
-            champs["ref"] = b.meta["ref"]
+            champs["ref"] = recrire(b.meta["ref"])
         champs["lu"] = f"backlog@{PROVISOIRE}"
         dossier = b.fichier.rsplit("/", 1)[0]
-        chemin = f"{dossier}/{t}-{memoire.nom_de_fichier(b.titre)}.md"
+        titre = recrire(b.titre)
+        chemin = f"{dossier}/{t}-{memoire.nom_de_fichier(titre)}.md"
         texte = (f"{langue.entete_fichier('backlog', 'privee' if b.prive else 'publique', lg)}\n"
-                 f"# {t} — {b.titre}\n\n{langue.meta(lg, 'T', **champs)}\n\n"
+                 f"# {t} — {titre}\n\n{langue.meta(lg, 'T', **champs)}\n\n"
                  f"{_texte(lg, 'corps', besoin=b.id, lot=lot)}\n\n## {langue.FAIT_QUAND[lg]}\n\n"
                  + "\n".join(cases) + "\n")
         textes[chemin] = texte
@@ -275,10 +294,49 @@ def migrer_backlog(racine: Path, lg: str | None = None) -> Bilan:
     return bilan
 
 
+# Une ligne qui ouvre un élément de liste au premier niveau.
+ELEMENT = re.compile(r"^(?:[-*+]|\d+[.)])\s")
+
+
+def _suite(ligne: str) -> bool:
+    """La ligne continue-t-elle la case qui la précède ? Oui si elle n'est ni
+    vide, ni une case, ni un titre, ni un élément de liste au premier
+    niveau : en retrait, ou une continuation paresseuse (T-0052)."""
+    return bool(ligne.strip()) and not memoire.CASE.match(ligne) and not ligne.startswith("#") \
+        and (ligne[0].isspace() or not ELEMENT.match(ligne))
+
+
+def criteres_entiers(e: memoire.Entree) -> list[tuple[bool, str]]:
+    """Les critères d'un besoin que reprend sa tâche, de sa section « Fait
+    quand », ou à défaut de celle de sa forme : (coché, texte), le texte
+    d'un critère écrit sur plusieurs lignes entier, ses lignes de suite
+    telles qu'écrites ; `memoire.criteres` n'en lit que la première
+    (T-0052)."""
+    for section in (memoire.SECTION_FAIT_QUAND, memoire.section_de(e)):
+        m = section.search(e.corps)
+        res: list[tuple[bool, str]] = []
+        suite = False
+        for ligne in e.corps[m.end():].splitlines() if m else ():
+            if ligne.startswith("#"):
+                break
+            c = memoire.CASE.match(ligne)
+            if c:
+                res.append((c[1] != " ", c[2]))
+                suite = True
+            elif suite and _suite(ligne):
+                res[-1] = (res[-1][0], res[-1][1] + "\n" + ligne.rstrip())
+            else:
+                suite = False
+        if res:
+            return res
+    return []
+
+
 def _renvoyer(texte: str, case: str) -> str:
     """Le texte d'un besoin, les cases de sa section remplacées par une
-    seule, qui renvoie à ses tâches."""
-    lignes, res, dedans, posee = texte.split("\n"), [], False, False
+    seule, qui renvoie à ses tâches ; les lignes de suite d'une case partent
+    avec elle (T-0052)."""
+    lignes, res, dedans, posee, suite = texte.split("\n"), [], False, False, False
     for l in lignes:
         if re.match(r"^#{2,4}\s+(?:Fait quand|Done when|Satisfait quand|Satisfied when)\s*$", l, re.I):
             dedans = True
@@ -288,7 +346,11 @@ def _renvoyer(texte: str, case: str) -> str:
             if not posee:
                 res.append(case)
                 posee = True
+            suite = True
             continue
+        if dedans and suite and _suite(l):
+            continue
+        suite = False
         res.append(l)
     return "\n".join(res)
 

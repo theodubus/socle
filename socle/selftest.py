@@ -1365,7 +1365,7 @@ def _cas() -> list[Cas]:
         maj_memoire(c, "Liste privée raccourcie.")
         return etage_git(a, c)
 
-    @defaut("clos-sans-ref-en-anglais", "sujet « done » sans référence, écrit en anglais", "git", "memoire.backlog")
+    @defaut("clos-sans-ref-en-anglais", "besoin « done » sans référence, écrit en anglais", "git", "memoire.backlog")
     def _(a, c):
         remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> status : done")
         maj_memoire(c)
@@ -1400,13 +1400,13 @@ def _cas() -> list[Cas]:
         remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : fait")
         return etage_git(a, c)
 
-    @defaut("clos-parmi-les-ouverts", "sujet clos, avec sa référence, laissé parmi les ouverts", "git",
+    @defaut("clos-parmi-les-ouverts", "besoin clos, avec sa référence, laissé parmi les ouverts", "git",
             "memoire.backlog")
     def _(a, c):
         _clore(c, "B-0001")
         return etage_git(a, c)
 
-    @defaut("sujet-qui-s-attend", "sujet du backlog qui s'attend lui-même (`après`)", "git", "memoire.ordre")
+    @defaut("sujet-qui-s-attend", "besoin qui s'attend lui-même (`après`)", "git", "memoire.ordre")
     def _(a, c):
         remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : ouvert · après : B-0001")
         return etage_git(a, c)
@@ -1424,12 +1424,12 @@ def _cas() -> list[Cas]:
         remplacer(c, "docs/double.cas.json", '"attendu": 6', '"attendu": 7')
         return etage_git(a, c)
 
-    @defaut("priorite-inconnue", "sujet du backlog d'une priorité ni haute ni basse", "git", "memoire.ordre")
+    @defaut("priorite-inconnue", "besoin d'une priorité ni haute ni basse", "git", "memoire.ordre")
     def _(a, c):
         remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : ouvert · priorité : urgente")
         return etage_git(a, c)
 
-    @defaut("fait-avant-sa-demande", "sujet fait alors que la demande qu'il attend est sans réponse", "git",
+    @defaut("fait-avant-sa-demande", "besoin fait alors que la demande qu'il attend est sans réponse", "git",
             "memoire.ordre")
     def _(a, c):
         ajouter(c, "memory/requests/D-0001-refactor.md", demande_bonne(a, c))
@@ -1714,7 +1714,7 @@ def _cas() -> list[Cas]:
             "cd $SOCLE_ESSAI_DOSSIER && echo 'max_attempts = 99' >> policy.toml")])
 
     @defaut("protege-etat-du-shell", "fichier protégé écrit par le shell après un sous-shell, une substitution, un "
-            "pipeline ou une tâche de fond, dont le dossier et les variables ne passent pas à la suite", "agent",
+            "pipeline ou une commande en arrière-plan, dont le dossier et les variables ne passent pas à la suite", "agent",
             "écriture protégée")
     def _(a, c):
         # La revue de B-0171, constat 1 : leur état passait à la suite.
@@ -1985,6 +1985,13 @@ def _cas() -> list[Cas]:
     def _(a, c):
         p = c / "docs/calc.md"
         return etage_outil(a, c, "Write", {"file_path": str(p), "content": p.read_text() + "\nVoir F-0099.\n"})
+
+    @defaut("ancien-numero-dans-un-texte-neuf", "entrée renumérotée mentionnée par son ancien numéro dans un texte "
+            "neuf", "agent", "ancien numéro")
+    def _(a, c):
+        _renumeroter_en_lot(c, "B-0001")
+        p = c / "docs/calc.md"
+        return etage_outil(a, c, "Write", {"file_path": str(p), "content": p.read_text() + "\nVoir B-0001.\n"})
 
     @defaut("echecs-repetes", "contrôles rouges trois tours de suite, sans escalade", "agent", "escalade")
     def _(a, c):
@@ -2283,7 +2290,7 @@ def _cas() -> list[Cas]:
         r = a.socle(c, "check", "--stage", "ci", "--base", _collision(a, c))
         return "" if r.returncode == 0 else r.stdout + r.stderr
 
-    @defaut("backlog-sans-lecture", "sujet ajouté au backlog sans l'avoir consulté", "git", "memoire.lectures")
+    @defaut("backlog-sans-lecture", "besoin ajouté au backlog sans l'avoir consulté", "git", "memoire.lectures")
     def _(a, c):
         ajouter_sujet(c, "\n## B-0002 — Ajouter une fonction quadruple\n\n"
                 f"> statut : ouvert · origine : {a.journal}\n\nPour l'essai.\n")
@@ -2603,6 +2610,14 @@ def _temoins() -> list[tuple[str, Callable]]:
             return trad("la migration n'a pas posé `ancien : B-0001` sur {id}", id=nouvel)
         _citer_par_l_ancien_numero(a, c, "B-0001", empreinte(a, c, nouvel))
         return etage_git(a, c) or etage_ci(a, c)
+
+    @temoin("une entrée renumérotée mentionnée dans un texte neuf par son identifiant actuel, seul ou sur la ligne "
+            "de l'ancien, passe le hook de l'agent")
+    def _(a, c):
+        nouvel = _renumeroter_en_lot(c, "B-0001")
+        p = c / "docs/calc.md"
+        return etage_outil(a, c, "Write", {"file_path": str(p), "content": p.read_text() + f"\nVoir {nouvel}.\n"
+                                                                                       f"B-0001 → {nouvel}.\n"})
 
     @temoin("un besoin et sa tâche posés par `socle new need --task`, un lot qui attend la tâche et un jalon qui "
             "attend le besoin, chacun dans sa forme, passent le commit et la CI")
@@ -3027,7 +3042,8 @@ def _temoins() -> list[tuple[str, Callable]]:
         maj_memoire(c, "Un terme privé de plus.")
         return (r.stderr if r.returncode else "") or etage_git(a, c) or etage_ci(a, c)
 
-    @temoin("mode compagnon : un sujet public basculé dans la mémoire privée passe la fin de tour, le commit et la CI")
+    @temoin("mode compagnon : un besoin public basculé dans la mémoire privée passe la fin de tour, le commit et la "
+            "CI")
     def _(a, c):
         c = a.clone_prive("compagnon")
         r = a.socle(c, "private", "move", "B-0001")
@@ -3338,6 +3354,7 @@ RAISONS_AGENT = {
     "remise sous demande": "en attente, ou validée sans que ce qu'elle approuve",
     "écriture à l'aveugle": "à l'aveugle",
     "référence inventée": "référence inventée",
+    "ancien numéro": "est l'ancien numéro de",
     "escalade": "ARRÊT ET ESCALADE",
     "échec inchangé": "sans changement depuis la tentative précédente",
     "memoire.peremption": "chantier actif inchangé depuis",

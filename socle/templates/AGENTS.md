@@ -92,7 +92,9 @@ qu'on le demande :
 - avant d'ouvrir une entrée du backlog, son index (`socle show --index
   backlog`) dit si elle existe déjà ;
 - pour savoir pourquoi une chose est ainsi, chercher dans le journal
-  (`grep -rn "<mot>" memory/journal/`).
+  (`grep -rn "<mot>" memory/journal/`) ;
+- la suite, quand l'humain la demande : coller dans la réponse la sortie
+  de `python3 .socle/socle roadmap --format markdown`.
 
 La lecture se prouve : une décision, une demande ou une entrée du backlog
 nouvelles citent ce qu'elles ont lu avec son empreinte (`ADR-NNNN@xxxxxxxx`,
@@ -179,7 +181,7 @@ des garde-fous (`proto/` par défaut) : la CI ne la juge pas aux envois.
 | --- | --- |
 | `.claude/settings.json` | hooks de Claude Code : `SessionStart` (état dérivé ; en session cloud, les outils de l'adaptateur), `PreToolUse` (refus), `Stop` (contrôles de fin de tour) |
 | `.socle/git-hooks/` | hooks git : `pre-commit` (contrôles rapides), `prepare-commit-msg` (trailers `Socle-Hooks`, `Socle-Hooks-Since-Commit`), `commit-msg` (fuites de la mémoire privée ; en avertissement, une fonction sans test ni dispense, un correctif sans test, un commit d'agent sans ses hooks), `pre-push` (`verify --fast` sur le dernier commit, la plage qui part jugée comme en CI, relecture avant publication) |
-| `.github/workflows/socle.yml` | CI : capacités de l'adaptateur, tous les contrôles contre la base, auto-test du socle |
+| `.github/workflows/socle.yml` | CI : capacités de l'adaptateur, tous les contrôles contre la base, auto-test du socle, la suite du projet en résumé |
 @@LIGNE_MUTATION@@
 | `.git/socle/hooks.log` | trace locale de chaque hook qui tire, non versionnée, commune à tous les worktrees du dépôt |
 

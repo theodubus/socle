@@ -106,22 +106,26 @@ def commit_pousse(racine) -> str | None:
 def lien(projet: config.Projet, cible: str) -> tuple[str | None, str]:
     """Le permalien d'un chemin du dépôt ou d'une entrée de mémoire, et un
     avertissement : ce qui manque, ou que la version poussée n'est pas la
-    version locale."""
+    version locale. L'ancien numéro d'une entrée renumérotée (ADR-0083) mène
+    à l'entrée qui le porte, et l'avertissement nomme celle-ci."""
     racine = projet.racine
     depot = url_depot(projet)
     if not depot:
         return None, trad("adresse du dépôt inconnue : l'humain la règle dans la politique (`[human] repo_url`)")
-    chemin, suffixe = cible.strip().rstrip("/"), ""
+    chemin, suffixe, renumerotee = cible.strip().rstrip("/"), "", ""
     if memoire.decouper_id(chemin):
-        e = memoire.Memoire.charger(racine).entree(chemin)
+        e = memoire.Memoire.charger(racine).resoudre(chemin)
         if e is None:
             return None, trad("{cible} : aucune entrée de ce nom dans la mémoire", cible=cible)
+        if e.id != chemin:
+            renumerotee = trad("{ancien} est l'ancien numéro de {ident}", ancien=chemin, ident=e.id)
         chemin = e.fichier
         if e.niveau > 1:  # une entrée parmi d'autres : son ancre
             m = memoire.TITRE_RE.match(e.texte.splitlines()[0])
             suffixe = "#" + quote(ancre(m["reste"] if m else e.titre), safe="-_")
     if memoire.est_prive(chemin):
-        return _lien_prive(projet, chemin, suffixe)
+        url, avertissement = _lien_prive(projet, chemin, suffixe)
+        return url, " ; ".join(filter(None, (renumerotee, avertissement)))
     sha = commit_pousse(racine)
     if not sha:
         return None, trad("rien n'est poussé : pousser d'abord")
@@ -130,13 +134,14 @@ def lien(projet: config.Projet, cible: str) -> tuple[str | None, str]:
         return None, trad("{chemin} n'est pas dans la version poussée ({sha}) : pousser d'abord",
                           chemin=chemin, sha=sha[:7])
     url = f"{depot}/{sorte}/{sha}/{quote(chemin)}{suffixe}"
-    avertissement = ""
+    avertissement = renumerotee
     local = racine / chemin
     if sorte == "blob" and local.is_file():
         pousse = outils.git(racine, "rev-parse", f"{sha}:{chemin}", check=False).strip()
         if outils.git(racine, "hash-object", "--", chemin, check=False).strip() != pousse:
-            avertissement = trad("{chemin} : la version locale n'est pas poussée, le lien montre la version "
-                                 "poussée", chemin=chemin)
+            avertissement = " ; ".join(filter(None, (renumerotee, trad(
+                "{chemin} : la version locale n'est pas poussée, le lien montre la version poussée",
+                chemin=chemin))))
     return url, avertissement
 
 

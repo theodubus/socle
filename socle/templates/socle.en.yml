@@ -30,6 +30,13 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+
+      # The project's roadmap (`socle roadmap`) in the run's summary, readable
+      # on GitHub without an agent. Before the private memory: nothing private
+      # goes into it. It informs: its failure does not fail the CI.
+      - name: Project roadmap
+        continue-on-error: true
+        run: python3 .socle/socle roadmap --format markdown >> "$GITHUB_STEP_SUMMARY"
 @@ETAPES_ADAPTATEUR@@
       # Companion mode: the private memory, at the commit of the lock, with a
       # deploy key. Without the secrets (pull request from a fork), it stays

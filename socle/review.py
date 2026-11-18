@@ -282,9 +282,9 @@ CONSIGNE_ROLE = a_traduire(
     "lettres tel que `mktemp -d` l'a rendu, jamais par une variable, qui ne survit pas d'un appel à l'autre. Ton "
     "rôle est de le prendre en défaut.")
 CONSIGNE_BARRE = a_traduire(
-    "Ta barre est celle des sujets du lot, plus bas : leur critère « Fait quand », les décisions qu'ils citent, "
-    "et, pour un sujet qui pose ou change un garde-fou, son modèle de menace, ce que le garde-fou arrête et ce "
-    "qu'il laisse passer. Cherche ce qui casse (un cas limite, une erreur de logique, une régression), ce "
+    "Ta barre est celle des entrées du backlog que sert le lot, plus bas : leurs critères (« Fait quand » d'une "
+    "tâche, « Satisfait quand » d'un besoin), les décisions qu'elles citent, et, pour une entrée qui pose ou "
+    "change un garde-fou, son modèle de menace, ce que le garde-fou arrête et ce qu'il laisse passer. Cherche ce qui casse (un cas limite, une erreur de logique, une régression), ce "
     "qu'aucun test ne prouve, et ce qui contredit un critère ou une décision. Ne juge ni le style, ni ce que les "
     "contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests.")
 CONSIGNE_CLASSES = a_traduire(
@@ -306,7 +306,7 @@ CONSIGNE_CLASSES = a_traduire(
 CONSIGNE_SECONDE = a_traduire(
     "Seconde revue : ce diff corrige des constats bloquants d'une première revue, que disent les messages de ses "
     "commits ci-dessous ; le reste du lot a déjà été relu. Ne juge que cette correction : un bloquant mal "
-    "corrigé, ce qu'elle fait régresser, contre les mêmes sujets.")
+    "corrigé, ce qu'elle fait régresser, contre les mêmes entrées.")
 # Le second regard (D-0124, point 5) : à partir de la deuxième passe, le
 # relecteur reçoit les causes des bloquants d'avant, et dit pour chaque
 # bloquant nouveau s'il a la même cause que l'un d'eux.
@@ -393,11 +393,11 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
                                "donne)", n=len(diff) - len(montre), base=depuis or origine))
     servis, ouverts = sujets_du_lot(projet, debut)
     if servis:
-        lignes += ["", trad("## Les sujets du lot : leur critère « Fait quand » est ta barre"), ""]
+        lignes += ["", trad("## Les entrées du backlog que sert le lot : leurs critères sont ta barre"), ""]
         for s in servis:
             lignes += [s.texte.strip(), ""]
     if ouverts:
-        lignes += ["", trad("## Les sujets que le lot ouvre : ce qu'il renvoie au backlog"), ""]
+        lignes += ["", trad("## Les entrées que le lot ouvre : ce qu'il renvoie au backlog"), ""]
         lignes += [f"- {s.id} — {s.titre}" for s in ouverts]
     ecrites = decisions_ecrites(projet, debut)
     if ecrites:
@@ -406,7 +406,7 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
             lignes += [e.texte.strip(), ""]
     decisions = [e for e in decisions_citees(projet, servis) if e.id not in {d.id for d in ecrites}]
     if decisions:
-        lignes += ["", trad("## Les décisions et les demandes qu'ils citent"), ""]
+        lignes += ["", trad("## Les décisions et les demandes qu'elles citent"), ""]
         for e in decisions:
             lignes += [e.texte.strip(), ""]
     return "\n".join(lignes).rstrip() + "\n"

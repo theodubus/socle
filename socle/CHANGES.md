@@ -7,6 +7,22 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-18-b — Le dossier de la revue, son skill et les questions disent tâche, besoin ou entrée, jamais « sujet »
+
+Les derniers textes du produit qui disaient « sujet » d'une entrée du
+backlog, et que des tests lisent mot pour mot, suivent les quatre formes
+du backlog. Le dossier de `socle review` donne au relecteur « les entrées
+du backlog que sert le lot », dont les critères (« Fait quand » d'une
+tâche, « Satisfait quand » d'un besoin) sont sa barre, « les entrées que le
+lot ouvre », et les décisions « qu'elles citent » ; le skill
+`socle-review` le décrit ainsi. La question de départ sur la livraison
+propose « une pull request par tâche ». Le gabarit des questions de
+cadrage (`socle new request --questions`) parle du besoin à spécifier. Le
+guide dit qu'un trou du hook ouvre « une entrée du backlog ».
+
+À faire : rien ; le skill `socle-review` est une copie protégée, dans la
+demande de l'installeur.
+
 ## 2026-11-18-a — La durée des étapes se dit, et celle des étapes rapides a un seuil
 
 `verify`, `verify --fast` et `socle ci` impriment désormais la durée de
@@ -34,6 +50,82 @@ pas mesurée sur sa machine : `verify --fast --redo` la mesure ; si elle
 dépasse cinq minutes, l'état le dira à chaque session, jusqu'à ce qu'elle
 raccourcisse ou que l'humain relève le seuil. Écrire la clé à 300 dans
 `.socle/guardrails.toml` est libre et ne change rien.
+
+## 2026-11-17-f — La suite du projet dans l'état, les instructions, la clôture d'un lot et la CI
+
+La suite (`socle roadmap`) se montre là où on la cherche. L'état a une
+ligne qui renvoie à la commande. Les instructions du socle, dans
+`AGENTS.md`, disent à l'agent de coller le format détaillé
+(`--format markdown`) dans sa réponse quand l'humain demande la suite. Le
+skill `socle-batch` fait coller le format compact dans le récap de la
+clôture d'un lot. La CI posée écrit le format détaillé dans le résumé de
+chaque exécution, lisible sur GitHub sans agent : une étape « Suite du
+projet », avant la mémoire privée, dont rien n'y entre, et qui ne fait
+pas échouer la CI si elle échoue. Le guide le dit en une phrase.
+
+À faire : rien ; le workflow `.github/workflows/socle.yml` et le skill
+`socle-batch` sont des copies protégées, dans la demande de
+l'installeur, et la section du socle d'`AGENTS.md` est régénérée par la
+mise à jour.
+
+## 2026-11-17-e — La suite du projet d'un coup d'œil : `socle roadmap`
+
+Une commande nouvelle, pour l'humain comme pour l'agent :
+`python3 .socle/socle roadmap` donne la suite du projet, calculée depuis le
+backlog comme l'état, rien d'écrit à la main. En compact (par défaut),
+une ligne par jalon, avec ses besoins clos sur le total, et une ligne par
+lot, dans leur ordre d'exécution déduit de leurs `après`, le lot en cours
+marqué et l'avancement de ses tâches ; puis ce qui est hors des lots,
+compté. `--format markdown` donne le format détaillé : le lot en cours et
+les deux suivants tâche par tâche (chaque tâche avec son besoin, sa
+priorité et où elle en est), les autres en une ligne (`--all` les
+détaille tous), et, nommés, les tâches dans aucun lot, les besoins à
+découper et à fermer, les entrées bloquées, celles `pour : humain` et les
+demandes en attente avec leur lien. `--by need` lit par besoin, chacun
+avec ses tâches et le lot de chacune ; `--by batch`, le défaut, par lot. Deux lots qui attendent un même lot
+sans que l'un attende l'autre sont signalés : leur ordre n'est pas
+déduit, il se choisit par un `après` de l'un vers l'autre.
+
+À faire : rien.
+
+## 2026-11-17-d — Les derniers textes du moteur qui disaient « sujet » d'une entrée du backlog
+
+La description de `memoire.lectures`, que `socle checks` affiche, dit « une
+entrée du backlog » ; l'aide de `socle review --since`, « les tâches du lot
+entier » ; les libellés de l'auto-test (`socle selftest --verbose`), « besoin »,
+et « commande en arrière-plan » au lieu de « tâche de fond ».
+
+À faire : rien.
+
+## 2026-11-17-c — La migration du backlog en quatre formes ne perd ni ne déplace plus de contenu
+
+La migration du backlog, que la mise à jour fait une fois, corrige trois
+cas. Une entrée close qui attendait un lot ou un jalon abandonné se
+mettait à attendre les besoins encore ouverts de ce lot, ce que
+`memoire.ordre` refusait ensuite : elle n'attend plus que ce qui est clos.
+Un critère écrit sur plusieurs lignes passe entier dans la tâche posée, au
+lieu de sa seule première ligne, la suite restant dans le besoin. Le titre,
+les champs et les critères d'une tâche posée citent les identifiants
+actuels, et non plus l'ancien numéro d'un lot ou d'un jalon.
+
+À faire : rien dans un projet dont le backlog n'a pas encore migré. Dans
+un projet déjà migré, relire les tâches posées par la migration : une
+mention d'un ancien numéro se remplace par l'identifiant actuel que
+`socle show` donne, et un critère coupé se complète depuis le besoin.
+
+## 2026-11-17-b — L'ancien numéro d'une entrée renumérotée : le hook nomme l'identifiant actuel, et `socle url` le résout
+
+Le hook de l'agent refusait l'ancien numéro d'une entrée renumérotée
+(`ancien : B-NNNN`), écrit dans un texte neuf, en le disant inventé, alors
+que les contrôles le résolvent ; `socle url` répondait « aucune entrée ».
+Le hook le refuse désormais en nommant l'identifiant actuel de l'entrée,
+que le texte neuf cite à la place, seul ou sur la ligne de l'ancien
+(le bilan de la mise à jour, « ancien → actuel ») ; le journal qui le cite
+déjà se complète sans refus ; `socle url` donne le lien de l'entrée qui le porte, et dit
+son identifiant actuel.
+
+À faire : rien ; un numéro repris du journal d'avant la migration se cite
+par l'identifiant que le refus nomme.
 
 ## 2026-11-17-a — Une forme du shell que le hook ne juge pas se signale au dépôt du socle
 

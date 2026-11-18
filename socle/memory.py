@@ -650,6 +650,12 @@ def besoin_de(e: Entree) -> str | None:
     return ids[0] if ids else None
 
 
+def pour_l_humain(e: Entree) -> bool:
+    """Une entrée que seul l'humain peut faire (`pour : humain`), quelle que
+    soit la langue où elle est écrite."""
+    return langue.valeur(nettoyer(e.meta.get("pour", ""))) == "humain"
+
+
 def type_d_id(ident: str) -> str | None:
     """Le type d'un identifiant (`T`, `JA`…), `None` s'il n'en est pas un."""
     morceaux = decouper_id(ident)
@@ -955,57 +961,109 @@ class Ordre:
     a_fermer: list[Entree] = field(default_factory=list)
 
 
-def ordre(mem: "Memoire") -> Ordre | None:
-    """L'ordre du backlog, s'il en a un : sans `après`, tâche, lot, jalon ni
-    priorité, rien."""
-    entrees = {e.id: e for e in mem.entrees(BACKLOG) if not e.archivee and not e.basculee}
-    demandes = {e.id: e for e in mem.entrees("D") if not e.basculee}
-    if not any(dependances(e) or not est_besoin(e) or priorite(e) for e in entrees.values()):
-        return None
+class Graphe:
+    """Ce que les entrées du backlog attendent, lu une fois sur leurs
+    `après` : l'ordre que l'état dit (`ordre`) et la suite du projet
+    (`socle roadmap`) le calculent de même. Une entrée archivée ou basculée
+    en privé n'y est pas ; sa copie privée, si elle se lit, y est."""
 
-    def ouvert(i: str) -> bool:
+    def __init__(self, mem: "Memoire"):
+        self.mem = mem
+        self.entrees = {e.id: e for e in mem.entrees(BACKLOG) if not e.archivee and not e.basculee}
+        self.demandes = {e.id: e for e in mem.entrees("D") if not e.basculee}
+        self.ouverts = sorted(i for i in self.entrees if self.ouvert(i))
+
+    def ouvert(self, i: str) -> bool:
         """Encore attendu : une entrée non close, ou une demande sans réponse."""
-        if i in demandes:
-            return not demande_close(mem, demandes[i])
-        return i in entrees and entrees[i].statut not in BACKLOG_CLOS
+        if i in self.demandes:
+            return not demande_close(self.mem, self.demandes[i])
+        return i in self.entrees and self.entrees[i].statut not in BACKLOG_CLOS
 
-    def deps(i: str) -> list[str]:
+    def deps(self, i: str) -> list[str]:
         """Ce qu'une entrée attend ; pour une tâche, aussi ce qu'attend son
         besoin (ADR-0083)."""
-        e = entrees[i]
+        e = self.entrees[i]
         res = dependances(e)
-        b = entrees.get(besoin_de(e) or "") if est_tache(e) else None
+        b = self.entrees.get(besoin_de(e) or "") if est_tache(e) else None
         return res + [d for d in dependances(b) if d not in res] if b else res
 
-    def attendus(i: str) -> set[str]:
+    def attend(self, i: str) -> list[str]:
+        """Ce qu'une entrée attend encore : ses attendus pas clos."""
+        return [d for d in self.deps(i) if self.ouvert(d)]
+
+    def attendus(self, i: str) -> set[str]:
         """Les entrées et les demandes encore attendues qu'une entrée attend,
         de proche en proche ; un cycle s'arrête (le contrôle de l'ordre le
         refuse)."""
-        vus, pile = set(), list(deps(i))
+        vus, pile = set(), list(self.deps(i))
         while pile:
             d = pile.pop()
-            if d in vus or d == i or (d not in entrees and d not in demandes):
+            if d in vus or d == i or (d not in self.entrees and d not in self.demandes):
                 continue
             vus.add(d)
-            if d in entrees:
-                pile += deps(d)
-        return {d for d in vus if ouvert(d)}
+            if d in self.entrees:
+                pile += self.deps(d)
+        return {d for d in vus if self.ouvert(d)}
 
-    ouverts = sorted(i for i in entrees if ouvert(i))
+    def _rang(self, i: str):
+        return self.entrees[i].statut != "en-cours", i
 
-    def premier(est) -> list[str]:
+    def premier(self, est) -> list[str]:
         """Ceux de cette forme, ouverts, qu'aucun autre de la forme ne précède,
         l'en cours d'abord, puis par identifiant."""
-        return sorted((i for i in ouverts
-                       if est(entrees[i]) and not any(d in entrees and est(entrees[d]) for d in attendus(i))),
-                      key=lambda i: (entrees[i].statut != "en-cours", i))
+        return sorted((i for i in self.ouverts
+                       if est(self.entrees[i])
+                       and not any(d in self.entrees and est(self.entrees[d]) for d in self.attendus(i))),
+                      key=self._rang)
 
-    jalons = premier(est_jalon)
+    def dans_l_ordre(self, est) -> list[str]:
+        """Ceux de cette forme, ouverts, dans leur ordre d'exécution : chacun
+        après ceux de la forme qu'il attend, de proche en proche ; à choix
+        égal, l'en cours d'abord, puis par identifiant. Ce qu'un cycle retient
+        (le contrôle de l'ordre le refuse) vient à la fin, par identifiant."""
+        reste = [i for i in self.ouverts if est(self.entrees[i])]
+        avant = {i: {d for d in self.attendus(i) if d in reste} for i in reste}
+        res: list[str] = []
+        while reste:
+            libres = sorted((i for i in reste if avant[i] <= set(res)), key=self._rang)
+            if not libres:
+                return res + sorted(reste)
+            res.append(libres[0])
+            reste.remove(libres[0])
+        return res
+
+    def ou_en_est(self, i: str) -> str:
+        """Où en est une entrée qu'on attend, en mot interne : le statut d'une
+        tâche qui n'est plus ouverte, sinon `pret` ou `attend` ; pour une
+        demande, `repondue` ou `sans-reponse` ; `inconnu` pour le reste."""
+        if i in self.demandes:
+            return "repondue" if demande_close(self.mem, self.demandes[i]) else "sans-reponse"
+        if i not in self.entrees:
+            return "inconnu"
+        if self.entrees[i].statut != "ouvert":
+            return self.entrees[i].statut
+        return "attend" if self.attend(i) else "pret"
+
+
+def ordre(mem: "Memoire") -> Ordre | None:
+    """L'ordre du backlog, s'il en a un : sans `après`, tâche, lot, jalon ni
+    priorité, rien."""
+    g = Graphe(mem)
+    if not any(dependances(e) or not est_besoin(e) or priorite(e) for e in g.entrees.values()):
+        return None
+    return ordre_de(g)
+
+
+def ordre_de(g: Graphe) -> Ordre:
+    """L'ordre que calcule `ordre`, sur un graphe déjà lu, même sans
+    structure."""
+    entrees, demandes, ouverts = g.entrees, g.demandes, g.ouverts
+    jalons = g.premier(est_jalon)
     jalon = jalons[0] if jalons else None
     restants = sorted(d for d in dependances(entrees[jalon])
-                      if ouvert(d) and (d in demandes or (d in entrees and est_besoin(entrees[d])))) if jalon else []
+                      if g.ouvert(d) and (d in demandes or (d in entrees and est_besoin(entrees[d])))) if jalon else []
     du_jalon = set(restants)
-    lots = premier(est_lot)
+    lots = g.premier(est_lot)
     lot = entrees[lots[0]] if lots else None
     rang = {"haute": 0, None: 1}
 
@@ -1018,7 +1076,7 @@ def ordre(mem: "Memoire") -> Ordre | None:
     # Une tâche en cours ou bloquée n'est plus à prendre : l'état le dit à
     # part. Un besoin, un lot ni un jalon ne se prennent.
     a_prendre = [i for i in ouverts if est_tache(entrees[i]) and entrees[i].statut == "ouvert"]
-    prets = sorted((i for i in a_prendre if not any(ouvert(d) for d in deps(i))), key=cle)
+    prets = sorted((i for i in a_prendre if not g.attend(i)), key=cle)
     basses = [i for i in prets if priorite_effective(entrees[i], entrees) == "basse"]
     prets = [i for i in prets if i not in basses]
     # Les besoins : ceux qui n'ont plus de tâche ouverte sont à fermer, si
@@ -1036,30 +1094,17 @@ def ordre(mem: "Memoire") -> Ordre | None:
             continue
         if any(t.statut == "fait" for t in siennes):
             a_fermer.append(i)
-        elif any(ouvert(d) for d in deps(i)):
+        elif g.attend(i):
             attendent.append(i)
         elif entrees[i].statut == "ouvert":
             a_decouper.append(i)
     # Ce qu'attendent celles qui ne sont pas prêtes : une entrée du backlog,
     # une demande, ou les deux (B-0153).
-    attendus_ouverts = {i: [d for d in deps(i) if ouvert(d)]
+    attendus_ouverts = {i: g.attend(i)
                         for i in [*(i for i in a_prendre if i not in prets and i not in basses), *attendent]}
     attente_entree = sum(1 for ds in attendus_ouverts.values() if any(d in entrees for d in ds))
     attente_demande = sum(1 for ds in attendus_ouverts.values() if any(d in demandes for d in ds))
-
-    def ou_en_est(i: str) -> str:
-        """Où en est ce qu'un lot attend, en mot interne : le statut d'une
-        tâche qui n'est plus ouverte, sinon `pret` ou `attend` ; pour une
-        demande, `repondue` ou `sans-reponse` ; `inconnu` pour le reste."""
-        if i in demandes:
-            return "repondue" if demande_close(mem, demandes[i]) else "sans-reponse"
-        if i not in entrees:
-            return "inconnu"
-        if entrees[i].statut != "ouvert":
-            return entrees[i].statut
-        return "attend" if any(ouvert(d) for d in deps(i)) else "pret"
-
-    avancement = [(d, ou_en_est(d)) for d in dict.fromkeys(dependances(lot))
+    avancement = [(d, g.ou_en_est(d)) for d in dict.fromkeys(dependances(lot))
                   if not (d in entrees and est_lot(entrees[d]))] if lot else []
     return Ordre([entrees[i] for i in prets], entrees[jalon] if jalon else None, restants, len(attendus_ouverts),
                  [entrees[i] for i in basses], lot, avancement, attente_entree, attente_demande,

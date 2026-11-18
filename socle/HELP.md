@@ -129,7 +129,11 @@ jusqu'à sa réponse), et ses cases sont toutes cochées avant de la clore.
 Il soumet chaque document en demande. Il suffit de le lui demander ;
 l'état donne ensuite le prochain jalon, le prochain lot et l'avancement
 de ses tâches, les tâches prêtes, et les besoins à découper en tâches ou
-à fermer.
+à fermer. La suite entière, d'un coup d'œil, se lit dans un terminal par
+`python3 .socle/socle roadmap` (une ligne par jalon et par lot ;
+`--format markdown` détaille le lot en cours et les deux suivants,
+`--by need` lit par besoin, `--by batch`, le défaut, par lot), sur la page de chaque exécution de la CI, et
+dans la conversation : demandez « la suite » à l'agent.
 
 **Spécifications et cas d'essai.** Le projet déclare où vivent ses
 spécifications (`[specs] paths` des garde-fous) : l'état vous signale
@@ -297,10 +301,10 @@ qu'un agent écrit dans son travail, pour tout effet ; pour ce que rien ne
 rattrape ensuite (supprimer le projet ou un dossier qui le contient, une action externe
 irréversible, une fuite de la mémoire privée, la part de la mémoire qui
 ne se publie pas), il refuse aussi ce qu'il ne sait pas lire. Un trou
-ouvre un sujet si sa forme est de celles qu'un agent écrit dans son
+ouvre une entrée du backlog si sa forme est de celles qu'un agent écrit dans son
 travail : vue dans une session d'agent, un skill ou une documentation
 courante. Une autre forme s'inscrit d'une ligne dans la liste des formes
-connues que le hook ne juge pas, sans sujet ; dans la revue d'un lot du
+connues que le hook ne juge pas, sans entrée au backlog ; dans la revue d'un lot du
 hook, elle n'est pas un bloquant, même refusée avant le lot par accident.
 Un agent coopératif ne cherche pas à contourner ses garde-fous. La
 suppression du projet lui échappe encore par `find … | xargs rm`, une
@@ -351,7 +355,7 @@ comme des formes qui lui échappent (une part inconnue qui vaut elle-même
 `..`, une option posée par le profil du shell, une variable que Claude
 Code ne pose que pour ses hooks…) ; la garantie est alors le contrôle
 des fichiers protégés, à la fin du tour, au commit et dans la CI, et un
-trou de cette sorte n'ouvre pas de sujet au backlog.
+trou de cette sorte n'ouvre pas d'entrée au backlog.
 
 **Faire ce que l'agent ne peut pas faire.** Pousser sur la branche par
 défaut, publier, régler un service, supprimer une branche distante, poser
@@ -457,6 +461,7 @@ Chaque refus dit ce qu'il a vu et comment en sortir. La plupart s'adressent
 | `install` | installer ou mettre à jour le socle |
 | `init` | décrire le projet |
 | `state` | l'état du projet |
+| `roadmap` | la suite du projet : jalons, lots, tâches et besoins |
 | `answer`, `decision`, `reviewed` | répondre à une demande, consigner une décision en séance, une relecture |
 | `approve` | approuver ses propres changements protégés |
 | `private install` | mettre en place la mémoire privée |

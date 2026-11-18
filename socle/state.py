@@ -690,15 +690,17 @@ def _memoire(mem: memoire.Memoire, projet) -> list[str]:
 
 
 def _backlog(mem: memoire.Memoire, borne: bool = False) -> list[tuple[int, list[str]]]:
-    """Le backlog, en blocs de l'état avec leur rang de coupe : ses comptes,
-    puis ce qui est en cours ou bloqué, et ce qui vient ensuite, qui se
+    """Le backlog, en blocs de l'état avec leur rang de coupe : ses comptes
+    et la commande de la suite, puis ce qui est en cours ou bloqué, et ce qui vient ensuite, qui se
     relisent (`socle show --index backlog`) et partent les premiers ; avec
     `borne`, chaque liste plafonnée et les titres raccourcis."""
     backlog = [e for e in mem.entrees(memoire.BACKLOG) if not e.archivee]
     par = Counter(e.statut for e in backlog)
     res = [(INFO, [trad("backlog  : {ouverts} ouvert(s), {en_cours} en cours, {bloques} bloqué(s), {clos} clos",
                         ouverts=par.get("ouvert", 0), en_cours=par.get("en-cours", 0),
-                        bloques=par.get("bloque", 0), clos=par.get("fait", 0) + par.get("abandonne", 0))])]
+                        bloques=par.get("bloque", 0), clos=par.get("fait", 0) + par.get("abandonne", 0)),
+                   # La suite entière, jalons, lots et tâches, se lit à part.
+                   trad("  la suite : `python3 .socle/socle roadmap` (détaillée : `--format markdown`)")])]
     titre = TITRE_DE_SUJET if borne else None
     for statut, libelle in (("en-cours", a_traduire("en cours")), ("bloque", a_traduire("bloqué"))):
         res += [(RELU, b) for b in _elements([], [[f"  {trad(libelle)} : {e.id} — "

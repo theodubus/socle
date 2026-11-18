@@ -4,7 +4,8 @@ Hooks de l'agent (Claude Code, déclarés dans `.claude/settings.json`) :
 - `session-start` : l'état dérivé entre dans le contexte, au démarrage et
   après chaque compactage ;
 - `pre-tool-use`  : refuse une action irréversible ou externe, l'écriture d'un
-  fichier protégé, une référence inventée, une demande hors contrat ;
+  fichier protégé, une référence inventée, l'ancien numéro d'une entrée
+  renumérotée dans un texte neuf, une demande hors contrat ;
 - `stop`          : refuse de conclure tant que les contrôles échouent.
 
 Hooks git (`core.hooksPath = .socle/git-hooks`) :
@@ -349,9 +350,19 @@ def sha_fabrique(racine: Path, texte: str) -> str | None:
 
 def references_inventees(projet: config.Projet, rel: str, avant: str | None, apres: str) -> list[str]:
     """Les références que cette écriture AJOUTE et qui ne mènent nulle part."""
+    return references_refusees(projet, rel, avant, apres)[0]
+
+
+def references_refusees(projet: config.Projet, rel: str, avant: str | None,
+                        apres: str) -> tuple[list[str], list[str]]:
+    """Ce que cette écriture AJOUTE et que le hook refuse : les références
+    inventées, qui ne mènent nulle part, et les anciens numéros (ADR-0083),
+    chacun avec l'identifiant actuel de l'entrée qui le porte. Un texte neuf
+    cite l'entrée par celui-ci, seul ou sur la ligne de l'ancien ; le
+    journal d'avant garde l'ancien, qui se résout."""
     from socle import readings as lp
 
-    fautes = []
+    fautes, vieux = [], []
     mem_avant = memoire.Memoire.charger(projet.racine)
     mem = memoire.Memoire.charger(projet.racine)
     if memoire.couche_attendue(rel) not in (None, "inconnue"):
@@ -381,8 +392,20 @@ def references_inventees(projet: config.Projet, rel: str, avant: str | None, apr
                                "l'index : le relire, `python3 .socle/socle show --index {index}`",
                                index=index, h=h, ligne=ligne))
     deja = {i for i, _ in memoire.mentions(avant or "")}
+    par_ligne: dict[int, set[str]] = {}
+    for ident, ligne in memoire.mentions(apres):
+        par_ligne.setdefault(ligne, set()).add(ident)
     for ident, ligne in memoire.mentions(apres):
         if ident in deja or ident in defs or ident.startswith("P"):
+            continue
+        if ident in anciens:
+            # Sur la ligne qui nomme aussi l'identifiant actuel, l'ancien
+            # numéro se lit pour ce qu'il est (« B-0224 → JA-0005 », le
+            # bilan de la mise à jour, ou une citation de l'humain).
+            if anciens[ident].id not in par_ligne[ligne]:
+                vieux.append(trad("`{ident}` (ligne {ligne}) est l'ancien numéro de {actuel} : un texte neuf cite "
+                                  "l'entrée par son identifiant actuel, {actuel}, seul ou sur la même ligne que "
+                                  "l'ancien", ident=ident, ligne=ligne, actuel=anciens[ident].id))
             continue
         fautes.append(trad("`{ident}` (ligne {ligne}) ne désigne aucune entrée de la mémoire — créer l'entrée "
                            "d'abord, ou corriger l'identifiant ; ne jamais en inventer un", ident=ident, ligne=ligne))
@@ -393,7 +416,7 @@ def references_inventees(projet: config.Projet, rel: str, avant: str | None, apr
         if type_ == "commit" and re.fullmatch(r"[0-9a-f]{7,40}", cible) and not outils.objet_existe(projet.racine, cible):
             fautes.append(trad("`commit:{cible}` n'existe pas dans ce dépôt — lire le SHA avec `git rev-parse`, "
                                "jamais de tête", cible=cible))
-    return fautes
+    return fautes, vieux
 
 
 def statut_valide_ajoute(rel: str, avant: str | None, apres: str, projet) -> str | None:
@@ -2110,7 +2133,7 @@ def _raison_avant_outil(projet: config.Projet, entree: dict, autre: config.Proje
         if rel and rel.endswith(".md"):
             avant, apres = contenu_apres(racine, outil, args, rel)
             if apres is not None:
-                fautes = references_inventees(projet, rel, avant, apres)
+                fautes, vieux = references_refusees(projet, rel, avant, apres)
                 if fautes and autre is not None:
                     # Une référence vaut si elle existe dans l'autre arbre.
                     rel_autre = _relatif(autre.racine, chemin)
@@ -2119,6 +2142,8 @@ def _raison_avant_outil(projet: config.Projet, entree: dict, autre: config.Proje
                         fautes = []
                 if fautes:
                     return refus(trad("référence inventée — {fautes}", fautes=" ; ".join(fautes[:5])))
+                if vieux:
+                    return refus(trad("ancien numéro — {fautes}", fautes=" ; ".join(vieux[:5])))
                 faute = statut_valide_ajoute(rel, avant, apres, projet)
                 if faute:
                     return refus(faute)
