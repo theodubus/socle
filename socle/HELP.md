@@ -90,7 +90,9 @@ Juste après l'installation :
    une semaine sans avoir été fusionnées, à livrer ou à supprimer. Si une
    telle branche garde seule un commit que la mémoire cite, l'état donne
    d'abord la commande qui l'étiquette : sans elle, la CI ne le
-   retrouverait plus.
+   retrouverait plus. Il ne propose qu'une branche que l'origine a
+   encore ; quand l'origine ne répond pas, il dit que sa liste vient du
+   dernier fetch, et que `git fetch --prune origin` la rafraîchit.
 5. Ouvrir l'agent dans le projet. Il lit l'état au démarrage, puis donne le
    lien des questions de départ, une demande que `socle init` a posée : y
    répondre dans la conversation, `valider` pour appliquer tous les

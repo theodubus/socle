@@ -7,6 +7,19 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-18-d — The state no longer gives to delete a branch the origin no longer has
+
+The clone keeps the reference of a branch deleted on the origin until a
+fetch prunes it, and the state gave it to the human to delete, or to
+examine, when they had already deleted it. When it has a remote branch to
+propose, the state now asks the origin which ones it still has (`git
+ls-remote --heads origin`, within five seconds) and proposes only those.
+When the origin does not answer, it proposes them as before, saying that
+its list comes from the last fetch and that `git fetch --prune origin`
+refreshes it.
+
+To do: nothing in the project.
+
 ## 2026-11-18-c — The project's roadmap in the approved formats: the compact one in columns, the detailed one in tables, in the order of execution; the recap is no longer read in a code block
 
 `socle roadmap` changes its rendering, not its content nor its options.

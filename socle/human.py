@@ -17,7 +17,9 @@ que le hook de fin de tour exige quand l'agent a agi.
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -106,6 +108,30 @@ def branches_contenues_dans_le_travail(projet: config.Projet) -> list[tuple[str,
         if hors_defaut not in ("", "0") and hors_travail == "0" and travail_en_plus not in ("", "0"):
             res.append((nom, poussee))
     return sorted(res)
+
+
+# Le délai, en secondes, de la question à l'origine sur ses branches (B-0193).
+DELAI_ORIGINE = 5
+
+
+def branches_de_l_origine(projet: config.Projet) -> set[str] | None:
+    """Les branches que l'origine a vraiment, par `git ls-remote --heads
+    origin` : les références du dernier fetch gardent une branche supprimée
+    sur l'origine tant qu'un fetch ne les élague pas, et l'état la donnait à
+    supprimer à l'humain, qui l'avait déjà supprimée (B-0193). `None` quand
+    l'origine ne répond pas dans le délai, ou en erreur : les listes restent
+    alors celles du dernier fetch, et le disent. Aucune invite d'identifiants
+    HTTPS ; une origine SSH qui demande une phrase de passe peut l'afficher
+    sur le terminal, jusqu'au délai."""
+    try:
+        r = subprocess.run(["git", "ls-remote", "--heads", "origin"], cwd=projet.racine, capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
+                           timeout=DELAI_ORIGINE, env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    if r.returncode != 0:
+        return None
+    return {ligne.split("\trefs/heads/", 1)[1] for ligne in r.stdout.splitlines() if "\trefs/heads/" in ligne}
 
 
 # Au-delà, une branche non fusionnée qui ne bouge plus se signale (B-0112).
@@ -220,18 +246,45 @@ def a_faire(projet: config.Projet) -> list[Element]:
             res.append(Element("action", f"{e.id} — {e.titre}", url or trad("(pas encore poussé : pas de lien)")))
     depot = liens.url_depot(projet)
     page = f"{depot}/branches" if depot else ""
-    for b in branches_a_supprimer(projet):
-        res.append(Element("action", trad("supprimer la branche distante `{branche}`, déjà contenue dans la branche "
-                                          "par défaut", branche=b), page))
+    a_supprimer = branches_a_supprimer(projet)
     contenues = branches_contenues_dans_le_travail(projet)
+    dites = {b for b, _ in contenues}
+    inactives = [i for i in branches_inactives(projet) if i[0] not in dites]
+    # Calculées sur le dernier fetch : l'origine dit celles qu'elle a encore,
+    # interrogée seulement s'il y en a une à dire (B-0193).
+    vivantes = (branches_de_l_origine(projet)
+                if a_supprimer or contenues or inactives else set())
+    note = ""
+    disparues: list[tuple[str, int, int]] = []
+    if vivantes is None:
+        note = trad(" (liste du dernier fetch, que l'origine n'a pas confirmée : `git fetch --prune origin` la "
+                    "rafraîchit)")
+    else:
+        a_supprimer = [b for b in a_supprimer if b in vivantes]
+        contenues = [(b, p) for b, p in contenues if b in vivantes]
+        disparues = [i for i in inactives if i[0] not in vivantes]
+        inactives = [i for i in inactives if i[0] in vivantes]
+    for b in a_supprimer:
+        res.append(Element("action", trad("supprimer la branche distante `{branche}`, déjà contenue dans la branche "
+                                          "par défaut", branche=b) + note, page))
     for b, poussee in contenues:
         res.append(Element("action", trad("supprimer la branche distante `{branche}`, déjà contenue dans `{travail}`, "
                                           "la branche de travail poussée : son contenu ne se perd pas ; une pull "
                                           "request ouverte qui en part se fermerait avec elle", branche=b,
-                                          travail=poussee), page))
-    dites = {b for b, _ in contenues}
-    inactives = [i for i in branches_inactives(projet) if i[0] not in dites]
-    cites = commits_cites(projet) if inactives else set()
+                                          travail=poussee) + note, page))
+    cites = commits_cites(projet) if inactives or disparues else set()
+    # Une branche que l'origine n'a plus ne se propose plus ; mais si sa
+    # référence, dans ce clone, garde seule un commit que la mémoire cite, un
+    # `git fetch --prune` le perdrait : l'étiqueter d'abord (B-0116, la revue
+    # de L-0017).
+    for b, _, _ in disparues:
+        seuls = commits_cites_seuls(projet, b, cites)
+        if seuls:
+            res.append(Element("action", trad(
+                "étiqueter {cites}, que la mémoire cite et que seule garde, dans ce clone, la référence de la branche "
+                "distante `{branche}`, que l'origine n'a plus : `{commande}` ; sans quoi un `git fetch --prune` les "
+                "perd, et la CI ne les retrouve plus",
+                cites=", ".join(seuls), branche=b, commande=outils.etiqueter(seuls)), page))
     for b, absents, age in inactives:
         seuls = commits_cites_seuls(projet, b, cites)
         if seuls:
@@ -240,12 +293,13 @@ def a_faire(projet: config.Projet) -> list[Element]:
                 "activité depuis {jours} jours, dont {cites}, que la mémoire cite et qu'elle seule garde ; la livrer "
                 "par une pull request si son travail sert, sinon étiqueter d'abord ces commits (`{commande}`), puis "
                 "la supprimer : sans quoi la CI ne les retrouve plus",
-                branche=b, n=absents, jours=age, cites=", ".join(seuls), commande=outils.etiqueter(seuls)), page))
+                branche=b, n=absents, jours=age, cites=", ".join(seuls), commande=outils.etiqueter(seuls)) + note,
+                page))
             continue
         res.append(Element("action", trad("examiner la branche distante `{branche}` : {n} commit(s) absents de la "
                                           "branche par défaut, sans activité depuis {jours} jours ; la livrer par "
                                           "une pull request si son travail sert, sinon la supprimer",
-                                          branche=b, n=absents, jours=age), page))
+                                          branche=b, n=absents, jours=age) + note, page))
     return res
 
 

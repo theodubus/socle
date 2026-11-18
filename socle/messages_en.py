@@ -310,6 +310,14 @@ MESSAGES: dict[str, str] = {
         "answer",
     "(pas encore poussé : pas de lien)":
         "(not pushed yet: no link)",
+    "étiqueter {cites}, que la mémoire cite et que seule garde, dans ce clone, la référence de la branche distante "
+    "`{branche}`, que l'origine n'a plus : `{commande}` ; sans quoi un `git fetch --prune` les perd, et la CI ne les "
+    "retrouve plus":
+        "tag {cites}, which the memory cites and which, in this clone, only the reference of the remote branch "
+        "`{branche}` keeps, a branch the origin no longer has: `{commande}`; otherwise a `git fetch --prune` loses "
+        "them, and CI no longer finds them",
+    " (liste du dernier fetch, que l'origine n'a pas confirmée : `git fetch --prune origin` la rafraîchit)":
+        " (list from the last fetch, which the origin did not confirm: `git fetch --prune origin` refreshes it)",
     "supprimer la branche distante `{branche}`, déjà contenue dans la branche par défaut":
         "delete the remote branch `{branche}`, already contained in the default branch",
     "supprimer la branche distante `{branche}`, déjà contenue dans `{travail}`, la branche de travail poussée : son "

@@ -7,6 +7,19 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-18-d — L'état ne donne plus à supprimer une branche que l'origine n'a plus
+
+Le clone garde la référence d'une branche supprimée sur l'origine tant
+qu'un fetch ne l'élague pas, et l'état la donnait à supprimer, ou à
+examiner, à l'humain, qui l'avait déjà supprimée. Quand il a une branche
+distante à proposer, l'état demande désormais à l'origine celles qu'elle
+a encore (`git ls-remote --heads origin`, en cinq secondes au plus) et
+ne propose que celles-là. Quand l'origine ne répond pas, il les propose
+comme avant, en disant que sa liste vient du dernier fetch et que `git
+fetch --prune origin` la rafraîchit.
+
+À faire : rien dans le projet.
+
 ## 2026-11-18-c — La suite du projet aux formats validés : le compact en colonnes, le détaillé en tableaux, dans l'ordre d'exécution ; le récap ne se lit plus dans un bloc de code
 
 `socle roadmap` change de rendu, pas de contenu ni d'options. Le format
