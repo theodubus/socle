@@ -2286,9 +2286,13 @@ def stop(projet: config.Projet, entree: dict) -> int:
     if outils.filtrer(ctx.changes, projet.chemins_code()) or projet.fichiers_de_tests(ctx.changes):
         verification.etapes_rapides(projet, rapport)
 
+    # Le seuil des étapes rapides avertit et n'échoue jamais : il ne bloque
+    # pas la fin de tour, qui le dit à l'humain, qu'elle passe ou qu'elle
+    # bloque pour un autre contrôle (B-0258).
+    duree = "\n".join(_avertissements(rapport, (verification.CONTROLE_DUREE,))) or None
     if rapport.reussi:
         compteur.unlink(missing_ok=True)
-        return exiger_recap(projet, entree)
+        return exiger_recap(projet, entree, avertissement=duree)
     # Le compteur appartient à sa session : une session nouvelle ne commence
     # pas à l'escalade sur les échecs d'une autre (relevé de la passe de
     # recul, F).
@@ -2322,12 +2326,19 @@ def stop(projet: config.Projet, entree: dict) -> int:
             "puis s'arrêter.\n\n{rapport}", essais=essais, rapport=texte)}, ensure_ascii=False))
         return 0
     tracer_refus(racine, "Stop", ",".join(rapport.controles_en_echec()), entree.get("session_id", ""))
-    print(json.dumps({"decision": "block", "reason": trad(
+    sortie = {"decision": "block", "reason": trad(
         "Les contrôles échouent (tentative {essais}/{maximum}) : corriger avant de conclure. Si tu ne peux pas "
         "corriger (un fichier que tu n'as pas le droit de remettre), réponds en une ligne qui dit pourquoi, sans "
         "redire ton récap : une relance sur le même échec et le même arbre ne bloque plus, et l'humain reçoit le "
         "rapport.\n\n{rapport}",
-        essais=essais, maximum=projet.maximum_tentatives(), rapport=texte)}, ensure_ascii=False))
+        essais=essais, maximum=projet.maximum_tentatives(), rapport=texte)}
+    # La raison, rapport compris, n'est lue que de l'agent ; les deux
+    # messages plus haut portent le rapport à l'humain. Le seuil dépassé lui
+    # est dit ici, une fois : la relance sur le même arbre ne relance pas les
+    # étapes, qui ne le rediraient pas (B-0258).
+    if duree:
+        sortie["systemMessage"] = duree
+    print(json.dumps(sortie, ensure_ascii=False))
     return 0
 
 
@@ -2343,10 +2354,13 @@ def _appels_externes(racine: Path, session: str) -> bool:
     return any(l[1] == "PreToolUse" and l[3].startswith("mcp__") for l in siennes[debut:])
 
 
-def exiger_recap(projet: config.Projet, entree: dict) -> int:
+def exiger_recap(projet: config.Projet, entree: dict, avertissement: str | None = None) -> int:
     """Un tour où l'agent a agi se termine par un récap et deux lignes,
     `Pour toi :` et `Ensuite :`. Tout dernier message,
-    qu'il ait agi ou non, ne donne que des liens que l'humain peut suivre."""
+    qu'il ait agi ou non, ne donne que des liens que l'humain peut suivre.
+    `avertissement`, celui des étapes rapides que la fin de tour vient de
+    lancer, ne change rien à ce jugement : il se joint au message à
+    l'humain, et à la raison donnée à l'agent si le hook bloque (B-0258)."""
     from socle import human as humain, links as liens
 
     racine = projet.racine
@@ -2359,29 +2373,37 @@ def exiger_recap(projet: config.Projet, entree: dict) -> int:
         fichier.parent.mkdir(parents=True, exist_ok=True)
         fichier.write_text(marque)
 
+    def dire(sortie: dict | None) -> int:
+        if avertissement:
+            sortie = dict(sortie or {})
+            sortie["systemMessage"] = "\n\n".join(x for x in (sortie.get("systemMessage"), avertissement) if x)
+            if sortie.get("decision") == "block":
+                sortie["reason"] += "\n\n" + avertissement
+        if sortie:
+            print(json.dumps(sortie, ensure_ascii=False))
+        return 0
+
     chemin = entree.get("transcript_path")
     message = humain.dernier_message(Path(chemin)) if chemin else None
     if message is None:
         if a_agi:
             retenir()
-            print(json.dumps({"systemMessage": trad("récap de fin d'intervention non vérifiable : transcript "
-                                                    "illisible")}, ensure_ascii=False))
-        return 0
+            return dire({"systemMessage": trad("récap de fin d'intervention non vérifiable : transcript illisible")})
+        return dire(None)
     manque = humain.recap_manquant(projet, message) if a_agi else []
     morts, sans_lien = liens.problemes(projet, message)
     if not (manque or morts or sans_lien):
         if a_agi:
             retenir()
-        return 0
+        return dire(None)
     if entree.get("stop_hook_active"):
         if a_agi:
             retenir()
         defauts = ([trad("sans {manque}", manque=trad(" ni ").join(manque))] if manque else []) + (
             [trad("{n} lien(s) que l'humain ne pourra pas suivre", n=len(morts) + len(sans_lien))]
             if morts or sans_lien else [])
-        print(json.dumps({"systemMessage": trad("fin d'intervention {defauts}, malgré un rappel",
-                                                defauts=", ".join(defauts))}, ensure_ascii=False))
-        return 0
+        return dire({"systemMessage": trad("fin d'intervention {defauts}, malgré un rappel",
+                                           defauts=", ".join(defauts))})
     raisons = []
     if manque:
         liste = "\n".join(humain.texte(humain.a_faire(projet)))
@@ -2414,8 +2436,7 @@ def exiger_recap(projet: config.Projet, entree: dict) -> int:
             demandes=", ".join(sans_lien), ids=" ".join(sans_lien)))
     tracer_refus(racine, "Stop", ",".join(x for x, oui in (("recap", manque), ("liens", morts), ("lien-de-demande", sans_lien))
                                          if oui), entree.get("session_id", ""))
-    print(json.dumps({"decision": "block", "reason": "\n\n".join(raisons)}, ensure_ascii=False))
-    return 0
+    return dire({"decision": "block", "reason": "\n\n".join(raisons)})
 
 
 # --------------------------------------------------------------------------
@@ -2459,7 +2480,7 @@ def git_pre_commit(projet: config.Projet) -> int:
                        "réservé à l'humain ; l'agent, lui, ouvre une demande."), file=sys.stderr)
         print(trad("\nCommit refusé. `git commit --no-verify` contourne ce hook, jamais la CI."), file=sys.stderr)
         return 1
-    _dire_reponses_seules(rapport)
+    _dire_avertissements(rapport)
     return 0
 
 
@@ -2842,19 +2863,26 @@ def git_pre_push(projet: config.Projet) -> int:
         tracer_refus(projet.racine, "git-pre-push", ",".join(rapport.controles_en_echec()))
         rapport.afficher(trad("socle — vérification avant push"), flux=sys.stderr, court=True)
         return 1
-    _dire_reponses_seules(rapport)
+    _dire_avertissements(rapport, (verification.CONTROLE_DUREE,))
     return 0
 
 
-def _dire_reponses_seules(rapport) -> None:
+def _avertissements(rapport, controles) -> list[str]:
+    """Les avertissements de ces contrôles, chacun sur sa ligne, tels qu'un
+    hook qui laisse passer les dit."""
+    from socle.report import AVERTISSEMENT
+
+    return [trad("socle — avertissement ({controle}) : {constat}", controle=c.controle, constat=c.en_ligne())
+            for c in rapport.constats if c.controle in controles and c.gravite == AVERTISSEMENT]
+
+
+def _dire_avertissements(rapport, aussi: tuple[str, ...] = ()) -> None:
     """Le hook git qui laisse passer se tait, sauf pour ceci, qu'il dit sur
     sa sortie d'erreur : une réponse `valider` qui part sans le changement
     qu'elle autorise, et ne le couvrira pas au push suivant
-    (`demandes.reponse-seule`, B-0142). Le rapport d'un refus le montre
-    déjà."""
-    from socle.report import AVERTISSEMENT
-
-    for c in rapport.constats:
-        if c.controle == "demandes.reponse-seule" and c.gravite == AVERTISSEMENT:
-            print(trad("socle — avertissement ({controle}) : {constat}", controle=c.controle, constat=c.en_ligne()),
-                  file=sys.stderr)
+    (`demandes.reponse-seule`, B-0142) ; et `aussi`, au hook avant push,
+    le total des étapes rapides qu'il vient de lancer au-delà de leur seuil
+    (`verify.duree`, B-0258), que l'agent lit dans la sortie de son
+    `git push`. Le rapport d'un refus les montre déjà."""
+    for ligne in _avertissements(rapport, ("demandes.reponse-seule",) + aussi):
+        print(ligne, file=sys.stderr)

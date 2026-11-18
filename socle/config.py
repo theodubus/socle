@@ -35,6 +35,11 @@ BRANCHES_JETABLES = ("proto/",)
 # La borne, en octets UTF-8, de la sortie du démarrage quand les garde-fous
 # n'en disent rien (`[startup] max_bytes`) : la valeur du gabarit (ADR-0071).
 BORNE_DEMARRAGE = 9500
+# Le seuil, en secondes, du total des étapes rapides quand les garde-fous
+# n'en disent rien (`[verify] fast_max_seconds`) : la valeur du gabarit. Au-
+# delà de cinq minutes d'attente, un sous-agent perd le cache de sa
+# conversation (B-0258).
+SEUIL_RAPIDE = 300
 PREFIXE_DE_BRANCHE = re.compile(r"[A-Za-z0-9._/-]+")
 COMPTEUR_STOP = ".socle/trace/stop-echecs"
 INSTRUCTIONS = "AGENTS.md"
@@ -295,6 +300,23 @@ class Projet:
         if isinstance(valeur, bool) or not isinstance(valeur, int) or valeur <= 0:
             return BORNE_DEMARRAGE
         return valeur
+
+    def seuil_rapide(self) -> int | float:
+        """Le seuil, en secondes, du total des étapes rapides, `[verify]
+        fast_max_seconds` des garde-fous : au-delà, le passage qui les lance
+        toutes avertit, sans échouer, et l'état le redit (B-0258). Celui du
+        gabarit à défaut, ou si la valeur n'est pas un nombre, ce que le
+        cliquet refuse sans demande ; un nombre se prend tel quel, même nul
+        ou négatif : plus bas avertit plus tôt, comme le cliquet le juge.
+        `nan`, que le cliquet refuse aussi sans demande, écrit comme quitté,
+        vaut zéro, le plus strict : aucune valeur qu'il laisse écrire
+        librement ne relâche le seuil."""
+        valeur = self.gf("verify", "fast_max_seconds", defaut=None)
+        if not isinstance(valeur, (int, float)):
+            return SEUIL_RAPIDE
+        if isinstance(valeur, bool):
+            return int(valeur)
+        return valeur if valeur == valeur else 0
 
     def branches_jetables(self) -> list[str]:
         """Les préfixes des branches jetables, `[branches] disposable` des

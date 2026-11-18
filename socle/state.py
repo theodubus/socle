@@ -330,6 +330,16 @@ def calculer(projet: config.Projet, contenus: bool = True, supplement: list[str]
     except Exception as e:
         ajouter(ACTION, [[trad("adaptateur : audit impossible ({erreur})", erreur=erreur_(e))]])
     ajouter(ACTION, _blocs(alerte_budget_actif(projet)))
+    # Tant que le dernier passage complet des étapes rapides, sur cette
+    # machine, dépasse le seuil des garde-fous (B-0258).
+    try:
+        from socle import verification
+
+        alerte = verification.alerte_duree(projet)
+        if alerte:
+            ajouter(ACTION, [[f"!! {alerte}"]])
+    except Exception as e:
+        ajouter(ACTION, [[trad("durée des étapes rapides : illisible ({erreur})", erreur=erreur_(e))]])
     # Ce qui informe.
     try:
         blocs.extend(_git(racine, projet, borne=contenus))

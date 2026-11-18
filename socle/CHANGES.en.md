@@ -7,6 +7,33 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-18-a — The duration of the steps is told, and that of the fast steps has a threshold
+
+`verify`, `verify --fast` and `socle ci` now print the duration of each
+adapter step they run, at the end of its line, then their total. A new
+guardrails key, `[verify] fast_max_seconds`, bounds the total of the fast
+steps: 300 seconds when the project does not write it, the value the
+template sets for a new project. Beyond it, the run that runs them all
+warns without failing, naming the longest step: `verify --fast` at the end
+of its output; the pre-push hook on its error output, without refusing the
+push; the end of turn, without blocking, in its message to the human, and
+in its reason to the agent when it already blocks for another one. The
+warning comes back on the line that says the steps already passed, and in
+`socle state` at the start of each session, as long as the last run where
+they all passed exceeds the threshold. Its trace is a local file,
+`.socle/trace/duree-des-etapes-rapides`, which git already ignores. The CI
+prints the durations without a threshold. The ratchet knows the key:
+raising it requires an approved request that cites it; lowering it is
+free. For any guardrails key, it no longer takes `nan`, which no order
+compares, for a tightening: writing it in place of a value, or replacing
+it, requires an approved request.
+
+To do: nothing mandatory. The duration of the project's fast steps is not
+measured on its machine: `verify --fast --redo` measures it; if it exceeds
+five minutes, the state will say so at each session, until it gets shorter
+or the human raises the threshold. Writing the key at 300 in
+`.socle/guardrails.toml` is free and changes nothing.
+
 ## 2026-11-17-a — A shell form the hook does not judge is reported to the socle's repository
 
 The `socle-review` skill said to enter a shell form an agent does not

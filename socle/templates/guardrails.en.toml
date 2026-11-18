@@ -40,6 +40,17 @@ active_days = 7
 # read it.
 max_bytes = 9500
 
+[verify]
+# The threshold, in elapsed seconds, of the total of the adapter's fast steps
+# (`verify --fast`, the end of turn, the push): beyond it, a warning, never a
+# failure, names the longest one at the end of the run that runs them all
+# (the push says it on its output and goes through; the end of turn, without
+# blocking, tells the human), then in the state, as long as the last
+# complete run exceeds it. Beyond five minutes of waiting, a sub-agent loses
+# the cache of its conversation. The duration depends on the machine: the CI
+# prints it, without a threshold.
+fast_max_seconds = 300
+
 [references]
 # Files where each cited identifier, link and path must exist.
 scan = ["**/*.md"]

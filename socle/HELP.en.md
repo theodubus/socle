@@ -464,6 +464,27 @@ third-party files (those of a tool installed in the project), the
 project's case files and specifications. Tightening them is free;
 loosening them requires an approved request.
 
+**The duration of the steps.** Each verification that runs a step of the
+adapter (`verify`, `verify --fast`, the CI) prints its duration at the end
+of its line, then the total. The total of the fast steps has a threshold,
+`[verify] fast_max_seconds`, 300 seconds by default: beyond five minutes
+of waiting, a sub-agent loses the cache of its conversation. When a run
+runs them all and they pass (`verify --fast`, the end of turn, the
+pre-push hook), it keeps their total and the longest one in a local file,
+under `.socle/trace/`. Beyond the threshold, a warning, never a failure,
+gives the total, the threshold and the longest step with its duration: at
+the end of that run, on the line of a verification that does not run the
+steps again, and in the state, as long as the last complete run exceeds
+the threshold. The pre-push hook lets the push go and says it on its error
+output, which the agent reads in that of `git push`. The end of turn does
+not block for it: it tells the human, and tells the agent only when it
+already blocks for another reason; otherwise the agent reads it at its
+next `verify --fast` and in the state. A run where a step fails does not
+replace the previous one. The CI prints the durations, without a
+threshold: it runs on another machine. Lowering the threshold is free;
+raising it, or writing `nan` in it, which no order compares, requires an
+approved request.
+
 **An adopted project** (installed with `--adoption`). The checks that
 failed on the existing code are named in `[adoption] warn_only`, and the
 findings present at installation in `[adoption.tolerated]`, per check,

@@ -41,6 +41,17 @@ active_days = 7
 # qui manque et où le lire.
 max_bytes = 9500
 
+[verify]
+# Le seuil, en secondes écoulées, du total des étapes rapides de l'adaptateur
+# (`verify --fast`, la fin de tour, le push) : au-delà, un avertissement,
+# jamais un échec, nomme la plus longue au bout du passage qui les lance
+# toutes (le push le dit sur sa sortie et passe ; la fin de tour, sans
+# bloquer, le dit à l'humain), puis dans l'état, tant que le dernier passage
+# complet le dépasse. Au-delà de cinq minutes d'attente, un sous-agent perd
+# le cache de sa conversation. La durée dépend de la machine : la CI
+# l'imprime, sans seuil.
+fast_max_seconds = 300
+
 [references]
 # Fichiers où chaque identifiant, lien et chemin cité doit exister.
 scan = ["**/*.md"]

@@ -34,6 +34,9 @@ REGLES = [
     # Relevée au-delà de ce que Claude Code remet entier, la sortie du
     # démarrage ne parviendrait plus à l'agent (ADR-0071).
     (("startup", "max_bytes"), "bas"),
+    # Relevé, le seuil laisserait dériver en silence la durée des étapes
+    # rapides (B-0258) ; baissé, il avertit plus tôt.
+    (("verify", "fast_max_seconds"), "bas"),
     (("mutation", "caps", "*", "max"), "bas"),
     (("mutation", "caps", "*", "reason"), "libre"),
     (("mutation", "caps", "*", "pending"), "faux"),
@@ -58,7 +61,17 @@ REGLES = [
 # Une clé qui a une valeur par défaut : absente, elle la vaut, et l'écrire
 # telle quelle ne change rien (D-0087).
 DEFAUTS = {("branches", "disposable"): list(config.BRANCHES_JETABLES),
-           ("startup", "max_bytes"): config.BORNE_DEMARRAGE}
+           ("startup", "max_bytes"): config.BORNE_DEMARRAGE,
+           ("verify", "fast_max_seconds"): config.SEUIL_RAPIDE}
+
+
+def _pas_un_nombre(valeur) -> bool:
+    """`nan` : toute comparaison avec lui est fausse, et le moteur le lit à
+    sa façon ; le cliquet ne peut le dire ni plus strict ni égal à une autre
+    valeur. Qu'il remplace une valeur ou qu'une valeur le remplace, c'est un
+    assouplissement qui exige une demande ; `inf` et `-inf`, eux,
+    s'ordonnent."""
+    return isinstance(valeur, float) and valeur != valeur
 
 
 def _cle(chemin: tuple[str, ...]) -> str:
@@ -125,11 +138,19 @@ def assouplissements(avant: dict, apres: dict, modules_existants: set[str] | Non
         b.setdefault(chemin, defaut)
     for chemin in sorted(set(a) | set(b)):
         va, vb = a.get(chemin, ABSENT), b.get(chemin, ABSENT)
-        if va == vb:
+        if va == vb or (_pas_un_nombre(va) and _pas_un_nombre(vb)):
             continue
         cle = _cle(chemin)
         sens = _regle(chemin)
         if sens == "libre":
+            continue
+        if _pas_un_nombre(vb) or (_pas_un_nombre(va) and vb is not ABSENT):
+            # Aucun ordre ne compare `nan` : écrit, ou relevé depuis lui, il
+            # passait pour un durcissement ou pour rien, et désarmait le
+            # seuil en deux temps (B-0258, relevé par la revue). Retiré
+            # d'une clé sans valeur par défaut, il suit la règle d'une clé
+            # retirée, plus bas.
+            res.append((cle, trad("clé ajoutée : {vb}", vb=repr(vb)) if va is ABSENT else f"{va} → {vb}"))
             continue
         if sens == "tolere":
             res += _toleres(cle, chemin[-1], va, vb, apres, renommes_toleres)
