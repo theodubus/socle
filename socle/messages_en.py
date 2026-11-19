@@ -57,6 +57,16 @@ MESSAGES: dict[str, str] = {
         "push of all references",
     "push forcé (+)":
         "force push (+)",
+    "`git push` dont le hook ne sait pas développer l'argument `{mot}` (une variable qu'il ne connaît pas, une "
+    "substitution, les arguments d'une fonction) : il pourrait forcer le push ou viser la branche par défaut, et "
+    "rien ne le rattraperait ensuite (politique, point 4). Écrire ses arguments en toutes lettres (la branche "
+    "courante : `git branch --show-current`), ou affecter la variable plus tôt dans la même commande "
+    "(`B=travail; git push origin \"$B\"`) (B-0254).":
+        "`git push` whose argument `{mot}` the hook cannot expand (a variable it does not know, a substitution, a "
+        "function's arguments): it could force the push or target the default branch, and nothing would catch "
+        "it afterwards (policy, rule 4). Write its arguments out in full (the current branch: `git branch "
+        "--show-current`), or assign the variable earlier in the same command (`B=work; git push origin \"$B\"`) "
+        "(B-0254).",
     "push sur la branche par défaut ({protegee})":
         "push to the default branch ({protegee})",
     "action externe ou irréversible ({outil}) : validation humaine requise (politique, point 4), et une demande "
@@ -2789,6 +2799,20 @@ MESSAGES: dict[str, str] = {
         "`git clean` or `find`: the destination of an `rsync --delete`, the sources of an `rsync "
         "--remove-source-files`, the agent's worktree removed by `git worktree remove`, a `python3 -c` that passes "
         "its path written out in full to `shutil.rmtree`, a `find -exec` of one of them",
+    "dossier qui contient le projet supprimé par une commande que lancent `uv run` ou `poetry run`, leurs options "
+    "avant `run` comme après":
+        "directory that contains the project deleted by a command that `uv run` or `poetry run` launch, their "
+        "options before `run` as after it",
+    "dossier qui contient le projet supprimé par la commande que lance une substitution entre guillemets, "
+    "`\"$(…)\"` ou des accents graves, après un `cd` ou l'appel d'une fonction qui change de dossier":
+        "directory that contains the project deleted by the command a quoted substitution launches, `\"$(…)\"` or "
+        "backquotes, after a `cd` or the call of a function that changes directory",
+    "push forcé ou vers la branche par défaut lancé par `uv run` ou `poetry run`":
+        "force push or push to the default branch launched by `uv run` or `poetry run`",
+    "push forcé ou vers la branche par défaut dont l'option ou la branche vient d'une variable, des arguments "
+    "d'une fonction ou d'une substitution":
+        "force push or push to the default branch whose option or branch comes from a variable, a function's "
+        "arguments or a substitution",
     "dossier qui contient le projet supprimé, ou push forcé, dans le corps d'une fonction `function nom { …; }` "
     "écrite sans parenthèses, son corps sur la même ligne ou la suivante":
         "directory that contains the project deleted, or force push, in the body of a function `function name { …; }` "
@@ -2972,6 +2996,17 @@ MESSAGES: dict[str, str] = {
         "deleting a directory next to the project, a directory of the project, a `find` without a filter under a "
         "directory of the project and a `find` that filters what it deletes under the root pass the agent's hook "
         "(B-0208)",
+    "un push de la branche de travail, sa branche écrite en toutes lettres ou dans une variable affectée plus tôt, "
+    "et un `git` dont une option globale ne se développe pas, passent le hook de l'agent (B-0254)":
+        "a push of the working branch, its branch written out in full or in a variable assigned earlier, and a `git` "
+        "whose global option does not expand, pass the agent's hook (B-0254)",
+    "une substitution entre guillemets qui lance une commande ordinaire, un calcul entre guillemets et un message "
+    "de commit par `\"$(cat <<'EOF' … EOF)\"` qui cite une suppression passent le hook de l'agent (B-0260)":
+        "a quoted substitution that launches an ordinary command, a quoted computation and a commit message by "
+        "`\"$(cat <<'EOF' … EOF)\"` that cites a deletion pass the agent's hook (B-0260)",
+    "les commandes ordinaires que lancent `uv run` et `poetry run`, et `uv sync`, passent le hook de l'agent "
+    "(B-0248)":
+        "the ordinary commands that `uv run` and `poetry run` launch, and `uv sync`, pass the agent's hook (B-0248)",
     "l'orchestrateur, à la racine, retire le worktree d'un sous-agent par la fin de son chemin, et un sous-agent "
     "retire ou déplace un worktree voisin du sien, sans refus du hook de l'agent (B-0228)":
         "the orchestrator, at the root, removes a subagent's worktree by the end of its path, and a subagent removes "
@@ -3492,6 +3527,12 @@ MESSAGES: dict[str, str] = {
         'renumbered entry cited by its former number, under an invented fingerprint',
     "entrée renumérotée mentionnée par son ancien numéro dans un texte neuf":
         "renumbered entry mentioned by its former number in a new text",
+    "entrée renumérotée mentionnée par son ancien numéro dans une ligne neuve d'un fichier qui le cite déjà":
+        "renumbered entry mentioned by its former number in a new line of a file that already cites it",
+    "une écriture qui garde telle quelle la ligne d'avant qui cite une entrée renumérotée par son ancien numéro, et "
+    "change ce qui l'entoure, passe le hook de l'agent (T-0083)":
+        "a write that keeps as is the earlier line citing a renumbered entry by its former number, and changes what "
+        "surrounds it, passes the agent hook (T-0083)",
     "une entrée renumérotée mentionnée dans un texte neuf par son identifiant actuel, seul ou sur la ligne de "
     "l'ancien, passe le hook de l'agent":
         "a renumbered entry mentioned in a new text by its current identifier, alone or on the former number's "

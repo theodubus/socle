@@ -6,7 +6,8 @@ nomment une commande dangereuse ne la lancent pas ; un lanceur entre
 guillemets, un `git -C .`, des drapeaux groupés (`-fu`) ou un `cd` la
 lancent bien. Le découpage suit les guillemets, les séparateurs (`;`, `&&`,
 `||`, `|`, fin de ligne), les redirections, les `cd`, les préfixes (`env`,
-`sudo`, `nohup`…) et les `bash -c`.
+`sudo`, `nohup`…, `uv run` et `poetry run` avec leurs options) et les
+`bash -c`.
 
 Les variables affectées dans la commande (`F=x`, `export F=x`, `F+=y`) et
 les dossiers où elle passe (`cd`, `pushd`, `popd`) se suivent, la cible
@@ -26,9 +27,10 @@ corps d'un `for` se lit une fois par mot de sa liste, sa variable liée à ce
 mot (B-0204).
 
 Heuristique, comme tout ce qui lit du shell sans l'exécuter : les motifs
-d'un `case`, les alias, les fonctions, `source`, l'état qu'un `eval` laisse
-et ce que lance une substitution entre guillemets (`"$(…)"`) ne sont pas
-suivis. Le hook n'est qu'un étage ; la CI juge ce qui est commité.
+d'un `case`, les alias, les fonctions, `source` et l'état qu'un `eval`
+laisse ne sont pas suivis ; ce que lance une substitution se juge, entre
+guillemets (`"$(…)"`) comme nue (B-0260). Le hook n'est qu'un étage ; la
+CI juge ce qui est commité.
 """
 
 from __future__ import annotations
@@ -44,6 +46,21 @@ PREFIXES = {"sudo", "command", "exec", "nohup", "time", "builtin", "nice", "stdb
 # Les options de ces préfixes qui prennent une valeur.
 VALEURS = {"sudo": ("-u", "-g", "-C"), "nice": ("-n",), "env": ("-u", "-C"), "timeout": ("-s", "-k"),
            "xargs": ("-I", "-L", "-P", "-n", "-s", "-E", "-d")}
+# Les lanceurs d'un projet Python, `uv run` et `poetry run`, qui lancent la
+# commande qui suit leurs options, comme `python -m` son module (B-0248) ;
+# les options de chacun qui prennent une valeur, avant `run` comme après.
+LANCEURS = {
+    "uv": ("--extra", "--no-extra", "--group", "--no-group", "--only-group", "--no-editable-package",
+           "--env-file", "-w", "--with", "--with-editable", "--with-requirements", "--package",
+           "--python-platform", "--index", "--default-index", "-i", "--index-url", "--extra-index-url", "-f",
+           "--find-links", "--index-strategy", "--keyring-provider", "-P", "--upgrade-package",
+           "--upgrade-group", "--resolution", "--prerelease", "--fork-strategy", "--exclude-newer",
+           "--exclude-newer-package", "--no-sources-package", "--reinstall-package", "--link-mode", "-C",
+           "--config-setting", "--config-settings-package", "--no-build-isolation-package",
+           "--no-build-package", "--no-binary-package", "--cache-dir", "--refresh-package", "-p", "--python",
+           "--color", "--allow-insecure-host", "--directory", "--project", "--config-file"),
+    "poetry": ("-C", "--directory", "-P", "--project"),
+}
 HEREDOC = re.compile(r"(?<!<)<<(-?)\s*(['\"]?)([\w.-]+)\2")
 # Une affectation : son nom, l'indice d'un élément de tableau (`T[0]=x`),
 # un `+` qui ajoute à la valeur (`F+=x`), la valeur.
@@ -281,7 +298,8 @@ def _preparer(texte: str) -> tuple[str, list[tuple[str, str | None]]]:
     lance dans un sous-shell, ou `None`). Une chaîne `$'…'` simple devient
     la chaîne qu'elle nomme, `$"…"` une chaîne entre guillemets. Hors des
     guillemets seulement, sauf une substitution entre guillemets, mise de
-    côté pour que `shlex` n'y lise pas d'autres guillemets. Un `#` en tête
+    côté pour que `shlex` n'y lise pas d'autres guillemets, et dont la
+    commande se rend comme celle d'une substitution nue (B-0260). Un `#` en tête
     d'un mot ouvre un commentaire, retiré jusqu'à la fin de la ligne, qui
     reste ; ailleurs (`x#`, `$#`), il fait partie du mot (B-0207). Des
     opérateurs échappés ou entre guillemets (`\\(`, `';'`, `"&"`, `$'('`)
@@ -337,11 +355,19 @@ def _preparer(texte: str) -> tuple[str, list[tuple[str, str | None]]]:
                     res.append(texte[k:k + 2])
                     k += 2
                 elif texte.startswith("$(", k) or texte[k] == "`":
-                    # Ce qu'elle lance ne se juge pas (un risque accepté,
-                    # D-0111) ; ses guillemets ne se lisent plus comme ceux
-                    # de la chaîne.
-                    bout = _fermante(texte, k + 1) if texte[k] == "$" else _fin_accents(texte, k)
-                    parts.append((texte[k:bout], None))
+                    # Ce qu'elle lance se juge comme ce que lance une
+                    # substitution nue, avec les fonctions connues (B-0260) ;
+                    # ses guillemets ne se lisent plus comme ceux de la
+                    # chaîne. Un calcul `$((…))` ne lance rien.
+                    if texte[k] == "`":
+                        bout = _fin_accents(texte, k)
+                        fin_interne = bout - 1 if texte[bout - 1:bout] == "`" and bout - 1 > k else bout
+                        interne = re.sub(r"\\([$`\\\"])", r"\1", texte[k + 1:fin_interne])
+                    else:
+                        bout = _fermante(texte, k + 1)
+                        fin_interne = bout - 1 if texte[bout - 1:bout] == ")" else bout
+                        interne = None if texte.startswith("$((", k) else texte[k + 2:fin_interne]
+                    parts.append((texte[k:bout], interne))
                     res.append(f"\x01{len(parts) - 1}\x01")
                     k = bout
                 else:
@@ -558,6 +584,31 @@ def _fin_du_corps(jets: list[tuple[str, list[str]]], i: int) -> int | None:
     return None
 
 
+def _apres_le_lanceur(argv: list[str]) -> int | None:
+    """Le rang, dans `argv`, de la commande que lance `uv run` ou `poetry
+    run`, leurs options sautées, avant `run` comme après, avec la valeur de
+    celles qui en prennent une ; `None` si `argv` ne lance pas ainsi une
+    commande (`uv sync`, `uv run` seul). Le module de `uv run -m module` est
+    le programme, comme celui de `python -m` (B-0248)."""
+    valeurs = LANCEURS.get(argv[0].rsplit("/", 1)[-1]) if argv else None
+    if valeurs is None:
+        return None
+    i, run = 1, False
+    while i < len(argv):
+        mot = argv[i]
+        if run and mot == "--":
+            return i + 1 if i + 1 < len(argv) else None
+        if mot.startswith("-") and mot != "-":
+            i += 2 if mot in valeurs else 1
+        elif run:
+            return i
+        elif mot == "run":
+            run, i = True, i + 1
+        else:
+            return None
+    return None
+
+
 def _sans_prefixes(argv: list[str]) -> list[str]:
     """La commande lancée derrière ses affectations et ses préfixes."""
     while argv:
@@ -570,6 +621,8 @@ def _sans_prefixes(argv: list[str]) -> list[str]:
             while argv and (argv[0].startswith("-") or (nom == "env" and "=" in argv[0])
                             or (nom == "timeout" and re.fullmatch(r"[\d.]+[smhd]?", argv[0]))):
                 argv = argv[2:] if argv[0] in VALEURS.get(nom, ()) else argv[1:]
+        elif (rang := _apres_le_lanceur(argv)) is not None:
+            argv = argv[rang:]
         else:
             break
     # `python3 -m module …` : le module est le programme.

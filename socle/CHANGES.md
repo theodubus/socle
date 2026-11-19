@@ -7,6 +7,83 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-19-o — Le hook de l'agent refuse un ancien numéro repris dans une ligne neuve, même d'un fichier qui le cite déjà
+
+Le hook de l'agent refuse l'ancien numéro d'une entrée renumérotée dans
+un texte neuf ; il sautait toute mention que le fichier portait déjà
+avant l'écriture. Dans le journal du mois de la migration, qui cite
+presque tous les anciens numéros, une entrée neuve qui en reprenait un
+passait. Il juge désormais les lignes que l'écriture ajoute ou change :
+une ligne neuve qui reprend l'ancien numéro sans l'identifiant actuel
+est refusée, même si le fichier le cite déjà, et une ligne d'avant
+gardée telle quelle passe, même si l'écriture change ce qui l'entoure.
+La ligne qui nomme aussi l'identifiant actuel (« ancien → actuel ») passe
+toujours, comme, sur une ligne de métadonnées, l'ancien numéro qu'elle
+portait déjà : le champ `ancien` d'une entrée renumérotée qu'on clôt, la
+source d'une décision dont le statut change.
+
+À faire : si le hook refuse un ancien numéro dans une entrée neuve du
+journal, citer l'identifiant actuel qu'il nomme.
+
+## 2026-11-19-n — Le hook de l'agent juge la commande que lance une substitution entre guillemets
+
+Le hook de l'agent juge la commande que lance une substitution entre
+guillemets, `"$(…)"` ou des accents graves, comme celle d'une
+substitution nue, avec les fonctions que la commande a définies :
+`x="$(cd memory && rm -rf ../..)"`, `echo "$(rm -rf ..)"` ou
+`echo "$(git push --force origin main)"` sont refusés comme sans
+guillemets. Ils passaient : le texte d'une substitution entre guillemets
+ne se jugeait jamais. Une substitution ordinaire (`x="$(git rev-parse
+HEAD)"`), un calcul `"$((…))"` et un message de commit écrit par
+`"$(cat <<'EOF' … EOF)"`, dont le corps n'est que du texte, passent
+toujours.
+
+À faire : rien.
+
+## 2026-11-19-m — Le hook de l'agent juge un `git push` sur ses arguments développés, et refuse un argument qu'il ne sait pas développer
+
+Le hook de l'agent lisait l'argv d'un `git push` tel qu'il est écrit : un
+push forcé ou vers la branche par défaut passait quand son option ou sa
+branche venait d'une variable (`F=--force; git push $F origin x`,
+`B=main; git push origin "$B"`), des arguments d'une fonction (`f() { git
+push "$@"; }; f --force origin x`) ou d'une substitution. Il juge
+désormais l'argv d'un `git` développé avec les variables connues, comme
+il juge un chemin, et refuse un `git push` dont un argument ne se
+développe pas : une variable qu'il ne connaît pas, une substitution
+(`git push origin "$(git branch --show-current)"`), les arguments d'une
+fonction. Une branche écrite en toutes lettres, ou dans une variable
+affectée plus tôt dans la même commande, passe comme avant. Une option
+globale de git dont la valeur entre guillemets porte une variable et une
+espace (`git -c http.extraheader="AUTHORIZATION: bearer $TOKEN" push …`)
+ne cache pas le push : il se juge sur l'argv coupé en mots et sur l'argv
+entier.
+
+Deux formes voisines, qu'aucun agent n'écrit, s'inscrivent dans la liste
+des formes connues que le hook ne juge pas : l'option qui saute les hooks
+passée par une variable, que la CI rattrape, et une sous-commande de git
+venue d'une variable.
+
+À faire : si le hook refuse un push de la branche de travail, écrire sa
+branche en toutes lettres.
+
+## 2026-11-19-l — Le hook de l'agent juge la commande que lancent `uv run` et `poetry run`
+
+Le hook de l'agent retire `uv run` et `poetry run`, avec leurs options
+avant `run` comme après (`uv run --with x -p 3.12 --`, `poetry -C . run
+-n`), comme il retire `env` ou `sudo`, et juge la commande qu'ils
+lancent comme sans eux : `uv run rm -rf ..`, `poetry run git push
+--force origin main` et un `uv run python -c` qui écrit un fichier
+protégé sont refusés comme sans ce préfixe. Ils passaient : le hook lisait
+le programme `uv` ou `poetry`. Les commandes ordinaires qu'ils lancent
+(`uv run pytest`, `uv run -m pytest`, `poetry run pytest`) passent
+toujours. Le guide inscrit deux formes connues que le hook ne juge pas :
+la commande que lance `uv run --directory` ou `poetry -C` se lit dans le
+dossier courant, non dans celui qu'ils nomment, et la valeur d'une option
+qu'il ne connaît pas (`uv run --python-preference managed …`) se lit
+comme la commande lancée.
+
+À faire : rien.
+
 ## 2026-11-19-k — La passe de revue se commite, et le refus de la clôture d'un lot relu montre l'historique, ce que git donne et les trois questions
 
 Le skill `socle-review` dit de commiter la passe que `socle review` écrit

@@ -361,7 +361,11 @@ part de sa racine sans qu'un filtre de nom ou de chemin garde ce qu'il
 supprime (`find . -delete`, `find . -type f -delete`, `find . -delete
 -name '*.pyc'`, dont le filtre vient après l'action) ; un dossier voisin
 du projet, et un dossier du projet, restent libres (l'orchestrateur, à la
-racine, retire le worktree d'un sous-agent).
+racine, retire le worktree d'un sous-agent). Un `git push` se juge de même
+sur ses arguments développés : `F=--force; git push $F origin x` est un
+push forcé, et un argument qu'il ne sait pas développer (une variable
+qu'il ne connaît pas, une substitution, les arguments d'une fonction) est
+refusé : écrire la branche en toutes lettres.
 
 **Ce que juge le hook de l'agent.** Le hook de l'agent arrête les erreurs
 d'un agent coopératif avant qu'elles agissent. Il juge les formes du shell
@@ -415,6 +419,16 @@ dit ce que le hook y lit mal, et la note de version qui l'inscrit.
 - Un chemin qu'un script `python3 -c` construit au vol : seul se juge un
   chemin écrit en toutes lettres (2026-11-16-a).
 - `coproc` : ni mot réservé ni préfixe pour le hook (2026-11-16-a).
+- `uv run --directory` et `poetry -C` : la commande qu'ils lancent se lit
+  dans le dossier courant, non dans celui qu'ils nomment (2026-11-19-l).
+- Une option de `uv` ou de `poetry` que le hook ne connaît pas et qui
+  prend une valeur (`uv run --python-preference managed …`) : sa valeur
+  se lit comme la commande qu'ils lancent (2026-11-19-l).
+- L'option qui saute les hooks passée par une variable
+  (`N=--no-verify; git push $N`) : elle ne se développe pas pour ce
+  refus ; la CI exécute tout (2026-11-19-m).
+- Une sous-commande de git venue d'une variable (`git $SUB --force …`) :
+  elle ne se juge pas (2026-11-19-m).
 
 Le hook ne modélise pas tout bash : une écriture d'un fichier protégé
 sous une forme qu'on n'écrit que pour contourner (un `eval`, `IFS`, un

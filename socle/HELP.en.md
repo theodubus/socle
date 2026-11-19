@@ -356,7 +356,10 @@ or path filter guarding what it deletes (`find . -delete`, `find . -type
 f -delete`, `find . -delete -name '*.pyc'`, whose filter comes after the
 action); a directory next to the project, and a directory of the
 project, stay free (the orchestrator, at the root, removes a subagent's
-worktree).
+worktree). A `git push` is judged likewise on its expanded arguments:
+`F=--force; git push $F origin x` is a force push, and an argument it
+cannot expand (a variable it does not know, a substitution, a function's
+arguments) is refused: write the branch out in full.
 
 **What the agent's hook judges.** The agent's hook stops the mistakes of
 a cooperative agent before they take effect. It judges the shell forms an
@@ -410,6 +413,16 @@ misreads in it, and the release note that enters it.
   out in full is judged (2026-11-16-a).
 - `coproc`: neither a reserved word nor a prefix for the hook
   (2026-11-16-a).
+- `uv run --directory` and `poetry -C`: the command they launch is read
+  in the current directory, not in the one they name (2026-11-19-l).
+- An option of `uv` or `poetry` the hook does not know and that takes a
+  value (`uv run --python-preference managed …`): its value is read as
+  the command they launch (2026-11-19-l).
+- The option that skips the hooks passed through a variable
+  (`N=--no-verify; git push $N`): it is not expanded for this refusal;
+  the CI runs everything (2026-11-19-m).
+- A git subcommand that comes from a variable (`git $SUB --force …`):
+  it is not judged (2026-11-19-m).
 
 The hook does not model all of bash: a write to a protected file in a
 form one writes only to get around it (an `eval`, `IFS`, a path built on

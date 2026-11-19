@@ -1720,6 +1720,16 @@ def _cas() -> list[Cas]:
     def _(a, c):
         return etage_outil(a, c, "Bash", {"command": "git -C . push -fu origin travail"})
 
+    @defaut("push-par-une-variable", "push forcé ou vers la branche par défaut dont l'option ou la branche vient "
+            "d'une variable, des arguments d'une fonction ou d'une substitution", "agent", "politique point 4")
+    def _(a, c):
+        # B-0254 : `irreversible` lisait l'argv d'un push tel qu'écrit. Il se
+        # développe ; un argument qui ne se développe pas est refusé.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "F=--force; git push $F origin travail", "B=main; git push origin \"$B\"",
+            "f() { git push \"$@\"; }; f --force origin travail", "git push \"$SOCLE_ESSAI_CIBLE\" origin travail",
+            "git push origin \"$(git branch --show-current)\"")])
+
     @defaut("push-refspec-defaut", "push vers la branche par défaut par une référence complète", "agent",
             "politique point 4")
     def _(a, c):
@@ -1839,6 +1849,34 @@ def _cas() -> list[Cas]:
             "python3 -c \"import shutil; shutil.rmtree('..')\"",
             f"python3 -I -c \"import shutil; shutil.rmtree('{c}')\"",
             "find .. -maxdepth 0 -exec git worktree remove {} \\;")])
+
+    @defaut("suppression-par-un-lanceur", "dossier qui contient le projet supprimé par une commande que lancent "
+            "`uv run` ou `poetry run`, leurs options avant `run` comme après", "agent", "suppression du projet")
+    def _(a, c):
+        # B-0248 : ni `uv run` ni `poetry run` n'étaient des préfixes ; la
+        # commande lancée se lisait comme le programme `uv` ou `poetry`.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "uv run rm -rf ..", "poetry run rm -rf ..", "uv run --with requests -p 3.12 -- rm -rf ..",
+            "uv --directory . run --frozen rm -rf ..", "poetry -C . run -n rm -rf ..",
+            "uv run python -c \"import shutil; shutil.rmtree('..')\"")])
+
+    @defaut("substitution-entre-guillemets", "dossier qui contient le projet supprimé par la commande que lance une "
+            "substitution entre guillemets, `\"$(…)\"` ou des accents graves, après un `cd` ou l'appel d'une fonction "
+            "qui change de dossier", "agent", "suppression du projet")
+    def _(a, c):
+        # B-0260 : ce que lance une substitution entre guillemets ne se
+        # jugeait jamais, quand `x="$(…)"` est une forme qu'un agent écrit.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "echo \"$(rm -rf ..)\"", "x=\"`rm -rf ..`\"", "x=\"$(cd memory && rm -rf ../..)\"",
+            f"f() {{ cd memory; }}; x=\"$(f; rm -rf ../../{c.name})\"")])
+
+    @defaut("push-par-un-lanceur", "push forcé ou vers la branche par défaut lancé par `uv run` ou `poetry run`",
+            "agent", "politique point 4")
+    def _(a, c):
+        # B-0248 : le push se lisait comme le programme `uv` ou `poetry`.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "poetry run git push --force origin main", "uv run git push --force origin travail",
+            "uv run --python=3.12 -- git push origin main")])
 
     @defaut("worktree-par-son-suffixe", "worktree de l'agent retiré ou déplacé depuis lui par `git worktree remove` "
             "ou `move` qui le nomme par la fin de son chemin (`agent-x`, `.claude/worktrees/agent-x`), que git "
@@ -2032,6 +2070,16 @@ def _cas() -> list[Cas]:
     def _(a, c):
         _renumeroter_en_lot(c, "B-0001")
         p = c / "docs/calc.md"
+        return etage_outil(a, c, "Write", {"file_path": str(p), "content": p.read_text() + "\nVoir B-0001.\n"})
+
+    @defaut("ancien-numero-repris", "entrée renumérotée mentionnée par son ancien numéro dans une ligne neuve d'un "
+            "fichier qui le cite déjà", "agent", "ancien numéro")
+    def _(a, c):
+        # T-0083 : le hook sautait toute mention que le fichier portait déjà ;
+        # le journal du mois d'une migration les cite presque tous.
+        _renumeroter_en_lot(c, "B-0001")
+        p = c / "docs/calc.md"
+        p.write_text(p.read_text() + "\nLe lot B-0001 avance.\n")
         return etage_outil(a, c, "Write", {"file_path": str(p), "content": p.read_text() + "\nVoir B-0001.\n"})
 
     @defaut("echecs-repetes", "contrôles rouges trois tours de suite, sans escalade", "agent", "escalade")
@@ -2527,6 +2575,39 @@ def _temoins() -> list[tuple[str, Callable]]:
                 or etage_outil(a, c, "Bash", {"command": f"rsync -a --delete ./ {ailleurs}/sauve"})
                 or etage_outil(a, c, "Bash", {"command": "python3 -c \"import shutil; shutil.rmtree('build')\""}))
 
+    @temoin("un push de la branche de travail, sa branche écrite en toutes lettres ou dans une variable affectée "
+            "plus tôt, et un `git` dont une option globale ne se développe pas, passent le hook de l'agent (B-0254)")
+    def _(a, c):
+        # Le pendant sain de `push-par-une-variable` : seul l'argument du
+        # push qui ne se développe pas est refusé.
+        return (etage_outil(a, c, "Bash", {"command": "git push -u origin travail"})
+                or etage_outil(a, c, "Bash", {"command": "B=travail; git push origin \"$B\""})
+                or etage_outil(a, c, "Bash", {"command": "D=.; git -C \"$D\" push origin travail"})
+                or etage_outil(a, c, "Bash", {"command": "git -C \"$SOCLE_ESSAI_CIBLE\" status"}))
+
+    @temoin("une substitution entre guillemets qui lance une commande ordinaire, un calcul entre guillemets et un "
+            "message de commit par `\"$(cat <<'EOF' … EOF)\"` qui cite une suppression passent le hook de l'agent "
+            "(B-0260)")
+    def _(a, c):
+        # Le pendant sain de `substitution-entre-guillemets` : la commande
+        # lancée se juge comme celle d'une substitution nue.
+        return (etage_outil(a, c, "Bash", {"command": "x=\"$(git rev-parse HEAD)\"; echo \"$x\" > notes.txt"})
+                or etage_outil(a, c, "Bash", {"command": "echo \"$((1 + 2)) `date`\" > notes.txt"})
+                or etage_outil(a, c, "Bash", {"command": "f() { ls; }; x=\"$(f; rm -rf build)\""})
+                or etage_outil(a, c, "Bash", {"command": "git commit -q -m \"$(cat <<'EOF'\nfix: x\n\nrm -rf ..\n"
+                                                         "EOF\n)\""}))
+
+    @temoin("les commandes ordinaires que lancent `uv run` et `poetry run`, et `uv sync`, passent le hook de "
+            "l'agent (B-0248)")
+    def _(a, c):
+        # Le pendant sain de `suppression-par-un-lanceur` et de
+        # `push-par-un-lanceur` : la commande lancée se juge comme sans eux.
+        return (etage_outil(a, c, "Bash", {"command": "uv run pytest -q && uv run -m pytest && uv sync --frozen"})
+                or etage_outil(a, c, "Bash", {"command": "poetry run pytest -x && poetry -C . run python -m unittest"})
+                or etage_outil(a, c, "Bash", {"command": "uv run --with requests python -c \"print(open('calc.py')"
+                                                         ".read())\""})
+                or etage_outil(a, c, "Bash", {"command": "uv run git push -u origin travail"}))
+
     @temoin("l'orchestrateur, à la racine, retire le worktree d'un sous-agent par la fin de son chemin, et un "
             "sous-agent retire ou déplace un worktree voisin du sien, sans refus du hook de l'agent (B-0228)")
     def _(a, c):
@@ -2665,6 +2746,17 @@ def _temoins() -> list[tuple[str, Callable]]:
         p = c / "docs/calc.md"
         return etage_outil(a, c, "Write", {"file_path": str(p), "content": p.read_text() + f"\nVoir {nouvel}.\n"
                                                                                        f"B-0001 → {nouvel}.\n"})
+
+    @temoin("une écriture qui garde telle quelle la ligne d'avant qui cite une entrée renumérotée par son ancien "
+            "numéro, et change ce qui l'entoure, passe le hook de l'agent (T-0083)")
+    def _(a, c):
+        # Le pendant sain d'`ancien-numero-repris` : seules les lignes que
+        # l'écriture ajoute ou change se jugent.
+        _renumeroter_en_lot(c, "B-0001")
+        p = c / "docs/calc.md"
+        p.write_text("# Calcul\n\nLe lot B-0001 avance.\n\n" + p.read_text())
+        return etage_outil(a, c, "Write", {"file_path": str(p), "content": "# Le calcul, revu\n" + p.read_text()
+                                           .removeprefix("# Calcul\n") + "\nUne note.\n"})
 
     @temoin("un besoin et sa tâche posés par `socle new need --task`, un lot qui attend la tâche et un jalon qui "
             "attend le besoin, chacun dans sa forme, passent le commit et la CI")

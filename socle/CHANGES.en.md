@@ -7,6 +7,80 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-19-o — The agent's hook refuses a former number repeated in a new line, even in a file that already cites it
+
+The agent's hook refuses the former number of a renumbered entry in a
+new text; it skipped every mention the file already held before the
+write. In the journal of the migration's month, which cites almost all
+former numbers, a new entry that repeated one passed. It now judges the
+lines the write adds or changes: a new line that repeats the former
+number without the current identifier is refused, even if the file
+already cites it, and an earlier line kept as is passes, even if the
+write changes what surrounds it. The line that also names the current
+identifier ("former → current") still passes, as does, on a metadata
+line, the former number it already held: the `former` field of a
+renumbered entry being closed, the source of a decision whose status
+changes.
+
+To do: if the hook refuses a former number in a new journal entry, cite
+the current identifier it names.
+
+## 2026-11-19-n — The agent's hook judges the command that a quoted substitution launches
+
+The agent's hook judges the command that a substitution in double
+quotes, `"$(…)"` or backquotes, launches as it judges that of a bare
+substitution, with the functions the command defined:
+`x="$(cd memory && rm -rf ../..)"`, `echo "$(rm -rf ..)"` or
+`echo "$(git push --force origin main)"` are refused as without quotes.
+They passed: the text of a quoted substitution was never judged. An
+ordinary substitution (`x="$(git rev-parse HEAD)"`), a `"$((…))"`
+computation and a commit message written by `"$(cat <<'EOF' … EOF)"`,
+whose body is only text, still pass.
+
+To do: nothing.
+
+## 2026-11-19-m — The agent's hook judges a `git push` on its expanded arguments, and refuses an argument it cannot expand
+
+The agent's hook read the argv of a `git push` as written: a force push
+or a push to the default branch passed when its option or branch came
+from a variable (`F=--force; git push $F origin x`, `B=main; git push
+origin "$B"`), from a function's arguments (`f() { git push "$@"; }; f
+--force origin x`) or from a substitution. It now judges the argv of a
+`git` expanded with the known variables, as it judges a path, and
+refuses a `git push` one of whose arguments does not expand: a variable
+it does not know, a substitution (`git push origin "$(git branch
+--show-current)"`), a function's arguments. A branch written out in
+full, or in a variable assigned earlier in the same command, passes as
+before. A global git option whose quoted value holds a variable and a
+space (`git -c http.extraheader="AUTHORIZATION: bearer $TOKEN" push …`)
+does not hide the push: it is judged on the argv split into words and
+on the whole argv.
+
+Two neighbouring forms, which no agent writes, join the list of known
+forms the hook does not judge: the option that skips the hooks passed
+through a variable, which the CI catches, and a git subcommand that
+comes from a variable.
+
+To do: if the hook refuses a push of the working branch, write its
+branch out in full.
+
+## 2026-11-19-l — The agent's hook judges the command that `uv run` and `poetry run` launch
+
+The agent's hook removes `uv run` and `poetry run`, with their options
+before `run` as after it (`uv run --with x -p 3.12 --`, `poetry -C . run
+-n`), as it removes `env` or `sudo`, and judges the command they launch
+as without them: `uv run rm -rf ..`, `poetry run git push --force origin
+main` and a `uv run python -c` that writes a protected file are refused
+as without that prefix. They passed: the hook read the program `uv` or
+`poetry`. The ordinary commands they launch (`uv run pytest`, `uv run -m
+pytest`, `poetry run pytest`) still pass. The guide lists two known forms
+the hook does not judge: the command that `uv run --directory` or
+`poetry -C` launches is read in the current directory, not in the one
+they name, and the value of an option it does not know (`uv run
+--python-preference managed …`) is read as the launched command.
+
+To do: nothing.
+
 ## 2026-11-19-k — The review pass is committed, and the refusal of a reviewed batch's closing shows the history, what git gives and the three questions
 
 The `socle-review` skill says to commit the pass that `socle review`
