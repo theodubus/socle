@@ -7,6 +7,89 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-19-k — The review pass is committed, and the refusal of a reviewed batch's closing shows the history, what git gives and the three questions
+
+The `socle-review` skill says to commit the pass that `socle review`
+writes in the batch's “Reviews” section, with what the agent records in
+it: written without a commit where the command ran, it was lost, and the
+next pass rewrote “Pass 1” without a step back required. And when the
+backlog check refuses the “done” closing of a reviewed batch, its
+refusal now shows, under the reason, what the refusal of a pass shows:
+the batch's history, the entries opened and closed since the start of
+its first pass and the closed batches that touched the same files, then
+the three questions of the step back and what to write. A check's report
+prints that detail indented; the end of turn keeps only the reason.
+
+To do: nothing; the `socle-review` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-19-j — The same review pass is recognized on a dirty tree, and a badly written blocker line is refused
+
+`socle review` judges the working tree, modified tracked files included,
+but the pass it writes in the batch's “Reviews” section kept only its
+commits: run again on an unchanged dirty tree, it took the same pass for
+a new one, refused without a step back, and its line said `Commits:
+X..X` when nothing was committed. The pass now keeps, at the end of that
+line, the fingerprint of the tree's changes it reviewed (`Commits:
+<start>..<head> + working tree <fingerprint>`), and the same pass is
+given again as long as neither the head nor those changes move,
+committed afterwards or not. And a line of the “Reviews” section that
+presents itself as a blocker in another form than `- Blocker: <its
+cause>` (`- **Blocker**: …`, `- Blocker 1: …`, `1. Blocker: …`,
+`- Blockers: …`, or without a bullet, `Blocker: …`, `Blocker 2 — …`), which nothing read, is refused by the backlog check,
+whatever the batch's status.
+
+To do: if the `memoire.backlog` check refuses such a line in a batch,
+rewrite it `- Blocker: <its cause>`, one line per blocker.
+
+## 2026-11-19-i — The review brief also gives the decisions and requests cited by those the batch writes
+
+The brief of `socle review` gave the decisions and requests the batch
+writes, then those its backlog entries cite. It now also gives, once
+each, those cited by the decisions the batch writes: the validated
+specification that a decision of the batch applies reaches the
+reviewer, who judged without it. The `socle-review` skill says so.
+
+To do: nothing; the `socle-review` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-19-h — A private file approved by an in-session decision is never given in the review brief, however its path is written
+
+The review brief judged the file approved by an in-session decision
+private by the path written in its `sujet` field: written
+`./memory/private/…`, or through a `..` detour, a file of the private
+memory passed for public and was given to the reviewer. It is now judged
+by its normalized path in the repository.
+
+To do: nothing.
+
+## 2026-11-19-g — A box of a task that delivers a request, a report or a memory entry is checked by what it produces
+
+The memory format said that a task's “Done when” is checked by tests,
+except an action only the human can do. It now states, box by box,
+another exception: a box whose deliverable is a request posed, a report
+written (the account of a measurement or a trial) or a memory entry
+rewritten is checked by what it produces, which the box names: the
+request and the human's answer recorded in the journal, the report's
+file, what `socle show` or `socle roadmap` shows of it. Any other
+deliverable keeps its test. The reviewer's instruction, in the full
+brief as in the short one, says to judge such a box by that product,
+not by the lack of a test.
+
+To do: nothing; a task of this form may name that product in its box.
+
+## 2026-11-19-f — The reviewer of a review receives the brief's path, not its text
+
+The `socle-review` skill has the output of `socle review` written to a
+file outside the repository, and gives the reviewer only its path, with
+the instruction to read it in full and follow it as is. Copied as the
+reviewer's message, the brief stayed in the orchestrating conversation,
+reread at each step: tens of thousands of bytes per pass. What the
+reviewer reads does not change.
+
+To do: nothing; the `socle-review` skill is a protected copy, in the
+installer's request.
+
 ## 2026-11-19-e — The review brief gives the file an in-session decision cited by the batch's tasks approves
 
 An in-session decision can designate what it approves, a file of the

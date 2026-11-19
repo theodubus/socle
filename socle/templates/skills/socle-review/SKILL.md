@@ -35,21 +35,18 @@ python3 .socle/socle review
 ```
 
    Il donne la consigne, le diff du lot depuis l'ancêtre commun de HEAD
-   et de sa base, la branche distante (sinon la branche par défaut, ou
-   l'ancêtre commun avec elle, et il le dit, si la branche distante
-   contient déjà le lot ou est restée en arrière après une fusion par
-   écrasement), les entrées dont le lot change le statut ou les
+   et de sa base, la branche distante (sinon la branche par défaut, et
+   il dit pourquoi), les entrées dont le lot change le statut ou les
    critères, en entier, celles qu'il ouvre par leur titre, les
    décisions et les demandes que le lot écrit, puis celles que ses
-   entrées citent, et le fichier qu'approuve une décision de séance
-   (son `sujet`).
+   entrées citent et ces décisions, et le fichier qu'approuve une
+   décision de séance (son `sujet`).
    `--base <ref>` change la base ; pour une seconde revue, `--since
    <commit relu>` ne montre que le diff depuis la première, avec les
-   messages des commits qui la corrigent. Une référence inconnue, ou un
-   `--since` qui n'est pas un ancêtre de HEAD, est refusée. Un lot déjà
-   poussé, même en partie (en session cloud, à chaque fin de tour), ou
-   une branche qui porte des lots déjà relus, que la note du dossier
-   signale : `--base <le commit d'où le lot est parti>`. Il écrit la
+   messages des commits qui la corrigent. Un lot déjà poussé, même en
+   partie (en session cloud, à chaque fin de tour), ou une branche qui
+   porte des lots déjà relus, que la note du dossier signale : `--base
+   <le commit d'où le lot est parti>`. Il écrit la
    passe dans le lot en cours du backlog, ou celui que `--batch L-NNNN`
    nomme, et refuse une passe que son historique refuse (plus bas).
    Un petit lot (moins de 150 lignes de code et de tests) qui ne touche
@@ -58,10 +55,12 @@ python3 .socle/socle review
    tâches, à juger sans explorer au-delà des fichiers touchés ; tout
    autre lot, le dossier complet. `--short` refuse un lot qui touche un
    chemin que la politique protège ou que les garde-fous déclarent.
-3. Le confier à un relecteur qui n'a pas la conversation. Sous Claude Code
-   : un sous-agent (outil `Agent`), dont le seul message est ce dossier,
-   tel quel, sans ajout ni retrait. Il reçoit explicitement à son
-   lancement (`model`) le modèle le plus capable
+3. Le confier à un relecteur qui n'a pas la conversation. Le dossier n'y
+   entre pas, qui la relirait à chaque pas : la sortie de `socle review`
+   s'écrit dans un fichier hors du dépôt, et le seul message du relecteur
+   (sous Claude Code, un sous-agent, outil `Agent`) donne son chemin, avec
+   la consigne de le lire en entier et de le suivre tel quel. Il reçoit
+   explicitement à son lancement (`model`) le modèle le plus capable
    disponible jusqu'à Opus, jamais un moindre que celui qui a implémenté
    le lot, quel que soit celui de la session, que la règle du modèle de
    `socle-batch` peut faire moins coûteux, sur la dernière version de sa
@@ -70,11 +69,9 @@ python3 .socle/socle review
    servi ; Fable, s'il est disponible,
    seulement si l'humain le demande. Il reçoit aussi les instructions du
    projet et peut lire le dépôt ; le dossier lui dit de ne rien modifier
-   hors d'un dossier temporaire (`mktemp -d`). Le hook de
-   l'agent n'arrête pas toute écriture du relecteur dans le dépôt (il
-   refuse l'installeur visé sur le projet hors du mode de son verrou, ou
-   par une variable). Un agent sans sous-agents saute la revue, et son
-   récap le dit.
+   hors d'un dossier temporaire (`mktemp -d`), ce que le hook de l'agent
+   n'impose pas. Un agent sans sous-agents saute la revue, et son récap
+   le dit.
 
 ## Les constats
 
@@ -112,7 +109,8 @@ le dit en une ligne : `Revue : <b> bloquants, corrigés ; <n> au backlog
 Le lot garde ses passes dans la section `## Revues`, la dernière de son
 entrée, lisible d'une session neuve : `socle review` y écrit chaque passe,
 sa date et les commits relus, et redonne la même tant que rien ne change
-hors de la mémoire.
+hors de la mémoire. Commiter la passe écrite, et ce qu'on y consigne :
+sinon, elle se perd là où `socle review` a tourné.
 
 1. Au retour du relecteur, écrire dans la passe une ligne `- Bloquant :
    <sa cause, en quelques mots>` par bloquant, et `- Ouvre : <les
@@ -138,4 +136,4 @@ hors de la mémoire.
    cause revenir, il refuse « continuer » : le lot s'arrête.
 
 Le contrôle du backlog refuse un lot relu clos `fait` dont la dernière
-passe refuserait la suivante.
+passe refuserait la suivante, et montre ce que montre ce refus.

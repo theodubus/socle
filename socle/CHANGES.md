@@ -7,6 +7,93 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-19-k — La passe de revue se commite, et le refus de la clôture d'un lot relu montre l'historique, ce que git donne et les trois questions
+
+Le skill `socle-review` dit de commiter la passe que `socle review` écrit
+dans la section « Revues » du lot, avec ce que l'agent y consigne :
+écrite sans commit là où la commande a tourné, elle se perdait, et la
+passe suivante récrivait « Passe 1 » sans recul exigé. Et quand le
+contrôle du backlog refuse la clôture « fait » d'un lot relu, son refus
+montre désormais, sous la raison, ce que montre le refus d'une passe :
+l'historique du lot, les entrées ouvertes et closes depuis le début de
+sa première passe et les lots clos qui ont touché les mêmes fichiers,
+puis les trois questions du recul et ce qu'il faut écrire. Le rapport
+d'un contrôle imprime ce détail en retrait ; la fin de tour n'en garde
+que la raison.
+
+À faire : rien ; le skill `socle-review` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-19-j — La même passe de revue se reconnaît sur un arbre sale, et une ligne de bloquant mal écrite est refusée
+
+`socle review` juge l'arbre de travail, fichiers suivis modifiés
+compris, mais la passe qu'il écrit dans la section « Revues » du lot ne
+gardait que ses commits : relancé sur un arbre sale inchangé, il prenait
+la même passe pour une nouvelle, refusée sans recul, et sa ligne disait
+`Commits : X..X` quand rien n'était commité. La passe garde désormais, au
+bout de cette ligne, l'empreinte des changements de l'arbre qu'elle a
+relus (`Commits : <début>..<tête> + arbre de travail <empreinte>`), et la
+même passe se redonne tant que ni la tête ni ces changements ne bougent,
+commités ensuite ou non. Et une ligne de la section « Revues » qui se
+donne pour un bloquant sous une autre forme que `- Bloquant : <sa cause>`
+(`- **Bloquant** : …`, `- Bloquant 1 : …`, `1. Bloquant : …`,
+`- Bloquants : …`, ou sans puce, `Bloquant : …`, `Bloquant 2 — …`), que rien ne lisait, est refusée par le contrôle du
+backlog, à tout statut du lot.
+
+À faire : si le contrôle `memoire.backlog` refuse une telle ligne dans un
+lot, la récrire `- Bloquant : <sa cause>`, une ligne par bloquant.
+
+## 2026-11-19-i — Le dossier de la revue donne aussi les décisions et les demandes que citent celles que le lot écrit
+
+Le dossier de `socle review` donnait les décisions et les demandes que le
+lot écrit, puis celles que citent ses entrées du backlog. Il donne
+désormais aussi, une fois chacune, celles que citent les décisions que
+le lot écrit : la spécification validée qu'une décision du lot applique
+arrive au relecteur, qui jugeait sans elle. Le skill `socle-review` le
+dit.
+
+À faire : rien ; le skill `socle-review` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-19-h — Un fichier privé qu'approuve une décision de séance ne se donne jamais au dossier de la revue, quelle que soit l'écriture de son chemin
+
+Le dossier de la revue jugeait privé le fichier qu'approuve une décision
+de séance sur le chemin écrit dans son champ `sujet` : écrit
+`./memory/private/…`, ou par un détour en `..`, un fichier de la mémoire
+privée passait pour public et se donnait au relecteur. Il se juge
+désormais sur son chemin normalisé dans le dépôt.
+
+À faire : rien.
+
+## 2026-11-19-g — Une case d'une tâche qui livre une demande, un relevé ou une entrée de la mémoire se vérifie par ce qu'elle produit
+
+Le format de la mémoire disait que le « Fait quand » d'une tâche se
+vérifie par des tests, sauf une action que seul l'humain peut faire. Il
+dit désormais, case par case, une autre exception : une case dont le
+livrable est une demande posée, un relevé écrit (le compte rendu d'une
+mesure ou d'un essai) ou une entrée de la mémoire récrite se vérifie par
+ce qu'elle produit, que la case nomme : la demande et la réponse de
+l'humain consignée au journal, le fichier du relevé, ce qu'en montre
+`socle show` ou `socle roadmap`. Tout autre livrable garde son test. La
+consigne du relecteur, dans le dossier complet comme dans le dossier
+court, dit de juger une telle case par ce produit, et non par l'absence
+d'un test.
+
+À faire : rien ; une tâche de cette forme peut nommer ce produit dans sa
+case.
+
+## 2026-11-19-f — Le relecteur d'une revue reçoit le chemin du dossier, pas son texte
+
+Le skill `socle-review` fait écrire la sortie de `socle review` dans un
+fichier hors du dépôt, et ne donner au relecteur que son chemin, avec la
+consigne de le lire en entier et de le suivre tel quel. Recopié comme
+message du relecteur, le dossier restait dans la conversation qui
+orchestre, relue à chaque pas : plusieurs dizaines de milliers d'octets
+par passe. Ce que le relecteur lit ne change pas.
+
+À faire : rien ; le skill `socle-review` est une copie protégée, dans la
+demande de l'installeur.
+
 ## 2026-11-19-e — Le dossier de la revue donne le fichier qu'approuve une décision de séance que citent les tâches du lot
 
 Une décision prise en séance peut désigner ce qu'elle approuve, un

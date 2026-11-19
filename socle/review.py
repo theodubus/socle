@@ -19,6 +19,7 @@ que la demande d'un arrêt attend sa réponse.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import date
 
@@ -267,8 +268,9 @@ def contenus_approuves(projet: config.Projet, decisions: list, plafond: int = PL
     lot (`debut`), la version que l'humain a approuvée, que le lot peut avoir
     changée, ce que le dossier dit alors ; dans l'arbre de travail si le lot
     le crée ou sans `debut`. Son chemin seul au-delà de `plafond` octets, ou
-    s'il n'existe pas. Un fichier privé, ou hors du dépôt, ne se donne pas.
-    Vide sans aucune. Relevé par la revue de L-0018 : lu dans l'arbre, le
+    s'il n'existe pas. Un fichier privé, jugé sur son chemin normalisé
+    quelle qu'en soit l'écriture, ou hors du dépôt, ne se donne pas. Vide
+    sans aucune. Relevé par la revue de L-0018 : lu dans l'arbre, le
     dossier donnait pour barre la version que le lot avait modifiée."""
     from socle import requests as demandes
 
@@ -284,7 +286,9 @@ def contenus_approuves(projet: config.Projet, decisions: list, plafond: int = PL
             continue
         chemin, empreinte = d.sujet
         fichier = (projet.racine / chemin).resolve()
-        if memoire.est_prive(chemin) or not fichier.is_relative_to(racine):
+        # Le chemin normalisé, non le brut : `./memory/private/…` est privé
+        # comme `memory/private/…` (B-0297).
+        if not fichier.is_relative_to(racine) or memoire.est_prive(fichier.relative_to(racine).as_posix()):
             continue
         lignes += [f"### {ident} — `{chemin}`" + (f" (@{empreinte})" if empreinte else ""), ""]
         actuel = fichier.read_text(encoding="utf-8", errors="replace") if fichier.is_file() else None
@@ -378,6 +382,17 @@ CONSIGNE_REGARD = a_traduire(
     "suivi de celle-ci, ou une cause nouvelle, « cause nouvelle ».")
 
 
+# Une case d'une tâche qui livre une demande, un relevé ou une entrée de
+# la mémoire se juge par ce qu'elle produit (ADR-0088, T-0087), dans le
+# dossier complet comme dans le dossier court.
+CONSIGNE_CASES = a_traduire(
+    "Une case d'une tâche se vérifie par un test, sauf celle dont le livrable est une demande posée, un relevé "
+    "écrit (le compte rendu d'une mesure ou d'un essai) ou une entrée de la mémoire récrite : elle se vérifie par "
+    "ce qu'elle produit, que la case nomme (la demande, et la réponse de l'humain consignée au journal une fois "
+    "donnée ; le fichier du relevé ; ce qu'en montre `socle show` ou `socle roadmap`). Juge alors que ce produit "
+    "existe et dit ce que la case promet ; l'absence d'un test n'y est pas un constat.")
+
+
 # Le dossier court d'un petit lot (B-0288) : son relecteur juge le diff et
 # les fichiers qu'il touche, contre les critères des tâches du lot, sans
 # explorer au-delà. Le skill `socle-review` dit quand le donner.
@@ -441,7 +456,8 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
             depuis: str | None = None, avant: list | None = None, court: bool = False) -> str:
     """Ce que reçoit le relecteur, en plus du dépôt qu'il peut lire : la
     consigne, le diff du lot, les sujets du lot, les décisions qu'il écrit
-    et celles qu'ils citent (ADR-0073). Avec `depuis`, le dossier d'une seconde revue : le
+    et celles que citent ses sujets et ses décisions, une fois chacune
+    (ADR-0073). Avec `depuis`, le dossier d'une seconde revue : le
     diff depuis ce commit, les messages de ses commits, et toujours les
     sujets du lot entier, depuis `base`. Sans `base`, celle de
     `base_par_defaut` (ADR-0075). Le lot se mesure depuis l'ancêtre commun
@@ -463,10 +479,10 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
                 "dossier court, `socle review` sans `--short` donne le dossier complet",
                 chemins=", ".join(touches[:PLAFOND_LISTE]) + (" …" if len(touches) > PLAFOND_LISTE else "")))
     if court:
-        lignes = [trad("# Revue adversariale d'un petit lot, le dossier court"), "", trad(CONSIGNE_COURTE), "",
+        lignes = [trad("# Revue adversariale d'un petit lot, le dossier court"), "", trad(CONSIGNE_COURTE), "", trad(CONSIGNE_CASES), "",
                   trad(CONSIGNE_CLASSES), ""]
     else:
-        lignes = [trad("# Revue adversariale d'un lot"), "", trad(CONSIGNE_ROLE), "", trad(CONSIGNE_BARRE), "",
+        lignes = [trad("# Revue adversariale d'un lot"), "", trad(CONSIGNE_ROLE), "", trad(CONSIGNE_BARRE), "", trad(CONSIGNE_CASES), "",
                   trad(CONSIGNE_CLASSES), ""]
     if not base:
         lignes.append(trad("(aucune base connue : ni branche distante, ni branche par défaut ; rien à relire)"))
@@ -525,7 +541,10 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
         lignes += ["", trad("## Les décisions et les demandes que le lot écrit"), ""]
         for e in ecrites:
             lignes += [e.texte.strip(), ""]
-    citees = decisions_citees(projet, servis)
+    # Celles que citent les entrées du lot, puis celles que citent les
+    # décisions qu'il écrit, chacune une fois : la spécification validée
+    # qu'une décision du lot applique est la barre du relecteur (B-0273).
+    citees = decisions_citees(projet, servis + ecrites)
     decisions = [e for e in citees if e.id not in {d.id for d in ecrites}]
     if decisions:
         lignes += ["", trad("## Les décisions et les demandes qu'elles citent"), ""]
@@ -588,11 +607,23 @@ def lot_de_la_revue(projet: config.Projet, nom: str | None = None) -> memoire.En
     return lots[0] if lots else None
 
 
+def empreinte_de_l_arbre(projet: config.Projet, tete: str) -> str | None:
+    """L'empreinte de ce que l'arbre de travail change hors de la mémoire
+    depuis `tete`, fichiers suivis modifiés compris, ce que le dossier juge
+    en plus des commits ; `None` s'il n'y change rien."""
+    diff = outils.git(projet.racine, "diff", "--no-ext-diff", "--no-color", "--no-renames", "--full-index",
+                      "--binary", tete, *_hors_memoire(projet), check=False)
+    return hashlib.sha256(diff.encode("utf-8")).hexdigest()[:12] if diff else None
+
+
 def meme_passe(projet: config.Projet, p: memoire.Passe) -> bool:
-    """Rien n'a changé hors de la mémoire depuis le commit de tête que la
-    passe a relu : c'est la même passe, dont le dossier se redonne."""
-    return bool(p.tete) and outils.rev_existe(projet.racine, p.tete) and outils.git_reussit(
-        projet.racine, "diff", "--quiet", p.tete, *_hors_memoire(projet))
+    """Rien n'a changé hors de la mémoire depuis ce que la passe a relu :
+    son commit de tête, et les changements de l'arbre de travail qu'elle a
+    relus en plus, par leur empreinte (`Passe.arbre`) ; c'est la même passe,
+    dont le dossier se redonne. Relevé par la revue de T-0047 : comparé au
+    seul commit de tête, un arbre sale inchangé faisait une passe nouvelle."""
+    return bool(p.tete) and outils.rev_existe(projet.racine, p.tete) and \
+        empreinte_de_l_arbre(projet, p.tete) == p.arbre
 
 
 def entrees_depuis(projet: config.Projet, debut: str) -> tuple[list, list]:
@@ -658,25 +689,45 @@ def _liste(titre: str, entrees: list) -> list[str]:
     return lignes + [""]
 
 
+def _historique_et_recul(projet: config.Projet | None, lot: memoire.Entree, debut: str | None,
+                        consigne: str | None) -> list[str]:
+    """Ce que montrent le refus d'une passe et celui de la clôture : l'historique
+    du lot, et, pour écrire un recul, ce que git donne depuis `debut` et les
+    trois questions. Sans `debut` ou sans projet, git ne donne rien, et le
+    texte le dit."""
+    lignes = [trad("## L'historique du lot ({chemin})", chemin=lot.fichier), "",
+              memoire.section_des_revues(lot) or "", ""]
+    if consigne:
+        if projet is None or debut is None:
+            lignes += [trad("(le début du lot, que garde la ligne « Commits » de sa première passe, n'est pas dans ce "
+                            "dépôt : git ne donne ni les entrées ouvertes et closes depuis, ni les lots voisins)"), ""]
+        else:
+            ouvertes, closes = entrees_depuis(projet, debut)
+            lignes += [trad("## Ce que git donne depuis le début du lot ({debut})", debut=_court(projet, debut)), ""]
+            lignes += _liste(trad("Les entrées que le lot a ouvertes :"), ouvertes)
+            lignes += _liste(trad("Les entrées qu'il a closes :"), closes)
+            lignes += _liste(trad("Les lots clos qui ont touché les mêmes fichiers :"),
+                             lots_voisins(projet, debut, lot))
+        lignes += [trad("## Trois questions, de nature et non de nombre"), ""]
+        lignes += [f"{i}. {trad(q)}" for i, q in enumerate(QUESTIONS_DU_RECUL, start=1)]
+        lignes += ["", consigne]
+    return lignes
+
+
 def _texte_du_refus(projet: config.Projet, lot: memoire.Entree, suivante: int, raison: str, debut: str,
                     consigne: str | None) -> str:
     """Ce que l'agent lit d'une passe refusée : la raison, l'historique du
     lot, et, pour écrire un recul, ce que git donne et les trois
     questions."""
     lignes = [trad("socle review : la passe {n} du lot {lot} est refusée — {raison}.", n=suivante, lot=lot.id,
-                   raison=raison), "",
-              trad("## L'historique du lot ({chemin})", chemin=lot.fichier), "",
-              memoire.section_des_revues(lot) or "", ""]
-    if consigne:
-        ouvertes, closes = entrees_depuis(projet, debut)
-        lignes += [trad("## Ce que git donne depuis le début du lot ({debut})", debut=_court(projet, debut)), ""]
-        lignes += _liste(trad("Les entrées que le lot a ouvertes :"), ouvertes)
-        lignes += _liste(trad("Les entrées qu'il a closes :"), closes)
-        lignes += _liste(trad("Les lots clos qui ont touché les mêmes fichiers :"), lots_voisins(projet, debut, lot))
-        lignes += [trad("## Trois questions, de nature et non de nombre"), ""]
-        lignes += [f"{i}. {trad(q)}" for i, q in enumerate(QUESTIONS_DU_RECUL, start=1)]
-        lignes += ["", consigne]
+                   raison=raison), ""]
+    lignes += _historique_et_recul(projet, lot, debut, consigne)
     return "\n".join(lignes).rstrip() + "\n"
+
+
+# La consigne de ce que l'agent écrit ensuite, selon la nature du refus ;
+# aucune pour une demande qui attend sa réponse.
+CONSIGNES_DU_REFUS = {"regard": CONSIGNE_RECUL, "recul": CONSIGNE_RECUL, "arret": CONSIGNE_ARRET}
 
 
 def refus_de_la_passe(projet: config.Projet, lot: memoire.Entree, deja: list, debut: str) -> str | None:
@@ -689,20 +740,40 @@ def refus_de_la_passe(projet: config.Projet, lot: memoire.Entree, deja: list, de
         return None
     nature, raison = refus
     n = deja[-1].numero
-    consigne = {"regard": CONSIGNE_RECUL, "recul": CONSIGNE_RECUL, "arret": CONSIGNE_ARRET}.get(nature)
+    consigne = CONSIGNES_DU_REFUS.get(nature)
     return _texte_du_refus(projet, lot, n + 1, raison, debut, trad(consigne, n=n, lot=lot.id) if consigne else None)
 
 
-def ecrire_passe(projet: config.Projet, lot: memoire.Entree, numero: int, debut: str, tete: str, jour: str) -> str:
+def recul_de_la_cloture(projet: config.Projet | None, lot: memoire.Entree, deja: list, nature: str) -> str:
+    """Ce que montre le refus de la clôture « fait » d'un lot relu, que le
+    contrôle du backlog refuse pour la raison de nature `nature`
+    (`memoire.refus_de_la_suite`), comme celui d'une passe : l'historique
+    du lot, et, pour écrire le recul ou l'arrêt, ce que git donne depuis
+    le début du lot, celui que garde sa première passe, et les trois
+    questions (T-0055). Relevé par la revue de T-0047 : la clôture ne
+    montrait que la raison."""
+    n = deja[-1].numero
+    consigne = CONSIGNES_DU_REFUS.get(nature)
+    debut = deja[0].debut
+    if projet is None or not debut or not outils.rev_existe(projet.racine, debut):
+        debut = None
+    lignes = _historique_et_recul(projet, lot, debut, trad(consigne, n=n, lot=lot.id) if consigne else None)
+    return "\n".join(lignes).rstrip()
+
+
+def ecrire_passe(projet: config.Projet, lot: memoire.Entree, numero: int, debut: str, tete: str, jour: str,
+                 arbre: str | None = None) -> str:
     """Ajoute la passe `numero` à la section « Revues » du lot, posée à la
     fin de son entrée si elle n'y est pas : son titre, sa date et ses
-    commits. Rend le fichier du lot."""
+    commits, suivis de l'empreinte `arbre` des changements de l'arbre de
+    travail qu'elle relit en plus, s'il y en a. Rend le fichier du lot."""
     lg = langue.du_projet(projet)
     mots = {cle: m[lg] for cle, m in langue.REVUES.items()}
     chemin = projet.racine / lot.fichier
     lignes = chemin.read_text(encoding="utf-8").split("\n")
     passe = [f"### {mots['passe']} {numero} — {jour}", "",
-             f"{mots['commits']}{' :' if lg == 'fr' else ':'} {debut}..{tete}"]
+             f"{mots['commits']}{' :' if lg == 'fr' else ':'} {debut}..{tete}"
+             + (f" + {mots['arbre']} {arbre}" if arbre else "")]
     premiere = lot.ligne - 1
     fin = premiere + len(lot.texte.split("\n"))
     section = next((i for i in range(premiere + 1, fin) if memoire.SECTION_REVUES.match(lignes[i])), None)
@@ -729,7 +800,9 @@ def relire(projet: config.Projet, base: str | None = None, plafond: int = PLAFON
     (`PasseRefusee`), et s'écrit dans le lot, avec le second regard à
     partir de la deuxième. Un lot qui ne change rien hors de la mémoire n'a
     pas de passe. `court` : le dossier court (B-0288), qu'un lot qui touche
-    un garde-fou refuse (`CourtRefuse`) avant que rien ne s'écrive."""
+    un garde-fou refuse (`CourtRefuse`) avant que rien ne s'écrive. L'état
+    relu est celui de l'arbre de travail : ses fichiers suivis modifiés
+    hors de la mémoire comptent, et la passe en garde l'empreinte."""
     lot = lot_de_la_revue(projet, nom_du_lot)
     if lot is None:
         return dossier(projet, base, plafond, depuis, court=court), trad(
@@ -741,8 +814,8 @@ def relire(projet: config.Projet, base: str | None = None, plafond: int = PLAFON
     deja = memoire.passes(lot)
     if deja and meme_passe(projet, deja[-1]):
         return dossier(projet, base, plafond, depuis, deja[:-1], court), trad(
-            "(la passe {n} du lot {lot} : rien n'a changé hors de la mémoire depuis le commit qu'elle a relu ; son "
-            "dossier se redonne, rien ne s'écrit)", n=deja[-1].numero, lot=lot.id)
+            "(la passe {n} du lot {lot} : rien n'a changé hors de la mémoire depuis ce qu'elle a relu, son commit et "
+            "l'arbre de travail ; son dossier se redonne, rien ne s'écrit)", n=deja[-1].numero, lot=lot.id)
     if deja:
         refus = refus_de_la_passe(projet, lot, deja, debut)
         if refus:
@@ -753,7 +826,7 @@ def relire(projet: config.Projet, base: str | None = None, plafond: int = PLAFON
         return texte, None
     numero = deja[-1].numero + 1 if deja else 1
     chemin = ecrire_passe(projet, lot, numero, _court(projet, depart), _court(projet, "HEAD"),
-                          jour or date.today().isoformat())
+                          jour or date.today().isoformat(), empreinte_de_l_arbre(projet, "HEAD"))
     return texte, trad(
         "passe {n} du lot {lot} écrite dans {chemin} : au retour du relecteur, y écrire une ligne « - Bloquant : <sa "
         "cause, en quelques mots> » par bloquant, suivie à partir de la deuxième passe du regard du relecteur, « · "

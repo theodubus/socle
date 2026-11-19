@@ -462,4 +462,7 @@ def executer(ctx: Contexte, ids: list[str] | None = None, adoption: bool = True)
             if constat.chemin and memoire.est_prive(constat.chemin):
                 constat.message = trad("constat masqué : zone privée (relancer les contrôles là où elle se lit)")
                 constat.chemin, constat.ligne = ctx.projet.chemins.prive + "/…", None
+                # Le détail d'un constat (l'historique d'un lot, T-0055) en
+                # dirait autant que son texte.
+                constat.detail = None
     return rapport

@@ -804,6 +804,17 @@ def _lot_relu_clos(a: Atelier, c: Path, *suivantes: str):
     maj_memoire(c, "Le lot de la multiplication relu et clos.")
 
 
+def _lot_en_cours_relu(a: Atelier, c: Path, bloquant: str):
+    """Le lot L-0001 en cours, qui attend la tâche T-0001, et sa passe 1, où
+    l'agent consigne la ligne `bloquant`, puis un recul dont une ligne
+    repliée commence par « bloquants »."""
+    revues = ("\n## Revues\n\n### Passe 1 — 2026-11-16\n\nCommits : 1a2b3c4..5d6e7f8\n\n" + bloquant +
+              "\n- Ouvre : rien\n" + _recul_essai("continuer").replace("Recul : les bloquants", "Recul : les\nbloquants"))
+    ajouter_sujet(c, tache_essai(a, c))
+    ajouter_sujet(c, lot_essai(a, c, "L-0001", "T-0001").replace("> statut : ouvert", "> statut : en cours") + revues)
+    maj_memoire(c, "Le lot de la multiplication en revue.")
+
+
 def _demande_du_lot(a: Atelier, c: Path, empreinte_du_lot: str = "") -> str:
     """La demande D-0001 d'un arrêt du lot L-0001 : elle cite le lot, que
     seule sa réponse débloque (ADR-0084, point 6), avec son empreinte quand
@@ -1618,6 +1629,18 @@ def _cas() -> list[Cas]:
             "git", "memoire.backlog")
     def _(a, c):
         _lot_clos_sur_un_arret(a, c)
+        return etage_git(a, c)
+
+    @defaut("bloquant-mal-ecrit", "ligne de bloquant d'une passe de revue écrite autrement que « - Bloquant : … », "
+            "que rien ne lit", "git", "memoire.backlog")
+    def _(a, c):
+        _lot_en_cours_relu(a, c, "- **Bloquant** : la correction change la lecture du facteur")
+        return etage_git(a, c)
+
+    @defaut("bloquant-sans-puce", "ligne de bloquant d'une passe de revue écrite sans puce, que rien ne lit",
+            "git", "memoire.backlog")
+    def _(a, c):
+        _lot_en_cours_relu(a, c, "Bloquant 2 — la correction change la lecture du facteur")
         return etage_git(a, c)
 
     # Au-delà du tableau du cadrage.
@@ -2695,6 +2718,12 @@ def _temoins() -> list[tuple[str, Callable]]:
             "bloquant, passe le commit et la CI")
     def _(a, c):
         _lot_relu_clos(a, c, _bloquant_essai(" · cause nouvelle") + _recul_essai("continuer"))
+        return etage_git(a, c) or etage_ci(a, c)
+
+    @temoin("un lot en cours dont la passe consigne son bloquant « - Bloquant : … », et un recul replié sur une ligne "
+            "qui commence par « bloquants », passe le commit et la CI")
+    def _(a, c):
+        _lot_en_cours_relu(a, c, "- Bloquant : la correction change la lecture du facteur")
         return etage_git(a, c) or etage_ci(a, c)
 
     @temoin("un lot relu clos « fait » sur « continuer » après une seule passe où le relecteur voit une cause revenir "

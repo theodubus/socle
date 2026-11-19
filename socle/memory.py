@@ -737,9 +737,24 @@ def _mots(cle: str) -> str:
 SECTION_REVUES = _section(langue.REVUES["revues"])
 TITRE_DE_PASSE = re.compile(r"^#{3,6}\s+(?:%s)\s+(?P<n>\d+)\b\s*(?:[—–-]\s*(?P<date>.*?))?\s*$" % _mots("passe"),
                             re.I)
-LIGNE_COMMITS = re.compile(r"^\s*(?:%s)\s*:\s*(?P<debut>[0-9a-f]{4,40})\.\.(?P<tete>[0-9a-f]{4,40})\s*$"
-                           % _mots("commits"), re.I)
+# `Commits : <début>..<tête>`, suivi, quand la passe a relu des fichiers
+# suivis que l'arbre de travail changeait hors de la mémoire, de
+# `+ arbre de travail <empreinte>` : l'empreinte de ces changements.
+LIGNE_COMMITS = re.compile(r"^\s*(?:%s)\s*:\s*(?P<debut>[0-9a-f]{4,40})\.\.(?P<tete>[0-9a-f]{4,40})"
+                           r"(?:\s*\+\s*(?:%s)\s+(?P<arbre>[0-9a-f]{4,64}))?\s*$"
+                           % (_mots("commits"), _mots("arbre")), re.I)
 LIGNE_BLOQUANT = re.compile(r"^\s*[-*]\s+(?:%s)\s*:\s*(?P<texte>.+?)\s*$" % _mots("bloquant"), re.I)
+# Une ligne de liste qui se donne pour un bloquant sans la forme que lit
+# `passes` (`- **Bloquant** : …`, `- Bloquant 1 : …`, `1. Bloquant : …`,
+# `- Bloquants : …`) : ignorée, elle n'exigerait ni le regard du relecteur
+# ni la règle de la même cause ; le contrôle du backlog la refuse.
+BLOQUANT_PRESUME = re.compile(
+    # Une puce suivie du mot, comme avant ; ou, puce, citation et case
+    # facultatives, le mot suivi d'un séparateur, après un numéro au besoin
+    # (`Bloquant : …`, `**Bloquant** : …`, `Bloquant 2 — …`, `-Bloquant : …`).
+    r"^\s*(?:>\s*)*(?:(?:[-*+•]|\d+[.)])\s+(?:\[[ xX]\]\s*)?[*_]*(?:{m})s?(?![\w-])"
+    r"|(?:(?:[-*+•]|\d+[.)])\s*)?(?:\[[ xX]\]\s*)?[*_]*(?:{m})s?[*_]*(?:\s*\d+)?[*_]*\s*[:—–])"
+    .format(m=_mots("bloquant")), re.I)
 # Le regard du relecteur sur un bloquant, à partir de la deuxième passe :
 # `· même cause` (suivi, au besoin, de laquelle) ou `· cause nouvelle`.
 REGARD = re.compile(r"\s*·\s*(?:(?P<meme>%s)|(?P<nouvelle>%s))(?![\w-]).*$" % (_mots("meme-cause"),
@@ -757,7 +772,8 @@ DECISIONS_DU_RECUL = {outils.cle(m): cle for cle in ("continuer", "s-arreter")
 class Passe:
     """Une passe de revue d'un lot, telle que sa section « Revues » la
     garde : son numéro et sa date, les commits relus (`debut..tete`, tels
-    que `socle review` les a écrits), ses bloquants (leur cause, et le
+    que `socle review` les a écrits, et l'empreinte de l'arbre de travail
+    s'il était sale), ses bloquants (leur cause, et le
     regard du relecteur : `meme`, `nouvelle`, ou `None` s'il n'est pas
     consigné), et son recul, le paragraphe qui commence par « Recul : »."""
 
@@ -767,6 +783,9 @@ class Passe:
     tete: str | None = None
     bloquants: list[tuple[str, str | None]] = field(default_factory=list)
     recul: str | None = None
+    # L'empreinte des changements de l'arbre de travail hors de la mémoire
+    # que la passe a relus en plus de `tete`, `None` s'il n'en avait pas.
+    arbre: str | None = None
 
     @property
     def voit_revenir(self) -> bool:
@@ -774,21 +793,36 @@ class Passe:
         return any(regard == "meme" for _, regard in self.bloquants)
 
 
-def _bornes_des_revues(e: Entree) -> tuple[int, int] | None:
+def _bornes_des_revues(e: Entree, texte: str | None = None) -> tuple[int, int] | None:
     """Où commence et finit la section « Revues » dans le corps d'une
-    entrée : jusqu'au titre suivant de même niveau ou plus haut."""
-    m = SECTION_REVUES.search(e.corps)
+    entrée, ou dans `texte` : jusqu'au titre suivant de même niveau ou plus
+    haut."""
+    texte = e.corps if texte is None else texte
+    m = SECTION_REVUES.search(texte)
     if not m:
         return None
     niveau = len(m.group(0)) - len(m.group(0).lstrip("#"))
-    fin = re.compile(r"^#{1,%d}\s" % niveau, re.M).search(e.corps, m.end())
-    return m.start(), fin.start() if fin else len(e.corps)
+    fin = re.compile(r"^#{1,%d}\s" % niveau, re.M).search(texte, m.end())
+    return m.start(), fin.start() if fin else len(texte)
 
 
 def section_des_revues(e: Entree) -> str | None:
     """Le texte de la section « Revues » d'une entrée, titre compris."""
     bornes = _bornes_des_revues(e)
     return e.corps[bornes[0]:bornes[1]].strip() if bornes else None
+
+
+def bloquants_mal_ecrits(e: Entree) -> list[tuple[int, str]]:
+    """Les lignes de la section « Revues » de `e` qui se donnent pour un
+    bloquant sans que `passes` les lise comme tel (`BLOQUANT_PRESUME` sans
+    `LIGNE_BLOQUANT`) : leur numéro de ligne dans le fichier, et leur
+    texte."""
+    bornes = _bornes_des_revues(e, e.texte)
+    if bornes is None:
+        return []
+    premiere = e.ligne + e.texte.count("\n", 0, bornes[0])
+    return [(premiere + k, ligne.strip()) for k, ligne in enumerate(e.texte[bornes[0]:bornes[1]].split("\n"))
+            if BLOQUANT_PRESUME.match(ligne) and not LIGNE_BLOQUANT.match(ligne)]
 
 
 def passes(e: Entree) -> list[Passe]:
@@ -816,7 +850,7 @@ def passes(e: Entree) -> list[Passe]:
                 continue
         c = LIGNE_COMMITS.match(ligne)
         if c and p.debut is None:
-            p.debut, p.tete = c["debut"], c["tete"]
+            p.debut, p.tete, p.arbre = c["debut"], c["tete"], c["arbre"]
             continue
         b = LIGNE_BLOQUANT.match(ligne)
         if b:

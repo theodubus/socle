@@ -80,6 +80,7 @@ REVUES = {
     "revues": {"fr": "Revues", "en": "Reviews"},
     "passe": {"fr": "Passe", "en": "Pass"},
     "commits": {"fr": "Commits", "en": "Commits"},
+    "arbre": {"fr": "arbre de travail", "en": "working tree"},
     "bloquant": {"fr": "Bloquant", "en": "Blocker"},
     "ouvre": {"fr": "Ouvre", "en": "Opens"},
     "meme-cause": {"fr": "même cause", "en": "same cause"},

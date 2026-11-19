@@ -41,6 +41,10 @@ class Constat:
     # chaque test en échec. Vide, l'essentiel est la première ligne utile du
     # message.
     essentiel: tuple[str, ...] = ()
+    # Ce que le rapport imprime sous le constat, en retrait, hors de son
+    # essentiel : ce qu'il faut avoir sous les yeux pour y répondre, comme
+    # l'historique d'un lot dont la clôture est refusée (T-0055).
+    detail: str | None = None
 
     def lieu(self) -> str:
         if self.chemin and self.ligne:
@@ -79,8 +83,10 @@ class Rapport:
     constats: list[Constat] = field(default_factory=list)
     executes: list[str] = field(default_factory=list)
 
-    def erreur(self, controle, message, chemin=None, ligne=None, objet=None, regroupe=None, essentiel=()):
-        self.constats.append(Constat(controle, message, chemin, ligne, ERREUR, objet, regroupe, tuple(essentiel)))
+    def erreur(self, controle, message, chemin=None, ligne=None, objet=None, regroupe=None, essentiel=(),
+               detail=None):
+        self.constats.append(Constat(controle, message, chemin, ligne, ERREUR, objet, regroupe, tuple(essentiel),
+                                     detail))
 
     def avertir(self, controle, message, chemin=None, ligne=None, objet=None):
         self.constats.append(Constat(controle, message, chemin, ligne, AVERTISSEMENT, objet))
@@ -170,6 +176,8 @@ class Rapport:
                     lignes.extend(f"      {marque} {l}" for l in c.lignes_essentielles())
                     continue
                 lignes.append(f"      {marque} {c.en_ligne()}")
+                if c.detail:
+                    lignes.extend(f"        {l}".rstrip() for l in c.detail.splitlines())
         if court and tus:
             lignes.append(trad("  … et {n} autre(s) contrôle(s) sans rien à signaler", n=tus))
         if indisponibles:
