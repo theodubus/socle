@@ -1581,6 +1581,17 @@ def _cas() -> list[Cas]:
         (c / "memory/requests/D-0001-refactor.answer.toml").write_text('reponse = "valider"\n')
         return _passes(a, c, [_bloquant_essai() + _recul_essai("s'arrêter", "D-0001")])
 
+    # Le dossier court d'un petit lot (B-0288) : refusé pour un lot qui touche
+    # un garde-fou, que son relecteur doit pouvoir lire au-delà du diff.
+    @defaut("revue-courte-sur-un-garde-fou", "dossier court de revue pour un lot qui touche un garde-fou", "revue",
+            "revue courte refusée")
+    def _(a, c):
+        remplacer(c, "calc.py", "return FACTEUR * x", "return x * FACTEUR")
+        ajouter(c, ".socle/guardrails.toml", "\n# Un garde-fou que le lot touche.\n")
+        a.commit(c, "un lot qui touche un garde-fou")
+        r = a.socle(c, "review", "--short")
+        return r.stdout + r.stderr
+
     @defaut("lot-clos-sans-recul", "lot relu clos « fait » sans le recul de sa dernière passe", "git",
             "memoire.backlog")
     def _(a, c):
@@ -2673,6 +2684,13 @@ def _temoins() -> list[tuple[str, Callable]]:
         (c / "memory/requests/D-0001-refactor.answer.toml").write_text('reponse = "valider"\n')
         return _passes(a, c, [_bloquant_essai() + _recul_essai("s'arrêter", "D-0001")])
 
+    @temoin("un petit lot qui ne touche aucun garde-fou, `socle review --short` en donne le dossier court")
+    def _(a, c):
+        remplacer(c, "calc.py", "return FACTEUR * x", "return x * FACTEUR")
+        a.commit(c, "un petit lot")
+        r = a.socle(c, "review", "--short")
+        return "" if r.returncode == 0 and "n'explore pas au-delà" in r.stdout else r.stdout + r.stderr
+
     @temoin("un lot relu clos « fait » avec le recul de sa dernière passe, et le regard du relecteur sur son "
             "bloquant, passe le commit et la CI")
     def _(a, c):
@@ -3402,6 +3420,8 @@ RAISONS_AGENT = {
     "continuer refusé": "« continuer » est refusé, le lot s'arrête",
     "lot arrêté": "et attend la réponse à",
     "arrêt non levé": "n'est levé par aucune des demandes que nomme son recul",
+    # Ni le dossier court d'un lot qui touche un garde-fou (B-0288).
+    "revue courte refusée": "le lot touche un garde-fou",
 }
 
 

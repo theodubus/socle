@@ -28,6 +28,12 @@ from socle.messages import a_traduire, trad
 # Au-delà, le diff se tronque, et le dossier le dit : un relecteur qui reçoit
 # un diff énorme le survole.
 PLAFOND_DIFF = 60_000
+# Au-delà, le dossier ne donne que le chemin du fichier qu'approuve une
+# décision de séance, que le relecteur lit dans le dépôt (B-0286) : 20 000
+# octets, un tiers du plafond du diff, tiennent un document de proposition
+# entier (une page de spécification en fait souvent la moitié) sans noyer le
+# diff.
+PLAFOND_SUJET = 20_000
 
 
 def _amont(racine) -> str:
@@ -46,6 +52,12 @@ def base_du_lot(racine) -> str | None:
 class ReferenceRefusee(ValueError):
     """Une base ou un `--since` qui ne mesure pas le lot (ADR-0081) : le
     dossier ne se fait pas, au lieu d'un dossier vide ou étranger."""
+
+
+class CourtRefuse(ValueError):
+    """Un dossier court demandé pour un lot qui touche un garde-fou
+    (B-0288) : son relecteur doit pouvoir lire au-delà du diff, et le
+    dossier complet le lui dit. Rien ne s'écrit ni ne se relit."""
 
 
 class PasseRefusee(ValueError):
@@ -247,6 +259,56 @@ def decisions_citees(projet: config.Projet, sujets: list) -> list:
     return res
 
 
+def contenus_approuves(projet: config.Projet, decisions: list, plafond: int = PLAFOND_SUJET,
+                       debut: str | None = None) -> list[str]:
+    """Ce qu'approuvent les décisions de séance de `decisions` qui désignent
+    un fichier, leur champ `sujet` (B-0286) : sous un titre qui nomme la
+    décision et le chemin, le texte du fichier tel qu'il était au début du
+    lot (`debut`), la version que l'humain a approuvée, que le lot peut avoir
+    changée, ce que le dossier dit alors ; dans l'arbre de travail si le lot
+    le crée ou sans `debut`. Son chemin seul au-delà de `plafond` octets, ou
+    s'il n'existe pas. Un fichier privé, ou hors du dépôt, ne se donne pas.
+    Vide sans aucune. Relevé par la revue de L-0018 : lu dans l'arbre, le
+    dossier donnait pour barre la version que le lot avait modifiée."""
+    from socle import requests as demandes
+
+    voulues = [e.id for e in decisions if e.id.startswith("D-")]
+    if not voulues:
+        return []
+    par_id = {d.entree.id: d for d in demandes.toutes(projet.racine) if d.entree is not None}
+    racine = projet.racine.resolve()
+    lignes = []
+    for ident in voulues:
+        d = par_id.get(ident)
+        if d is None or not d.seance or not d.sujet or not d.sujet[0]:
+            continue
+        chemin, empreinte = d.sujet
+        fichier = (projet.racine / chemin).resolve()
+        if memoire.est_prive(chemin) or not fichier.is_relative_to(racine):
+            continue
+        lignes += [f"### {ident} — `{chemin}`" + (f" (@{empreinte})" if empreinte else ""), ""]
+        actuel = fichier.read_text(encoding="utf-8", errors="replace") if fichier.is_file() else None
+        avant = outils.lire_a(projet.racine, debut, chemin) if debut else None
+        texte = avant if avant is not None else actuel
+        if avant is not None and actuel != avant:
+            lignes += [trad("(le lot change `{chemin}` : voici sa version d'avant le lot, celle qu'approuve la "
+                            "décision ; le diff montre le changement)", chemin=chemin), ""]
+        if texte is None:
+            lignes += [trad("(`{chemin}` : introuvable dans l'arbre de travail)", chemin=chemin), ""]
+        elif len(texte.encode("utf-8")) > plafond:
+            lignes += [trad("(`{chemin}` : {n} octets, au-delà de la borne du dossier ({borne}) : le lire dans le "
+                            "dépôt)", chemin=chemin, n=len(texte.encode("utf-8")), borne=plafond), ""]
+        else:
+            # Une clôture plus longue que toute suite d'accents graves du
+            # texte : un document Markdown garde ses propres blocs.
+            cloture = "`" * max(3, 1 + max((len(m) for m in re.findall(r"`+", texte)), default=0))
+            lignes += [cloture, texte.rstrip("\n"), cloture, ""]
+    if lignes:
+        lignes = [trad("## Ce qu'approuvent les décisions de séance qu'elles citent : ta barre, comme leurs "
+                       "critères"), ""] + lignes
+    return lignes
+
+
 def dossier_demande(projet: config.Projet, ident: str) -> str | None:
     """Ce que reçoit le lecteur de la relecture à froid d'une demande
     (ADR-0046) : la consigne, puis le texte de la demande, rien d'autre.
@@ -316,6 +378,44 @@ CONSIGNE_REGARD = a_traduire(
     "suivi de celle-ci, ou une cause nouvelle, « cause nouvelle ».")
 
 
+# Le dossier court d'un petit lot (B-0288) : son relecteur juge le diff et
+# les fichiers qu'il touche, contre les critères des tâches du lot, sans
+# explorer au-delà. Le skill `socle-review` dit quand le donner.
+CONSIGNE_COURTE = a_traduire(
+    "Tu relis un petit lot de travail d'un autre agent, sans sa conversation ni son raisonnement : tu as ce "
+    "dossier, son diff et les critères des tâches qu'il sert. Juge le diff et les fichiers qu'il touche, que tu "
+    "peux lire en entier pour vérifier un constat ; n'explore pas au-delà, ne lance rien, ne modifie rien. Ton "
+    "rôle est de le prendre en défaut : cherche ce qui casse (un cas limite, une erreur de logique, une "
+    "régression), ce qu'aucun test ne prouve, et ce qui contredit un critère. Ne juge ni le style, ni ce que "
+    "les contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests.")
+
+
+def garde_fous_touches(projet: config.Projet, fichiers: list[str]) -> list[str]:
+    """Les fichiers de `fichiers` qui sont un garde-fou (B-0288) : la
+    politique et les garde-fous eux-mêmes, les chemins que la politique
+    protège (`chemins_proteges`, ceux que le hook de l'agent refuse
+    d'écrire) et ceux que les garde-fous déclarent comme l'outillage (les
+    hooks, la CI : `[tooling] paths`, que le contrôle de la documentation
+    lit). Un lot qui en touche un garde la revue complète."""
+    from socle.checks_docs import MOTIFS_OUTILLAGE_DEFAUT
+
+    motifs = [projet.chemins.politique, projet.chemins.garde_fous, *projet.chemins_proteges(),
+              *projet.gf("tooling", "paths", defaut=MOTIFS_OUTILLAGE_DEFAUT)]
+    return [f for f in fichiers if outils.correspond(f, motifs)]
+
+
+def _criteres_du_lot(servis: list) -> list[str]:
+    """Les critères des entrées que sert le lot, sous leur titre : la barre
+    du dossier court, sans le reste des entrées."""
+    lignes = []
+    for s in servis:
+        lignes += [f"### {s.id} — {s.titre}", ""]
+        lignes += [f"- [{'x' if coche else ' '}] {texte}" for coche, texte in _cases(s)] or [
+            trad("(aucun critère)")]
+        lignes.append("")
+    return lignes
+
+
 def _mesurer(projet: config.Projet, base: str | None, depuis: str | None) -> tuple[str | None, str | None,
                                                                                     str | None]:
     """La base du lot, la note qui en parle, et le commit d'où il se
@@ -338,7 +438,7 @@ def _mesurer(projet: config.Projet, base: str | None, depuis: str | None) -> tup
 
 
 def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFOND_DIFF,
-            depuis: str | None = None, avant: list | None = None) -> str:
+            depuis: str | None = None, avant: list | None = None, court: bool = False) -> str:
     """Ce que reçoit le relecteur, en plus du dépôt qu'il peut lire : la
     consigne, le diff du lot, les sujets du lot, les décisions qu'il écrit
     et celles qu'ils citent (ADR-0073). Avec `depuis`, le dossier d'une seconde revue : le
@@ -348,10 +448,26 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
     de la base et de HEAD ; une référence qui ne le mesure pas lève
     `ReferenceRefusee` (ADR-0081). `avant` : les passes d'avant de ce lot,
     dont le second regard donne les causes (ADR-0084) ; sans elles, le
-    dossier d'une première passe."""
+    dossier d'une première passe. `court` : le dossier court d'un petit lot
+    (B-0288), la consigne de ne juger que le diff et les fichiers touchés,
+    le diff et les critères des tâches du lot, sans le reste de leurs
+    entrées ni les décisions qu'elles citent ; un lot qui touche un
+    garde-fou (`garde_fous_touches`, mesuré sur tout le lot) lève
+    `CourtRefuse`."""
     base, note, debut = _mesurer(projet, base, depuis)
-    lignes = [trad("# Revue adversariale d'un lot"), "", trad(CONSIGNE_ROLE), "", trad(CONSIGNE_BARRE), "",
-              trad(CONSIGNE_CLASSES), ""]
+    if court and base:
+        touches = garde_fous_touches(projet, _diff(projet, debut)[1])
+        if touches:
+            raise CourtRefuse(trad(
+                "le lot touche un garde-fou : {chemins}. Son relecteur doit pouvoir lire au-delà du diff : pas de "
+                "dossier court, `socle review` sans `--short` donne le dossier complet",
+                chemins=", ".join(touches[:PLAFOND_LISTE]) + (" …" if len(touches) > PLAFOND_LISTE else "")))
+    if court:
+        lignes = [trad("# Revue adversariale d'un petit lot, le dossier court"), "", trad(CONSIGNE_COURTE), "",
+                  trad(CONSIGNE_CLASSES), ""]
+    else:
+        lignes = [trad("# Revue adversariale d'un lot"), "", trad(CONSIGNE_ROLE), "", trad(CONSIGNE_BARRE), "",
+                  trad(CONSIGNE_CLASSES), ""]
     if not base:
         lignes.append(trad("(aucune base connue : ni branche distante, ni branche par défaut ; rien à relire)"))
         return "\n".join(lignes) + "\n"
@@ -392,6 +508,11 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
             lignes.append(trad("(diff tronqué : {n} caractère(s) de plus non montrés ; `git diff {base}` les "
                                "donne)", n=len(diff) - len(montre), base=depuis or origine))
     servis, ouverts = sujets_du_lot(projet, debut)
+    if court:
+        lignes += ["", trad("## Les critères des tâches du lot : ta barre"), ""]
+        lignes += _criteres_du_lot(servis) or [trad("(aucune entrée du backlog servie)")]
+        lignes += contenus_approuves(projet, decisions_citees(projet, servis), debut=debut)
+        return "\n".join(lignes).rstrip() + "\n"
     if servis:
         lignes += ["", trad("## Les entrées du backlog que sert le lot : leurs critères sont ta barre"), ""]
         for s in servis:
@@ -404,11 +525,15 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
         lignes += ["", trad("## Les décisions et les demandes que le lot écrit"), ""]
         for e in ecrites:
             lignes += [e.texte.strip(), ""]
-    decisions = [e for e in decisions_citees(projet, servis) if e.id not in {d.id for d in ecrites}]
+    citees = decisions_citees(projet, servis)
+    decisions = [e for e in citees if e.id not in {d.id for d in ecrites}]
     if decisions:
         lignes += ["", trad("## Les décisions et les demandes qu'elles citent"), ""]
         for e in decisions:
             lignes += [e.texte.strip(), ""]
+    approuves = contenus_approuves(projet, citees, debut=debut)
+    if approuves:
+        lignes += [""] + approuves
     return "\n".join(lignes).rstrip() + "\n"
 
 
@@ -595,7 +720,7 @@ def ecrire_passe(projet: config.Projet, lot: memoire.Entree, numero: int, debut:
 
 
 def relire(projet: config.Projet, base: str | None = None, plafond: int = PLAFOND_DIFF, depuis: str | None = None,
-           nom_du_lot: str | None = None, jour: str | None = None) -> tuple[str, str | None]:
+           nom_du_lot: str | None = None, jour: str | None = None, court: bool = False) -> tuple[str, str | None]:
     """Ce que fait `socle review` (ADR-0084) : le dossier d'une passe, et
     la ligne que la sortie d'erreur en dit. Sans lot en cours, le dossier
     d'avant, sans rien écrire. Avec lui : la même passe se redonne tant que
@@ -603,25 +728,26 @@ def relire(projet: config.Projet, base: str | None = None, plafond: int = PLAFON
     la suivante n'est produite que si l'historique ne la refuse pas
     (`PasseRefusee`), et s'écrit dans le lot, avec le second regard à
     partir de la deuxième. Un lot qui ne change rien hors de la mémoire n'a
-    pas de passe."""
+    pas de passe. `court` : le dossier court (B-0288), qu'un lot qui touche
+    un garde-fou refuse (`CourtRefuse`) avant que rien ne s'écrive."""
     lot = lot_de_la_revue(projet, nom_du_lot)
     if lot is None:
-        return dossier(projet, base, plafond, depuis), trad(
+        return dossier(projet, base, plafond, depuis, court=court), trad(
             "(aucun lot en cours au backlog : cette passe ne s'écrit dans aucun lot ; `socle review --batch L-NNNN` "
             "nomme le sien)")
     _, _, debut = _mesurer(projet, base, depuis)
     if debut is None:
-        return dossier(projet, base, plafond, depuis), None
+        return dossier(projet, base, plafond, depuis, court=court), None
     deja = memoire.passes(lot)
     if deja and meme_passe(projet, deja[-1]):
-        return dossier(projet, base, plafond, depuis, deja[:-1]), trad(
+        return dossier(projet, base, plafond, depuis, deja[:-1], court), trad(
             "(la passe {n} du lot {lot} : rien n'a changé hors de la mémoire depuis le commit qu'elle a relu ; son "
             "dossier se redonne, rien ne s'écrit)", n=deja[-1].numero, lot=lot.id)
     if deja:
         refus = refus_de_la_passe(projet, lot, deja, debut)
         if refus:
             raise PasseRefusee(refus)
-    texte = dossier(projet, base, plafond, depuis, deja)
+    texte = dossier(projet, base, plafond, depuis, deja, court)
     depart = depuis or debut
     if outils.git_reussit(projet.racine, "diff", "--quiet", depart, *_hors_memoire(projet)):
         return texte, None

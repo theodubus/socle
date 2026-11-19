@@ -101,6 +101,20 @@ of the answer, is recorded at once, with their answer word for word;
 python3 .socle/socle decision "<question>" <answer> --relayed --by <name> --quote-file <file>
 ```
 
+Content shown in the conversation that the human approves (a format, an
+example, a text) is first written as is in the repository, then the
+decision designates it (`--about <path>`), and the tasks that follow from
+it cite that path: without it, the decision keeps only the question and
+the answer, and the content is lost.
+
+**The light variant**, for expected values changed mechanically, tests
+that read a format the human has just approved: a question in the
+conversation that names each test, with its value before and after; its
+answer is recorded word for word as a decision taken in session, whose
+text (`--question-file`) names the tests, and is committed with them. Any
+other change of an expected value, or deletion of a test, keeps the
+written request.
+
 ## What the agent never does
 
 Answer on the human's behalf (`socle answer` without `--relayed` and a

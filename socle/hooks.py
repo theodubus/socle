@@ -2293,6 +2293,27 @@ def signature_d_echec(racine: Path, echecs: list[str]) -> str:
     return outils.sha256(_empreinte_arbre(racine) + "\n" + "\n".join(echecs))[:16]
 
 
+def essentiel_des_echecs(rapport) -> str:
+    """Le rapport de la fin de tour en échec, tel que l'agent et l'humain le
+    lisent (B-0290) : chaque contrôle en échec ou qui avertit, avec la
+    première ligne utile de chaque constat, celle de chaque test en échec
+    pour une étape de l'adaptateur, puis la commande qui montre tout. La
+    sortie entière des outils, relue à chaque étape de la conversation,
+    coûtait des milliers de jetons. La commande est celle de ce qui a
+    échoué : `check --stage agent` pour les contrôles du socle, que le hook
+    lance à cet étage, `verify --fast` pour les étapes rapides de
+    l'adaptateur (`verify.*`), les deux si les deux échouent."""
+    echecs = rapport.controles_en_echec()
+    commandes = []
+    if any(not c.startswith("verify.") for c in echecs):
+        commandes.append("`python3 .socle/socle check --stage agent`")
+    if any(c.startswith("verify.") for c in echecs):
+        commandes.append("`python3 .socle/socle verify --fast`")
+    texte = rapport.texte(trad("contrôles de fin de tour, l'essentiel"), regrouper=True, essentiel=True)
+    return texte + "\n" + trad("Tout le détail, sortie des outils comprise : {commandes}",
+                                commandes=", ".join(commandes))
+
+
 def stop(projet: config.Projet, entree: dict) -> int:
     from socle import context as contexte, verification
 
@@ -2324,7 +2345,7 @@ def stop(projet: config.Projet, entree: dict) -> int:
     cle = session or "-"
     # Les fichiers qu'une mise à jour a posés, en une ligne : relue à chaque
     # tentative, la liste n'apprend rien que `socle check` ne redise (ADR-0077).
-    texte = rapport.texte(trad("contrôles de fin de tour (`socle check --stage agent`)"), regrouper=True)
+    texte = essentiel_des_echecs(rapport)
     signature = signature_d_echec(racine, rapport.controles_en_echec())
     precedent = compteur.read_text().split() if compteur.is_file() else []
     sien = len(precedent) >= 2 and precedent[1] == cle and precedent[0].isdigit()

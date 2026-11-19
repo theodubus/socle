@@ -20,7 +20,7 @@ import time
 
 from socle import config, utils as outils
 from socle.messages import trad
-from socle.report import Rapport
+from socle.report import Rapport, ligne_utile
 
 ORDRE = ("format", "lint", "build", "tests")
 LIGNES_SORTIE = 120
@@ -36,6 +36,15 @@ CONTROLE_DUREE = "verify.duree"
 # Un outil absent de l'environnement : le shell ne trouve pas la commande
 # (code 127), ou Python le module que la commande lance.
 OUTIL_ABSENT = re.compile(r"(?m)^\S*python[\d.]*: No module named \S+")
+# Une ligne de la sortie d'une étape qui dit un échec (B-0290) : un mot
+# d'échec en tête de ligne, après son décor (`FAIL: test_x (…)`, `--- FAIL:
+# TestX`, `FAILED tests/a.py::t`, `*** Error compiling`), ou en fin
+# (`test x ... FAILED`). Le motif ne nomme ni langage ni outil : il lit le
+# vocabulaire commun des outils de test, et la ligne de code d'une trace
+# (`self.fail(…)`) n'y répond pas. L'essentiel d'un rapport en garde au plus
+# MAXIMUM_LIGNES_D_ECHEC ; la commande qu'il donne montre le reste.
+LIGNE_D_ECHEC = re.compile(r"(?i)^\W*(?:fail|failed|failure|error|échec)\b|\b(?:fail|failed|failure|error|échec)\W*$")
+MAXIMUM_LIGNES_D_ECHEC = 10
 
 
 def etapes_rapides(projet: config.Projet, rapport: Rapport, flux=None, refaire: bool = False) -> bool:
@@ -300,16 +309,41 @@ def _executer_etapes_de(projet: config.Projet, prefixe: str, rapide: bool, rappo
                                             "pas encore ; le premier code s'écrit avec son test",
                                             commande=c['command']))
                 continue
-            message = trad("`{commande}` a rendu {code}\n        {queue}",
-                           commande=c['command'], code=p.returncode, queue=queue)
+            entete = trad("`{commande}` a rendu {code}", commande=c['command'], code=p.returncode)
+            message = entete + "\n        " + queue
+            essentiel = [entete, *lignes_d_echec(sortie)]
             if p.returncode == 127 or OUTIL_ABSENT.search(sortie):
                 ci = _commandes_du_projet(projet, [projet.adaptateur])[0]
-                message += "\n        " + (trad("l'outil manque à cet environnement ; la CI l'installe ainsi : {commandes} "
-                                               "— l'installer ici ; en session cloud, le hook de démarrage du "
-                                               "socle l'installe dans chaque session neuve",
-                                               commandes=" ; ".join(f"`{x}`" for x in ci)) if ci
-                                         else trad("l'outil manque à cet environnement : l'installer"))
-            rapport.erreur(ident, message)
+                manque = (trad("l'outil manque à cet environnement ; la CI l'installe ainsi : {commandes} "
+                               "— l'installer ici ; en session cloud, le hook de démarrage du "
+                               "socle l'installe dans chaque session neuve",
+                               commandes=" ; ".join(f"`{x}`" for x in ci)) if ci
+                          else trad("l'outil manque à cet environnement : l'installer"))
+                message += "\n        " + manque
+                essentiel.append(manque)
+            rapport.erreur(ident, message, essentiel=essentiel)
+
+
+def lignes_d_echec(sortie: str) -> list[str]:
+    """L'essentiel de la sortie d'une étape en échec (B-0290) : la ligne de
+    chaque test en échec, celles que reconnaît `LIGNE_D_ECHEC`, sans doublon,
+    les `MAXIMUM_LIGNES_D_ECHEC` dernières, après le compte de celles d'avant :
+    le bilan d'un outil de test vient en fin de sortie, après le journal
+    capturé de ses tests, dont les lignes `ERROR` prendraient sinon toute la
+    place (pytest) ; à défaut, la dernière ligne utile de la sortie, son
+    bilan le plus souvent."""
+    vues: list[str] = []
+    for ligne in sortie.splitlines():
+        ligne = ligne.strip()
+        if LIGNE_D_ECHEC.search(ligne) and ligne not in vues:
+            vues.append(ligne)
+    if not vues:
+        utiles = [l.strip() for l in sortie.splitlines() if ligne_utile(l)]
+        return utiles[-1:]
+    reste = len(vues) - MAXIMUM_LIGNES_D_ECHEC
+    if reste > 0:
+        return [trad("… et {n} autre(s) ligne(s) d'échec", n=reste)] + vues[-MAXIMUM_LIGNES_D_ECHEC:]
+    return vues
 
 
 def _duree(ident: str, debut: float, durees: list[tuple[str, float]], flux) -> None:

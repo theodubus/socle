@@ -221,6 +221,11 @@ spécification ou un test, l'agent le fait relire par un relecteur sans
 contexte, qui cherche à le prendre en défaut contre le critère « Fait
 quand » des tâches du lot et, pour un garde-fou, son modèle de menace,
 écrit avant le code : ce que le garde-fou arrête, ce qu'il laisse passer.
+Le relecteur d'un petit lot, qui ne touche ni un garde-fou ni un format
+que d'autres parties du projet lisent, ne juge que son diff et les
+fichiers touchés, contre les critères de ses tâches (`python3 .socle/socle
+review --short`, qui refuse un lot qui touche un garde-fou) ; celui de
+tout autre lot reçoit le dossier complet (`python3 .socle/socle review`).
 L'agent corrige dans le lot les constats bloquants (un critère contredit,
 une régression, une perte de données, un contournement dans le modèle de
 menace) ; il envoie au backlog, où vous les voyez, ceux qui peuvent se

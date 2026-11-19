@@ -7,6 +7,101 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-19-e — Le dossier de la revue donne le fichier qu'approuve une décision de séance que citent les tâches du lot
+
+Une décision prise en séance peut désigner ce qu'elle approuve, un
+fichier du dépôt (`socle decision --about <chemin>`, son champ `sujet`).
+Quand les entrées que sert un lot citent une telle décision, `socle
+review` donne désormais au relecteur le texte de ce fichier tel qu'il
+était au début du lot, et dit si le lot le change, à la suite
+des décisions citées ; le dossier court (`--short`) le donne aussi,
+après les critères. Au-delà de 20 000 octets, le dossier ne donne que
+son chemin, que le relecteur lit dans le dépôt. Un fichier privé, ou
+hors du dépôt, ne se donne pas.
+
+À faire : rien ; le skill `socle-review` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-19-d — `socle review --short`, le dossier court d'un petit lot ; le skill de la revue dit quand le donner
+
+`socle review --short` donne au relecteur d'un petit lot un dossier
+court : la consigne de juger le diff et les fichiers qu'il touche, sans
+explorer au-delà, le diff du lot et les critères des tâches qu'il sert,
+sans le reste de leurs entrées ni les décisions qu'elles citent. Il
+refuse, en le disant, un lot qui touche un garde-fou : la politique ou
+les garde-fous eux-mêmes, un chemin que la politique protège, ou un
+chemin que les garde-fous déclarent comme l'outillage (`[tooling]
+paths`) ; `socle review` sans l'option donne alors le dossier complet.
+Le skill `socle-review` dit quand donner le dossier court : un lot de
+moins de 150 lignes de code et de tests qui ne touche ni un garde-fou ni
+un format que d'autres parties du projet lisent ; tout autre lot reçoit
+le dossier complet. Le skill est resserré ailleurs, sans règle en moins,
+pour tenir dans son budget.
+
+À faire : rien ; le skill `socle-review` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-19-c — La fin de tour en échec ne recopie plus la sortie des tests : le nom de chaque contrôle, la ligne de chaque test en échec et la commande qui montre tout
+
+Quand des contrôles échouent en fin de tour, le hook recopiait le
+rapport entier, contrôles qui passent et sortie des outils compris :
+des milliers de jetons, relus à chaque étape suivante de la
+conversation. Il ne donne plus que l'essentiel : chaque contrôle en
+échec ou qui avertit, avec la première ligne utile de chacun de ses
+constats (ni vide ni de décor) ; pour une étape de l'adaptateur, sa
+commande, son code et la ligne de chaque test en échec, celles où un mot
+d'échec (`FAIL`, `FAILED`, `ERROR`, `échec`…) ouvre ou ferme la ligne,
+dix au plus, ou à défaut la dernière ligne utile de la sortie ; les
+contrôles indisponibles, nommés sur une ligne. Il finit par la commande
+qui montre tout : `python3 .socle/socle check --stage agent` pour les
+contrôles du socle, `python3 .socle/socle verify --fast` pour les étapes
+de l'adaptateur. Le blocage, le compteur, l'escalade et la relance sur un
+échec inchangé ne changent pas.
+
+À faire : rien dans le projet ; pour le détail d'un échec, lancer la
+commande que le message donne.
+
+## 2026-11-19-b — Le skill socle-request : un contenu validé en séance s'écrit d'abord dans le dépôt ; la variante légère des valeurs attendues mécaniques
+
+Un contenu montré dans la conversation que l'humain valide (un format, un
+exemple, un texte) s'écrit désormais tel quel dans le dépôt avant que la
+décision de séance se consigne : elle le désigne (`socle decision
+--about <chemin>`), et les tâches qui en découlent citent ce chemin. Sans
+lui, la décision ne gardait que la question et la réponse, et un lot
+pouvait construire sur un souvenir du contenu.
+
+Des valeurs attendues changées mécaniquement, des tests qui lisent un
+format que l'humain vient de valider, se valident par une question dans
+la conversation qui nomme chaque test, avec sa valeur avant et après ; la
+réponse se consigne mot pour mot en décision de séance, dont le texte
+nomme les tests, et se commite avec eux. Tout autre changement de valeur
+attendue, ou suppression d'un test, garde la demande écrite.
+
+À faire : rien ; le skill `socle-request` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-19-a — Le skill socle-batch : une petite tâche se fait sans sous-agent, et le coût d'un lot s'estime sur des mesures
+
+Une petite tâche, moins de 150 lignes de code et de tests (un seuil
+provisoire, revu sur les coûts mesurés), s'implémente dans la session
+qui orchestre, sauf si elle touche un garde-fou ou un format que
+d'autres parties du projet lisent : le coût fixe d'un sous-agent, qui
+relit instructions et code avant d'écrire, dépassait ce qu'il épargne.
+
+Les seuils fixes de la consommation deviennent une règle sur des coûts
+mesurés. La clôture d'un lot note au journal ce qu'ont coûté chaque
+sous-agent, le relecteur, chaque demande et le rangement. Un sous-agent
+se lance si ce qui reste de chaque fenêtre couvre son coût mesuré et
+celui du rangement ; sans mesure, les anciens seuils valent (aucun
+au-delà de 85 % de la semaine ou de 60 % de la fenêtre de cinq heures).
+Le rangement commence au plus tard à dix points d'une limite. À
+l'annonce, le coût du lot s'estime sur ces mesures : s'il ne tient pas
+dans ce qui reste de la fenêtre, le lot se découpe, commence plus petit
+ou attend la remise à zéro.
+
+À faire : rien ; le skill `socle-batch` est une copie protégée, dans la
+demande de l'installeur.
+
 ## 2026-11-18-d — L'état ne donne plus à supprimer une branche que l'origine n'a plus
 
 Le clone garde la référence d'une branche supprimée sur l'origine tant

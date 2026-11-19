@@ -215,6 +215,11 @@ specification or a test, the agent has it reviewed by a reviewer without
 context, who tries to find fault with it against the “Done when”
 criterion of the batch's tasks and, for a guardrail, its threat model,
 written before the code: what the guardrail stops, what it lets through.
+The reviewer of a small batch, which touches neither a guardrail nor a
+format other parts of the project read, judges only its diff and the
+files touched, against its tasks' criteria (`python3 .socle/socle review
+--short`, which refuses a batch that touches a guardrail); the reviewer
+of any other batch gets the full brief (`python3 .socle/socle review`).
 The agent fixes the blocking findings in the batch (a contradicted
 criterion, a regression, a data loss, a bypass within the threat model);
 it sends to the backlog, where you see them, those that can occur in the

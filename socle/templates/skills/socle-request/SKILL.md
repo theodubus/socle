@@ -101,6 +101,20 @@ réponse mot pour mot ; `--about <chemin>` désigne ce qu'elle approuve :
 python3 .socle/socle decision "<question>" <réponse> --relayed --by <nom> --quote-file <fichier>
 ```
 
+Un contenu montré dans la conversation que l'humain valide (un format, un
+exemple, un texte) s'écrit d'abord tel quel dans le dépôt, puis la
+décision le désigne (`--about <chemin>`), et les tâches qui en découlent
+citent ce chemin : sans lui, la décision ne garde que la question et la
+réponse, et le contenu se perd.
+
+**La variante légère**, pour des valeurs attendues changées
+mécaniquement, des tests qui lisent un format que l'humain vient de
+valider : une question dans la conversation qui nomme chaque test, avec
+sa valeur avant et après ; sa réponse se consigne mot pour mot en
+décision de séance, dont le texte (`--question-file`) nomme les tests, et
+se commite avec eux. Tout autre changement de valeur attendue, ou
+suppression d'un test, garde la demande écrite.
+
 ## Ce que l'agent ne fait jamais
 
 Répondre à la place de l'humain (`socle answer` sans `--relayed` ni

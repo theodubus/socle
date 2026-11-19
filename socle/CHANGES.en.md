@@ -7,6 +7,100 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-19-e — The review brief gives the file an in-session decision cited by the batch's tasks approves
+
+An in-session decision can designate what it approves, a file of the
+repository (`socle decision --about <path>`, its `about` field). When
+the entries a batch serves cite such a decision, `socle review` now
+gives the reviewer the text of that file as it was at the start of the
+batch, and says whether the batch changes it, after the cited decisions; the
+short brief (`--short`) gives it too, after the criteria. Beyond 20,000
+bytes, the brief gives only its path, which the reviewer reads in the
+repository. A private file, or one outside the repository, is not
+given.
+
+To do: nothing; the `socle-review` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-19-d — `socle review --short`, the short brief of a small batch; the review skill says when to give it
+
+`socle review --short` gives the reviewer of a small batch a short
+brief: the instruction to judge the diff and the files it touches,
+without exploring beyond, the batch's diff and the criteria of the tasks
+it serves, without the rest of their entries or the decisions they
+cite. It refuses, saying so, a batch that touches a guardrail: the
+policy or the guardrails themselves, a path the policy protects, or a
+path the guardrails declare as tooling (`[tooling] paths`); `socle
+review` without the option then gives the full brief. The
+`socle-review` skill says when to give the short brief: a batch of under
+150 lines of code and tests that touches neither a guardrail nor a
+format other parts of the project read; any other batch gets the full
+brief. The skill is tightened elsewhere, with no rule less, to fit its
+budget.
+
+To do: nothing; the `socle-review` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-19-c — A failing end of turn no longer copies the test output: the name of each check, the line of each failing test and the command that shows everything
+
+When checks failed at the end of a turn, the hook copied the whole
+report, passing checks and tool output included: thousands of tokens,
+reread at every later step of the conversation. It now gives only the
+essentials: each check that fails or warns, with the first useful line
+of each of its findings (neither empty nor decoration); for an adapter
+step, its command, its code and the line of each failing test, those
+where a failure word (`FAIL`, `FAILED`, `ERROR`, `échec`…) opens or
+closes the line, ten at most, or failing that the last useful line of
+the output; the unavailable checks, named on one line. It ends with the
+command that shows everything: `python3 .socle/socle check --stage
+agent` for the socle's checks, `python3 .socle/socle verify --fast` for
+the adapter's steps. The block, the counter, the escalation and the
+rerun on an unchanged failure do not change.
+
+To do: nothing in the project; for the detail of a failure, run the
+command the message gives.
+
+## 2026-11-19-b — The socle-request skill: content approved in session is first written in the repository; the light variant for mechanical expected values
+
+Content shown in the conversation that the human approves (a format, an
+example, a text) is now written as is in the repository before the
+decision taken in session is recorded: it designates it (`socle decision
+--about <path>`), and the tasks that follow from it cite that path.
+Without it, the decision kept only the question and the answer, and a
+batch could build on a memory of the content.
+
+Expected values changed mechanically, tests that read a format the human
+has just approved, are validated by a question in the conversation that
+names each test, with its value before and after; the answer is recorded
+word for word as a decision taken in session, whose text names the
+tests, and is committed with them. Any other change of an expected
+value, or deletion of a test, keeps the written request.
+
+To do: nothing; the `socle-request` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-19-a — The socle-batch skill: a small task is done without a subagent, and a batch's cost is estimated on measures
+
+A small task, under 150 lines of code and tests (a provisional
+threshold, revised on the measured costs), is implemented in the
+orchestrating session, unless it touches a guardrail or a format that
+other parts of the project read: the fixed cost of a subagent, which
+rereads instructions and code before writing, exceeded what it saves.
+
+The fixed consumption thresholds become a rule on measured costs. A
+batch's closure notes in the journal the cost of each subagent, of the
+reviewer, of each request and of the tidying up. A subagent is launched
+if what remains of each window covers its measured cost and that of the
+tidying up; without a measure, the former thresholds hold (none beyond
+85% of the week or 60% of the five-hour window). The tidying up starts
+at the latest ten points from a limit. At the announcement, the batch's
+cost is estimated on these measures: if it does not fit in what remains
+of the window, the batch is split, starts smaller or waits for the
+reset.
+
+To do: nothing; the `socle-batch` skill is a protected copy, in the
+installer's request.
+
 ## 2026-11-18-d — The state no longer gives to delete a branch the origin no longer has
 
 The clone keeps the reference of a branch deleted on the origin until a

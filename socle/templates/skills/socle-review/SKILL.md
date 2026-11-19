@@ -5,18 +5,17 @@ description: Faire relire un lot par un relecteur sans contexte avant de le livr
 
 # La revue adversariale d'un lot
 
-Les contrôles du socle jugent la forme du travail ; la revue en juge le
-fond, par un relecteur sans les angles morts de l'auteur du lot, qui
-cherche à le prendre en défaut.
+Les contrôles jugent la forme du travail ; la revue en juge le fond,
+par un relecteur sans les angles morts de l'auteur, qui cherche à le
+prendre en défaut.
 
 ## Quand
 
 Avant le push qui livre un lot qui change du code, une spécification ou un
 test ; jamais pour un lot qui ne touche que la mémoire. Une passe par lot ;
-une seconde seulement si la correction des constats bloquants est lourde
-(elle change la conception d'une partie, pas quelques lignes), et sur elle
-seule ; chaque passe au-delà de la première suit le recul de la précédente
-(plus bas).
+une seconde seulement si la correction des bloquants est lourde (elle
+change la conception d'une partie, pas quelques lignes), et sur elle
+seule ; chaque passe au-delà de la première suit le recul de la précédente.
 
 Le relecteur juge le lot contre ses tâches : leur critère « Fait quand »,
 et, pour un garde-fou, son modèle de menace. Un besoin qui pose ou change un
@@ -36,23 +35,29 @@ python3 .socle/socle review
 ```
 
    Il donne la consigne, le diff du lot depuis l'ancêtre commun de HEAD
-   et de sa base, la branche distante (sinon la branche par défaut ; si
-   la branche distante contient déjà le lot, poussé avant sa revue, ou
-   est restée en arrière de la branche par défaut après une fusion par
-   écrasement, l'ancêtre commun avec la branche par défaut, et il le dit), les entrées
-   dont le lot change le statut ou les critères, en entier, celles
-   qu'il ouvre par leur titre, les décisions et les demandes que le lot
-   écrit, puis celles que ses entrées citent.
-   `--base <ref>` change la base du lot ; pour une seconde revue,
-   `--since <commit relu>` ne montre que le diff depuis le commit de la
-   première, avec les messages des commits qui le corrigent. Une
-   référence inconnue, ou un `--since` qui n'est pas un ancêtre de HEAD,
-   est refusée. Un lot déjà poussé, même en partie (en session
-   cloud, à chaque fin de tour), ou une branche qui porte des lots
-   déjà relus, que la note du dossier signale : `--base <le commit d'avant
-   le lot>`, la tête d'où le lot est parti. Il écrit la passe dans l'entrée
-   du lot en cours du backlog, ou de celui que `--batch L-NNNN` nomme, et
-   refuse une passe que l'historique du lot refuse (plus bas).
+   et de sa base, la branche distante (sinon la branche par défaut, ou
+   l'ancêtre commun avec elle, et il le dit, si la branche distante
+   contient déjà le lot ou est restée en arrière après une fusion par
+   écrasement), les entrées dont le lot change le statut ou les
+   critères, en entier, celles qu'il ouvre par leur titre, les
+   décisions et les demandes que le lot écrit, puis celles que ses
+   entrées citent, et le fichier qu'approuve une décision de séance
+   (son `sujet`).
+   `--base <ref>` change la base ; pour une seconde revue, `--since
+   <commit relu>` ne montre que le diff depuis la première, avec les
+   messages des commits qui la corrigent. Une référence inconnue, ou un
+   `--since` qui n'est pas un ancêtre de HEAD, est refusée. Un lot déjà
+   poussé, même en partie (en session cloud, à chaque fin de tour), ou
+   une branche qui porte des lots déjà relus, que la note du dossier
+   signale : `--base <le commit d'où le lot est parti>`. Il écrit la
+   passe dans le lot en cours du backlog, ou celui que `--batch L-NNNN`
+   nomme, et refuse une passe que son historique refuse (plus bas).
+   Un petit lot (moins de 150 lignes de code et de tests) qui ne touche
+   ni un garde-fou ni un format que d'autres parties du projet lisent
+   reçoit le dossier court, `--short` : le diff et les critères de ses
+   tâches, à juger sans explorer au-delà des fichiers touchés ; tout
+   autre lot, le dossier complet. `--short` refuse un lot qui touche un
+   chemin que la politique protège ou que les garde-fous déclarent.
 3. Le confier à un relecteur qui n'a pas la conversation. Sous Claude Code
    : un sous-agent (outil `Agent`), dont le seul message est ce dossier,
    tel quel, sans ajout ni retrait. Il reçoit explicitement à son
@@ -64,15 +69,12 @@ python3 .socle/socle review
    session, sans `model`, et son compte rendu nomme le modèle qui l'a
    servi ; Fable, s'il est disponible,
    seulement si l'humain le demande. Il reçoit aussi les instructions du
-   projet et peut lire le dépôt, mais ni la conversation ni le
-   raisonnement de l'agent, et le dossier lui dit de ne rien modifier :
-   pour éprouver une commande, il crée un dossier temporaire hors du dépôt
-   et n'écrit que là, par le chemin que `mktemp -d` a rendu, écrit en
-   toutes lettres dans chaque commande : une variable ne survit pas d'un
-   appel à l'autre. Le hook de l'agent refuse l'installeur visé sur le
-   projet dans un autre mode que celui de son verrou, ou sur une cible
-   écrite par une variable, mais pas toute écriture du relecteur dans le
-   dépôt. Un agent sans sous-agents saute la revue, et son récap le dit.
+   projet et peut lire le dépôt ; le dossier lui dit de ne rien modifier
+   hors d'un dossier temporaire (`mktemp -d`). Le hook de
+   l'agent n'arrête pas toute écriture du relecteur dans le dépôt (il
+   refuse l'installeur visé sur le projet hors du mode de son verrou, ou
+   par une variable). Un agent sans sous-agents saute la revue, et son
+   récap le dit.
 
 ## Les constats
 
@@ -123,10 +125,9 @@ hors de la mémoire.
    la passe, sous ses bloquants : un paragraphe qui commence par
    « Recul : », de soixante mots au moins, qui répond aux trois questions
    que `socle review` donne en refusant la passe, avec ce qu'il y
-   montre. Les bloquants de cette passe ont-ils la même cause que ceux de la précédente ? Les entrées que le lot ouvre
-   sont-elles de même nature que celles qu'il ferme ? Les lots clos qui
-   ont touché les mêmes fichiers ont-ils déjà ouvert ce genre d'entrées ?
-   Son dernier mot est sa décision : « continuer », ce qui rendra la
+   montre : ses bloquants ont-ils la cause de ceux d'avant ? Ce que le
+   lot ouvre est-il de la nature de ce qu'il ferme ? Les lots clos sur
+   les mêmes fichiers ont-ils ouvert de telles entrées ? Son dernier mot est sa décision : « continuer », ce qui rendra la
    passe suivante différente écrit avant, ou « s'arrêter ».
 3. S'arrêter : poser une demande à l'humain (skill `socle-request`) qui
    cite le lot et dit ce qui tourne, en clair, la règle qui le fait

@@ -456,11 +456,12 @@ def cmd_review(args) -> int:
         return 0
     try:
         texte, note = revue.relire(_projet(args), args.base, args.max_bytes, getattr(args, "since", None),
-                                   getattr(args, "batch", None))
-    except (revue.ReferenceRefusee, revue.PasseRefusee) as refus:
+                                   getattr(args, "batch", None), court=getattr(args, "short", False))
+    except (revue.ReferenceRefusee, revue.PasseRefusee, revue.CourtRefuse) as refus:
         # Une référence qui ne mesure pas le lot (ADR-0081) : un dossier vide
         # ou étranger, qu'un relecteur jugerait sans constat, ne part pas. Une
-        # passe que l'historique du lot refuse (ADR-0084) non plus.
+        # passe que l'historique du lot refuse (ADR-0084) non plus, ni le
+        # dossier court d'un lot qui touche un garde-fou (B-0288).
         print(refus, file=sys.stderr, end="" if str(refus).endswith("\n") else "\n")
         return 2
     print(texte, end="")
@@ -954,6 +955,10 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("--batch", metavar="L-NNNN", help=trad("le lot dont c'est la passe de revue, qui s'écrit dans sa "
                                                           "section « Revues » (par défaut : le lot en cours du "
                                                           "backlog)"))
+    s.add_argument("--short", action="store_true", help=trad("le dossier court d'un petit lot : le diff et les "
+                                                             "critères de ses tâches, à juger sans explorer "
+                                                             "au-delà des fichiers touchés ; refusé pour un lot "
+                                                             "qui touche un garde-fou"))
     s.set_defaults(f=cmd_review)
 
     s = sp.add_parser("answer", help=trad("répondre à une demande ; l'agent y relaie (--relayed) ta réponse "

@@ -1,31 +1,32 @@
 ---
 name: socle-batch
-description: Mener un lot de tâches du backlog, de sa formation à sa livraison : un sous-agent par tâche, la revue sans contexte avant tout push, l'intégration, la CI, la fusion, une session par lot. À utiliser quand l'agent forme ou annonce un lot, à chacune de ses étapes, et à la reprise d'un lot en cours.
+description: Mener un lot de tâches du backlog, de son annonce à sa livraison. À utiliser quand l'agent forme ou annonce un lot, à chacune de ses étapes, et à sa reprise.
 ---
 
 # Mener un lot
 
 Un lot réunit les tâches prêtes qui se traitent ensemble : celles qui
 touchent les mêmes fichiers, le même garde-fou ou les mêmes tests, qu'une
-seule revue juge. L'agent qui le mène orchestre : il annonce,
-délègue, fait relire, intègre et livre ; il n'implémente lui-même qu'un
-changement de quelques lignes.
+seule revue juge. L'agent qui le mène orchestre : il annonce, délègue,
+fait relire, intègre et livre ; il n'implémente lui-même qu'une petite
+tâche.
 
 ## Former et annoncer
 
 1. Le prochain lot est dans l'état (`prochain lot`). Sinon, le former
    sur tout le backlog ouvert, sans le demander : les tâches prêtes
    auxquelles sa règle s'applique, du prochain jalon et de priorité haute
-   d'abord, ce qui se mène en une session ; un besoin à découper reçoit
-   d'abord ses tâches. Le reste, comme une tâche ouverte ensuite, va au
-   prochain lot pas encore en cours dont la règle s'applique ; le récap
-   dit chaque placement. Il se garde au
-   backlog : `python3 .socle/socle new batch "Lot …"`, puis `après :` le
-   lot d'avant et ses tâches ; son corps dit ce qui les réunit.
-2. Lire chaque tâche (`python3 .socle/socle show <ID>`), annoncer le lot à
-   l'humain (les tâches, leur taille, le jalon servi), et le passer
-   `en cours`.
-3. En session cloud de Claude Code, armer les réveils (skill
+   d'abord ; un besoin à découper reçoit d'abord ses tâches ; le reste va
+   au prochain lot pas encore en cours dont la règle s'applique, et le
+   récap dit chaque placement. Il se garde
+   au backlog : `python3 .socle/socle new batch "Lot …"`, puis `après :`
+   le lot d'avant et ses tâches ; son corps dit ce qui les réunit.
+2. Lire chaque tâche (`python3 .socle/socle show <ID>`) et estimer le
+   coût du lot : s'il ne tient pas dans ce qui
+   reste de la fenêtre, le découper, commencer par un lot plus petit ou
+   attendre la remise à zéro. Annoncer le lot à l'humain (les tâches,
+   leur taille, le jalon servi, le coût estimé), et le passer `en cours`.
+3. En session cloud, armer les réveils (skill
    `socle-resume`).
 4. Partir d'une branche de travail propre et poussée.
 
@@ -33,7 +34,7 @@ changement de quelques lignes.
 
 Sous Claude Code : outil `Agent`, dans une copie isolée du dépôt
 (`isolation: "worktree"`), en arrière-plan ; deux à la fois au plus.
-Il n'a pas la conversation : sa consigne se lit seule.
+Sans la conversation, sa consigne se lit seule.
 
 ```text
 Tu implémentes une tâche de ce dépôt dans ta copie isolée. Les instructions
@@ -49,89 +50,96 @@ voisin (un besoin au backlog).
 Compte rendu : ton modèle, le commit, ce que les tests prouvent, les choix, ce qui reste.
 ```
 
+**Une petite tâche**, moins de 150 lignes de code et de tests (seuil
+provisoire, à mesurer), s'implémente dans la session qui
+orchestre, sauf si elle touche un garde-fou ou un format que d'autres
+parties du projet lisent.
 **Sans sous-agents**, l'agent mène le lot seul : une tâche après
 l'autre, un commit chacune, la revue sur le lot entier.
 
 ## La revue, avant tout push
 
-Skill `socle-review`, sur le lot commité. Un bloquant retourne au
-sous-agent qui a implémenté, s'il répond encore, sinon à un neuf qui
-reçoit la consigne et le constat ; le reste va au backlog. Un lot ne part
-qu'après la correction de ses bloquants : une fois poussés, une décision,
-une entrée de journal et une valeur attendue ne se réécrivent plus.
+Skill `socle-review`, sur le lot commité. Un bloquant retourne à qui a
+implémenté, s'il répond encore, sinon à un sous-agent neuf, avec la
+consigne et le constat : un sous-agent arrêté depuis plus de cinq
+minutes ne se reprend pas. Le reste va au backlog. Un lot ne part qu'après la correction de ses bloquants :
+une fois poussés, une décision, une entrée de journal et une valeur
+attendue ne se réécrivent plus.
 
 ## Intégrer, pousser, livrer
 
 1. Sur la branche de travail : `git merge --ff-only` de la branche du
    sous-agent si son commit suit la tête, sinon `git merge --squash`, puis
-   un commit qui reprend son message. Deux tâches qui ont pris le même
-   identifiant : la seconde intégrée se renumérote ; un identifiant que la
-   branche par défaut a pris aussi : `python3 .socle/socle renumber <ID>`.
+   un commit qui reprend son message. Un identifiant pris deux fois, par
+   deux tâches ou par la branche par défaut : `python3 .socle/socle
+   renumber <ID>` sur le second.
 2. Retirer la copie isolée et sa branche ;
    `python3 .socle/socle verify --fast`.
 3. Pousser ; ouvrir la pull request s'il n'y en a pas, une seule ouverte.
-   Attendre `success` sur le SHA court du commit de tête, ligne « CI »
-   de `python3 .socle/socle state`. Une attente annoncée a son réveil (sous Claude Code,
-   `send_later`).
-4. La fusion est celle des instructions du projet : par défaut,
-   l'humain fusionne, et le lot suivant s'ajoute à la même pull request.
-   Si elles laissent l'agent fusionner la sienne : CI verte sur le commit
-   de tête, revue faite, aucune demande en attente sur son contenu, en
-   donnant le commit de tête attendu.
+   Attendre `success` sur le SHA court du commit de tête, ligne « CI » de
+   `python3 .socle/socle state`. Une attente annoncée a son réveil (sous
+   Claude Code, `send_later`).
+4. Qui fusionne, les instructions du projet le disent : par défaut
+   l'humain, et le lot suivant s'ajoute à la même pull request ; l'agent,
+   la sienne, si elles le permettent : CI verte sur le commit de tête
+   attendu, qu'il donne, revue faite, aucune demande en attente sur son
+   contenu.
 5. Le chantier actif et le journal s'écrivent avant la fusion, dans le
    dernier commit de la pull request, avec la clôture du lot : ses tâches
-   closes et son recul écrit, il passe `fait`, puis `python3 .socle/socle archive` ; le récap
-   de la clôture colle la sortie de `python3 .socle/socle roadmap` dans un bloc de code. Après la
-   fusion, la branche locale repart de la branche par défaut et ne se pousse qu'avec le premier commit du lot suivant : seule,
-   elle recréerait la branche distante.
+   closes et son recul écrit, il passe `fait`, puis `python3 .socle/socle
+   archive` ; le récap de la clôture colle la sortie de `python3
+   .socle/socle roadmap` dans un bloc de code. Après la fusion, la branche
+   locale repart de la branche par défaut et ne se pousse qu'avec le
+   premier commit du lot suivant : seule, elle recréerait la branche
+   distante.
 
 ## La consommation
 
-Chaque pas de l'orchestration relit toute la conversation.
-
-- Un lot par session : la conversation qui orchestre reste courte.
-- Un seul sous-agent au-delà de 75 % de la semaine ; aucun au-delà de 85 % de la semaine ou de 60 % de la fenêtre
-  de cinq heures : finir le pas en cours, puis changer de session. En session
-  cloud de Claude Code, `list_events` les donne (`kinds:
-  ["rate_limit_event"]`, `utilization`), avant chaque lancement et à
-  chaque compte rendu.
-- Une limite proche change l'ordre des tâches, jamais la profondeur du
-  travail : une tâche qui demande plus de réflexion se commence quand même.
-- Un sous-agent ne se reprend pas après plus de cinq minutes d'arrêt : un
-  neuf reçoit la consigne et les constats.
-- Une attente de plus d'une heure (une CI longue, une réponse, la
-  nuit) ne se fait pas dans une conversation longue.
+- Un lot par session : la conversation qui orchestre, relue à chaque
+  pas, reste courte.
+- Les coûts se mesurent : l'utilisation de chaque fenêtre, avant chaque
+  lancement et à chaque compte rendu (en session cloud, `list_events`,
+  `rate_limit_event`). La clôture
+  note au journal le coût de chaque sous-agent, du relecteur, de chaque
+  demande et du rangement : celui d'un lot s'estime sur ces mesures.
+- Un seul sous-agent au-delà de 75 % de la semaine. Un sous-agent se
+  lance si ce qui reste de chaque fenêtre couvre son coût mesuré et celui
+  du rangement ; sans mesure, aucun au-delà de 85 % de la semaine ou de
+  60 % de la fenêtre de cinq heures. Le rangement commence au plus tard à
+  dix points d'une limite : finir le pas en cours, puis changer de session.
 - L'agent ne compacte pas lui-même : il écrit la mémoire (chantier actif,
-  journal), puis le demande à l'humain (sous Claude Code, `/compact`), à
-  la fin d'un lot si l'humain garde la session au-delà, et avant toute attente qui peut passer l'heure sans changer de session. Près d'une limite, le seuil plus haut
-  prime : changer de session. Après la pause, il est trop tard : compacter la relirait au prix fort.
-- Le modèle : celui que demande la qualité du travail, jamais un moindre
-  pour tenir une limite : une limite retarde un lot, elle ne l'allège
-  pas. Entre ceux qui le font aussi bien, celui qui consomme le moins de
-  la limite par jeton, surtout pour la conversation qui orchestre ; l'humain choisit celui de la session, sur le conseil
-  de l'agent. Celui que fixent les
-  instructions du projet prime. Un sous-agent reçoit le sien
-  explicitement à son lancement (outil `Agent` : `model`), sur la
-  dernière version de sa famille : si l'alias (`opus`…) en désigne une
-  plus ancienne, sans `model`, il hérite de la session ; sinon, le dire à
-  l'humain. Son compte rendu et le récap nomment son modèle.
+  journal), puis le demande à l'humain (`/compact`), à la fin d'un lot
+  si l'humain garde la session, et avant toute attente qui peut
+  passer l'heure sans changer de session. Près d'une limite, le seuil
+  plus haut prime : changer de session. Après la pause, il est trop
+  tard.
+- Une limite proche change l'ordre des tâches, jamais la profondeur du
+  travail (une tâche qui demande plus de réflexion se commence quand
+  même) ni le modèle : celui que demande la qualité du travail, jamais
+  un moindre pour tenir une limite : une limite retarde un lot, elle ne
+  l'allège pas. Entre ceux qui le font aussi bien, celui qui consomme le
+  moins de la limite par jeton ; l'humain choisit celui de la session,
+  sur le conseil de l'agent. Celui que fixent les instructions du projet
+  prime. Un sous-agent reçoit le sien explicitement à son lancement
+  (`model`), la dernière version de sa famille (un alias qui en désigne
+  une plus ancienne : sans `model`, il hérite de la session ; sinon, le
+  dire à l'humain), nommé au récap.
 
 ## Changer de session
 
-Quand le lot est livré et que la fenêtre de cinq heures ne permet pas
-d'en mener un autre entier, ou qu'une attente de plus d'une heure
-s'annonce. Ranger d'abord, pour qu'une session neuve reparte du dépôt
-seul :
+Quand le lot est livré et que la fenêtre ne permet pas d'en mener un
+autre entier, ou qu'une attente de plus d'une heure s'annonce. Ranger
+d'abord, pour qu'une session neuve reparte du dépôt seul :
 
 1. rien qui ne vive que dans le conteneur : tout est poussé, et un commit
-   pas encore relu part en correctif (`git format-patch`) dans un dossier de passation du dépôt, retiré à son intégration ;
+   pas encore relu part en correctif (`git format-patch`) dans un dossier
+   de passation du dépôt, retiré à son intégration ;
 2. les copies isolées et leurs branches retirées ;
-3. le chantier actif, écrit avant la fusion, dit le lot et ce qui attend
-   (un compte rendu, une CI, une demande) ;
+3. le chantier actif, écrit avant la fusion, dit le lot et ce qui attend ;
 4. en session cloud, les réveils retirés.
 
-Puis dire à l'humain qu'il faut changer de session, et pourquoi, avec le
-prompt de la suivante dans un bloc à copier :
+Puis dire à l'humain pourquoi changer de session, avec le prompt de la
+suivante dans un bloc à copier :
 
 ```text
 Reprends le travail de ce dépôt, en session neuve.
