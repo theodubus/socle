@@ -48,7 +48,9 @@ ID_RE = re.compile(
 NUM_JOURNAL = re.compile(r"^\d{4}-\d{2}-\d{2}-[A-Z]{1,2}$")
 NUM_SIMPLE = re.compile(r"^\d{4}$")
 
-TITRE_RE = re.compile(r"^(?P<niveau>#{1,6})\s+(?P<reste>.*?)\s*#*\s*$")
+# La fermeture d'un titre, des dièses, ne se retire que précédée d'une espace,
+# comme en CommonMark : « C# » garde le sien (B-0203).
+TITRE_RE = re.compile(r"^(?P<niveau>#{1,6})\s+(?P<reste>.*?)(?:\s+#+)?\s*$")
 ENTETE_ENTREE = re.compile(
     r"^(?P<id>P?(?:ADR|JA|F|B|T|L|D|J)-[\d-]+[A-Z]{0,2})\s*[—–-]\s*(?P<titre>.+)$"
 )

@@ -44,6 +44,8 @@ L'emplacement impose la couche ; la zone est celle de l'emplacement
 Une entrée est un titre qui commence par son identifiant, suivi d'une ligne
 de métadonnées (une ou plusieurs lignes `>` consécutives), puis d'un corps
 libre qui court jusqu'au titre suivant de même niveau ou de niveau supérieur.
+Comme en Markdown, les dièses qui ferment un titre, précédés d'une espace,
+n'en font pas partie ; un dièse collé à un mot (« C# ») en fait partie.
 
 ```markdown
 ## F-0007 — La suite de tests complète tourne en moins de 40 secondes
@@ -73,8 +75,15 @@ Les métadonnées sont des paires `clé : valeur` séparées par un point média
 Dans la zone privée, l'identifiant prend un `P` devant (`PF-0001`,
 `PJ-2026-10-10-A`) : un fichier public qui en cite un est une fuite, et le
 contrôle la voit même sans accès à la zone privée. Un identifiant se calcule
-(`socle next-id`, `socle new`), il ne se devine pas. Il est défini une seule
-fois ; toute mention ailleurs doit mener à une définition.
+(`socle next-id`, `socle new`), il ne se devine pas ; `socle new` saute
+ceux que prennent les branches distantes et les correctifs suivis du dépôt
+(`*.patch`, `*.diff`), ceux d'une passation. Il est défini une seule
+fois ; toute mention ailleurs doit mener à une définition. Un identifiant
+que deux branches ont pris se répare par `socle renumber <ID>` : l'entrée
+qu'ajoute la branche prend le suivant libre, avec ses mentions et ses
+empreintes ; après un rebase ou un cherry-pick qui les réunit, c'est celle
+qui manque à la base ou au dernier commit poussé, et seules les lignes que
+la branche a ajoutées changent.
 
 ### Références
 

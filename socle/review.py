@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import subprocess
 from datetime import date
 
 from socle import config, language as langue, memory as memoire, utils as outils
@@ -74,7 +75,43 @@ def debut_du_lot(racine, base: str) -> str | None:
 
 
 def _debut(racine, base: str) -> str:
+    """L'ancêtre commun de `base` et de HEAD ; `base` lui-même sans lui,
+    dont l'arbre que rend `sans_la_fusion`, déjà l'origine du lot."""
     return debut_du_lot(racine, base) or base
+
+
+def sans_la_fusion(projet: config.Projet, debut: str) -> tuple[str, str | None]:
+    """D'où se mesurent le diff et les sujets du lot, et la note qui le
+    dit : `debut` ; ou, si la branche a fusionné la branche par défaut
+    depuis `debut`, l'arbre de cette fusion refaite sur `debut` (`git
+    merge-tree`), dont HEAD ne diffère que par ce que le lot change
+    lui-même (B-0241). Une fusion qui ne se refait pas sans conflit, ou un
+    git sans `merge-tree --write-tree` (2.38), laisse `debut`, et la note
+    dit que le dossier montre aussi ce qu'elle a apporté."""
+    racine = projet.racine
+    defaut = outils.branche_par_defaut(racine)
+    if not defaut or not outils.rev_existe(racine, defaut):
+        return debut, None
+    fusionne = outils.git(racine, "merge-base", defaut, "HEAD", check=False).strip()
+    if not fusionne or outils.git_reussit(racine, "merge-base", "--is-ancestor", fusionne, debut):
+        return debut, None
+    # Sur la lignée des premiers parents de la branche, ce commit est du
+    # lot : la branche par défaut l'a reçu d'elle, en avance rapide.
+    lignee = outils.git(racine, "rev-list", "--first-parent", f"{debut}..HEAD", check=False).split()
+    if fusionne in lignee:
+        return debut, None
+    r = subprocess.run(["git", "merge-tree", "--write-tree", debut, fusionne], cwd=racine, capture_output=True,
+                       text=True)
+    arbre = r.stdout.split("\n", 1)[0].strip() if r.returncode == 0 else ""
+    if not arbre:
+        return debut, trad("(la branche a fusionné {defaut} depuis {debut}, et cette fusion ne se refait pas sans "
+                           "conflit, ou ce git ne sait pas la refaire (`git merge-tree --write-tree`, git 2.38) : le "
+                           "dossier montre aussi ce qu'elle a apporté jusqu'à {fusionne}, qui n'est pas du lot)",
+                           defaut=defaut, debut=_court(projet, debut), fusionne=_court(projet, fusionne))
+    return arbre, trad("(la branche a fusionné {defaut} depuis {debut} : le lot se mesure sans ce que cette fusion a "
+                       "apporté, depuis l'arbre {arbre}, {debut} fusionné avec {fusionne})",
+                       defaut=defaut, debut=_court(projet, debut), fusionne=_court(projet, fusionne),
+                       arbre=arbre[:12])
 
 
 def _hors_memoire(projet: config.Projet) -> list[str]:
@@ -218,8 +255,11 @@ def messages_depuis(racine, depuis: str) -> list[str]:
     récent, sans leurs lignes de fin (`Co-Authored-By:`, `Socle-Hooks:`…) :
     ce que la correction dit corriger. Seul le dernier paragraphe se retire,
     s'il n'est fait que de lignes de fin, et jamais le titre : un titre
-    `fix: …` ou `Corrige: B-NNNN` reste."""
-    brut = outils.git(racine, "log", "--reverse", "--format=%x00%B", f"{depuis}..HEAD", check=False)
+    `fix: …` ou `Corrige: B-NNNN` reste. Sur la lignée des premiers parents
+    de la branche : ceux qu'une fusion de la branche par défaut a apportés
+    n'y sont pas, son commit de fusion y est (B-0241)."""
+    brut = outils.git(racine, "log", "--reverse", "--first-parent", "--format=%x00%B", f"{depuis}..HEAD",
+                      check=False)
     res = []
     for message in brut.split("\0"):
         paragraphes = [p.strip("\n") for p in re.split(r"\n[ \t]*\n", message.strip()) if p.strip()]
@@ -458,8 +498,11 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
     garde-fou (`garde_fous_touches`, mesuré sur tout le lot) lève
     `CourtRefuse`."""
     base, note, debut = _mesurer(projet, base, depuis)
+    # Le diff et les sujets du lot, sans ce qu'une fusion de la branche par
+    # défaut a apporté depuis son début (B-0241) ; ses passes gardent `debut`.
+    origine_du_lot, note_fusion = sans_la_fusion(projet, debut) if debut else (debut, None)
     if court and base:
-        touches = garde_fous_touches(projet, _diff(projet, debut)[1])
+        touches = garde_fous_touches(projet, _diff(projet, origine_du_lot)[1])
         if touches:
             raise CourtRefuse(trad(
                 "le lot touche un garde-fou : {chemins}. Son relecteur doit pouvoir lire au-delà du diff : pas de "
@@ -481,15 +524,25 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
     origine = base if tel_quel else debut
     if note:
         lignes += [note, ""]
+    if note_fusion:
+        lignes += [note_fusion, ""]
     if depuis:
+        # La correction, sans ce qu'une fusion de la branche par défaut a
+        # apporté depuis le commit relu (B-0241).
+        origine_correction, note_correction = sans_la_fusion(projet, depuis)
+        if note_correction and note_correction != note_fusion:
+            lignes += [note_correction, ""]
         lignes += [trad("## Seconde revue"), "", trad(CONSIGNE_SECONDE), ""]
         for message in messages_depuis(projet.racine, depuis):
             lignes += ["```text", message, "```", ""]
-        diff, fichiers = _diff(projet, depuis)
+        diff, fichiers = _diff(projet, origine_correction)
+        origine = origine_correction
         lignes += [trad("## Le diff de la correction ({n} fichier(s), depuis {base})", n=len(fichiers),
                         base=depuis), ""]
     else:
-        diff, fichiers = _diff(projet, debut)
+        diff, fichiers = _diff(projet, origine_du_lot)
+        if origine_du_lot != debut:
+            origine = origine_du_lot
         if tel_quel:
             lignes += [trad("## Le diff du lot ({n} fichier(s), depuis {base})", n=len(fichiers), base=base), ""]
         else:
@@ -502,12 +555,12 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
         lignes += ["```diff", montre.rstrip("\n"), "```"]
         if len(montre) < len(diff):
             lignes.append(trad("(diff tronqué : {n} caractère(s) de plus non montrés ; `git diff {base}` les "
-                               "donne)", n=len(diff) - len(montre), base=depuis or origine))
-    servis, ouverts = sujets_du_lot(projet, debut)
+                               "donne)", n=len(diff) - len(montre), base=origine))
+    servis, ouverts = sujets_du_lot(projet, origine_du_lot)
     if court:
         lignes += ["", trad("## Les critères des tâches du lot : ta barre"), ""]
         lignes += _criteres_du_lot(servis) or [trad("(aucune entrée du backlog servie)")]
-        lignes += contenus_approuves(projet, decisions_citees(projet, servis), debut=debut)
+        lignes += contenus_approuves(projet, decisions_citees(projet, servis), debut=origine_du_lot)
         return "\n".join(lignes).rstrip() + "\n"
     if servis:
         lignes += ["", trad("## Les entrées du backlog que sert le lot : leurs critères sont ta barre"), ""]
@@ -516,7 +569,7 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
     if ouverts:
         lignes += ["", trad("## Les entrées que le lot ouvre : ce qu'il renvoie au backlog"), ""]
         lignes += [f"- {s.id} — {s.titre}" for s in ouverts]
-    ecrites = decisions_ecrites(projet, debut)
+    ecrites = decisions_ecrites(projet, origine_du_lot)
     if ecrites:
         lignes += ["", trad("## Les décisions et les demandes que le lot écrit"), ""]
         for e in ecrites:
@@ -530,7 +583,7 @@ def dossier(projet: config.Projet, base: str | None = None, plafond: int = PLAFO
         lignes += ["", trad("## Les décisions et les demandes qu'elles citent"), ""]
         for e in decisions:
             lignes += [e.texte.strip(), ""]
-    approuves = contenus_approuves(projet, citees, debut=debut)
+    approuves = contenus_approuves(projet, citees, debut=origine_du_lot)
     if approuves:
         lignes += [""] + approuves
     return "\n".join(lignes).rstrip() + "\n"

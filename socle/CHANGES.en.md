@@ -7,6 +7,64 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-20-o — The review folder of a branch that merged the default branch shows only the batch
+
+An already pushed branch that merged the default branch during a batch
+gave the reviewer, along with the batch, the code and the closed entries
+the merge brought. `socle review` now measures the batch's diff and
+subjects from the merge redone on its start (`git merge-tree
+--write-tree`, git 2.38), and a note says so; so does the diff of a
+second review (`--since`), whose messages keep only the branch's
+commits. A merge that cannot be
+redone without conflict, or an older git, leaves the folder as before,
+and the note says it also shows what the merge brought.
+
+To do: nothing.
+
+## 2026-11-20-n — The CI summary of a pull request links a request posed on its branch
+
+On a pull request, the CI runs on a detached HEAD, the merge commit
+GitHub prepares; a request's link pointed there to the default branch,
+which does not have a request posed on the branch yet: the run summary
+(`socle roadmap --format markdown`) gave it without a link. When
+`GITHUB_HEAD_REF` is set, the link now points, for the repository the
+CI checked out (`GITHUB_WORKSPACE`), to the head of the pull request, the second parent of the merge commit.
+
+To do: nothing.
+
+## 2026-11-20-m — `socle renumber` repairs a collision born of a rebase
+
+After a rebase or a cherry-pick, two entries carried the same
+identifier: `socle renumber` refused ("existed before the branch"), or
+renumbered both, along with the mentions of the one already there. It
+now renumbers the one the branch adds, the one missing from the base or
+from the last pushed commit, and changes only the lines the branch
+added: the other entry and its mentions stay as they are.
+
+To do: nothing.
+
+## 2026-11-20-l — `socle new` does not reuse an identifier that a tracked patch of the repository creates
+
+A handover stores the commits not yet reviewed as patches (`git
+format-patch`); an entry written before they were applied took the
+number of an entry they create, and the applied patch defined it twice.
+Computing an identifier (`socle new`, a request, `socle
+renumber`) now skips the entry titles that a tracked patch of the
+repository (`*.patch`, `*.diff`) adds to a memory file.
+
+To do: nothing.
+
+## 2026-11-20-k — A title that ends with a hash attached to a word keeps it
+
+The memory reader stripped every trailing hash from a title: an entry
+titled "… in a C# project" ended "… in a C" once read. Only a closing
+sequence preceded by a space (`## Title ##`) is now stripped, as in
+Markdown. Entry fingerprints do not change: they are computed on the raw
+text; an index fingerprint changes if one of its titles ends that way.
+
+To do: nothing; an index citation this change makes stale is refused
+with the command that rereads it.
+
 ## 2026-11-20-j — A shell form the hook does not judge is no longer listed or reported: the guide keeps the hook's threat model
 
 The `socle-review` skill, the reviewer's instructions of `socle review`

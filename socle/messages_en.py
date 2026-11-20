@@ -2300,6 +2300,19 @@ MESSAGES: dict[str, str] = {
         "finding hidden: private zone (run the checks again where it can be read)",
     "`{ident}` existait avant la branche : ce n'est pas à elle de le renuméroter":
         "`{ident}` existed before the branch: it is not for the branch to renumber it",
+    "(la branche a fusionné {defaut} depuis {debut}, et cette fusion ne se refait pas sans conflit, ou ce git ne sait "
+    "pas la refaire (`git merge-tree --write-tree`, git 2.38) : le dossier montre aussi ce qu'elle a apporté jusqu'à "
+    "{fusionne}, qui n'est pas du lot)":
+        "(the branch has merged {defaut} since {debut}, and that merge cannot be redone without conflict, or this git "
+        "cannot redo it (`git merge-tree --write-tree`, git 2.38): the folder also shows what it brought up to "
+        "{fusionne}, which is not part of the batch)",
+    "(la branche a fusionné {defaut} depuis {debut} : le lot se mesure sans ce que cette fusion a apporté, depuis "
+    "l'arbre {arbre}, {debut} fusionné avec {fusionne})":
+        "(the branch has merged {defaut} since {debut}: the batch is measured without what that merge brought, from "
+        "tree {arbre}, {debut} merged with {fusionne})",
+    "`{ident}` est défini {n} fois, et aucune version poussée ne dit laquelle la branche ajoute : "
+    "renuméroter à la main":
+        "`{ident}` is defined {n} times, and no pushed version tells which one the branch adds: renumber it by hand",
     "`{ident}` a reçu sa réponse : une demande répondue est gelée":
         "`{ident}` has received its answer: an answered request is frozen",
     "reporté dans {n} fichier(s) : {liste}":

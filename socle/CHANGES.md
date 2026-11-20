@@ -7,6 +7,67 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-20-o — Le dossier de la revue d'une branche qui a fusionné la branche par défaut ne montre que le lot
+
+Une branche déjà poussée qui fusionnait la branche par défaut en cours
+de lot donnait au relecteur, avec le lot, le code et les entrées closes
+que la fusion apportait. `socle review` mesure désormais le diff et les
+sujets du lot depuis la fusion refaite sur son début (`git merge-tree
+--write-tree`, git 2.38), et une note le dit ; le diff d'une seconde
+revue (`--since`) aussi, et ses messages ne gardent que les commits de
+la branche. Une fusion qui ne se
+refait pas sans conflit, ou un git plus ancien, laisse le dossier
+d'avant, et la note dit qu'il montre aussi ce que la fusion a apporté.
+
+À faire : rien.
+
+## 2026-11-20-n — Le résumé de la CI d'une pull request donne le lien d'une demande posée sur sa branche
+
+Sur une pull request, la CI tourne sur une HEAD détachée, le commit de
+fusion que GitHub prépare ; le lien d'une demande y visait la branche
+par défaut, où une demande posée sur la branche n'est pas encore : le
+résumé de l'exécution (`socle roadmap --format markdown`) la donnait sans
+lien. Quand `GITHUB_HEAD_REF` est là, le lien vise désormais, pour le dépôt
+que la CI a extrait (`GITHUB_WORKSPACE`), la tête de la pull request, le second parent du commit de fusion.
+
+À faire : rien.
+
+## 2026-11-20-m — `socle renumber` répare une collision née d'un rebase
+
+Après un rebase ou un cherry-pick, deux entrées portaient le même
+identifiant : `socle renumber` refusait (« existait avant la branche »),
+ou renumérotait les deux, avec les mentions de celle qui était déjà là.
+Il renumérote désormais celle qu'ajoute la branche, celle qui manque à
+la base ou au dernier commit poussé, et ne change que les lignes que la
+branche a ajoutées : l'autre entrée et ses mentions restent telles
+quelles.
+
+À faire : rien.
+
+## 2026-11-20-l — `socle new` ne reprend pas un identifiant qu'un correctif suivi du dépôt crée
+
+Une passation range en correctifs (`git format-patch`) les commits pas
+encore relus ; une entrée écrite avant leur application prenait le
+numéro d'une entrée qu'ils créent, et le correctif appliqué en
+définissait deux. Le calcul d'un identifiant (`socle new`, une
+demande, `socle renumber`) saute désormais les titres
+d'entrée qu'un correctif suivi du dépôt (`*.patch`, `*.diff`) ajoute à
+un fichier de la mémoire.
+
+À faire : rien.
+
+## 2026-11-20-k — Un titre qui finit par un dièse collé à un mot le garde
+
+Le lecteur de la mémoire retirait tout dièse en fin de titre : une
+entrée intitulée « … dans un projet C# » se lisait « … dans un projet
+C ». Seule une fermeture précédée d'une espace (`## Titre ##`) se
+retire désormais, comme en Markdown. Les empreintes des entrées ne
+changent pas : elles se calculent sur le texte brut ; celle d'un index
+change si l'un de ses titres finit ainsi.
+
+À faire : rien ; une citation d'index que ce changement périme se
+refuse avec la commande qui la relit.
+
 ## 2026-11-20-j — Une forme du shell que le hook ne juge pas ne se liste ni ne se signale plus : le guide garde le modèle de menace du hook
 
 Le skill `socle-review`, la consigne du relecteur de `socle review` et
