@@ -61,12 +61,14 @@ MESSAGES: dict[str, str] = {
     "substitution, les arguments d'une fonction) : il pourrait forcer le push ou viser la branche par défaut, et "
     "rien ne le rattraperait ensuite (politique, point 4). Écrire ses arguments en toutes lettres (la branche "
     "courante : `git branch --show-current`), ou affecter la variable plus tôt dans la même commande "
-    "(`B=travail; git push origin \"$B\"`) (B-0254).":
+    "(`B=travail; git push origin \"$B\"`). `\"$(git branch --show-current)\"` vaut la branche courante si la "
+    "commande ne change ni de dossier ni de branche avant le push (B-0254).":
         "`git push` whose argument `{mot}` the hook cannot expand (a variable it does not know, a substitution, a "
         "function's arguments): it could force the push or target the default branch, and nothing would catch "
         "it afterwards (policy, rule 4). Write its arguments out in full (the current branch: `git branch "
-        "--show-current`), or assign the variable earlier in the same command (`B=work; git push origin \"$B\"`) "
-        "(B-0254).",
+        "--show-current`), or assign the variable earlier in the same command (`B=work; git push origin \"$B\"`). "
+        "`\"$(git branch --show-current)\"` stands for the current branch if the command changes neither "
+        "directory nor branch before the push (B-0254).",
     "push sur la branche par défaut ({protegee})":
         "push to the default branch ({protegee})",
     "action externe ou irréversible ({outil}) : validation humaine requise (politique, point 4), et une demande "
@@ -2803,6 +2805,25 @@ MESSAGES: dict[str, str] = {
     "avant `run` comme après":
         "directory that contains the project deleted by a command that `uv run` or `poetry run` launch, their "
         "options before `run` as after it",
+    "fichier protégé supprimé par un `find` dont chaque filtre d'une même conjonction le vise, ou par un `-path` à "
+    "étoile de tête depuis la racine":
+        "protected file deleted by a `find` each filter of one conjunction of which targets it, or by a `-path` with a "
+        "leading star from the root",
+    "dossier qui contient le projet, ou le projet lui-même, supprimé par `xargs rm` derrière un `find` qui lui donne "
+    "sa liste":
+        "directory that contains the project, or the project itself, deleted by `xargs rm` behind a `find` that gives "
+        "it its list",
+    "fichier protégé écrit, ou dossier qui contient le projet supprimé, par le script qu'un heredoc donne à python "
+    "(`python3 - <<'EOF'`)":
+        "protected file written, or directory that contains the project deleted, by the script a heredoc gives to "
+        "python (`python3 - <<'EOF'`)",
+    "fichier protégé passé en argument au script d'un `python -c`, ou d'un script qu'un heredoc donne à python":
+        "protected file passed as an argument to the script of a `python -c`, or of a script a heredoc gives to "
+        "python",
+    "argument que le hook ne sait pas développer, passé au script d'un `python -c` ou d'un heredoc donné à python "
+    "qui lit ses arguments, dans le projet":
+        "argument the hook cannot expand, passed to the script of a `python -c` or of a heredoc given to python "
+        "that reads its arguments, in the project",
     "dossier qui contient le projet supprimé par la commande que lance une substitution entre guillemets, "
     "`\"$(…)\"` ou des accents graves, après un `cd` ou l'appel d'une fonction qui change de dossier":
         "directory that contains the project deleted by the command a quoted substitution launches, `\"$(…)\"` or "
@@ -2813,6 +2834,10 @@ MESSAGES: dict[str, str] = {
     "d'une fonction ou d'une substitution":
         "force push or push to the default branch whose option or branch comes from a variable, a function's "
         "arguments or a substitution",
+    "push vers la branche par défaut par une substitution qui rend la branche courante, lancé depuis elle, ou après "
+    "un changement de branche ou de dossier dans la même commande":
+        "push to the default branch by a substitution that gives the current branch, run from it, or after a change "
+        "of branch or directory in the same command",
     "dossier qui contient le projet supprimé, ou push forcé, dans le corps d'une fonction `function nom { …; }` "
     "écrite sans parenthèses, son corps sur la même ligne ou la suivante":
         "directory that contains the project deleted, or force push, in the body of a function `function name { …; }` "
@@ -3000,6 +3025,10 @@ MESSAGES: dict[str, str] = {
     "et un `git` dont une option globale ne se développe pas, passent le hook de l'agent (B-0254)":
         "a push of the working branch, its branch written out in full or in a variable assigned earlier, and a `git` "
         "whose global option does not expand, pass the agent's hook (B-0254)",
+    "un push de la branche de travail par une substitution qui rend la branche courante, nue, entre guillemets, "
+    "entre accents graves ou par une variable, passe le hook de l'agent (B-0254)":
+        "a push of the working branch by a substitution that gives the current branch, bare, quoted, in backticks "
+        "or through a variable, passes the agent's hook (B-0254)",
     "une substitution entre guillemets qui lance une commande ordinaire, un calcul entre guillemets et un message "
     "de commit par `\"$(cat <<'EOF' … EOF)\"` qui cite une suppression passent le hook de l'agent (B-0260)":
         "a quoted substitution that launches an ordinary command, a quoted computation and a commit message by "
@@ -3007,6 +3036,24 @@ MESSAGES: dict[str, str] = {
     "les commandes ordinaires que lancent `uv run` et `poetry run`, et `uv sync`, passent le hook de l'agent "
     "(B-0248)":
         "the ordinary commands that `uv run` and `poetry run` launch, and `uv sync`, pass the agent's hook (B-0248)",
+    "un nettoyage ciblé par un `find` dont la conjonction des filtres, ou le `-path` sous son départ, n'atteint aucun "
+    "fichier protégé passe le hook de l'agent (B-0231)":
+        "a targeted cleanup by a `find` whose conjunction of filters, or whose `-path` under its starting point, "
+        "reaches no protected file passes the agent's hook (B-0231)",
+    "un nettoyage par `xargs rm` sous le projet, derrière un `find` dont un filtre garde ce qu'il liste ou qui part "
+    "d'un dossier du projet, passe le hook de l'agent (B-0246)":
+        "a cleanup by `xargs rm` under the project, behind a `find` with a filter guarding what it lists or that "
+        "starts from a directory of the project, passes the agent's hook (B-0246)",
+    "le script qu'un heredoc donne à python sans citer de fichier protégé ni supprimer le projet, et un heredoc "
+    "donné à un autre programme qui cite un fichier protégé, passent le hook de l'agent (B-0229)":
+        "the script a heredoc gives to python without citing a protected file or deleting the project, and a heredoc "
+        "given to another program that cites a protected file, pass the agent's hook (B-0229)",
+    "un `python -c` dont les arguments ne nomment aucun fichier protégé passe le hook de l'agent (B-0230)":
+        "a `python -c` whose arguments name no protected file passes the agent's hook (B-0230)",
+    "un `python -c` dont l'argument que le hook ne sait pas développer tombe hors du projet, ou dont le script ne "
+    "lit pas ses arguments, et une boucle sur des fichiers connus passent le hook de l'agent":
+        "a `python -c` whose argument the hook cannot expand falls outside the project, or whose script does not "
+        "read its arguments, and a loop over known files pass the agent's hook",
     "l'orchestrateur, à la racine, retire le worktree d'un sous-agent par la fin de son chemin, et un sous-agent "
     "retire ou déplace un worktree voisin du sien, sans refus du hook de l'agent (B-0228)":
         "the orchestrator, at the root, removes a subagent's worktree by the end of its path, and a subagent removes "

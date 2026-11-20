@@ -1728,7 +1728,24 @@ def _cas() -> list[Cas]:
         return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
             "F=--force; git push $F origin travail", "B=main; git push origin \"$B\"",
             "f() { git push \"$@\"; }; f --force origin travail", "git push \"$SOCLE_ESSAI_CIBLE\" origin travail",
-            "git push origin \"$(git branch --show-current)\"")])
+            "git push origin \"$(echo main)\"")])
+
+    @defaut("push-de-la-branche-substituee", "push vers la branche par défaut par une substitution qui rend la "
+            "branche courante, lancé depuis elle, ou après un changement de branche ou de dossier dans la même "
+            "commande", "agent", "politique point 4")
+    def _(a, c):
+        # B-0254, T-0106 : `$(git branch --show-current)` se développe en la
+        # branche courante, que le push vise alors ; elle ne se lit plus quand
+        # la commande change de branche ou de dossier avant lui.
+        refus = tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "git checkout main && git push origin \"$(git branch --show-current)\"",
+            "cd .. && git push -u origin `git rev-parse --abbrev-ref HEAD`",
+            "B=$(git symbolic-ref --short HEAD); git switch -q main; git push origin \"$B\"")])
+        if refus.startswith("passé sans refus"):
+            return refus
+        a.git(c, "switch", "-q", "main")
+        depuis_main = tous_refuses(a, c, [("Bash", {"command": "git push -u origin \"$(git branch --show-current)\""})])
+        return depuis_main if depuis_main.startswith("passé sans refus") else refus + "\n" + depuis_main
 
     @defaut("push-refspec-defaut", "push vers la branche par défaut par une référence complète", "agent",
             "politique point 4")
@@ -1860,7 +1877,57 @@ def _cas() -> list[Cas]:
             "uv --directory . run --frozen rm -rf ..", "poetry -C . run -n rm -rf ..",
             "uv run python -c \"import shutil; shutil.rmtree('..')\"")])
 
-    @defaut("substitution-entre-guillemets", "dossier qui contient le projet supprimé par la commande que lance une "
+    @defaut("find-conjonction-protegee", "fichier protégé supprimé par un `find` dont chaque filtre d'une même "
+            "conjonction le vise, ou par un `-path` à étoile de tête depuis la racine", "agent", "écriture protégée")
+    def _(a, c):
+        # B-0231 : la conjonction de ses filtres se juge entière ; ce qu'elle
+        # atteint reste refusé.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "find . -name '*.toml' -path './.socle/*' -delete", "find . -path '*.toml' -delete",
+            "find .socle -path '*e/policy.toml' -delete")])
+
+    @defaut("suppression-par-xargs","dossier qui contient le projet, ou le projet lui-même, supprimé par `xargs rm` "
+            "derrière un `find` qui lui donne sa liste", "agent", "suppression du projet")
+    def _(a, c):
+        # B-0246 : `xargs rm` ne se jugeait que par les chemins protégés que
+        # la commande cite ; derrière un `find`, il se juge comme un `find`
+        # qui supprime depuis ses départs.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "find .. -maxdepth 0 | xargs rm -rf", "find . -type f | xargs rm -f",
+            "find .. -maxdepth 0 -print0 | xargs -0 -I{} rm -rf {}")])
+
+    @defaut("heredoc-donne-a-python","fichier protégé écrit, ou dossier qui contient le projet supprimé, par le "
+            "script qu'un heredoc donne à python (`python3 - <<'EOF'`)", "agent", "écriture protégée")
+    def _(a, c):
+        # B-0229 : le corps d'un heredoc n'était que du texte pour le
+        # découpage ; le script que python lit sur son entrée se juge comme
+        # celui d'un `python -c`.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "python3 - <<'EOF'\nopen('.socle/policy.toml', 'a').write('max_attempts = 99')\nEOF",
+            "python3 <<EOF\nimport shutil\nshutil.rmtree('..')\nEOF")])
+
+    @defaut("arguments-de-python-c", "fichier protégé passé en argument au script d'un `python -c`, ou d'un script "
+            "qu'un heredoc donne à python", "agent", "écriture protégée")
+    def _(a, c):
+        # B-0230 : seul le script se jugeait ; le chemin que le script lit
+        # dans `sys.argv` s'écrivait sans refus.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "python3 -c \"import sys; open(sys.argv[1], 'a').write('max_attempts = 99')\" .socle/policy.toml",
+            "F=.socle/policy.toml; python3 -c \"import sys; open(sys.argv[1], 'a')\" \"$F\"",
+            "python3 - .socle/policy.toml <<'EOF'\nimport sys\nopen(sys.argv[1], 'a')\nEOF")])
+
+    @defaut("argument-illisible-de-python-c", "argument que le hook ne sait pas développer, passé au script d'un "
+            "`python -c` ou d'un heredoc donné à python qui lit ses arguments, dans le projet", "agent",
+            "écriture illisible")
+    def _(a, c):
+        # La revue de L-0019, passe 1 : l'argument inconnu ne se jugeait pas,
+        # et le script l'écrivait.
+        return tous_refuses(a, c, [("Bash", {"command": x}) for x in (
+            "python3 -c \"import sys; open(sys.argv[1], 'a').write('max_attempts = 99')\" \"$SOCLE_ESSAI_CIBLE\"",
+            "cd .socle && python3 -c \"import sys; open(sys.argv[1], 'a')\" \"$(ls | head -1)\"",
+            "python3 - \"$SOCLE_ESSAI_CIBLE\" <<'EOF'\nimport sys\nopen(sys.argv[1], 'a')\nEOF")])
+
+    @defaut("substitution-entre-guillemets","dossier qui contient le projet supprimé par la commande que lance une "
             "substitution entre guillemets, `\"$(…)\"` ou des accents graves, après un `cd` ou l'appel d'une fonction "
             "qui change de dossier", "agent", "suppression du projet")
     def _(a, c):
@@ -2585,6 +2652,18 @@ def _temoins() -> list[tuple[str, Callable]]:
                 or etage_outil(a, c, "Bash", {"command": "D=.; git -C \"$D\" push origin travail"})
                 or etage_outil(a, c, "Bash", {"command": "git -C \"$SOCLE_ESSAI_CIBLE\" status"}))
 
+    @temoin("un push de la branche de travail par une substitution qui rend la branche courante, nue, entre "
+            "guillemets, entre accents graves ou par une variable, passe le hook de l'agent (B-0254)")
+    def _(a, c):
+        # Le pendant sain de `push-de-la-branche-substituee` : depuis une
+        # branche de travail, la substitution vaut elle.
+        return (etage_outil(a, c, "Bash", {"command": "git push -u origin \"$(git branch --show-current)\""})
+                or etage_outil(a, c, "Bash", {"command": "git push -u origin `git rev-parse --abbrev-ref HEAD`"})
+                or etage_outil(a, c, "Bash", {"command": "B=$(git symbolic-ref --short HEAD); git push -u origin "
+                                                         "\"$B\""})
+                or etage_outil(a, c, "Bash", {"command": "git add -A && git commit -qm x && git push origin "
+                                                         "$(git branch --show-current)"}))
+
     @temoin("une substitution entre guillemets qui lance une commande ordinaire, un calcul entre guillemets et un "
             "message de commit par `\"$(cat <<'EOF' … EOF)\"` qui cite une suppression passent le hook de l'agent "
             "(B-0260)")
@@ -2607,6 +2686,53 @@ def _temoins() -> list[tuple[str, Callable]]:
                 or etage_outil(a, c, "Bash", {"command": "uv run --with requests python -c \"print(open('calc.py')"
                                                          ".read())\""})
                 or etage_outil(a, c, "Bash", {"command": "uv run git push -u origin travail"}))
+
+    @temoin("un nettoyage ciblé par un `find` dont la conjonction des filtres, ou le `-path` sous son départ, "
+            "n'atteint aucun fichier protégé passe le hook de l'agent (B-0231)")
+    def _(a, c):
+        # Le pendant sain de `find-conjonction-protegee` : un filtre seul ne
+        # fait plus refuser ce que la conjonction écarte.
+        return (etage_outil(a, c, "Bash", {"command": "find . -name '*.json' -path './build/*' -delete"})
+                or etage_outil(a, c, "Bash", {"command": "find build -path '*.toml' -delete"}))
+
+    @temoin("un nettoyage par `xargs rm` sous le projet, derrière un `find` dont un filtre garde ce qu'il liste ou "
+            "qui part d'un dossier du projet, passe le hook de l'agent (B-0246)")
+    def _(a, c):
+        # Le pendant sain de `suppression-par-xargs` : seul ce qui contient
+        # le projet, ou le projet lui-même, est refusé.
+        return (etage_outil(a, c, "Bash", {"command": "find . -name '*.pyc' | xargs rm -f"})
+                or etage_outil(a, c, "Bash", {"command": "find build -type f -print0 | xargs -0 rm -f"}))
+
+    @temoin("le script qu'un heredoc donne à python sans citer de fichier protégé ni supprimer le projet, et un "
+            "heredoc donné à un autre programme qui cite un fichier protégé, passent le hook de l'agent (B-0229)")
+    def _(a, c):
+        # Le pendant sain de `heredoc-donne-a-python` : seul le script que
+        # python lit se juge, comme celui d'un `python -c`.
+        return (etage_outil(a, c, "Bash", {"command": "python3 - <<'EOF'\nprint(open('calc.py').read())\nEOF"})
+                or etage_outil(a, c, "Bash", {"command": "python3 - <<'EOF'\nimport shutil\n"
+                                                         "shutil.rmtree('build', ignore_errors=True)\nEOF"})
+                or etage_outil(a, c, "Bash", {"command": "cat > notes.txt <<'EOF'\n"
+                                                         "open('.socle/policy.toml', 'w')\nEOF"}))
+
+    @temoin("un `python -c` dont les arguments ne nomment aucun fichier protégé passe le hook de l'agent (B-0230)")
+    def _(a, c):
+        # Le pendant sain de `arguments-de-python-c` : seul l'argument qui
+        # nomme un fichier protégé est refusé.
+        return (etage_outil(a, c, "Bash", {"command": "python3 -c \"import sys; print(open(sys.argv[1]).read())\" "
+                                                     "calc.py"})
+                or etage_outil(a, c, "Bash", {"command": "python3 -c \"import sys; open(sys.argv[1], 'w')\" "
+                                                         "notes.txt /tmp/x"}))
+
+    @temoin("un `python -c` dont l'argument que le hook ne sait pas développer tombe hors du projet, ou dont le "
+            "script ne lit pas ses arguments, et une boucle sur des fichiers connus passent le hook de l'agent")
+    def _(a, c):
+        # Le pendant sain de `argument-illisible-de-python-c` : seul l'argument
+        # inconnu qui peut tomber dans le projet est refusé.
+        ailleurs = a.dossier.parent / (a.dossier.name + "-ailleurs")
+        ouvre = "python3 -c \"import sys; open(sys.argv[1], 'w').write('x')\""
+        return (etage_outil(a, c, "Bash", {"command": f"{ouvre} {ailleurs}/$SOCLE_ESSAI_CIBLE"})
+                or etage_outil(a, c, "Bash", {"command": "python3 -c 'print(1)' \"$SOCLE_ESSAI_CIBLE\""})
+                or etage_outil(a, c, "Bash", {"command": f"for f in docs/*.md; do {ouvre} \"$f\"; done"}))
 
     @temoin("l'orchestrateur, à la racine, retire le worktree d'un sous-agent par la fin de son chemin, et un "
             "sous-agent retire ou déplace un worktree voisin du sien, sans refus du hook de l'agent (B-0228)")

@@ -26,7 +26,9 @@ import dataclasses
 import difflib
 import fnmatch
 import glob
+import itertools
 import json
+import math
 import os
 import posixpath
 import re
@@ -545,12 +547,20 @@ def suppressions(c: commandes.Commande) -> list[tuple[str, bool]]:
     `find` qui supprime (`-delete`, ou un `-exec` qui supprime ce qu'il
     trouve) ; et, d'un autre programme (B-0228), ce que supprime un `rsync`
     (`_supprime_par_rsync`), le worktree que retire ou déplace `git
-    worktree` et ce qu'un `python -c` supprime en toutes lettres
-    (`_supprimes_par_python`). Chacun avec `True` quand supprimer la racine
-    du projet elle-même compte : un `find` qu'aucun filtre de nom ou de
-    chemin ne garde la viderait, et un autre programme ne l'écrit pas
-    (`ecrits`). Pour `rm`, `mv` et `git clean`, la racine est déjà un
-    dossier qui contient un fichier protégé."""
+    worktree` et ce qu'un `python -c`, ou le script qu'un heredoc donne à
+    python (B-0229), supprime en toutes lettres (`_supprimes_par_python`) ;
+    les départs d'un `find` qui donne sa liste à un `xargs` d'un programme
+    qui supprime ce qu'il lit (`_supprimes_par_xargs`, B-0246).
+    Chacun avec `True` quand supprimer la racine du projet elle-même
+    compte : un `find` qu'aucun filtre de nom ou de chemin ne garde la
+    viderait, et un autre programme ne l'écrit pas (`ecrits`). Pour `rm`,
+    `mv` et `git clean`, la racine est déjà un dossier qui contient un
+    fichier protégé."""
+    lus = _supprimes_par_xargs(c)
+    if lus:
+        # Derrière un `find`, ce qu'il liste, et ce que la commande lancée
+        # supprime d'elle-même (B-0246).
+        return lus + suppressions(dataclasses.replace(c, amont=None))
     nom, argv = c.programme, c.argv[1:]
     if nom == "rm":
         return [(x, False) for x in commandes.options_et_arguments(argv)[1] if x]
@@ -566,7 +576,7 @@ def suppressions(c: commandes.Commande) -> list[tuple[str, bool]]:
         return [(x, True) for x in _retire_par_git_worktree(c.argv)]
     script = _script_python(c)
     if script is not None:
-        return [(x, True) for x in _supprimes_par_python(script)]
+        return [(x, True) for x in _supprimes_par_python(script[0])]
     return []
 
 
@@ -791,21 +801,50 @@ FIND_VALEURS = {
 FIND_NOMS = ("-name", "-iname")
 FIND_CHEMINS = ("-path", "-ipath", "-wholename", "-iwholename")
 FIND_EXEC = ("-exec", "-execdir", "-ok", "-okdir")
-# Ce qui garde une action d'un `find` : si un chemin peut l'atteindre sans
-# qu'un filtre de nom ou de chemin lui réponde, et ces filtres
-# (`("nom", motif)`, `("chemin", motif)`).
-LIBRE: tuple[bool, tuple] = (True, ())
+# Les actions d'un `find` qui écrivent sur sa sortie les chemins qu'il
+# trouve, ce qu'un `xargs` lit (B-0246).
+FIND_IMPRIME = ("-print", "-print0", "-printf", "-ls")
+# Les combinaisons d'un motif par filtre qu'une conjonction juge au plus.
+COMBINAISONS_MAX = 32
+# Ce qui garde une action d'un `find` : une disjonction de conjonctions de
+# filtres de nom ou de chemin (`("nom", motif)`, `("chemin", motif)`) ; un
+# chemin l'atteint s'il répond à chaque filtre d'une même conjonction, et
+# une conjonction vide le laisse passer sans filtre (B-0231, ADR-0096).
+Garde = tuple[tuple[tuple[str, str], ...], ...]
+LIBRE: Garde = ((),)
+# Les conjonctions qu'une garde compte au plus : au-delà, elle se lit plus
+# large, ce qui ne fait refuser que davantage.
+CONJONCTIONS_MAX = 64
 
 
-def _et(a: tuple[bool, tuple], b: tuple[bool, tuple]) -> tuple[bool, tuple]:
-    return a[0] and b[0], tuple(dict.fromkeys(a[1] + b[1]))
+def _libre(garde: Garde) -> bool:
+    """Un chemin atteint-il l'action sans qu'un filtre lui réponde."""
+    return any(not conjonction for conjonction in garde)
 
 
-def _ou(a: tuple[bool, tuple], b: tuple[bool, tuple]) -> tuple[bool, tuple]:
-    return a[0] or b[0], tuple(dict.fromkeys(a[1] + b[1]))
+def _et(a: Garde, b: Garde) -> Garde:
+    """Les deux gardes à la fois : chaque conjonction de l'une jointe à
+    chacune de l'autre. Trop nombreuses, l'une des deux seule, plus large :
+    celle qui a le moins de conjonctions, hors d'une garde libre."""
+    if a == LIBRE or b == LIBRE:
+        return b if a == LIBRE else a
+    if len(a) * len(b) > CONJONCTIONS_MAX:
+        return min((g for g in (a, b) if not _libre(g)), key=len, default=a)
+    return tuple(dict.fromkeys(tuple(dict.fromkeys(x + y)) for x in a for y in b))
 
 
-def _expression_find(argv: list[str], i: int) -> list[tuple[list[str] | None, tuple[bool, tuple]]]:
+def _ou(a: Garde, b: Garde) -> Garde:
+    """L'une ou l'autre garde. Trop de conjonctions : chaque filtre seul,
+    plus large que toute conjonction qui le porte."""
+    res = tuple(dict.fromkeys(a + b))
+    if len(res) > CONJONCTIONS_MAX:
+        seuls = tuple(dict.fromkeys((f,) for conjonction in res for f in conjonction))
+        res = (((),) if _libre(res) else ()) + seuls
+    return res
+
+
+def _expression_find(argv: list[str], i: int,
+                     sortie: list | None = None) -> list[tuple[list[str] | None, Garde]]:
     """Les actions de l'expression d'un `find` (`argv` depuis `i`) qui
     touchent ce qu'il trouve : `-delete` (`None`), et la commande de chaque
     `-exec`, `-execdir`, `-ok`, `-okdir` ; chacune avec ce qui la garde. Un
@@ -813,8 +852,13 @@ def _expression_find(argv: list[str], i: int) -> list[tuple[list[str] | None, tu
     conjonction : placé après l'action, nié (`!`, `-not`), ou de l'autre
     côté d'un `-o` (`-or`) ou d'une `,`, il ne la garde pas ; une parenthèse
     garde ce qui la suit si chacune de ses branches a un filtre (la revue
-    du lot 3, J-2026-11-14-AH)."""
-    actions: list[tuple[list[str] | None, tuple[bool, tuple]]] = []
+    du lot 3, J-2026-11-14-AH). La garde garde la structure de l'expression,
+    chaque conjonction à part (B-0231). `sortie`, s'il est donné, reçoit ce qui
+    garde les chemins que le `find` écrit sur sa sortie : chacun de ses
+    `-print`, `-print0`, `-printf`, `-ls`, ou à défaut l'expression entière,
+    que garde le `-print` implicite (B-0246)."""
+    actions: list[tuple[list[str] | None, Garde]] = []
+    imprimes: list[Garde] = []
     pos = i
     fins = (None, ")", ",", "-o", "-or")
 
@@ -866,9 +910,12 @@ def _expression_find(argv: list[str], i: int) -> list[tuple[list[str] | None, tu
             return valeur
         if (m in FIND_NOMS or m in FIND_CHEMINS) and pos < len(argv):
             pos += 1
-            return False, (("nom" if m in FIND_NOMS else "chemin", argv[pos - 1]),)
+            return ((("nom" if m in FIND_NOMS else "chemin", argv[pos - 1]),),)
         if m == "-delete":
             actions.append((None, garde))
+        elif m in FIND_IMPRIME:
+            imprimes.append(garde)
+            pos += FIND_VALEURS.get(m, 0)
         elif m in FIND_EXEC:
             # Jusqu'à `;` (`\;`) ou `+` ; sans eux, au bout de la commande.
             j = next((k for k in range(pos, len(argv)) if argv[k] in (";", "+")), len(argv))
@@ -878,9 +925,13 @@ def _expression_find(argv: list[str], i: int) -> list[tuple[list[str] | None, tu
             pos += FIND_VALEURS.get(m, 1 if re.fullmatch(r"-newer[aBcmt]{2}", m) else 0)
         return LIBRE
 
+    entiere = None
     while pos < len(argv):
-        liste(LIBRE)
+        valeur = liste(LIBRE)
+        entiere = valeur if entiere is None else _ou(entiere, valeur)
         pos += 1  # une `)` sans `(`
+    if sortie is not None:
+        sortie += imprimes or [entiere or LIBRE]
     return actions
 
 
@@ -896,7 +947,7 @@ def _departs_de_find(c: commandes.Commande) -> list[tuple[str, bool]]:
     departs, actions = _lire_find(c)
     gardes = [garde for sous, garde in actions if sous is None or sous.programme == "rm"
               or any(SONDE in x for x, _ in suppressions(sous))]
-    return [(x, any(libre for libre, _ in gardes)) for x in departs] if gardes else []
+    return [(x, any(map(_libre, gardes))) for x in departs] if gardes else []
 
 
 def _balaye_par_git_clean(argv: list[str]) -> list[str]:
@@ -1042,13 +1093,14 @@ def _dossier_cible(c: commandes.Commande) -> str | None:
     return _valeur_d_option(c.argv[1:], "t", "--target-directory", OPTIONS_A_VALEUR_COPIE[c.programme])
 
 
-def _lire_find(c: commandes.Commande) -> tuple[list[str], list[tuple[commandes.Commande | None,
-                                                                     tuple[bool, tuple]]]]:
+def _lire_find(c: commandes.Commande, sortie: list | None = None) -> tuple[list[str], list[tuple[
+        commandes.Commande | None, Garde]]]:
     """Ce que juge le hook d'un `find` : ses points de départ, `.` s'il n'en
     nomme aucun ; et ses actions qui touchent ce qu'il trouve, chacune avec
     ce qui la garde (`_expression_find`) : `None` pour `-delete`, la
     commande d'un `-exec`, `-execdir`, `-ok` ou `-okdir`, `{}` remplacé par
-    `SONDE` (B-0206)."""
+    `SONDE` (B-0206). `sortie` reçoit ce qui garde ce qu'il écrit sur sa
+    sortie (B-0246)."""
     argv, i = c.argv, 1
     while i < len(argv) and (argv[i] in ("-H", "-L", "-P", "-D") or re.fullmatch(r"-O\d*", argv[i])):
         i += 2 if argv[i] == "-D" else 1
@@ -1058,24 +1110,29 @@ def _lire_find(c: commandes.Commande) -> tuple[list[str], list[tuple[commandes.C
         i += 1
     actions = [(None if sous is None else dataclasses.replace(c, argv=[x.replace("{}", SONDE) for x in sous],
                                                                redirige=[], prefixe=[]), garde)
-               for sous, garde in _expression_find(argv, i) if sous is None or sous]
+               for sous, garde in _expression_find(argv, i, sortie) if sous is None or sous]
     return departs or ["."], actions
 
 
-def _filtres_de_find(c: commandes.Commande) -> tuple[list[str], tuple | None] | None:
+def _filtres_de_find(c: commandes.Commande) -> tuple[list[str], list[tuple[tuple[str, str], ...]] | None] | None:
     """Les points de départ d'un `find` qui supprime ou écrit ce qu'il trouve
-    (`-delete`, un `-exec` d'un écrivain de `{}`), et les filtres de nom et
-    de chemin qui gardent ces actions (`(noms, chemins)`), ou `None` quand
-    l'une d'elles n'en a pas : elle touche tout ce qui est sous ses départs.
-    `None` pour un `find` qui n'écrit rien de ce qu'il trouve (B-0206)."""
+    (`-delete`, un `-exec` d'un écrivain de `{}`), et les conjonctions de
+    filtres de nom et de chemin qui gardent ces actions (B-0231), ou `None`
+    quand l'une d'elles n'en a pas : elle touche tout ce qui est sous ses
+    départs. `None` pour un `find` qui n'écrit rien de ce qu'il trouve
+    (B-0206)."""
     departs, actions = _lire_find(c)
     gardes = [garde for sous, garde in actions if sous is None or any(SONDE in x for x in ecrits_bruts(sous))]
     if not gardes:
         return None
-    if any(libre for libre, _ in gardes):
+    if any(map(_libre, gardes)):
         return departs, None
-    filtres = list(dict.fromkeys(f for _, fs in gardes for f in fs))
-    return departs, ([v for genre, v in filtres if genre == "nom"], [v for genre, v in filtres if genre == "chemin"])
+    return departs, list(dict.fromkeys(conjonction for garde in gardes for conjonction in garde))
+
+
+# Les parts d'un motif de `-path` : une suite d'étoiles, un `?`, une classe
+# `[…]`, un caractère échappé, ou un caractère.
+PART_DE_MOTIF = re.compile(r"\*+|\?|\[[!^]?\]?[^\]]*\]|\\.|.", re.S)
 
 
 def _motifs_de_chemin(tete: str, haut: str, motif: str) -> list[str]:
@@ -1084,25 +1141,50 @@ def _motifs_de_chemin(tete: str, haut: str, motif: str) -> list[str]:
     répond au chemin entier tel que `find` l'écrit, `tete` (son départ, et
     ce qui mène de lui à la racine) devant ce qui correspond, sous la
     racine, à `haut` ; son `*` traverse les `/` et rend les noms en `.`, et
-    se lit comme `**`. Une étoile qui suit une part de `tete` en rend la
-    suite, et ce qui vient après dans le projet ; un motif qui ne peut pas
-    commencer comme `tete` ne vise rien (la revue du lot 3,
-    J-2026-11-14-AH)."""
+    se lit comme `**` (la revue du lot 3, J-2026-11-14-AH). Le motif se lit
+    sur `tete`, part par part, sans égard à la casse : chaque reste qui peut
+    suivre vise ce qui est sous `haut`, et rien d'autre, puisque `find` ne
+    trouve que ce qui est sous ses départs (B-0231). Une classe ou un `?`
+    lus dans `tete` y rendent tout caractère ; un motif qui ne peut pas
+    commencer comme `tete` ne vise rien. Le départ lui-même, s'il répond au
+    motif, se dit `haut` sans sa barre, ou `**` pour un dossier qui
+    contient le projet."""
     def etoiles(m: str) -> str:
         return re.sub(r"\*+", "**", m)
 
-    if motif.startswith(tete):
-        return [haut + etoiles(motif[len(tete):])]
-    litteral = re.match(r"[^*?\[\\]*", motif).group()
-    suite = motif[len(litteral):]
-    if not tete.startswith(litteral):
-        return []
-    if not suite:
-        return [haut.rstrip("/") or "**"]  # le départ lui-même, ou un dossier qui le contient
-    if suite.startswith("*"):
-        reste = suite.lstrip("*")
-        return ["**" + etoiles(reste)] + ([haut + etoiles(reste[1:])] if reste.startswith("/") else [])
-    return ["**"]  # un `?`, un `[…]` ou un `\` dans le départ : le hook ne le suit pas
+    parts = PART_DE_MOTIF.findall(motif)
+
+    def ouverts(etats: set[int]) -> set[int]:
+        """Les états, et ceux qu'une étoile laisse sauter."""
+        res, pile = set(), list(etats)
+        while pile:
+            k = pile.pop()
+            if k not in res:
+                res.add(k)
+                if k < len(parts) and parts[k].startswith("*"):
+                    pile.append(k + 1)
+        return res
+
+    def lire(texte: str) -> set[int]:
+        etats = ouverts({0})
+        for ch in texte.casefold():
+            suivants = set()
+            for k in etats:
+                if k == len(parts):
+                    continue
+                part = parts[k]
+                if part.startswith("*"):
+                    suivants.add(k)
+                elif part == "?" or (part.startswith("[") and len(part) > 1) or \
+                        (part[1:] if part.startswith("\\") and len(part) > 1 else part).casefold() == ch:
+                    suivants.add(k + 1)
+            etats = ouverts(suivants)
+        return etats
+
+    res = [haut + etoiles("".join(parts[k:])) for k in sorted(lire(tete)) if k < len(parts)]
+    if len(parts) in lire(tete.rstrip("/")):
+        res.append(haut.rstrip("/") or "**")  # le départ lui-même, ou un dossier qui le contient
+    return list(dict.fromkeys(res))
 
 
 def _proteges_presents(projet: config.Projet, cache: dict) -> list[str]:
@@ -1165,39 +1247,57 @@ def _supprime_par_find(projet: config.Projet, c: commandes.Commande, environneme
         else:
             continue
         haut = (base + "/") if base else ""
-        if filtres is None:
-            motifs = [base or "**"]
-        else:
-            noms, chemins = filtres
-            motifs = [m for n in noms for m in (haut + n, haut + "**/" + n)]
-            motifs += [m for p in chemins for m in _motifs_de_chemin(tete, haut, p)]
-        # Un filtre nomme ce que `find` trouve ; sans filtre, il trouve tout ce
-        # qui est sous son départ. Un filtre se juge contre les fichiers
-        # protégés présents d'un motif de dossier (`.socle/git-hooks/**`),
-        # que tout nom croiserait (`-name '*.pyc'`), et contre les autres
-        # motifs (un fichier protégé absent le reste) ; un réglage de Claude
-        # Code, à toute profondeur, contre ceux qui sont présents, et contre
-        # leurs motifs si le filtre les nomme (`.claude`, `settings`) : git
-        # ne voit pas un réglage ignoré sous un dossier du projet.
+        # Chaque conjonction, ses filtres lus comme des motifs depuis la
+        # racine : un nom à toute profondeur sous le départ, un chemin par ce
+        # qui peut suivre son départ ; chaque combinaison d'un motif par
+        # filtre vise ce qui répond à tous (B-0231). Sans filtre, `find`
+        # trouve tout ce qui est sous son départ.
+        combinaisons: list[tuple[str, ...]] = []
+        for conjonction in ([()] if filtres is None else filtres):
+            choix = [[haut + v, haut + "**/" + v] if genre == "nom" else _motifs_de_chemin(tete, haut, v)
+                     for genre, v in conjonction]
+            # Trop de combinaisons : les premiers filtres seuls, plus larges.
+            while len(choix) > 1 and math.prod(map(len, choix)) > COMBINAISONS_MAX:
+                choix.pop()
+            combinaisons += [tuple(x) for x in itertools.product(*choix)] if choix else [(base or "**",)]
+        # Un filtre se juge contre les fichiers protégés présents d'un motif
+        # de dossier (`.socle/git-hooks/**`), que tout nom croiserait (`-name
+        # '*.pyc'`), et contre les autres motifs (un fichier protégé absent le
+        # reste) ; un réglage de Claude Code, à toute profondeur, contre ceux
+        # qui sont présents, et contre leurs motifs si un filtre les nomme
+        # (`.claude`, `settings`) : git ne voit pas un réglage ignoré sous un
+        # dossier du projet.
         dessous = filtres is None
-        for motif in dict.fromkeys(motifs):
+        for combinaison in dict.fromkeys(combinaisons):
+            def croise(chemin: str, sous: bool = False) -> bool:
+                if len(combinaison) == 1:
+                    return commandes.se_croisent(combinaison[0], chemin, sous, True)
+                return commandes.se_croisent_tous(list(combinaison), chemin, True)
+
+            def repond(fichier: str) -> bool:
+                return all(commandes.se_croisent(x, fichier, dessous, True) for x in combinaison)
+
             for m in projet.chemins_proteges():
                 if dessous or not m.endswith("/**"):
-                    touches = [m] if commandes.se_croisent(motif, m, dessous, True) else []
+                    touches = [m] if croise(m, dessous) else []
                 else:
-                    touches = [f for f in _proteges_presents(projet, cache) if outils.correspond(f, [m])
-                               and commandes.se_croisent(motif, f, False, True)]
+                    touches = [f for f in _proteges_presents(projet, cache) if outils.correspond(f, [m]) and repond(f)]
                 res += [("protege", trad("{chemin}, par `{mot}`", chemin=t, mot=f"find {depart}")) for t in touches]
-            res += [("reglage", f) for f in _reglages_presents(projet, cache)
-                    if commandes.se_croisent(motif, f, dessous, True)]
-            if not dessous and re.search(r"claude|settings", motif, re.I):
-                res += [("reglage", motif) for m in REGLAGES_MOTIFS if commandes.se_croisent(motif, m, False, True)]
+            res += [("reglage", f) for f in _reglages_presents(projet, cache) if repond(f)]
+            nomme = next((x for x in combinaison if re.search(r"claude|settings", x, re.I)), None)
+            if not dessous and nomme:
+                res += [("reglage", nomme) for m in REGLAGES_MOTIFS if croise(m)]
     return res
 
 
-def _script_python(c: commandes.Commande) -> str | None:
-    """Le script d'un `python -c`, derrière les options de python ; `None`
-    pour un autre programme ou une autre forme (B-0206)."""
+def _script_python(c: commandes.Commande) -> tuple[str, str, list[str]] | None:
+    """Le script que python exécute et que le hook lit, avec la forme qui le
+    lui donne et les arguments qui le suivent (`sys.argv[1:]`, B-0230) :
+    celui d'un `python -c`, derrière les options de python (B-0206), ou le
+    corps du heredoc que lit sur son entrée un python lancé sans `-c`, `-m`
+    ni script, ou avec `-` pour script, tel qu'écrit (B-0229). `None` pour
+    un autre programme ou une autre forme : un script lu d'un fichier, par
+    son chemin ou par `<`, reste hors de portée."""
     if not re.fullmatch(r"python[\d.]*", c.programme):
         return None
     reste = c.argv[1:]
@@ -1209,22 +1309,26 @@ def _script_python(c: commandes.Commande) -> str | None:
         for k, lettre in enumerate(opt[1:], 1):
             colle = opt[k + 1:]
             if lettre == "c":
-                return colle or (reste[0] if reste else None)
+                script = colle or (reste[0] if reste else None)
+                return None if script is None else (script, f"{c.programme} -c", reste if colle else reste[1:])
             if lettre == "m":
                 return None
             if lettre in OPTIONS_PYTHON_A_VALEUR:
                 reste = reste if colle else reste[1:]
                 break
+    reste = reste[1:] if reste[:1] == ["--"] else reste
+    if c.entree is not None and reste[:1] in ([], ["-"]):
+        return c.entree, f"{c.programme} <<", reste[1:]
     return None
 
 
-def _xargs_ecrit_ce_qu_il_lit(c: commandes.Commande) -> bool:
-    """La commande qu'un `xargs` lance écrit-elle ce qu'il lit : ce qu'il
-    ajoute au bout de ses arguments, ou ce qui remplace la chaîne de `-I`
-    (`-i`, `--replace`, `{}` par défaut) (B-0206)."""
+def _lance_par_xargs(c: commandes.Commande) -> commandes.Commande | None:
+    """La commande qu'un `xargs` lance, `SONDE` là où il met ce qu'il lit :
+    au bout de ses arguments, ou à la place de la chaîne de `-I` (`-i`,
+    `--replace`, `{}` par défaut) (B-0206) ; `None` sans `xargs`."""
     noms = [p.rsplit("/", 1)[-1] for p in c.prefixe]
     if "xargs" not in noms or not c.argv:
-        return False
+        return None
     options, remplace = c.prefixe[noms.index("xargs") + 1:], None
     for k, o in enumerate(options):
         if o == "-I" and k + 1 < len(options):
@@ -1238,9 +1342,33 @@ def _xargs_ecrit_ce_qu_il_lit(c: commandes.Commande) -> bool:
         elif o.startswith("-i"):
             remplace = o[2:]
     argv = [x.replace(remplace, SONDE) for x in c.argv] if remplace else c.argv + [SONDE]
-    return any(SONDE in x for x in ecrits_bruts(dataclasses.replace(c, argv=argv, redirige=[], prefixe=[])))
+    return dataclasses.replace(c, argv=argv, redirige=[], prefixe=[], amont=None)
 
 
+def _xargs_ecrit_ce_qu_il_lit(c: commandes.Commande) -> bool:
+    """La commande qu'un `xargs` lance écrit-elle ce qu'il lit (B-0206)."""
+    lance = _lance_par_xargs(c)
+    return lance is not None and any(SONDE in x for x in ecrits_bruts(lance))
+
+
+def _supprimes_par_xargs(c: commandes.Commande) -> list[tuple[str, bool]]:
+    """Ce que supprime un `xargs` d'un programme qui supprime ce qu'il lit
+    (`SONDE` dans ses `suppressions`), derrière un `find` qui lui donne sa
+    liste : les départs du `find`, comme s'il les supprimait lui-même, la
+    racine comprise si aucun filtre de nom ou de chemin ne garde ce qu'il
+    écrit sur sa sortie (B-0246). Rien derrière un autre producteur."""
+    lance = _lance_par_xargs(c)
+    if c.amont is None or c.amont.programme != "find" or lance is None \
+            or not any(SONDE in x for x, _ in suppressions(lance)):
+        return []
+    sortie: list[Garde] = []
+    departs = _lire_find(c.amont, sortie)[0]
+    return [(x, any(map(_libre, sortie))) for x in departs]
+
+
+# Ce qui, dans un script de python, lit les arguments qui le suivent
+# (B-0230).
+LIT_SES_ARGUMENTS = re.compile(r"argv|argparse|fileinput|optparse|getopt")
 # Un chemin cité dans un texte que le hook ne sait pas lire : une suite de
 # lettres, de chiffres, de `.`, `/`, `~` et `-`.
 CHEMIN_CITE = re.compile(r"[\w./~-]+")
@@ -1263,8 +1391,14 @@ def _cites(projet: config.Projet, c: commandes.Commande, texte: str, qui: str, c
         rel = _relatif(racine, plein)
         if rel in (None, "", "."):
             continue
-        cible = _protege(projet, rel, cache)
-        if cible and (cible == rel or "/" in mot or mot.startswith(".")):
+        if "/" in mot or mot.startswith("."):
+            cible = _protege(projet, rel, cache)
+        else:
+            # Sans barre oblique ni point de tête, seul un fichier protégé
+            # nommé entier compte : les fichiers suivis ne se parcourent pas,
+            # pour chacun des mots d'un long heredoc (B-0229).
+            cible = rel if outils.correspond(rel, projet.chemins_proteges()) else None
+        if cible:
             res.append(("protege", trad("{chemin}, cité par `{qui}`, un écrivain que le hook ne sait pas lire : il "
                                         "peut l'écrire ; un fichier protégé se lit par `cat` ou par l'outil de "
                                         "lecture", chemin=cible, qui=qui)))
@@ -1274,15 +1408,33 @@ def _cites(projet: config.Projet, c: commandes.Commande, texte: str, qui: str, c
 
 
 def _ecrivains_illisibles(projet: config.Projet, c: commandes.Commande, cmd: str, environnement: dict,
-                          cache: dict) -> list[tuple[str, str]]:
+                          cache: dict, depart: str, elargi: bool) -> list[tuple[str, str]]:
     """Les constats des écrivains que le hook ne lit pas comme les autres :
     `python -c` et `xargs` d'un écrivain, par les chemins protégés qu'ils
-    citent (le script ; la commande entière, dont `xargs` lit l'entrée), et
-    `find` qui supprime ou écrit ce qu'il trouve (B-0206)."""
+    citent (le script et ses arguments, B-0230 ; la commande entière, dont
+    `xargs` lit l'entrée), et `find` qui supprime ou écrit ce qu'il trouve
+    (B-0206) ; le script qu'un heredoc donne à python, comme celui d'un
+    `python -c` (B-0229). `depart` et `elargi`, comme `_juger_chemin`."""
     res: list[tuple[str, str]] = []
     script = _script_python(c)
     if script is not None:
-        res += _cites(projet, c, script, f"{c.programme} -c", cache)
+        texte, qui, arguments = script
+        res += _cites(projet, c, texte, qui, cache)
+        # Ses arguments, quand le script les lit (`sys.argv`, `argparse`,
+        # `fileinput`…) : des mots du shell, développés avec les variables
+        # connues (B-0230). Un script qui ne les lit pas ne les touche pas.
+        if arguments and LIT_SES_ARGUMENTS.search(texte):
+            variables = commandes.variables_de(c, environnement) if any(re.search(r"[$`]", a) for a in arguments) \
+                else {}
+            developpes = [(a, *commandes.developper(a, variables)) for a in arguments]
+            res += _cites(projet, c, "\n".join(d for _, d, _ in developpes), qui, cache)
+            # Un argument que le hook ne sait pas développer peut nommer tout
+            # chemin : il se juge comme le chemin inconnu qu'écrirait le
+            # shell, refusé s'il peut tomber dans le projet (la revue de
+            # L-0019, passe 1).
+            for a, d, inconnus in developpes:
+                if commandes.INCONNU in d:
+                    res += _juger_chemin(projet, c, a, d, inconnus, cache, depart, elargi)
     if _xargs_ecrit_ce_qu_il_lit(c):
         res += _cites(projet, c, cmd, f"xargs {c.programme}", cache)
     if c.programme == "find":
@@ -1427,7 +1579,7 @@ def ecritures_jugees(projet: config.Projet, cmd: str, cwd: str | None = None,
     res: list[tuple[str, str]] = []
     for c in simples:
         _dans_le_delai(limite)
-        res += _ecrivains_illisibles(projet, c, cmd, environnement, cache)
+        res += _ecrivains_illisibles(projet, c, cmd, environnement, cache, depart, elargi)
         mots = _ecrits_hors_remise(projet, c, remise_en_etat(projet, c, cmd, depart), depart)
         supprimes = dict(suppressions(c))
         suffixes = _nommes_par_leur_suffixe(c)
@@ -1725,6 +1877,77 @@ def _branches_protegees(racine: Path) -> set[str]:
     return {"main", "master", defaut.split("/", 1)[-1]} - {""}
 
 
+# Les trois commandes qui écrivent la branche courante, et leurs
+# substitutions, `$(…)` ou entre accents graves, que le hook développe en
+# elle dans un `git push` (B-0254, ADR-0097).
+LIT_LA_BRANCHE = (r"git\s+(?:branch\s+--show-current|rev-parse\s+--abbrev-ref\s+HEAD"
+                  r"|symbolic-ref\s+--short\s+HEAD)")
+BRANCHE_COURANTE = re.compile(rf"\$\(\s*{LIT_LA_BRANCHE}\s*\)|`\s*{LIT_LA_BRANCHE}\s*`")
+# Un nom de branche que le shell écrit tel quel, sans rien y développer.
+NOM_DE_BRANCHE = re.compile(r"[\w./+@-]+")
+# Les variables qui désignent à git un autre dépôt que celui du dossier.
+GIT_AUTRE_DEPOT = re.compile(r"GIT_(?:DIR|WORK_TREE|COMMON_DIR)(?:=|$)")
+
+
+def _change_de_branche(c: commandes.Commande) -> bool:
+    """La commande peut-elle changer la branche courante : `git checkout`,
+    `git switch`, `git rebase` (qui part de la branche qu'il nomme), `git
+    bisect`, `git branch -m`, `git symbolic-ref` qui écrit, une
+    sous-commande de git illisible, `gh pr checkout` (ADR-0097)."""
+    if c.programme == "gh":
+        return c.argv[1:3] == ["pr", "checkout"]
+    if c.programme != "git":
+        return False
+    sous, reste = commandes.git_sous_commande(c.argv)
+    options, args = commandes.options_et_arguments(reste)
+    if sous in ("checkout", "switch", "rebase", "bisect") or not re.fullmatch(r"[\w-]+", sous):
+        return True
+    if sous == "branch":
+        return commandes.drapeau(options, "m", ("--move",)) or commandes.drapeau(options, "M")
+    return sous == "symbolic-ref" and (len(args) > 1 or commandes.drapeau(options, "d", ("--delete",)))
+
+
+def branche_substituee(depart: str, avant: list[commandes.Commande], c: commandes.Commande,
+                       environnement: dict) -> str | None:
+    """La branche courante, en quoi se développent les substitutions qui la
+    rendent (`BRANCHE_COURANTE`) dans le `git push` `c`, ou dans les
+    variables qu'il lit : lue dans `depart`, le dossier où part la commande,
+    comme le shell la lirait. `None` sans telle substitution, ou quand elle
+    ne se lit pas sûrement : le push, ou une commande d'`avant` lui (celles
+    qui le précèdent dans le même texte), part d'un autre dossier ou en
+    change ; le push vise un autre dépôt (`-C` ailleurs, `--git-dir`,
+    `--work-tree`, `GIT_DIR`) ; une commande d'avant lui change de branche
+    (`_change_de_branche`) ; HEAD est détaché ; ou le nom de la branche
+    porte un caractère que le shell lirait (B-0254, ADR-0097)."""
+    if c.programme != "git" or commandes.git_sous_commande(c.argv)[0] != "push" or not any(
+            BRANCHE_COURANTE.search(x or "") for x in c.argv + [v for _, v in c.affectations]):
+        return None
+    base, i = _git_global(c.argv)
+    if any(x.startswith(("--git-dir", "--work-tree")) for x in c.argv[1:i]) \
+            or any(GIT_AUTRE_DEPOT.match(x) for x in c.prefixe + [n for n, _ in c.affectations] + list(environnement)):
+        return None
+    ici = posixpath.normpath(depart)
+
+    def dossier(x: commandes.Commande, *sous: str) -> str:
+        return posixpath.normpath(posixpath.join(depart, x.dossier, *sous))
+
+    if dossier(c, base) != ici or any(dossier(x) != ici or _change_de_branche(x) for x in avant):
+        return None
+    branche = outils.git(Path(depart), "rev-parse", "--abbrev-ref", "HEAD", check=False).strip()
+    return branche if branche != "HEAD" and NOM_DE_BRANCHE.fullmatch(branche) else None
+
+
+def _avec_la_branche(c: commandes.Commande, branche: str | None) -> commandes.Commande:
+    """La commande, ses substitutions de la branche courante remplacées par
+    `branche`, dans ses arguments et dans les variables qu'elle lit ; elle-
+    même sans `branche` (B-0254)."""
+    if branche is None:
+        return c
+    return dataclasses.replace(c, argv=[BRANCHE_COURANTE.sub(branche, x) for x in c.argv], connues=None,
+                               affectations=[(n, v if v is None else BRANCHE_COURANTE.sub(branche, v))
+                                             for n, v in c.affectations])
+
+
 def _argvs_developpes(c: commandes.Commande, environnement: dict | None, racine: Path) -> list[list[str]]:
     """L'argv de `c` tel que le shell le développerait avec les variables
     connues (`environnement`, celles du shell de l'agent ; à défaut, celles
@@ -1750,15 +1973,18 @@ def _argvs_developpes(c: commandes.Commande, environnement: dict | None, racine:
     return [coupe] if coupe == entier else [coupe, entier]
 
 
-def push_illisible(racine: Path, c: commandes.Commande, environnement: dict | None = None) -> str | None:
+def push_illisible(racine: Path, c: commandes.Commande, environnement: dict | None = None,
+                   branche: str | None = None) -> str | None:
     """L'argument d'un `git push`, tel qu'écrit, que le hook ne sait pas
     développer (une variable inconnue, une substitution, `"$@"` dans le
     corps d'une fonction) : forcé ou vers la branche par défaut, rien ne le
     rattraperait ; refusé comme ADR-0072 refuse un chemin inconnu (B-0254).
     `None` sinon. Une option globale de git (`-C "$D"`) ne change pas ce que
-    le push envoie."""
+    le push envoie. Avec `branche` (`branche_substituee`), les substitutions
+    qui rendent la branche courante se développent en elle (ADR-0097)."""
     if c.programme != "git":
         return None
+    c = _avec_la_branche(c, branche)
     if environnement is None:
         environnement = commandes.environnement_du_shell(os.environ, str(racine))
     if not any(sous == "push" and any(commandes.INCONNU in x for x in reste)
@@ -1803,16 +2029,18 @@ def _git_irreversible(racine: Path, argv: list[str]) -> str | None:
     return None
 
 
-def irreversible(racine: Path, c: commandes.Commande, environnement: dict | None = None) -> str | None:
+def irreversible(racine: Path, c: commandes.Commande, environnement: dict | None = None,
+                 branche: str | None = None) -> str | None:
     """L'action irréversible ou externe qu'une commande simple lance
     (politique, point 4), dite en clair ; `None` sinon. Un `git` se juge sur
     son argv développé avec les variables connues (`environnement`, celles
     du shell de l'agent) : `F=--force; git push $F …` est un push forcé
-    (B-0254), sous ses deux formes."""
+    (B-0254), sous ses deux formes ; avec `branche` (`branche_substituee`),
+    `$(git branch --show-current)` y vaut la branche courante (ADR-0097)."""
     nom, argv = c.programme, c.argv
     if nom == "git":
-        return next(filter(None, (_git_irreversible(racine, a) for a in _argvs_developpes(c, environnement, racine))),
-                    None)
+        argvs = _argvs_developpes(_avec_la_branche(c, branche), environnement, racine)
+        return next(filter(None, (_git_irreversible(racine, a) for a in argvs)), None)
     if nom in ("npm", "cargo", "poetry", "uv", "pnpm", "yarn") and "publish" in argv[1:3]:
         return f"{nom} publish"
     if (nom, argv[1:2]) in (("twine", ["upload"]), ("gem", ["push"])):
@@ -2062,17 +2290,21 @@ def refus_bash(projet: config.Projet, cmd: str, cwd: str | None = None) -> str |
         raise
     en_plus = projet.pol("irreversible", "bash", defaut=IRREVERSIBLES_BASH) or []
     environnement = commandes.environnement_du_shell(os.environ, depart_de(racine, cwd))
-    for c in simples:
-        action = irreversible(racine, c, environnement) or next(
+    for k, c in enumerate(simples):
+        # `$(git branch --show-current)` d'un push : la branche courante,
+        # quand rien ne la change avant lui (B-0254, ADR-0097).
+        branche = branche_substituee(depart_de(racine, cwd), simples[:k], c, environnement)
+        action = irreversible(racine, c, environnement, branche) or next(
             (" ".join(c.argv)[:120] for m in en_plus if re.search(m, " ".join(c.argv))), None)
-        illisible = None if action else push_illisible(racine, c, environnement)
+        illisible = None if action else push_illisible(racine, c, environnement, branche)
         if illisible:
             return trad("`git push` dont le hook ne sait pas développer l'argument `{mot}` (une variable qu'il ne "
                         "connaît pas, une substitution, les arguments d'une fonction) : il pourrait forcer le push ou "
                         "viser la branche par défaut, et rien ne le rattraperait ensuite (politique, point 4). Écrire "
                         "ses arguments en toutes lettres (la branche courante : `git branch --show-current`), ou "
-                        "affecter la variable plus tôt dans la même commande (`B=travail; git push origin \"$B\"`) "
-                        "(B-0254).", mot=illisible)
+                        "affecter la variable plus tôt dans la même commande (`B=travail; git push origin \"$B\"`). "
+                        "`\"$(git branch --show-current)\"` vaut la branche courante si la commande ne change ni de "
+                        "dossier ni de branche avant le push (B-0254).", mot=illisible)
         if action:
             return trad("commande irréversible ou externe ({action}) : « {commande} » — validation humaine "
                         "requise (politique, point 4), et une demande validée ne la débloque pas : "

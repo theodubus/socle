@@ -169,6 +169,15 @@ class Commande:
     # d'`analyser`, que `variables_de` reprend sans les redévelopper.
     connues: dict[str, str] | None = field(default=None, repr=False, compare=False)
     environnement: dict[str, str] | None = field(default=None, repr=False, compare=False)
+    # Le corps du heredoc que reçoit son entrée (`<<`, `<<-` sans ses
+    # tabulations de tête), tel qu'écrit, sans rien développer ; `None` sans
+    # heredoc, ou quand une redirection qui le suit lui donne une autre
+    # entrée (B-0229).
+    entree: str | None = None
+    # La commande qui la précède dans son pipeline (`a | b` : `a` pour `b`),
+    # celle qui écrit ce que lit son entrée ; `None` en tête d'un pipeline
+    # (B-0246).
+    amont: Commande | None = field(default=None, repr=False, compare=False)
 
     @property
     def programme(self) -> str:
@@ -183,16 +192,28 @@ class Commande:
 
 def sans_heredocs(texte: str) -> str:
     """Le texte sans le corps de ses heredocs : un document, pas une commande."""
-    res, attendus = [], []
+    return _heredocs(texte)[0]
+
+
+def _heredocs(texte: str) -> tuple[str, list[tuple[str, str]]]:
+    """Le texte sans le corps de ses heredocs, et ces corps dans l'ordre :
+    (le mot qui le ferme, le corps), les tabulations de tête de ses lignes
+    retirées pour `<<-`, comme le shell (B-0229)."""
+    res, attendus, corps = [], [], []
     for ligne in texte.split("\n"):
         if attendus:
-            fin, tabs = attendus[0]
+            fin, tabs, lignes = attendus[0]
             if (ligne.lstrip("\t") if tabs else ligne) == fin:
+                corps.append((fin, "\n".join(lignes)))
                 attendus.pop(0)
+            else:
+                lignes.append(ligne.lstrip("\t") if tabs else ligne)
             continue
         res.append(ligne)
-        attendus += [(m.group(3), m.group(1) == "-") for m in HEREDOC.finditer(ligne)]
-    return "\n".join(res)
+        attendus += [(m.group(3), m.group(1) == "-", []) for m in HEREDOC.finditer(ligne)]
+    # Un heredoc sans sa ligne de fin court jusqu'au bout du texte.
+    corps += [(fin, "\n".join(lignes)) for fin, _, lignes in attendus]
+    return "\n".join(res), corps
 
 
 def _fin_guillemets(texte: str, i: int) -> int:
@@ -413,7 +434,14 @@ def _preparer(texte: str) -> tuple[str, list[tuple[str, str | None]]]:
 def _jetons(texte: str) -> list[tuple[str, list[str]]]:
     """Les mots et les opérateurs de la commande, guillemets retirés, chacun
     avec les commandes que ses substitutions lancent."""
-    prepare, parts = _preparer(sans_heredocs(texte.replace("\\\n", " ")))
+    sans_corps, corps = _heredocs(texte.replace("\\\n", " "))
+    prepare, parts = _preparer(sans_corps)
+
+    def prendre(fin: str) -> str | None:
+        """Le premier corps qui reste du heredoc que ferme `fin`, retiré."""
+        k = next((k for k, (nom, _) in enumerate(corps) if nom == fin), None)
+        return None if k is None else corps.pop(k)[1]
+
     lex = shlex.shlex(prepare, posix=True, punctuation_chars=";&|()<>\n")
     lex.whitespace = " \t\r"
     lex.whitespace_split = True
@@ -437,6 +465,16 @@ def _jetons(texte: str) -> list[tuple[str, list[str]]]:
             # mot (`"function"`, `"}"`, B-0232) ; un autre mot la perd.
             nu = mot.replace(CITE, "")
             mot = CITE + nu if _operateur(nu) or nu in MOTS_STRUCTURE else nu
+        if res and res[-1][0] == "<<":
+            # Le mot qui ferme un heredoc (`-EOF` pour `<<-EOF`) : il prend le
+            # premier corps de ce nom qui reste, dans l'ordre du texte.
+            mot, nom = _Heredoc(mot), mot.lstrip(CITE)
+            mot.corps = prendre(nom) if any(fin == nom for fin, _ in corps) or nom[:1] != "-" else prendre(nom[1:])
+        else:
+            # Les heredocs d'une substitution ou d'une chaîne, que le découpage
+            # a vus aussi : leurs corps ne sont pas ceux des suivants.
+            for m in HEREDOC.finditer(mot.replace(CITE, "")):
+                prendre(m.group(3))
         res.append((mot, internes))
     return res
 
@@ -536,6 +574,12 @@ def _mots_de_la_liste(liste: list[str], variables) -> list[str] | None:
             separateurs = " \t\n" if separateurs is None or INCONNU in separateurs else separateurs
             res += [x for x in re.split("[" + re.escape(separateurs) + "]+", d) if x] if separateurs else [d] * bool(d)
     return res
+
+
+class _Heredoc(str):
+    """Le mot qui suit un `<<` : il porte le corps du heredoc qu'il ferme
+    (`corps`, `None` si le découpage ne l'a pas trouvé, B-0229)."""
+    corps: str | None
 
 
 class _Tour(str):
@@ -752,6 +796,10 @@ def _analyser(texte: str, etat: _Etat, env: dict, budget: list[int],
     res: list[Commande] = []
     mots: list[str] = []
     redir: list[str] = []
+    # Le corps du heredoc que reçoit l'entrée de la commande en cours (B-0229),
+    # et la commande qui la précède dans son pipeline (B-0246).
+    entree: str | None = None
+    amont: Commande | None = None
     jets = _jetons(texte)
     # Ce que retrouve la suite d'un pipeline (chaque élément tourne dans un
     # sous-shell), d'une tâche de fond (toute la liste `a && b &`) et d'un
@@ -988,7 +1036,7 @@ def _analyser(texte: str, etat: _Etat, env: dict, budget: list[int],
         return None
 
     def clore():
-        nonlocal mots, redir
+        nonlocal mots, redir, entree, amont
         avant = reserves()
         if avant is not None:
             # Le mot qui ferme une commande composée : ses redirections
@@ -996,7 +1044,7 @@ def _analyser(texte: str, etat: _Etat, env: dict, budget: list[int],
             if redir:
                 res.append(Commande(mots, redir, avant.dossier, [], list(avant.vues), avant.lieu,
                                     avant.variables(env), env))
-            mots, redir = [], []
+            mots, redir, entree = [], [], None
             return
         # Les mots réservés cités ont servi : leur marque tombe pour l'`argv`
         # (`"function" f` lance la commande `function`, B-0232).
@@ -1008,7 +1056,8 @@ def _analyser(texte: str, etat: _Etat, env: dict, budget: list[int],
             etat.vues.extend(_affectation(m) for m in mots)
         if argv or redir:
             c = Commande(argv, redir, etat.dossier, mots[:len(mots) - len(argv)], list(etat.vues), etat.lieu,
-                         etat.variables(env), env)
+                         etat.variables(env), env, entree, amont)
+            amont = None
             nom = c.programme
             if nom == "cd":
                 cible = (options_et_arguments(argv[1:])[1] or ["~"])[0]
@@ -1077,7 +1126,7 @@ def _analyser(texte: str, etat: _Etat, env: dict, budget: list[int],
             etat.vues.extend(_affectations(argv))
             etat.vues.extend((m.group(1), None) for x in mots + redir for m in DEFAUT_AFFECTE.finditer(x))
             res.append(c)
-        mots, redir = [], []
+        mots, redir, entree = [], [], None
 
     i = 0
     while i < len(jets):
@@ -1115,6 +1164,10 @@ def _analyser(texte: str, etat: _Etat, env: dict, budget: list[int],
             continue
         if "<" in j:
             sous_shells(internes)
+            if j in ("<", "<<", "<<<"):
+                # La dernière redirection de l'entrée l'emporte : un heredoc
+                # y donne son corps, un fichier ou une chaîne autre chose.
+                entree = getattr(suivant, "corps", None) if j == "<<" else None
             i += 2
             continue
         if j == "(" and suivant == ")" and not redir and (k := _definition(mots)) is not None:
@@ -1144,6 +1197,9 @@ def _analyser(texte: str, etat: _Etat, env: dict, budget: list[int],
                 etat, debut_liste, debut_tube, en_tube = englobants.pop()
         elif j in ("|", "|&"):
             etat, en_tube = debut_tube.copie(), True
+            # Ce qui écrit dans le tube : la dernière commande lue, celle
+            # d'un groupe ou d'une boucle qui se ferme compris.
+            amont = res[-1] if res else None
         elif j == "&":
             etat = debut_liste.copie()
             debut_liste, debut_tube, en_tube = etat.copie(), etat.copie(), False
@@ -1552,6 +1608,22 @@ def se_croisent(motif_shell: str, motif_chemin: str, dessous: bool = False, perm
     return any(_se_croisent(a, b) for a in formes for b in chemins)
 
 
+def se_croisent_tous(motifs_shell: list[str], motif_chemin: str, permissif: bool = False) -> bool:
+    """Un même chemin peut-il répondre à chacun des motifs du shell et au
+    motif de chemin, comme `se_croisent` pour un seul : les filtres d'une
+    même conjonction d'un `find` (B-0231)."""
+    shells = [_elements_shell(m, permissif) for m in motifs_shell]
+    chemins = _elements_chemin(motif_chemin.lower() if permissif else motif_chemin)
+    if len(shells) == 1:
+        return any(_se_croisent(shells[0], b) for b in chemins)
+    return any(_se_croisent_tous(*shells, b) for b in chemins)
+
+
+# Les états que parcourt au plus le croisement de plus de deux motifs : au-delà,
+# ils sont dits se croiser, un refus de trop plutôt qu'un hook trop lent.
+ETATS_MAX = 200_000
+
+
 def _se_croisent(a: list, b: list) -> bool:
     """Un même chemin peut-il répondre aux deux suites d'éléments ? Un
     parcours du produit des deux : (position dans `a`, dans `b`, au début
@@ -1581,6 +1653,45 @@ def _se_croisent(a: list, b: list) -> bool:
             pile.append((i2, j2, True))
         if ensemble[0] or ensemble[1] - interdits:
             pile.append((i2, j2, False))
+    return False
+
+
+def _se_croisent_tous(*suites: list) -> bool:
+    """`_se_croisent` pour plus de deux suites : celles de motifs du shell,
+    puis la dernière, d'un motif de chemin. Un parcours de leur produit :
+    (la position dans chacune, au début d'un nom), chaque pas rendant un
+    caractère que toutes admettent ; au-delà de `ETATS_MAX` états, elles
+    sont dites se croiser (B-0231)."""
+    fins = tuple(len(s) for s in suites)
+    shells = range(len(suites) - 1)
+    vus: set = set()
+    pile = [((0,) * len(suites), True)]
+    while pile:
+        etat = pile.pop()
+        if etat in vus:
+            continue
+        if len(vus) > ETATS_MAX:
+            return True
+        vus.add(etat)
+        positions, debut = etat
+        if positions == fins:
+            return True
+        for k, (i, s) in enumerate(zip(positions, suites)):
+            if i < len(s) and s[i][1]:
+                pile.append((positions[:k] + (i + 1,) + positions[k + 1:], debut))
+        if any(i == n for i, n in zip(positions, fins)):
+            continue
+        elements = [s[i] for i, s in zip(positions, suites)]
+        ensemble = elements[0][0]
+        for e in elements[1:]:
+            ensemble = _commun(ensemble, e[0])
+        suivantes = tuple(i if e[1] else i + 1 for i, e in zip(positions, elements))
+        # Le `.` qui ouvre un nom ne répond qu'à un `.` écrit.
+        interdits = {"/", "."} if debut and any(elements[k][2] for k in shells) else {"/"}
+        if _rend(ensemble, "/"):
+            pile.append((suivantes, True))
+        if ensemble[0] or ensemble[1] - interdits:
+            pile.append((suivantes, False))
     return False
 
 

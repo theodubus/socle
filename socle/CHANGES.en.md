@@ -7,6 +7,94 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-19-t — The agent's hook reads the current branch in `git push origin "$(git branch --show-current)"`
+
+The agent's hook expands three substitutions of a `git push` into the
+current branch, `$(git branch --show-current)`, `$(git rev-parse
+--abbrev-ref HEAD)` and `$(git symbolic-ref --short HEAD)`, bare, quoted,
+in backticks or through a variable (`B=$(git branch --show-current); git
+push -u origin "$B"`), and judges the push as if the branch were written
+out in full: it passes from a working branch, and it is refused from the
+default branch. They were refused, like any argument it cannot expand.
+When the same command changes directory, repository or branch before the
+push (`cd` elsewhere, `git -C`, `git checkout`, `git switch`), or for any
+other substitution (`$(echo main)`), the push stays refused.
+
+To do: nothing.
+
+## 2026-11-19-s — The agent's hook judges the filters of a `find` by their conjunction, and its `-path` under its starting points
+
+The agent's hook judges the expression of a `find` that deletes or
+writes what it finds by the conjunction of its filters: a protected file
+is targeted only if it answers each filter of one conjunction, and the
+pattern of a `-path` targets only what lies under the `find`'s starting
+points. `find . -name '*.json' -path './build/*' -delete` and `find
+build -path '*.toml' -delete` pass; they were refused, each filter
+judged alone, and the leading star of a `-path` read from the project's
+root. What a conjunction reaches stays refused (`find . -name '*.json'
+-path './.claude/*' -delete`, `find . -path '*.toml' -delete`).
+
+To do: nothing.
+
+## 2026-11-19-r — The agent's hook judges `find … | xargs rm` as a `find` that deletes from its starting points
+
+The agent's hook judges an `xargs` of a program that deletes what it
+reads (`rm`, `mv`, `git worktree remove`…), behind a `find` that gives
+it its list, as a `find` that deletes from its starting points: `find
+.. -maxdepth 0 | xargs rm -rf` is refused as deleting a directory that
+contains the project, and `find . -type f | xargs rm -f` as deleting the
+project. They passed: `xargs` was judged only by the protected paths the
+command cites. What the `find` writes on its output is guarded by its
+`-print` or `-print0`, or failing those by its whole expression. A
+cleanup under the project (`find . -name '*.pyc' | xargs rm -f`, `find
+build -type f | xargs rm -f`) still passes. The guide no longer says
+this deletion escapes the hook, and the line of `xargs git worktree
+remove` in the list of known forms states its exception, behind a
+`find`.
+
+To do: nothing.
+
+## 2026-11-19-q — The agent's hook judges the arguments that follow the script of a `python -c`
+
+The agent's hook judges the arguments that follow the script of a
+`python -c`, and those that follow the `-` of a script python reads on
+its input, as the paths the script cites written out in full: `python3
+-c "import sys; open(sys.argv[1], 'w')" .socle/policy.toml` is refused.
+It passed: only the script was judged, and the path it reads in
+`sys.argv` escaped the hook, down to Claude Code's local settings file,
+which git does not track. An argument is expanded with the command's
+known variables (`F=…; python3 -c "…" "$F"`); one it cannot expand
+(`"$X"`, `$(…)`) is judged as the unknown path the shell would write,
+refused if it can fall inside the project, free under a directory
+outside it (`/tmp/$X`). A `python -c` whose arguments name no protected
+file passes, as does a script that does not read its arguments (neither
+`argv` nor `argparse`, `fileinput`, `optparse` or `getopt`), which does
+not touch them; the list of known forms the hook does not judge enters
+one that would read them otherwise (`runpy`, the `exec` of another
+script).
+
+To do: nothing.
+
+## 2026-11-19-p — The agent's hook judges the script a heredoc gives to python
+
+The agent's hook judges the body of a heredoc read on its input by a
+`python` or `python3` launched without `-c`, without `-m` and without a
+script, or with `-` as its script, as the script of a `python -c`:
+`python3 - <<'EOF'` whose body writes `.socle/policy.toml`, or passes
+`..` to `shutil.rmtree`, is refused. It passed: the body of a heredoc
+was only text to the splitting. The body is read as written, without
+expanding its variables, its leading tabs removed for `<<-`, and the
+last redirection of the input wins. A script that cites no protected
+file and deletes nothing of the project passes; a heredoc given to
+another program (`cat > notes.txt <<'EOF'`) and a script python reads
+from a file (`python3 script.py`, `python3 - < script.py`) are judged as
+before. Two neighbouring forms, which no agent writes in its work, are
+entered in the list of known forms the hook does not judge: the heredoc
+of a substitution, and the body of a heredoc given to an interpreter
+other than python.
+
+To do: nothing.
+
 ## 2026-11-19-o — The agent's hook refuses a former number repeated in a new line, even in a file that already cites it
 
 The agent's hook refuses the former number of a renumbered entry in a

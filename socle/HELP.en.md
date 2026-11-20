@@ -342,12 +342,18 @@ contains it: write it out in full, or under a directory outside the
 project (`/tmp/…`). A command it cannot judge (more than 10,000 characters
 outside the bodies of its heredocs, more than 32 parentheses or braces
 open at once, a judgment that crashes or takes over 5 seconds) is refused
-if it can write: split it. It also refuses deleting a directory that
+if it can write: split it. The script of a `python3 -c`, and the one a
+heredoc gives to python (`python3 - <<'EOF'`), are judged by the protected
+files they cite written out in full or that the arguments following them
+name, if they read them (`sys.argv`), and such an argument it cannot
+expand (`"$X"`), as a written path; a script python reads from a file is
+not judged. It also refuses deleting a directory that
 contains the project (`rm -rf ..`, an `mv`, a `git clean` or a `find` that
-deletes from such a directory, the destination of an `rsync --delete`,
+deletes from such a directory, or gives its list to `xargs rm` (`find ..
+-maxdepth 0 | xargs rm -rf`), the destination of an `rsync --delete`,
 the sources of an `rsync --remove-source-files`, the path of a `git
-worktree remove`, a `python3 -c` that passes it written out in full to
-`shutil.rmtree`), deleting the project itself by these other programs (a
+worktree remove`, a `python3 -c` or a heredoc's script that passes it
+written out in full to `shutil.rmtree`), deleting the project itself by these other programs (a
 subagent removing its own worktree, `git worktree remove .`, or by the
 end of its path, which git looks up first among its worktrees: `git
 worktree remove agent-x`), and
@@ -359,7 +365,15 @@ project, stay free (the orchestrator, at the root, removes a subagent's
 worktree). A `git push` is judged likewise on its expanded arguments:
 `F=--force; git push $F origin x` is a force push, and an argument it
 cannot expand (a variable it does not know, a substitution, a function's
-arguments) is refused: write the branch out in full.
+arguments) is refused: write the branch out in full. Three substitutions
+are the exception, `$(git branch --show-current)`, `$(git rev-parse
+--abbrev-ref HEAD)` and `$(git symbolic-ref --short HEAD)`, bare, quoted,
+in backticks or through a variable: they stand for the current branch,
+which the push then targets (`git push -u origin "$(git branch
+--show-current)"` passes from a working branch, and is refused from the
+default branch), unless the same command changes directory, repository
+or branch before the push (`cd`, `git -C`, `git checkout`, `git
+switch`).
 
 **What the agent's hook judges.** The agent's hook stops the mistakes of
 a cooperative agent before they take effect. It judges the shell forms an
@@ -372,10 +386,7 @@ seen in an agent session, a skill or current documentation. Another form
 is entered in one line in the list of known forms the hook does not
 judge, without a backlog entry; in the review of a batch of the hook, it is not
 a blocking finding, even if refused before the batch by accident. A
-cooperative agent does not try to get around its guardrails. Deleting
-the project still escapes it through `find … | xargs rm`, a form an
-agent writes: do not run it against the project or a directory that
-contains it.
+cooperative agent does not try to get around its guardrails.
 
 The known forms the hook does not judge: no agent writes them in its
 work; they pass, or are refused by accident. Each says what the hook
@@ -406,7 +417,7 @@ misreads in it, and the release note that enters it.
 - `echo .. | xargs rm`: `xargs` is judged only by the protected paths it
   cites (2026-11-16-a).
 - `xargs git worktree remove`: the path read from the input is not
-  judged (2026-11-16-a).
+  judged, except behind a `find` (2026-11-19-r).
 - The shell command a `python3 -c` launches (`os.system`,
   `subprocess`): the script is judged only by its paths (2026-11-16-a).
 - A path a `python3 -c` script builds on the fly: only a path written
@@ -423,6 +434,17 @@ misreads in it, and the release note that enters it.
   the CI runs everything (2026-11-19-m).
 - A git subcommand that comes from a variable (`git $SUB --force …`):
   it is not judged (2026-11-19-m).
+- The heredoc of a substitution (`X=$(python3 - <<'EOF' … EOF)`): its
+  body is not judged (2026-11-19-p).
+- The body of a heredoc given to an interpreter other than python (`bash
+  <<'EOF'`, `sh -s <<'EOF'`): it is only text (2026-11-19-p).
+- The arguments of a `python3 -c` whose script names neither `argv` nor
+  `argparse`, `fileinput`, `optparse` or `getopt` (a `runpy`, the `exec`
+  of another script): they are not judged (2026-11-19-q).
+- A script, or a program other than git, that changes branch before the
+  push (`./publish.sh && git push origin "$(git branch
+  --show-current)"`): the substitution stands for the branch from before
+  it (2026-11-19-t).
 
 The hook does not model all of bash: a write to a protected file in a
 form one writes only to get around it (an `eval`, `IFS`, a path built on

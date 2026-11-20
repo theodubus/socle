@@ -347,12 +347,20 @@ projet ou le contient : l'écrire en toutes lettres, ou sous un dossier
 hors du projet (`/tmp/…`). Une commande qu'il ne sait pas juger (plus de
 10 000 caractères hors du corps de ses heredocs, plus de 32 parenthèses
 ou accolades ouvertes à la fois, un jugement qui plante ou passe
-5 secondes) est refusée si elle peut écrire : la découper. Il refuse
+5 secondes) est refusée si elle peut écrire : la découper. Le script d'un
+`python3 -c`, et celui qu'un heredoc donne à python (`python3 - <<'EOF'`),
+se jugent par les fichiers protégés qu'ils citent en toutes lettres ou
+que nomment les arguments qui les suivent, s'ils les lisent (`sys.argv`),
+et un tel argument qu'il ne sait pas développer (`"$X"`), comme un chemin
+écrit ; un script que python lit d'un fichier ne se juge pas. Il refuse
 aussi la suppression d'un dossier qui contient le projet (`rm -rf ..`, un
-`mv`, un `git clean` ou un `find` qui supprime depuis un tel dossier, la
+`mv`, un `git clean` ou un `find` qui supprime depuis un tel dossier, ou
+qui en donne la liste à `xargs rm` (`find .. -maxdepth 0 | xargs rm
+-rf`), la
 destination d'un `rsync --delete`, les sources d'un `rsync
 --remove-source-files`, le chemin d'un `git worktree remove`, un `python3
--c` qui le passe en toutes lettres à `shutil.rmtree`), celle du projet
+-c` ou le script d'un heredoc qui le passent en toutes lettres à
+`shutil.rmtree`), celle du projet
 lui-même par ces autres programmes (un sous-agent qui retire son propre
 worktree, `git worktree remove .`, ou par la fin de son chemin, que git
 cherche d'abord parmi ses worktrees : `git worktree remove agent-x`), et
@@ -365,7 +373,15 @@ racine, retire le worktree d'un sous-agent). Un `git push` se juge de même
 sur ses arguments développés : `F=--force; git push $F origin x` est un
 push forcé, et un argument qu'il ne sait pas développer (une variable
 qu'il ne connaît pas, une substitution, les arguments d'une fonction) est
-refusé : écrire la branche en toutes lettres.
+refusé : écrire la branche en toutes lettres. Trois substitutions font
+exception, `$(git branch --show-current)`, `$(git rev-parse --abbrev-ref
+HEAD)` et `$(git symbolic-ref --short HEAD)`, nues, entre guillemets,
+entre accents graves ou passées par une variable : elles valent la
+branche courante, que le push vise alors (`git push -u origin "$(git
+branch --show-current)"` passe depuis une branche de travail, et est
+refusé depuis la branche par défaut), sauf si la même commande change de
+dossier, de dépôt ou de branche avant le push (`cd`, `git -C`, `git
+checkout`, `git switch`).
 
 **Ce que juge le hook de l'agent.** Le hook de l'agent arrête les erreurs
 d'un agent coopératif avant qu'elles agissent. Il juge les formes du shell
@@ -378,10 +394,7 @@ travail : vue dans une session d'agent, un skill ou une documentation
 courante. Une autre forme s'inscrit d'une ligne dans la liste des formes
 connues que le hook ne juge pas, sans entrée au backlog ; dans la revue d'un lot du
 hook, elle n'est pas un bloquant, même refusée avant le lot par accident.
-Un agent coopératif ne cherche pas à contourner ses garde-fous. La
-suppression du projet lui échappe encore par `find … | xargs rm`, une
-forme qu'un agent écrit : ne pas la lancer vers le projet ni vers un
-dossier qui le contient.
+Un agent coopératif ne cherche pas à contourner ses garde-fous.
 
 Les formes connues que le hook ne juge pas : aucun agent ne les écrit
 dans son travail ; elles passent, ou se refusent par accident. Chacune
@@ -412,8 +425,8 @@ dit ce que le hook y lit mal, et la note de version qui l'inscrit.
   (2026-11-16-a).
 - `echo .. | xargs rm` : `xargs` ne se juge que par les chemins protégés
   qu'il cite (2026-11-16-a).
-- `xargs git worktree remove` : le chemin lu sur l'entrée ne se juge pas
-  (2026-11-16-a).
+- `xargs git worktree remove` : le chemin lu sur l'entrée ne se juge pas,
+  sauf derrière un `find` (2026-11-19-r).
 - La commande du shell que lance un `python3 -c` (`os.system`,
   `subprocess`) : le script ne se juge que par ses chemins (2026-11-16-a).
 - Un chemin qu'un script `python3 -c` construit au vol : seul se juge un
@@ -429,6 +442,17 @@ dit ce que le hook y lit mal, et la note de version qui l'inscrit.
   refus ; la CI exécute tout (2026-11-19-m).
 - Une sous-commande de git venue d'une variable (`git $SUB --force …`) :
   elle ne se juge pas (2026-11-19-m).
+- Le heredoc d'une substitution (`X=$(python3 - <<'EOF' … EOF)`) : son
+  corps ne se juge pas (2026-11-19-p).
+- Le corps d'un heredoc donné à un autre interpréteur que python (`bash
+  <<'EOF'`, `sh -s <<'EOF'`) : n'est que du texte (2026-11-19-p).
+- Les arguments d'un `python3 -c` dont le script ne nomme ni `argv`, ni
+  `argparse`, `fileinput`, `optparse` ou `getopt` (un `runpy`, l'`exec`
+  d'un autre script) : ils ne se jugent pas (2026-11-19-q).
+- Un script, ou un programme autre que git, qui change de branche avant
+  le push (`./publier.sh && git push origin "$(git branch
+  --show-current)"`) : la substitution vaut la branche d'avant lui
+  (2026-11-19-t).
 
 Le hook ne modélise pas tout bash : une écriture d'un fichier protégé
 sous une forme qu'on n'écrit que pour contourner (un `eval`, `IFS`, un
