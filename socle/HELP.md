@@ -250,6 +250,28 @@ pull request par tâche, chacune à fusionner, se choisit aux questions de
 départ, ou plus tard en le disant à l'agent, qui l'écrit en fait de la
 mémoire.
 
+**La fusion par l'agent.** Par défaut, c'est vous qui fusionnez la pull
+request de l'agent : le hook lui refuse la fusion, comme les autres
+actions externes. Pour qu'il fusionne lui-même la sienne, décommentez la
+ligne `tools` que la section `[irreversible]` de la politique
+(`.socle/policy.toml`) porte en commentaire : la liste des outils externes
+que le moteur refuse, moins la fusion. Une politique posée avant cette
+option ne l'a pas ; le diff de la politique, montré à la mise à jour, la
+donne. Seul l'humain écrit la politique, et approuve ce changement comme
+tout changement protégé : l'agent ne s'en donne pas le droit. Il ne
+fusionne alors qu'à quatre conditions : sa propre pull request
+seulement, jamais celle d'une autre session ; la CI verte sur son commit
+de tête, qu'il donne ; la revue du dernier lot faite et ses constats
+traités ; aucune demande en attente sur son contenu. Après la fusion, il
+vérifie les workflows qu'elle lance sur la branche par défaut (un
+déploiement, une publication…), et son récap dit s'ils ont réussi. Il
+fusionne par l'outil GitHub de sa session : `gh pr merge`, le push forcé
+et le push sur la branche par défaut restent refusés. La ligne fige la
+liste : un outil que le moteur ajoutera à la sienne n'est pas refusé au
+projet tant que vous ne l'avez pas recopié dans la ligne, ce que dira la
+note de version qui l'ajoute. Retirer la ligne rend la fusion à
+l'humain.
+
 Un prototype qu'on ne compte pas fusionner se fait sur une branche
 jetable, nommée `proto/…` (ou d'un autre préfixe déclaré dans
 `[branches] disposable` des garde-fous). La CI du socle ne la juge pas aux
@@ -418,6 +440,9 @@ des fichiers protégés, à la fin du tour, au commit et dans la CI.
 défaut, publier, régler un service, supprimer une branche distante, poser
 une étiquette (en session cloud, l'agent ne pousse que sa propre branche) : l'agent l'inscrit au backlog avec son
 mode d'emploi, et l'état le liste dans « ce qui revient à l'humain ».
+Supprimer la branche distante d'un travail non fusionné ne remet pas sa
+plage à neuf : le hook avant envoi du clone qui l'a poussée juge la suite
+depuis le dernier commit qu'il y a poussé.
 
 **Commiter soi-même.** Les mêmes contrôles s'appliquent : une fonction
 publique ajoutée est nommée par un test, ou dispensée dans le message du
@@ -504,7 +529,9 @@ Chaque refus dit ce qu'il a vu et comment en sortir. La plupart s'adressent
    fichier de cas, exige une demande validée.
 3. L'agent prend les décisions réversibles et mesurables ; il demande
    celles qui sont coûteuses à défaire.
-4. Une action irréversible ou externe est toujours demandée.
+4. Une action irréversible ou externe est toujours demandée, hors la
+   fusion de sa pull request quand la politique la permet (« La fusion
+   par l'agent »).
 5. La mémoire est en ajout seul.
 6. Un défaut voisin du travail en cours va au backlog.
 7. Après trois échecs de suite, l'agent s'arrête et écrit une demande.

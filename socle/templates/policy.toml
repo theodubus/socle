@@ -48,7 +48,11 @@ paths = [
 # `bash` AJOUTE des motifs, appliqués à chaque commande simple, et ne retire
 # rien. `tools` remplace la liste des outils externes du moteur.
 # bash = ['\bterraform\s+apply\b', ...]
-# tools = ['mcp__github__merge_pull_request', ...]
+#
+# Décommentée, la ligne ci-dessous, la liste du moteur moins la fusion,
+# laisse l'agent fusionner sa pull request (le guide, « La fusion par
+# l'agent ») ; sans elle, la fusion reste refusée. L'humain seul l'active.
+# tools = ['mcp__github__(delete_file|create_repository|fork_repository|create_release|push_files|create_or_update_file|enable_pr_auto_merge)']
 
 [agents]
 # Claude Code est l'agent outillé de hooks ; les autres agents restent

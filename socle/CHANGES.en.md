@@ -7,6 +7,61 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-20-r — The `socle-batch` skill has the agent wait, after a merge by the agent, for the workflows it starts
+
+A merge into the default branch may start a deployment or a release; if
+it failed, nothing said so, and the agent moved on to the next batch.
+The merge step of the `socle-batch` skill now says it: the agent that
+merges its own pull request, when the policy allows it, then waits for
+the workflows the merge starts on the default branch, as it waits for
+the CI, and its recap says whether they succeeded. Who merges, the step
+reads in the policy, no longer in the project's instructions.
+
+To do: nothing; the `socle-batch` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-20-q — Merging its own pull request by the agent, a policy option the human enables
+
+The hook refuses the agent the merge of a pull request, like the other
+external actions. The policy the installer lays down now carries as a
+comment, in its `[irreversible]` section, the `tools` line that allows
+it: the engine's list of external tools, minus the merge. Only the human
+enables it, by uncommenting it; the guide (“Merging by the agent”) gives
+the conditions under which the agent then merges its own pull request,
+and what it checks afterwards. The hook does not change: without the
+line, the merge stays refused. An installed project's policy is not
+rewritten; on this update, the diff of the policy shows the line.
+
+To do: nothing, unless the human wants the agent to merge its own pull
+request. They then write this line themselves in the `[irreversible]`
+section of `.socle/policy.toml`, and approve it like any protected
+change; the agent does not write it, it can give it to them:
+
+```toml
+tools = ['mcp__github__(delete_file|create_repository|fork_repository|create_release|push_files|create_or_update_file|enable_pr_auto_merge)']
+```
+
+A project that has already written this line has nothing to do.
+
+## 2026-11-20-p — Deleting the remote branch no longer resets the range of a push
+
+The pre-push hook judges the outgoing range from the remote commit; a
+branch absent on the remote was judged against the default branch, where
+a test that only the branch added has no earlier value. Deleting the
+remote branch thus let what had been pushed to it be rewritten. When it
+lets a push through, the hook now keeps the commit pushed to each remote
+reference, in `.git/socle/pushed.json` (the git common directory of the
+worktrees, not versioned); a vanished remote branch whose commit is not
+in the default branch is judged from it, and the refusal says that
+deleting the branch is not a way out. A branch merged by a merge commit,
+restarted from the default branch under the same name, is judged as a new
+branch; after a squash or rebase merge, the kept commit stays outside the
+default branch, and the branch restarted under the same name is judged
+from it: stricter, never looser; the way out is another branch name. A
+clone that has pushed nothing since the update is judged as before.
+
+To do: nothing.
+
 ## 2026-11-20-o — The review folder of a branch that merged the default branch shows only the batch
 
 An already pushed branch that merged the default branch during a batch

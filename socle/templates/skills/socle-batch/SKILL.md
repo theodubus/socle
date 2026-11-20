@@ -33,7 +33,7 @@ tâche.
 
 Sous Claude Code : outil `Agent`, dans une copie isolée
 (`isolation: "worktree"`), en arrière-plan ; deux à la fois au plus.
-Sans la conversation, sa consigne se lit seule.
+Sa consigne se lit sans la conversation.
 
 ```text
 Tu implémentes une tâche de ce dépôt dans ta copie isolée. Les instructions
@@ -78,10 +78,11 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
    `python3 .socle/socle state`. Une attente annoncée a son réveil en
    session cloud (`send_later`) ; ailleurs, `Ensuite :` le dit, et
    l'humain relance l'agent.
-4. Qui fusionne, les instructions du projet le disent : par défaut
-   l'humain, et le lot suivant s'ajoute à la même pull request ; l'agent,
-   la sienne, si elles le permettent : CI verte sur le commit de tête,
-   qu'il donne, revue faite, aucune demande en attente sur son contenu.
+4. Qui fusionne : par défaut l'humain, et le lot suivant s'ajoute à la
+   même pull request ; l'agent, la sienne, si la politique le permet : CI
+   verte sur le commit de tête, qu'il donne, revue faite, aucune demande
+   en attente sur son contenu. Il attend de même les workflows que la
+   fusion lance sur la branche par défaut ; le récap dit s'ils ont réussi.
 5. Le chantier actif et le journal s'écrivent avant la fusion, dans le
    dernier commit de la pull request, avec la clôture du lot : ses tâches
    closes, il passe `fait`, puis `python3 .socle/socle archive` ; le récap
@@ -124,19 +125,19 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
 
 ## Changer de session
 
-Quand le lot est livré et que la fenêtre ne permet pas d'en mener un
-autre entier, ou qu'une attente de plus d'une heure s'annonce. Ranger
-d'abord, pour qu'une session neuve reparte du dépôt seul :
+Quand le lot est livré sans fenêtre pour un autre, ou avant une attente
+de plus d'une heure. Ranger d'abord, qu'une session neuve reparte du dépôt
+seul :
 
 1. tout est poussé ; un commit non relu part en correctif
-   (`git format-patch`) dans un dossier de passation du dépôt, retiré à
-   son intégration ;
+   (`git format-patch`) dans un dossier de passation du dépôt, retiré à son
+   intégration ;
 2. les copies isolées, leurs branches et, en session cloud, les réveils
    retirés ;
 3. le chantier actif dit le lot et ce qui attend.
 
-Puis dire à l'humain pourquoi changer de session, avec le prompt de la
-suivante dans un bloc à copier :
+Puis dire à l'humain pourquoi, avec le prompt de la suivante dans un bloc
+à copier :
 
 ```text
 Reprends le travail de ce dépôt, en session neuve.

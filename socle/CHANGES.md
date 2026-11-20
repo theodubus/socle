@@ -7,6 +7,65 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-20-r — Le skill `socle-batch` fait attendre, après une fusion par l'agent, les workflows qu'elle lance
+
+Une fusion sur la branche par défaut peut lancer un déploiement ou une
+publication ; s'il échouait, rien ne le disait, et l'agent passait au lot
+suivant. L'étape de la fusion du skill `socle-batch` le dit désormais :
+l'agent qui fusionne lui-même sa pull request, quand la politique le
+permet, attend ensuite les workflows que la fusion lance sur la branche
+par défaut, comme il attend la CI, et son récap dit s'ils ont réussi.
+Qui fusionne, l'étape le lit dans la politique, et non plus dans les
+instructions du projet.
+
+À faire : rien ; le skill `socle-batch` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-20-q — La fusion de sa pull request par l'agent, une option de la politique que l'humain active
+
+Le hook refuse à l'agent la fusion d'une pull request, comme les autres
+actions externes. La politique que pose l'installeur porte désormais en
+commentaire, dans sa section `[irreversible]`, la ligne `tools` qui la
+lui laisse : la liste des outils externes du moteur, moins la fusion.
+L'humain seul l'active, en la décommentant ; le guide (« La fusion par
+l'agent ») dit à quelles conditions l'agent fusionne alors sa propre
+pull request, et ce qu'il vérifie ensuite. Le hook ne change pas : sans
+la ligne, la fusion reste refusée. La politique d'un projet installé ne
+se réécrit pas ; à cette mise à jour, le diff de la politique montre la
+ligne.
+
+À faire : rien, sauf si l'humain veut que l'agent fusionne lui-même sa
+pull request. Il écrit alors lui-même cette ligne dans la section
+`[irreversible]` de `.socle/policy.toml`, et l'approuve comme tout
+changement protégé ; l'agent ne l'écrit pas, il peut la lui donner :
+
+```toml
+tools = ['mcp__github__(delete_file|create_repository|fork_repository|create_release|push_files|create_or_update_file|enable_pr_auto_merge)']
+```
+
+Un projet qui a déjà écrit cette ligne n'a rien à faire.
+
+## 2026-11-20-p — Supprimer la branche distante ne remet plus à neuf la plage d'un push
+
+Le hook avant push juge la plage qui part depuis le commit distant ; une
+branche absente en face se jugeait contre la branche par défaut, où un
+test que seule la branche a ajouté n'a pas de valeur antérieure. Supprimer
+la branche distante laissait donc réécrire ce qui y avait été poussé. Le
+hook garde désormais, quand il laisse passer un push, le commit poussé
+vers chaque référence distante, dans `.git/socle/pushed.json` (le
+répertoire git commun des worktrees, non versionné) ; une branche
+distante disparue dont ce commit n'est pas dans la branche par défaut se
+juge depuis lui, et le refus dit que supprimer la branche n'est pas une
+issue. Une branche fusionnée par un commit de fusion, repartie de la
+branche par défaut sous le même nom, se juge comme une branche neuve ;
+après une fusion par écrasement (squash) ou par rebase, le commit gardé
+reste hors de la branche par défaut, et la branche repartie sous le même
+nom se juge depuis lui : plus strict, jamais moins ; la sortie est un
+autre nom de branche. Un clone qui n'a rien poussé depuis la mise à jour
+se juge comme avant.
+
+À faire : rien.
+
 ## 2026-11-20-o — Le dossier de la revue d'une branche qui a fusionné la branche par défaut ne montre que le lot
 
 Une branche déjà poussée qui fusionnait la branche par défaut en cours

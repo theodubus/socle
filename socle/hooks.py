@@ -3183,12 +3183,93 @@ def code_sans_test(projet: config.Projet, message: str) -> str | None:
                    "commit --amend`) avec la dispense."))
 
 
+def _chemin_pousses(racine: Path) -> Path:
+    """Où le hook avant push garde le dernier commit poussé de chaque
+    référence distante : à côté de la trace des hooks, dans le répertoire
+    git commun que partagent les worktrees du clone (ADR-0104)."""
+    return config.chemin_trace(racine).with_name("pushed.json")
+
+
+def _lire_pousses(racine: Path) -> dict[str, str]:
+    try:
+        donnees = json.loads(_chemin_pousses(racine).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(donnees, dict):
+        return {}
+    return {k: v for k, v in donnees.items() if isinstance(k, str) and isinstance(v, str)}
+
+
+def garder_pousses(racine: Path, lignes: list[str]) -> None:
+    """Garde, pour chaque référence distante que le push met à jour, le
+    commit local qui y part : le hook avant push l'écrit quand il laisse
+    passer le push. Une suppression n'efface rien : la branche distante
+    disparue sans fusion se jugera depuis ce qu'on y a poussé (B-0167,
+    ADR-0104). La clé est la référence distante seule : le script du hook
+    git ne transmet pas au moteur le nom du distant."""
+    pousses = _lire_pousses(racine)
+    for ligne in lignes:
+        morceaux = ligne.split()
+        if len(morceaux) >= 4 and set(morceaux[1]) != {"0"}:
+            pousses[morceaux[2]] = morceaux[1]
+    try:
+        p = _chemin_pousses(racine)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        provisoire = p.with_name(f"{p.name}.{os.getpid()}")
+        provisoire.write_text(json.dumps(pousses, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(provisoire, p)
+    except OSError:
+        pass  # un repère manquant juge la branche comme neuve, comme avant ; un hook qui casse bloquerait tout
+
+
+def dernier_pousse(projet: config.Projet, reference: str) -> str | None:
+    """Le dernier commit que ce clone a poussé vers `reference`, s'il
+    existe encore ici sans être contenu dans la branche par défaut : la base
+    de la plage qui part quand la branche distante a disparu sans fusion
+    (ADR-0104). Contenu dans la branche par défaut, la branche a fusionné :
+    repartie d'elle, elle se juge comme une branche neuve."""
+    sha = _lire_pousses(projet.racine).get(reference)
+    if not sha or not outils.rev_existe(projet.racine, sha):
+        return None
+    defaut = outils.branche_par_defaut(projet.racine)
+    if defaut and outils.git_reussit(projet.racine, "merge-base", "--is-ancestor", sha, defaut):
+        return None
+    return sha
+
+
+def _plages_qui_partent(projet: config.Projet, lignes: list[str]) -> list[tuple[str, str, str, bool]]:
+    """Les plages qui partent, `(référence distante, base, commit local,
+    depuis le dernier commit poussé)` : du commit distant au commit local de
+    chaque référence présente en face, et, d'une référence absente en face,
+    depuis le dernier commit que ce clone y a poussé, s'il n'a pas fusionné
+    (ADR-0104). Une branche neuve, une suppression ou un distant qu'on n'a
+    pas n'ont rien à comparer ; une branche jetable n'a pas de CI aux envois
+    (D-0087)."""
+    res = []
+    for l in lignes:
+        morceaux = l.split()
+        if len(morceaux) < 4 or set(morceaux[1]) == {"0"}:
+            continue
+        reference, local, distant = morceaux[2], morceaux[1], morceaux[3]
+        if projet.branche_jetable(reference.removeprefix("refs/heads/")):
+            continue
+        if set(distant) == {"0"}:
+            garde = dernier_pousse(projet, reference)
+            if garde:
+                res.append((reference, garde, local, True))
+        elif outils.rev_existe(projet.racine, distant):
+            res.append((reference, distant, local, False))
+    return res
+
+
 def plage_poussee(projet: config.Projet, lignes: list[str]):
     """Les contrôles qui comparent à une base, sur la plage qui part : du
     commit distant au commit local de chaque référence déjà présente en
     face. C'est la plage que la CI d'un push jugera ; contre la branche par
     défaut, une dispense ou une validation plus anciennes de la branche
-    couvraient ce qu'elle refusera. Une branche jetable n'a pas de CI aux
+    couvraient ce qu'elle refusera. Une branche distante disparue sans
+    fusion se juge depuis le dernier commit que ce clone y a poussé, comme
+    si elle y était encore (ADR-0104). Une branche jetable n'a pas de CI aux
     envois : rien à juger comme elle (D-0087)."""
     from socle import context as contexte
     from socle.report import Rapport
@@ -3196,16 +3277,8 @@ def plage_poussee(projet: config.Projet, lignes: list[str]):
     rapport = Rapport()
     contexte.charger_controles()
     ids = [c.id for c in contexte.selectionner("ci", rapide=True) if c.base]
-    for l in lignes:
-        morceaux = l.split()
-        if len(morceaux) < 4:
-            continue
-        local, distant = morceaux[1], morceaux[3]
-        if set(local) == {"0"} or set(distant) == {"0"} or not outils.rev_existe(projet.racine, distant):
-            continue  # une branche neuve, une suppression, ou un distant qu'on n'a pas : rien à comparer
-        if projet.branche_jetable(morceaux[2].removeprefix("refs/heads/")):
-            continue  # une branche jetable : la CI ne la juge pas aux envois (D-0087)
-        ctx = contexte.Contexte(projet, etage="ci", base=distant, tete=local, rapide=True, avant_push=True)
+    for _, base, local, _ in _plages_qui_partent(projet, lignes):
+        ctx = contexte.Contexte(projet, etage="ci", base=base, tete=local, rapide=True, avant_push=True)
         rapport.fusionner(contexte.executer(ctx, ids))
     return rapport
 
@@ -3261,7 +3334,15 @@ def git_pre_push(projet: config.Projet) -> int:
     if not rapport.reussi:
         tracer_refus(projet.racine, "git-pre-push", ",".join(rapport.controles_en_echec()))
         rapport.afficher(trad("socle — vérification avant push"), flux=sys.stderr, court=True)
+        for reference, garde, _, depuis_le_dernier in _plages_qui_partent(projet, lignes):
+            if depuis_le_dernier:
+                print(trad("socle — la branche distante `{reference}` n'existe plus, et le dernier commit que ce "
+                           "clone y a poussé ({sha}) n'est pas dans la branche par défaut : la plage qui part se "
+                           "juge depuis lui, comme si elle y était encore. Supprimer la branche distante n'est pas "
+                           "une issue. Si elle a fusionné, `git fetch` fait connaître la fusion à ce clone.",
+                           reference=reference, sha=garde[:10]), file=sys.stderr)
         return 1
+    garder_pousses(projet.racine, lignes)
     _dire_avertissements(rapport, (verification.CONTROLE_DUREE,))
     return 0
 

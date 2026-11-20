@@ -78,10 +78,11 @@ decision, a journal entry and an expected value are no longer rewritten.
    says `success` (or `failure`) on its short SHA. An announced wait has
    its wake-up in a cloud session (`send_later`); elsewhere, `Next:` says
    so, and the human restarts the agent.
-4. Who merges, the project's instructions say: by default the human, and
-   the next batch is added to the same pull request; the agent, its own,
-   if they allow it: green CI on the head commit, review done, no pending
-   request on its content, giving the expected head commit.
+4. Who merges: by default the human, and the next batch is added to the
+   same pull request; the agent, its own, if the policy allows it: green
+   CI on the head commit, which it gives, review done, no pending request
+   on its content. It then waits likewise for the workflows the merge
+   starts on the default branch; the recap says whether they succeeded.
 5. The active work and the journal are written before the merge, in the
    last commit of the pull request, with the batch's closure: its tasks
    closed, it becomes `done`, then `python3 .socle/socle archive`; the closing recap pastes the output of `python3

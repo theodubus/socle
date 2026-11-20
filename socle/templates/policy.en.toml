@@ -48,7 +48,11 @@ paths = [
 # patterns, applied to each simple command, and removes nothing. `tools`
 # replaces the engine's list of external tools.
 # bash = ['\bterraform\s+apply\b', ...]
-# tools = ['mcp__github__merge_pull_request', ...]
+#
+# Uncommented, the line below, the engine's list minus the merge, lets the
+# agent merge its own pull request (the guide, “Merging by the agent”);
+# without it, the merge stays refused. Only the human enables it.
+# tools = ['mcp__github__(delete_file|create_repository|fork_repository|create_release|push_files|create_or_update_file|enable_pr_auto_merge)']
 
 [agents]
 # Claude Code is the agent equipped with hooks; the other agents stay covered

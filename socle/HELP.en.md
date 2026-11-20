@@ -241,6 +241,26 @@ is added: merge it whenever you want, once its CI is green. One pull
 request per task, each to merge, is chosen in the starting questions, or
 later by telling the agent, which writes it as a fact of the memory.
 
+**Merging by the agent.** By default, you merge the agent's pull request
+yourself: the hook refuses it the merge, like the other external actions.
+For it to merge its own itself, uncomment the `tools` line that the
+`[irreversible]` section of the policy (`.socle/policy.toml`) carries as a
+comment: the list of external tools the engine refuses, minus the merge. A
+policy laid down before this option does not have it; the diff of the
+policy, shown on an update, gives it. Only the human writes the policy, and
+approves this change like any protected change: the agent does not grant
+itself the right. It then merges only under four conditions: its own pull
+request only, never another session's; the CI green on its head commit,
+which it gives; the review of the last batch done and its findings
+handled; no request pending on its content. After the merge, it checks the
+workflows the merge starts on the default branch (a deployment, a
+publication…), and its recap says whether they succeeded. It merges
+through its session's GitHub tool: `gh pr merge`, force push and push to
+the default branch stay refused. The line freezes the list: a tool the
+engine later adds to its own is not refused in the project until you have
+copied it into the line, which the release note that adds it will say.
+Removing the line gives the merge back to the human.
+
 A prototype not meant to be merged is done on a disposable branch, named
 `proto/…` (or with another prefix declared in `[branches] disposable` of the
 guardrails). The socle's CI does not judge it on push, and the dead
@@ -407,6 +427,9 @@ commit and in CI.
 publishing, setting up a service, deleting a remote branch, setting a tag
 (in a cloud session, the agent only pushes its own branch): the agent records it in the backlog with
 how to do it, and the state lists it under what is up to the human.
+Deleting the remote branch of unmerged work does not reset its range:
+the pre-push hook of the clone that pushed it judges what follows from
+the last commit it pushed there.
 
 **Committing oneself.** The same checks apply: a public function added is
 named by a test, or waived in the commit message
@@ -493,7 +516,9 @@ agent, which fixes them alone. Those that concern the human:
    file, requires an approved request.
 3. The agent takes reversible and measurable decisions; it asks for those
    that are costly to undo.
-4. An irreversible or external action is always asked for.
+4. An irreversible or external action is always asked for, except
+   merging its own pull request when the policy allows it (“Merging by
+   the agent”).
 5. The memory is append-only.
 6. A defect next to the current work goes to the backlog.
 7. After three failures in a row, the agent stops and writes a request.

@@ -147,7 +147,9 @@ pourquoi chaque écarté l'est.
 Par défaut, tout se fait sur une branche de développement, avec une seule
 pull request ouverte à la fois : chaque lot fini s'y ajoute, l'humain la
 fusionne quand il veut, et la branche repart alors de la branche par
-défaut. Une pull request par tâche, seulement si l'humain l'a choisi (un
+défaut. Si la politique le permet (le guide, « La fusion par l'agent »),
+l'agent fusionne lui-même la sienne, aux conditions du skill
+`socle-batch`. Une pull request par tâche, seulement si l'humain l'a choisi (un
 fait de la mémoire le dit). Une session neuve qui trouve ouverte la pull
 request d'une autre demande à l'humain de la fusionner d'abord, ou de
 l'autoriser à y continuer. Un prototype qu'on ne compte pas fusionner se

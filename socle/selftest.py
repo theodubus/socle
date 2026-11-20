@@ -381,6 +381,17 @@ def _valeur_en_attente(a: Atelier, c: Path) -> None:
     maj_memoire(c, "Le test suit la demande, en attendant la réponse.")
 
 
+def _pousser_un_cas_de_plus(a: Atelier, c: Path) -> None:
+    """Un cas de plus pour `double`, que seule la branche a, poussé par le
+    hook avant push, qui garde le commit poussé (ADR-0104)."""
+    ajouter(c, "tests/test_calc.py", "    def test_double_de_trois(self):\n        self.assertEqual(double(3), 6)\n")
+    maj_memoire(c, "Un cas de plus pour double.")
+    a.commit(c, "Un cas de plus")
+    refus = etage_push(a, c)
+    if refus:
+        raise RuntimeError(refus)
+
+
 def _demande_d_une_mise_a_jour(a: Atelier, c: Path, fichiers: int, prose: str = "") -> None:
     """La demande qui approuve une mise à jour : chaque fichier protégé sur
     sa ligne d'empreinte (ADR-0058), ou la même ligne suivie de prose."""
@@ -2420,6 +2431,22 @@ def _cas() -> list[Cas]:
         a.commit(c, "Triple réécrite")
         return etage_push(a, c)
 
+    @defaut("plage-branche-disparue", "valeur attendue d'un test de la branche, poussée, puis affaiblie et repoussée "
+            "après la suppression de la branche distante", "git", "tests.attendus")
+    def _(a, c):
+        # Contre la branche par défaut, où le test n'existe pas, la valeur
+        # affaiblie passerait : la plage se juge depuis le dernier commit que
+        # ce clone a poussé sur la branche disparue (ADR-0104).
+        _pousser_un_cas_de_plus(a, c)
+        pousse = a.git(c, "rev-parse", "HEAD").strip()
+        a.git(c, "push", "-q", "--no-verify", "origin", "--delete", f"essai-{c.name}")
+        remplacer(c, "tests/test_calc.py", "self.assertEqual(double(3), 6)", "self.assertEqual(double(3), 6.0)")
+        remplacer(c, "memory/active.md", "Un cas de plus pour double.", "Le cas de plus, réécrit.")
+        a.commit(c, "Le cas de plus, réécrit")
+        sortie = etage_push(a, c)
+        # Le refus dit d'où la plage se juge : sans cela, il n'est pas celui-ci.
+        return sortie if not sortie or pousse[:10] in sortie else "le refus ne dit pas le dernier commit poussé"
+
     @defaut("decision-sans-lecture", "décision ajoutée sans avoir consulté l'index des décisions", "git", "memoire.lectures")
     def _(a, c):
         f1 = f"F-0001@{empreinte(a, c, 'F-0001')}"
@@ -3254,6 +3281,26 @@ def _temoins() -> list[tuple[str, Callable]]:
             return refus
         remplacer(c, "docs/calc.md", "`triple` multiplie par trois.", "`triple` multiplie par trois, toujours.")
         a.commit(c, "La doc de triple")
+        return etage_push(a, c)
+
+    @temoin("une branche fusionnée, que l'humain a changée sur la branche par défaut, puis repartie d'elle sous le "
+            "même nom après la suppression de la branche distante, passe le hook avant push")
+    def _(a, c):
+        # Le dernier commit poussé est dans la branche par défaut : la branche
+        # se juge comme une branche neuve, contre elle, et non depuis lui,
+        # d'où la valeur que l'humain a changée serait refusée (ADR-0104).
+        _pousser_un_cas_de_plus(a, c)
+        a.git(c, "checkout", "-q", "main")
+        a.git(c, "merge", "-q", "--no-ff", "--no-verify", "-m", "Fusion de la branche", "travail")
+        remplacer(c, "tests/test_calc.py", "self.assertEqual(double(3), 6)", "self.assertEqual(double(3), 6.0)")
+        a.commit(c, "L'humain change la valeur")
+        # La fusion, connue de ce clone comme après un fetch, sans toucher la
+        # branche par défaut de l'origine, que les cas partagent.
+        a.git(c, "update-ref", "refs/remotes/origin/main", "HEAD")
+        a.git(c, "push", "-q", "--no-verify", "origin", "--delete", f"essai-{c.name}")
+        a.git(c, "checkout", "-q", "-B", "travail", "origin/main")
+        remplacer(c, "memory/active.md", "Un cas de plus pour double.", "La suite, après la fusion.")
+        a.commit(c, "La suite")
         return etage_push(a, c)
 
     @temoin("une fonction privée, ou publique et dispensée avec sa raison, passe la CI")

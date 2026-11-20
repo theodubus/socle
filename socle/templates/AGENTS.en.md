@@ -146,7 +146,9 @@ why each dismissed one is.
 By default, everything happens on one development branch, with only one
 pull request open at a time: each finished batch is added to it, the
 human merges it whenever they want, and the branch then starts again from
-the default branch. One pull request per task, only if the human chose
+the default branch. If the policy allows it (the guide, “Merging by the
+agent”), the agent merges its own itself, under the conditions of the
+`socle-batch` skill. One pull request per task, only if the human chose
 it (a fact of the memory says so). A new session that finds another
 session's pull request open asks the human to merge it first, or to let
 it continue on it. A prototype not meant to be merged is done on a

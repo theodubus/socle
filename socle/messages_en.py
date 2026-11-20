@@ -316,6 +316,14 @@ MESSAGES: dict[str, str] = {
         "socle — push refused: {refus}",
     "socle — vérification avant push":
         "socle — checks before push",
+    "socle — la branche distante `{reference}` n'existe plus, et le dernier commit que ce clone y a poussé ({sha}) "
+    "n'est pas dans la branche par défaut : la plage qui part se juge depuis lui, comme si elle y était encore. "
+    "Supprimer la branche distante n'est pas une issue. Si elle a fusionné, `git fetch` fait connaître la fusion à "
+    "ce clone.":
+        "socle — the remote branch `{reference}` no longer exists, and the last commit this clone pushed to it "
+        "({sha}) is not in the default branch: the outgoing range is judged from it, as if the branch were still "
+        "there. Deleting the remote branch is not a way out. If it was merged, `git fetch` makes the merge known to "
+        "this clone.",
     "décision":
         "decision",
     "action":
@@ -2996,6 +3004,10 @@ MESSAGES: dict[str, str] = {
         "public function added without a test that names it",
     "fonction modifiée sans test, couverte seulement par une dispense déjà poussée":
         "function changed without a test, covered only by an already pushed waiver",
+    "valeur attendue d'un test de la branche, poussée, puis affaiblie et repoussée après la suppression de la "
+    "branche distante":
+        "expected value of a test of the branch, pushed, then weakened and pushed again after the remote branch was "
+        "deleted",
     "décision ajoutée sans avoir consulté l'index des décisions":
         "decision added without consulting the index of decisions",
     "entrée citée dans une version qu'elle n'a plus":
@@ -3187,6 +3199,10 @@ MESSAGES: dict[str, str] = {
         "a function added with the test that names it passes the CI",
     "deux pushes sains de suite passent le hook avant push, qui juge la plage de chacun":
         "two sound pushes in a row pass the pre-push hook, which judges the range of each",
+    "une branche fusionnée, que l'humain a changée sur la branche par défaut, puis repartie d'elle sous le même nom "
+    "après la suppression de la branche distante, passe le hook avant push":
+        "a merged branch, which the human changed on the default branch, then restarted from it under the same name "
+        "after the remote branch was deleted, passes the pre-push hook",
     "une fonction privée, ou publique et dispensée avec sa raison, passe la CI":
         "a private function, or a public one waived with its reason, passes the CI",
     "mode compagnon : une entrée privée commitée et verrouillée passe la fin de tour, le commit et la CI":
