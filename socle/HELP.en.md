@@ -208,7 +208,11 @@ when convenient, and says so when announcing the batch.
 ready tasks without waiting for a message. Before starting, it announces
 the batch it will work on: stopping or redirecting it takes one message.
 It stops at the end of the batch, or as soon as a decision is up to the
-human.
+human. An open batch that still waits for more tasks than one session
+carries, `[batches] max_tasks` of the guardrails (9 by default), the state
+and the end-of-turn reminder say so, without refusing anything: cut it
+into batches, or make it a milestone with its batches under it. Lowering
+the threshold is free; raising it requires a validated request.
 
 **Having it reviewed.** Before delivering a batch that changes code, a
 specification or a test, the agent has it reviewed by a reviewer without
@@ -227,11 +231,9 @@ project's normal use or whose effect nothing catches afterwards, as a
 task if its fix is clear, as a need otherwise, and dismisses the others, exotic and caught, or unfounded. Its recap says how
 many, and why each is dismissed.
 
-**When a batch goes round in circles.** The agent keeps the history of
-each batch's reviews, and notices it by itself. It then stops and puts a
-request to you: what goes round, the rule that makes it go round, and a
-proposal to get out of it. The batch waits for your answer while the
-agent moves on elsewhere.
+**The review history.** The agent keeps, in each batch's entry, its
+review passes and their blockers: a new session that resumes the batch
+reads there where its review stands.
 
 **Delivering.** By default, the agent does everything on one development
 branch and keeps only one pull request open, to which each finished batch
@@ -289,6 +291,11 @@ word for word.
   its options.
 - `approve` is the only answer that authorises an action reserved to the
   human.
+- A test it names, deleted or whose expected value changes, or a protected
+  file it cites, may come before your answer: if the default branch
+  requires the socle's CI, it is committed and pushed under the request
+  pushed as is, the CI refusing it until your answer, and you read it in
+  the pull request; otherwise, it waits in the agent's working tree.
 - `insufficient-context` sends the request back to the agent, which
   rewrites it.
 - From a terminal:
@@ -298,7 +305,11 @@ word for word.
 text of its answer, is answered in the conversation; the agent records it
 at once, word for word, like a request. What needs context, approving a
 document included, comes as a request, with its link; never in the
-agent's question widget, which the hook refuses.
+agent's question widget, which the hook refuses. What you decide of your
+own accord, without being asked (a rule, a prohibition, "delete this
+test"), it records the same way, your exact text, with no question and no
+answer to choose (`socle decision --unprompted`): the decision counts as
+approved for what it names.
 
 **Framing questions.** When a need's specification depends on an
 intention the memory does not state, the agent asks open questions, each
@@ -329,8 +340,9 @@ git does not track. Anything else is refused to it: another commit, with
 or without `--`, a whole folder, a shell pattern or variable, paths read
 from a file, a variable or a prefix before `git`, a redirection to another
 protected file, and a file that is cited, itself or its folder, by a
-request pending or approved whose approved change is not committed yet.
-The accepted risk: erasing a change of the human in the working tree that
+request pending or approved whose approved change is not committed yet; a
+folder that is only one word of a text copied between backticks, an
+expected value or an output, is not cited there. The accepted risk: erasing a change of the human in the working tree that
 they neither committed nor submitted in a request. A path the shell
 writes, the hook expands, as best it can, as the shell would (variables,
 patterns, braces, `~`, `cd`, `pushd`), from the agent's current directory,
@@ -381,70 +393,7 @@ agent writes in its work, for every effect; for what nothing catches
 afterwards (deleting the project or a directory that contains it, an
 irreversible external action, a leak of the private memory, the part of
 the memory that is not published), it also refuses what it cannot read.
-A hole opens a backlog entry if its form is one an agent writes in its work:
-seen in an agent session, a skill or current documentation. Another form
-is entered in one line in the list of known forms the hook does not
-judge, without a backlog entry; in the review of a batch of the hook, it is not
-a blocking finding, even if refused before the batch by accident. A
-cooperative agent does not try to get around its guardrails.
-
-The known forms the hook does not judge: no agent writes them in its
-work; they pass, or are refused by accident. Each says what the hook
-misreads in it, and the release note that enters it.
-
-- `time` before a compound command (`time { …; }`, `time if …`): read
-  as a simple command (2026-11-16-a).
-- The patterns of a `case`: each branch is read as if it ran
-  (2026-11-16-a).
-- `find -exec sudo …`, `env`, `nice` or another prefix: the launched
-  command is read without removing its prefix (2026-11-16-a).
-- A `return` in the body of a function: only the directory where the
-  body ends counts (2026-11-16-a).
-- The indirect call of a function (`$fn`, `"${fn}"`, `run f` through a
-  `"$@"` wrapper): the called function is not known (2026-11-16-a).
-- A function named like a command the hook follows (`cd() { …; }`):
-  read as that command (2026-11-16-a).
-- A function defined by an `eval`, and `eval -- f`: neither the
-  definition nor the call is seen (2026-11-16-a).
-- `git --config-env` and `--attr-source` with a separate value: the
-  option hides the subcommand (2026-11-16-a).
-- What an `eval` changes other than a function call (`eval "cd x"`):
-  does not hold for what follows (2026-11-16-a).
-- A function called from another directory than the one it is written
-  in, or that calls another one defined after it, or through a
-  substitution or an `eval` in its body: its body is judged at its
-  definition (2026-11-16-a).
-- `echo .. | xargs rm`: `xargs` is judged only by the protected paths it
-  cites (2026-11-16-a).
-- `xargs git worktree remove`: the path read from the input is not
-  judged, except behind a `find` (2026-11-19-r).
-- The shell command a `python3 -c` launches (`os.system`,
-  `subprocess`): the script is judged only by its paths (2026-11-16-a).
-- A path a `python3 -c` script builds on the fly: only a path written
-  out in full is judged (2026-11-16-a).
-- `coproc`: neither a reserved word nor a prefix for the hook
-  (2026-11-16-a).
-- `uv run --directory` and `poetry -C`: the command they launch is read
-  in the current directory, not in the one they name (2026-11-19-l).
-- An option of `uv` or `poetry` the hook does not know and that takes a
-  value (`uv run --python-preference managed …`): its value is read as
-  the command they launch (2026-11-19-l).
-- The option that skips the hooks passed through a variable
-  (`N=--no-verify; git push $N`): it is not expanded for this refusal;
-  the CI runs everything (2026-11-19-m).
-- A git subcommand that comes from a variable (`git $SUB --force …`):
-  it is not judged (2026-11-19-m).
-- The heredoc of a substitution (`X=$(python3 - <<'EOF' … EOF)`): its
-  body is not judged (2026-11-19-p).
-- The body of a heredoc given to an interpreter other than python (`bash
-  <<'EOF'`, `sh -s <<'EOF'`): it is only text (2026-11-19-p).
-- The arguments of a `python3 -c` whose script names neither `argv` nor
-  `argparse`, `fileinput`, `optparse` or `getopt` (a `runpy`, the `exec`
-  of another script): they are not judged (2026-11-19-q).
-- A script, or a program other than git, that changes branch before the
-  push (`./publish.sh && git push origin "$(git branch
-  --show-current)"`): the substitution stands for the branch from before
-  it (2026-11-19-t).
+A cooperative agent does not try to get around its guardrails.
 
 The hook does not model all of bash: a write to a protected file in a
 form one writes only to get around it (an `eval`, `IFS`, a path built on
@@ -452,7 +401,7 @@ the fly in another language) is outside its model, as are forms that
 escape it (an unknown part that is itself `..`, an option set by the
 shell's profile, a variable Claude Code sets only for its hooks…); the
 guarantee is then the protected-files check, at the end of the turn, at
-commit and in CI, and a hole of that kind opens no backlog entry.
+commit and in CI.
 
 **Doing what the agent cannot do.** Pushing to the default branch,
 publishing, setting up a service, deleting a remote branch, setting a tag

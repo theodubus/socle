@@ -215,6 +215,11 @@ lot.
 tâches prêtes sans attendre de message. Avant de s'y lancer, il annonce le
 lot qu'il va traiter : l'arrêter ou le réorienter se fait d'un message.
 Il s'arrête à la fin du lot, ou dès qu'une décision revient à l'humain.
+Un lot ouvert qui attend encore plus de tâches qu'une session n'en mène,
+`[batches] max_tasks` des garde-fous (9 par défaut), l'état et le rappel
+de fin de tour le disent, sans rien refuser : le couper en lots, ou en
+faire un jalon, ses lots dessous. Baisser le seuil est libre ; le relever
+exige une demande validée.
 
 **Faire relire.** Avant de livrer un lot qui change du code, une
 spécification ou un test, l'agent le fait relire par un relecteur sans
@@ -234,11 +239,9 @@ l'effet, en tâche si leur correction est claire, en besoin sinon, et
 écarte les autres, exotiques et rattrapés, ou infondés. Son
 récap dit combien, et pourquoi chacun est écarté.
 
-**Quand un lot tourne en rond.** L'agent garde l'historique des revues
-de chaque lot, et s'en aperçoit lui-même. Il s'arrête alors et vous pose
-une demande : ce qui tourne, la règle qui le fait tourner, et une
-proposition pour en sortir. Le lot attend votre réponse pendant que
-l'agent avance ailleurs.
+**L'historique des revues.** L'agent garde, dans l'entrée de chaque lot,
+ses passes de revue et leurs bloquants : une session neuve qui reprend le
+lot y lit où en est sa revue.
 
 **Livrer.** Par défaut, l'agent fait tout sur une branche de
 développement et garde une seule pull request ouverte, à laquelle chaque
@@ -295,6 +298,12 @@ conversation ; l'agent consigne la réponse mot pour mot.
   recommandation), `refuser`, `contexte-insuffisant` ; une demande de choix
   y ajoute ses options.
 - `valider` est la seule réponse qui autorise un geste réservé à l'humain.
+- Un test qu'elle nomme, supprimé ou dont la valeur attendue change, ou un
+  fichier protégé qu'elle cite, peut précéder votre réponse : si la
+  branche par défaut exige la CI du socle, il se commite et se pousse sous
+  la demande poussée telle quelle, la CI le refusant jusqu'à votre
+  réponse, et vous le lisez dans la pull request ; sinon, il l'attend dans
+  l'arbre de l'agent.
 - `contexte-insuffisant` renvoie la demande à l'agent, qui la réécrit.
 - Depuis un terminal :
   `python3 .socle/socle answer D-NNNN <réponse> --text "<texte>"`.
@@ -304,6 +313,10 @@ le texte de sa réponse, se répond dans la conversation ; l'agent la
 consigne aussitôt, mot pour mot, comme une demande. Ce qui demande du
 contexte, approuver un document compris, arrive en demande, avec son
 lien ; jamais dans le widget de questions de l'agent, que le hook refuse.
+Ce que vous décidez de vous-même, sans qu'il l'ait demandé (une règle, une
+interdiction, « supprime ce test »), il le consigne de même, votre texte
+exact, sans question ni réponse à choisir (`socle decision --unprompted`) :
+la décision vaut validée pour ce qu'elle nomme.
 
 **Des questions de cadrage.** Quand la spécification d'un besoin dépend
 d'une intention que la mémoire ne dit pas, l'agent pose des questions
@@ -334,7 +347,9 @@ commit, avec ou sans `--`, un dossier entier, un motif ou une variable du
 shell, des chemins lus dans un fichier, une variable ou un préfixe devant
 `git`, une redirection vers un autre fichier protégé, et un fichier que
 cite, lui ou son dossier, une demande en attente ou validée dont ce
-qu'elle approuve n'est pas commité. Le risque accepté : effacer une
+qu'elle approuve n'est pas commité ; un dossier qui n'est qu'un mot d'un
+texte recopié entre accents graves, une valeur attendue ou une sortie,
+n'y est pas cité. Le risque accepté : effacer une
 modification de l'humain dans l'arbre de travail qu'il n'a ni commitée ni
 soumise par une demande. Un chemin que le shell écrit, le hook le
 développe, au mieux, comme le shell (variables, motifs, accolades, `~`,
@@ -386,73 +401,10 @@ checkout`, `git switch`).
 **Ce que juge le hook de l'agent.** Le hook de l'agent arrête les erreurs
 d'un agent coopératif avant qu'elles agissent. Il juge les formes du shell
 qu'un agent écrit dans son travail, pour tout effet ; pour ce que rien ne
-rattrape ensuite (supprimer le projet ou un dossier qui le contient, une action externe
-irréversible, une fuite de la mémoire privée, la part de la mémoire qui
-ne se publie pas), il refuse aussi ce qu'il ne sait pas lire. Un trou
-ouvre une entrée du backlog si sa forme est de celles qu'un agent écrit dans son
-travail : vue dans une session d'agent, un skill ou une documentation
-courante. Une autre forme s'inscrit d'une ligne dans la liste des formes
-connues que le hook ne juge pas, sans entrée au backlog ; dans la revue d'un lot du
-hook, elle n'est pas un bloquant, même refusée avant le lot par accident.
+rattrape ensuite (supprimer le projet ou un dossier qui le contient, une
+action externe irréversible, une fuite de la mémoire privée, la part de la
+mémoire qui ne se publie pas), il refuse aussi ce qu'il ne sait pas lire.
 Un agent coopératif ne cherche pas à contourner ses garde-fous.
-
-Les formes connues que le hook ne juge pas : aucun agent ne les écrit
-dans son travail ; elles passent, ou se refusent par accident. Chacune
-dit ce que le hook y lit mal, et la note de version qui l'inscrit.
-
-- `time` devant une commande composée (`time { …; }`, `time if …`) : lu
-  comme une commande simple (2026-11-16-a).
-- Les motifs d'un `case` : chaque branche se lit comme si elle
-  s'exécutait (2026-11-16-a).
-- `find -exec sudo …`, `env`, `nice` ou un autre préfixe : la commande
-  lancée se lit sans retirer son préfixe (2026-11-16-a).
-- Un `return` dans le corps d'une fonction : seul compte le dossier où
-  finit le corps (2026-11-16-a).
-- L'appel indirect d'une fonction (`$fn`, `"${fn}"`, `run f` par un
-  enveloppeur `"$@"`) : la fonction appelée n'est pas connue
-  (2026-11-16-a).
-- Une fonction nommée comme une commande que le hook suit
-  (`cd() { …; }`) : lue comme cette commande (2026-11-16-a).
-- Une fonction définie par un `eval`, et `eval -- f` : ni la définition
-  ni l'appel ne se voient (2026-11-16-a).
-- `git --config-env` et `--attr-source` à valeur séparée : l'option cache
-  la sous-commande (2026-11-16-a).
-- Ce qu'un `eval` change d'autre que l'appel d'une fonction
-  (`eval "cd x"`) : ne vaut pas pour la suite (2026-11-16-a).
-- Une fonction appelée depuis un autre dossier que celui où elle s'écrit,
-  ou qui en appelle une autre définie après elle, ou par une substitution
-  ou un `eval` dans son corps : son corps se juge à sa définition
-  (2026-11-16-a).
-- `echo .. | xargs rm` : `xargs` ne se juge que par les chemins protégés
-  qu'il cite (2026-11-16-a).
-- `xargs git worktree remove` : le chemin lu sur l'entrée ne se juge pas,
-  sauf derrière un `find` (2026-11-19-r).
-- La commande du shell que lance un `python3 -c` (`os.system`,
-  `subprocess`) : le script ne se juge que par ses chemins (2026-11-16-a).
-- Un chemin qu'un script `python3 -c` construit au vol : seul se juge un
-  chemin écrit en toutes lettres (2026-11-16-a).
-- `coproc` : ni mot réservé ni préfixe pour le hook (2026-11-16-a).
-- `uv run --directory` et `poetry -C` : la commande qu'ils lancent se lit
-  dans le dossier courant, non dans celui qu'ils nomment (2026-11-19-l).
-- Une option de `uv` ou de `poetry` que le hook ne connaît pas et qui
-  prend une valeur (`uv run --python-preference managed …`) : sa valeur
-  se lit comme la commande qu'ils lancent (2026-11-19-l).
-- L'option qui saute les hooks passée par une variable
-  (`N=--no-verify; git push $N`) : elle ne se développe pas pour ce
-  refus ; la CI exécute tout (2026-11-19-m).
-- Une sous-commande de git venue d'une variable (`git $SUB --force …`) :
-  elle ne se juge pas (2026-11-19-m).
-- Le heredoc d'une substitution (`X=$(python3 - <<'EOF' … EOF)`) : son
-  corps ne se juge pas (2026-11-19-p).
-- Le corps d'un heredoc donné à un autre interpréteur que python (`bash
-  <<'EOF'`, `sh -s <<'EOF'`) : n'est que du texte (2026-11-19-p).
-- Les arguments d'un `python3 -c` dont le script ne nomme ni `argv`, ni
-  `argparse`, `fileinput`, `optparse` ou `getopt` (un `runpy`, l'`exec`
-  d'un autre script) : ils ne se jugent pas (2026-11-19-q).
-- Un script, ou un programme autre que git, qui change de branche avant
-  le push (`./publier.sh && git push origin "$(git branch
-  --show-current)"`) : la substitution vaut la branche d'avant lui
-  (2026-11-19-t).
 
 Le hook ne modélise pas tout bash : une écriture d'un fichier protégé
 sous une forme qu'on n'écrit que pour contourner (un `eval`, `IFS`, un
@@ -460,8 +412,7 @@ chemin construit au vol dans un autre langage) est hors de son modèle,
 comme des formes qui lui échappent (une part inconnue qui vaut elle-même
 `..`, une option posée par le profil du shell, une variable que Claude
 Code ne pose que pour ses hooks…) ; la garantie est alors le contrôle
-des fichiers protégés, à la fin du tour, au commit et dans la CI, et un
-trou de cette sorte n'ouvre pas d'entrée au backlog.
+des fichiers protégés, à la fin du tour, au commit et dans la CI.
 
 **Faire ce que l'agent ne peut pas faire.** Pousser sur la branche par
 défaut, publier, régler un service, supprimer une branche distante, poser

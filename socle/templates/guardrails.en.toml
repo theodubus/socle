@@ -51,6 +51,13 @@ max_bytes = 9500
 # prints it, without a threshold.
 fast_max_seconds = 300
 
+[batches]
+# The number of tasks an open batch may still wait for: beyond it, the state
+# and the end-of-turn reminder warn, without refusing anything, that it does
+# not fit in one session; cut it into batches, or make it a milestone with
+# its batches under it. Lowering the threshold is free.
+max_tasks = 9
+
 [references]
 # Files where each cited identifier, link and path must exist.
 scan = ["**/*.md"]

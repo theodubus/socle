@@ -992,15 +992,22 @@ def _poser_memoire(cible: Path, lg: str, nom_adaptateur: str, adoption: bool, ch
 SKILLS = ".claude/skills"
 
 
+def skills_du_socle(lg: str = "fr") -> dict[str, str]:
+    """Les skills du socle tels que l'installeur les pose, par leur chemin
+    dans le projet, dans la langue de la mémoire."""
+    return {f"{SKILLS}/{d.name}/SKILL.md": gabarit(f"skills/{d.name}/SKILL.md", lg)
+            for d in sorted(p for p in (MODELES / "skills").iterdir() if p.is_dir())}
+
+
 def poser_skills(cible: Path, lg: str = "fr") -> list[str]:
     """Les skills du socle, dans la langue de la mémoire : ses procédures
     rares, que l'agent charge sur leur description au lieu de les relire à
     chaque session (ADR-0034). Posés par l'installeur comme les hooks, et
     remplacés à chaque mise à jour."""
     noms = []
-    for dossier in sorted(p for p in (MODELES / "skills").iterdir() if p.is_dir()):
-        outils.ecrire(cible / SKILLS / dossier.name / "SKILL.md", gabarit(f"skills/{dossier.name}/SKILL.md", lg))
-        noms.append(dossier.name)
+    for chemin, texte in skills_du_socle(lg).items():
+        outils.ecrire(cible / chemin, texte)
+        noms.append(chemin.rsplit("/", 2)[-2])
     return [trad("skills du socle posés dans {dossier} : {noms}", dossier=SKILLS, noms=", ".join(noms))]
 
 
@@ -1029,6 +1036,63 @@ def etapes_de_ci(textes: list[str]) -> str:
     return "".join(res)
 
 
+CI_DU_SOCLE = ".github/workflows/socle.yml"
+
+
+def etapes_traduites(textes: list[str]) -> str:
+    """Les étapes de CI des adaptateurs `textes`, prêtes à remplacer leur
+    marque dans un gabarit de workflow : leurs noms dans la langue des
+    messages."""
+    setup = noms_d_etapes_traduits(etapes_de_ci(textes))
+    return setup.strip("\n") + "\n" if setup.strip() else ""
+
+
+def ci_du_socle(cible: Path, textes: list[str], lg: str = "fr") -> tuple[str, str | None]:
+    """Le workflow de CI du socle tel que l'installeur le pose dans `cible` :
+    les étapes des adaptateurs `textes`, les branches jetables écartées des
+    envois, dans la langue de la mémoire ; et le nom du travail en place,
+    quand il le garde au lieu du sien (`None` sinon)."""
+    workflow = gabarit("socle.yml", lg).replace("@@ETAPES_ADAPTATEUR@@\n", etapes_traduites(textes))
+    workflow = workflow.replace("@@BRANCHES_JETABLES@@", ignorer_aux_envois(config.Projet.charger(cible)))
+    # Le nom du travail est celui qu'une protection de branche exige : une
+    # mise à jour garde celui qui est en place, quelle que soit la langue.
+    existant = cible / CI_DU_SOCLE
+    avant = outils.nom_du_travail(existant.read_text(encoding="utf-8")) if existant.is_file() else None
+    nouveau = outils.nom_du_travail(workflow)
+    if avant and nouveau and avant != nouveau:
+        return workflow.replace(f"    name: {nouveau}\n", f"    name: {avant}\n", 1), avant
+    return workflow, None
+
+
+def copies_du_socle(cible: Path) -> dict[str, str]:
+    """Les copies protégées que l'installeur poserait dans `cible` telle
+    qu'elle est, par leur chemin : les skills du socle, ses hooks git et sa
+    CI, rendus comme une mise à jour les rendrait (la langue de la mémoire,
+    les adaptateurs en place, le nom du travail de CI gardé)."""
+    projet = config.Projet.charger(cible)
+    lg = langue.du_projet(projet)
+    ch = projet.chemins
+    textes = [t for c in (ch.adaptateur, *config.fichiers_adaptateurs(cible, ch.adaptateurs))
+              if (t := outils.lire_a(cible, None, c)) is not None]
+    res = skills_du_socle(lg)
+    res.update({f"{config.GIT_HOOKS}/{h.name}": h.read_text(encoding="utf-8")
+                for h in sorted((MODELES / "git-hooks").iterdir())})
+    with messages.dans(lg):
+        res[CI_DU_SOCLE] = ci_du_socle(cible, textes, lg)[0]
+    return res
+
+
+def copies_en_retard(projet: config.Projet) -> list[str]:
+    """En mode amont, les copies protégées du projet qui diffèrent de ce que
+    l'installeur y poserait, ou qui manquent : le moteur y change sans que
+    l'installeur ne repasse, et rien d'autre ne le dirait (B-0218). Rien en
+    mode projet, où chaque mise à jour les pose."""
+    if projet.mode != config.MODE_AMONT:
+        return []
+    return [c for c, attendu in copies_du_socle(projet.racine).items()
+            if (outils.lire_a(projet.racine, None, c) or "").replace("\r\n", "\n") != attendu]
+
+
 def _poser_etages(cible: Path, texte_adaptateur: str, dossier_moteur: str, proprietaire: str,
                   balayage: bool, motif: str, ch: config.Chemins, lg: str = "fr",
                   autres: list[tuple[str, str]] = ()) -> list[str]:
@@ -1045,20 +1109,13 @@ def _poser_etages(cible: Path, texte_adaptateur: str, dossier_moteur: str, propr
         journal.append(trad("hooks git branchés (core.hooksPath)"))
     else:
         journal.append(trad("!! core.hooksPath pointe ailleurs : hooks git NON branchés"))
-    setup = noms_d_etapes_traduits(etapes_de_ci([texte_adaptateur, *(x for _, x in autres)]))
-    etapes = setup.strip("\n") + "\n" if setup.strip() else ""
-    workflow = gabarit("socle.yml", lg).replace("@@ETAPES_ADAPTATEUR@@\n", etapes)
-    workflow = workflow.replace("@@BRANCHES_JETABLES@@", ignorer_aux_envois(config.Projet.charger(cible)))
-    # Le nom du travail est celui qu'une protection de branche exige : une
-    # mise à jour garde celui qui est en place, quelle que soit la langue.
-    existant = cible / ".github/workflows/socle.yml"
-    avant = outils.nom_du_travail(existant.read_text(encoding="utf-8")) if existant.is_file() else None
-    nouveau = outils.nom_du_travail(workflow)
-    if avant and nouveau and avant != nouveau:
-        workflow = workflow.replace(f"    name: {nouveau}\n", f"    name: {avant}\n", 1)
+    textes = [texte_adaptateur, *(x for _, x in autres)]
+    etapes = etapes_traduites(textes)
+    workflow, garde = ci_du_socle(cible, textes, lg)
+    if garde:
         journal.append(trad("nom du travail de CI gardé : « {nom} », celui qu'une protection de branche exige "
-                            "peut-être", nom=avant))
-    outils.ecrire(cible / ".github/workflows/socle.yml", workflow)
+                            "peut-être", nom=garde))
+    outils.ecrire(cible / CI_DU_SOCLE, workflow)
     if balayage:
         installations = [i for x in (texte_adaptateur, *(y for _, y in autres))
                          if (i := tomllib.loads(x).get("capabilities", {}).get("mutation", {}).get("install", ""))]
@@ -1526,7 +1583,28 @@ def _gitignore(cible: Path) -> list[str]:
     # Le commentaire d'une installation dans une autre langue compte aussi.
     deja = any(l.startswith(("# Trace locale des hooks du socle", commentaire)) for l in existant.splitlines())
     outils.ajouter_lignes(p, ["/.socle/trace/", "__pycache__/"], "" if deja else trad("{commentaire} (voir {source})", commentaire=commentaire, source=source))
+    # Le skill socle-batch lance ses sous-agents dans des worktrees, sous ce
+    # dossier : non ignorés, ils paraissent à commiter (B-0217).
+    if not ignore_deja(p.read_text(encoding="utf-8"), WORKTREES):
+        outils.ajouter_lignes(p, [f"/{WORKTREES}/"], trad("# Les worktrees des sous-agents de Claude Code"))
     return []
+
+
+# Le dossier où Claude Code pose les worktrees de ses sous-agents.
+WORKTREES = ".claude/worktrees"
+
+
+def ignore_deja(texte: str, dossier: str) -> bool:
+    """Le `.gitignore` `texte` a déjà une ligne qui ignore `dossier`, ou un
+    dossier qui le contient : écrite avec ou sans `/` de tête ou de fin, ou
+    `/*`, `/**` au bout. Une telle ligne ne se double pas."""
+    parties = dossier.strip("/").split("/")
+    parents = {"/".join(parties[:i]) for i in range(1, len(parties) + 1)}
+    for ligne in texte.splitlines():
+        l = ligne.strip()
+        if l and not l.startswith(("#", "!")) and re.sub(r"/\*{1,2}$", "", l).strip("/") in parents:
+            return True
+    return False
 
 
 def _non_ignores(cible: Path, chemins: list[str]) -> list[str]:

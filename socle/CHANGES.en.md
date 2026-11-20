@@ -7,6 +7,152 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-20-j — A shell form the hook does not judge is no longer listed or reported: the guide keeps the hook's threat model
+
+The `socle-review` skill, the reviewer's instructions of `socle review`
+and the socle section of `AGENTS.md` no longer mention the shell form an
+agent does not write: the review does not look for one, and a form found
+is dismissed like any exotic finding, with no recap line naming it and
+no report to the socle's repository. The guide (`python3 .socle/socle
+help`) loses the list of known forms the hook does not judge and the
+sentences that said when a hole in the hook opens a backlog entry; it
+keeps what the hook judges, what it refuses for not being able to read
+it, and what it does not model, which the protected-files check catches.
+
+To do: nothing; the `socle-review` skill is a protected copy, in the
+installer's request, and the socle section of `AGENTS.md` is regenerated
+with the update. A form already named in a recap is not reported.
+
+## 2026-11-20-i — The `socle-review` skill has the human asked whether they want Fable for the reviewer of a batch implemented on Fable
+
+A batch the human had implemented on Fable (the batch, not the
+orchestrating session): the agent asks them, before the review, whether
+they also want Fable for the reviewer. Outside this case, the rule does
+not change: the most capable model up to Opus, never a lesser one than
+the one that implemented, and Fable only if the human asks for it.
+
+To do: nothing; the `socle-review` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-20-h — The `socle-batch` skill places the wake-up in a cloud session, forms as a milestone what one session does not carry through, refers to the sorting of `socle-review` and gives subagents the “Economy” line
+
+The `socle-batch` skill changes in five points:
+
+- an announced wait has its wake-up in a cloud session (`send_later`),
+  the only place where the tool exists; elsewhere, the recap's `Next:`
+  line says it, and the human restarts the agent;
+- a whole that one session does not carry through is formed as a
+  milestone, its batches under it;
+- the review's findings that do not block follow the sorting of
+  `socle-review`, to the backlog or set aside, instead of all going to
+  the backlog;
+- the subagents' instructions carry the line “Economy: read what serves,
+  not whole files; no full suite rerun without reason”;
+- a subagent never receives Fable, unless the human wants it.
+
+To do: nothing; the `socle-batch` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-20-g — A test changed under its pending request is committed and pushed, the socle's CI required
+
+A deleted test, or one whose expected value changes, or a case of a
+declared case file, that a pending request names did not leave the
+agent's working tree: `tests.attendus` tolerated it only at the end of
+the turn. It is now tolerated like a protected file under its pending
+request: if the default branch requires the socle's CI before any merge,
+it is committed and pushed as soon as the request that names it is
+pushed as is, and the CI refuses it until the human's answer, who reads
+it in the pull request. Without that protection, nothing changes: the
+commit and the CI wait for the answer. A commit without a pushed request
+is still refused.
+
+To do: nothing.
+
+## 2026-11-20-f — A request's cold reader receives the most capable model up to Opus, at launch
+
+The `socle-request` skill had a request read cold by a subagent of the
+session's model, which the model rule of `socle-batch` may make cheaper.
+Like a batch's reviewer, it now receives explicitly at launch (`model`)
+the most capable model available up to Opus, whatever the session's, on
+the latest version of its family; Fable only if the human asks for it.
+The recap names the model: `Cold reading (<model>): …`.
+
+To do: nothing; the `socle-request` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-20-e — `socle decision --unprompted` records a decision the human gives without being asked
+
+`socle decision` required a base answer or an option named by the
+question: a decision the human gave of their own accord was recorded
+under `approve`, with an invented "question asked". `socle decision "<the
+decision in one sentence>" --unprompted --relayed --by <name> --quote-file
+<file>` writes it with no question and no answer to choose: their exact
+text under the `Decision given` section, and the `approve` answer that the
+engine sets, their text quoted. It authorizes what it names as an approved
+request does. The title does not cite on its own an identifier the
+human's text does not cite. The `socle-request` skill and the guide say
+so.
+
+To do: nothing; the `socle-request` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-20-d — The state and the end-of-turn reminder warn about an open batch that waits for more tasks than one session carries
+
+An open batch that still waits for more open, in-progress or blocked
+tasks than `[batches] max_tasks` of the guardrails, 9 by default, is
+reported in the state, with what calls for action, and in the
+end-of-turn reminder, under the backlog order: one line names each
+batch and its count, and says to cut it into batches, or to make it a
+milestone with its batches under it. A warning, never a failure. The
+threshold is set like `[verify] fast_max_seconds`: lowering it is free,
+raising it requires a validated request.
+
+To do: nothing; the key, which the installer names on update, can be
+declared in `.socle/guardrails.toml` if needed. A batch the state
+reports is cut at its next announcement.
+## 2026-11-20-c — The step back is no longer required: `socle review` writes a batch's passes and the backlog check lets it close without one
+
+`socle review` writes each pass of a batch in its “Reviews” section
+without requiring the previous one's step back: no “Step back:”
+paragraph, no reviewer's view on the blockers (`· same cause`, `· new
+cause`), no stop on a request that cites the batch. The
+`memoire.backlog` check lets a reviewed batch close `done` without a
+step back. The brief of a pass beyond the first is that of any pass: it
+no longer gives the reviewer the causes of the earlier passes. The
+“Reviews” section keeps its passes, their commits and their `- Blocker:`
+and `- Opens:` lines; a blocker line written in another form is still
+refused. A step back and cause marks already written stay in the batch,
+read as text. The `socle-review` and `socle-batch` skills and the guide
+no longer mention the step back.
+
+To do: nothing; the `socle-review` and `socle-batch` skills are
+protected copies, in the installer's request. A batch stopped on a
+request only waits for it if its `after` names it.
+
+## 2026-11-20-b — The installer has git ignore the subagents' worktrees
+
+The `socle-batch` skill launches its subagents in worktrees, which Claude
+Code lays down under `.claude/worktrees/`; not ignored, they show in `git
+status` as files to commit. The installer adds `/.claude/worktrees/` to
+the project's `.gitignore`, under a comment that says so, unless a line
+already ignores it, or `.claude/`.
+
+To do: nothing; the line comes with the update, to commit with it.
+
+## 2026-11-20-a — The agent's hook lets a protected file be restored when a request cites its folder only in a copied text
+
+The agent's hook refused to put back as it was at the last commit a
+protected file that no request approves, when a pending request, or an
+approved one whose answer is not committed, cited its folder in a text
+copied between backticks: an expected value of a test, an output line
+(`skills du socle posés dans .claude/skills : …`). A folder that is only
+one word of such a text, between backticks or in a code block, is no
+longer a citation there. The file named in full, and its folder cited in
+the prose or alone between its backticks (`.claude/skills/`), still
+spare it.
+
+To do: nothing.
+
 ## 2026-11-19-t — The agent's hook reads the current branch in `git push origin "$(git branch --show-current)"`
 
 The agent's hook expands three substitutions of a `git push` into the

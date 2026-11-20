@@ -45,14 +45,18 @@ réponse mot pour mot, sans jamais la choisir.
 3. Le lint refuse une demande incomplète ; le hook de l'agent la refuse dès
    l'écriture.
 4. La faire relire à froid avant de la pousser : un sous-agent (outil
-   `Agent`), du modèle de la session, dont le seul message est le dossier
-   de `python3 .socle/socle review --request D-NNNN`, tel quel. Il lit la
-   demande dans le rôle de l'humain qui n'a pas ouvert le projet depuis
+   `Agent`), dont le seul message est le dossier de `python3 .socle/socle
+   review --request D-NNNN`, tel quel. Il reçoit explicitement à son
+   lancement (`model`) le modèle le plus capable disponible jusqu'à Opus,
+   quel que soit celui de la session, sur la dernière version de sa
+   famille (un alias qui en désigne une plus ancienne : sans `model`, il
+   hérite de la session) ; Fable, s'il est disponible, seulement si
+   l'humain le demande. Il lit la demande dans le rôle de l'humain qui n'a pas ouvert le projet depuis
    trois semaines, sans lien ni fichier, et rend ce qu'il en a compris et
    ce qui lui manque pour décider. Réécrire ce que l'humain ne
    comprendrait pas davantage ; écarter, d'une raison, ce qui n'aide pas à
    décider ou qu'un document lié donne déjà. Le récap le dit : `Relecture
-   à froid : <n> points, <k> corrigés ; écartés : …`. Un agent sans
+   à froid (<modèle>) : <n> points, <k> corrigés ; écartés : …`. Un agent sans
    sous-agents saute cette étape, et son récap le dit.
 5. Commiter et pousser la demande telle quelle, puis donner son lien
    (`python3 .socle/socle url D-NNNN`) dans la conversation. Travailler sur
@@ -99,6 +103,16 @@ réponse mot pour mot ; `--about <chemin>` désigne ce qu'elle approuve :
 
 ```sh
 python3 .socle/socle decision "<question>" <réponse> --relayed --by <nom> --quote-file <fichier>
+```
+
+Une décision que l'humain donne de lui-même, sans qu'on la lui ait
+demandée (une règle, une interdiction, « supprime ce test »), se consigne
+sans question inventée ni réponse à choisir : son texte exact, sous un
+titre qui la dit en une phrase sans rien nommer qu'il ne nomme. Elle est
+validée, et autorise ce qu'elle nomme comme une demande validée :
+
+```sh
+python3 .socle/socle decision "<la décision en une phrase>" --unprompted --relayed --by <nom> --quote-file <fichier>
 ```
 
 Un contenu montré dans la conversation que l'humain valide (un format, un

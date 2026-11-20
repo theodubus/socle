@@ -617,9 +617,11 @@ def prive(ctx, r):
 
 
 # Une décision prise en séance, et sa question : la conversation que
-# l'humain a lue, recopiée telle quelle.
+# l'humain a lue, recopiée telle quelle ; ou la décision qu'il a donnée de
+# lui-même, son texte exact (B-0185).
 SEANCE = re.compile(r"(?m)^> .*\b(?:forme : séance|form: session)\b")
-QUESTION_SEANCE = re.compile(r"(?ms)^## (?:Question posée|Question asked)\n.*?(?=^## |\Z)")
+QUESTION_SEANCE = re.compile(r"(?ms)^## (?:Question posée|Question asked|Décision donnée|Decision given)\n.*?"
+                             r"(?=^## |\Z)")
 
 
 def sans_question_de_seance(texte: str) -> str:
@@ -760,12 +762,9 @@ def backlog(ctx, r):
     closes ; une entrée faite a coché tout ce que dit sa section, « Satisfait quand » pour un besoin, « Fait
     quand » pour les autres formes (ADR-0083).
 
-    Un lot relu ne se clôt « fait » que si la dernière passe de sa section « Revues » le permet, selon les règles
-    qui refuseraient une passe de plus (D-0124, ADR-0084) : son recul, le regard du relecteur sur chacun de ses
-    bloquants à partir de la deuxième, pas de « continuer » après deux passes de suite où une même cause revient, et
-    un arrêt levé par la réponse de l'humain à une demande qui cite le lot ; un lot sans passe, qui ne changeait ni
-    code, ni spécification, ni test, n'en a pas. Et, à tout statut, une ligne de sa section « Revues » qui se donne
-    pour un bloquant sans la forme `- Bloquant : <sa cause>` est refusée : ignorée, elle n'exigerait rien."""
+    Un lot relu se clôt sans recul (ADR-0100) ; à tout statut, une ligne de sa section « Revues » qui se donne pour
+    un bloquant sans la forme `- Bloquant : <sa cause>` est refusée : l'historique du lot ne la compterait pas parmi
+    les bloquants de sa passe."""
     for e in ctx.memoire.entrees(memoire.BACKLOG):
         if e.basculee:
             continue
@@ -780,28 +779,13 @@ def backlog(ctx, r):
                                              "{criteres}", id=e.id, criteres=" ; ".join(ouverts[:3]),
                                              section=SECTIONS[memoire.est_besoin(e)]),
                      e.fichier, e.ligne)
-        # Une ligne de bloquant que `passes` ne lit pas, à tout statut : ignorée,
-        # elle n'exigerait ni le regard du relecteur ni la règle de la même cause.
+        # Une ligne de bloquant que `passes` ne lit pas, à tout statut :
+        # l'historique du lot ne la compterait pas parmi les bloquants.
         for ligne, texte in memoire.bloquants_mal_ecrits(e) if memoire.est_lot(e) else []:
             r.erreur("memoire.backlog", trad("`{id}` : « {ligne} », dans sa section « Revues », se donne pour un "
-                                             "bloquant sans la forme que lit `socle review`, une ligne `- Bloquant : "
-                                             "<sa cause>` par bloquant, ni gras, ni numéro, ni pluriel ; ignorée, "
-                                             "elle n'exigerait ni le regard du relecteur ni la règle de la même "
-                                             "cause", id=e.id, ligne=texte), e.fichier, ligne)
-        # Les règles qui refuseraient une passe de plus, sans ce que git donne.
-        passes = memoire.passes(e) if memoire.est_lot(e) and e.statut == "fait" else []
-        refus = memoire.refus_de_la_suite(ctx.memoire, e, passes) if passes else None
-        if refus:
-            from socle import review as revue
-
-            nature, raison = refus
-            # Ce que montre le refus d'une passe : l'historique, ce que git
-            # donne, les trois questions (T-0055).
-            r.erreur("memoire.backlog", trad("`{id}` est clos « fait » sans le recul de sa dernière passe de revue : "
-                                             "{raison}", id=e.id, raison=raison) if nature == "recul" else
-                     trad("`{id}` est clos « fait » avant ce que sa dernière passe de revue exige : {raison}",
-                          id=e.id, raison=raison), e.fichier, e.ligne,
-                     detail=revue.recul_de_la_cloture(getattr(ctx, "projet", None), e, passes, nature))
+                                             "bloquant sans la forme que lit l'historique du lot, une ligne `- "
+                                             "Bloquant : <sa cause>` par bloquant, ni gras, ni numéro, ni pluriel",
+                                             id=e.id, ligne=texte), e.fichier, ligne)
         if clos and not e.refs("ref"):
             r.erreur("memoire.backlog", trad("`{id}` est clos (« {statut} ») sans `ref` vers ce qui l'a clos",
                                              id=e.id, statut=e.statut), e.fichier, e.ligne)

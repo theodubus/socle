@@ -725,8 +725,8 @@ def criteres(e: Entree, section: re.Pattern | None = None) -> list[tuple[bool, s
 
 
 # --------------------------------------------------------------------------
-# Les revues d'un lot (D-0124, ADR-0084) : sa section « Revues », une passe
-# par dossier de `socle review`, chacune ses bloquants et son recul.
+# Les revues d'un lot (ADR-0084, ADR-0100) : sa section « Revues », une
+# passe par dossier de `socle review`, chacune ses bloquants.
 # --------------------------------------------------------------------------
 
 
@@ -746,8 +746,8 @@ LIGNE_COMMITS = re.compile(r"^\s*(?:%s)\s*:\s*(?P<debut>[0-9a-f]{4,40})\.\.(?P<t
 LIGNE_BLOQUANT = re.compile(r"^\s*[-*]\s+(?:%s)\s*:\s*(?P<texte>.+?)\s*$" % _mots("bloquant"), re.I)
 # Une ligne de liste qui se donne pour un bloquant sans la forme que lit
 # `passes` (`- **Bloquant** : …`, `- Bloquant 1 : …`, `1. Bloquant : …`,
-# `- Bloquants : …`) : ignorée, elle n'exigerait ni le regard du relecteur
-# ni la règle de la même cause ; le contrôle du backlog la refuse.
+# `- Bloquants : …`) : l'historique du lot ne la compterait pas parmi les
+# bloquants de sa passe ; le contrôle du backlog la refuse.
 BLOQUANT_PRESUME = re.compile(
     # Une puce suivie du mot, comme avant ; ou, puce, citation et case
     # facultatives, le mot suivi d'un séparateur, après un numéro au besoin
@@ -755,17 +755,6 @@ BLOQUANT_PRESUME = re.compile(
     r"^\s*(?:>\s*)*(?:(?:[-*+•]|\d+[.)])\s+(?:\[[ xX]\]\s*)?[*_]*(?:{m})s?(?![\w-])"
     r"|(?:(?:[-*+•]|\d+[.)])\s*)?(?:\[[ xX]\]\s*)?[*_]*(?:{m})s?[*_]*(?:\s*\d+)?[*_]*\s*[:—–])"
     .format(m=_mots("bloquant")), re.I)
-# Le regard du relecteur sur un bloquant, à partir de la deuxième passe :
-# `· même cause` (suivi, au besoin, de laquelle) ou `· cause nouvelle`.
-REGARD = re.compile(r"\s*·\s*(?:(?P<meme>%s)|(?P<nouvelle>%s))(?![\w-]).*$" % (_mots("meme-cause"),
-                                                                                  _mots("cause-nouvelle")), re.I)
-DEBUT_DU_RECUL = re.compile(r"^\s*(?:%s)\s*:" % _mots("recul"), re.I)
-MOT = re.compile(r"[^\W_]+(?:['’][^\W_]+)*")
-# Un recul répond aux trois questions de nature en soixante mots au moins
-# (D-0124, point 4).
-MOTS_DU_RECUL = 60
-DECISIONS_DU_RECUL = {outils.cle(m): cle for cle in ("continuer", "s-arreter")
-                      for m in langue.REVUES[cle].values()}
 
 
 @dataclass
@@ -773,24 +762,17 @@ class Passe:
     """Une passe de revue d'un lot, telle que sa section « Revues » la
     garde : son numéro et sa date, les commits relus (`debut..tete`, tels
     que `socle review` les a écrits, et l'empreinte de l'arbre de travail
-    s'il était sale), ses bloquants (leur cause, et le
-    regard du relecteur : `meme`, `nouvelle`, ou `None` s'il n'est pas
-    consigné), et son recul, le paragraphe qui commence par « Recul : »."""
+    s'il était sale), et ses bloquants, la cause de chacun, telle que
+    l'agent l'a consignée."""
 
     numero: int
     date: str
     debut: str | None = None
     tete: str | None = None
-    bloquants: list[tuple[str, str | None]] = field(default_factory=list)
-    recul: str | None = None
+    bloquants: list[str] = field(default_factory=list)
     # L'empreinte des changements de l'arbre de travail hors de la mémoire
     # que la passe a relus en plus de `tete`, `None` s'il n'en avait pas.
     arbre: str | None = None
-
-    @property
-    def voit_revenir(self) -> bool:
-        """Le relecteur y voit au moins une cause revenir."""
-        return any(regard == "meme" for _, regard in self.bloquants)
 
 
 def _bornes_des_revues(e: Entree, texte: str | None = None) -> tuple[int, int] | None:
@@ -831,138 +813,22 @@ def passes(e: Entree) -> list[Passe]:
     if texte is None:
         return []
     res: list[Passe] = []
-    lignes = texte.splitlines()[1:]
-    recul: list[str] | None = None
-    for ligne in lignes:
+    for ligne in texte.splitlines()[1:]:
         t = TITRE_DE_PASSE.match(ligne)
         if t:
             res.append(Passe(int(t["n"]), (t["date"] or "").strip()))
-            recul = None
             continue
         if not res:
             continue
         p = res[-1]
-        if recul is not None:
-            if not ligne.strip() or ligne.lstrip().startswith(("#", "- ", "* ")):
-                p.recul, recul = " ".join(recul), None
-            else:
-                recul.append(ligne.strip())
-                continue
         c = LIGNE_COMMITS.match(ligne)
         if c and p.debut is None:
             p.debut, p.tete, p.arbre = c["debut"], c["tete"], c["arbre"]
             continue
         b = LIGNE_BLOQUANT.match(ligne)
         if b:
-            r = REGARD.search(b["texte"])
-            regard = None if r is None else ("meme" if r["meme"] else "nouvelle")
-            p.bloquants.append(((b["texte"][:r.start()] if r else b["texte"]).strip(), regard))
-            continue
-        if DEBUT_DU_RECUL.match(ligne) and p.recul is None:
-            recul = [ligne.strip()]
-    if recul is not None and res:
-        res[-1].recul = " ".join(recul)
+            p.bloquants.append(b["texte"])
     return res
-
-
-def mots_du_recul(recul: str) -> list[str]:
-    return MOT.findall(recul)
-
-
-def decision_du_recul(recul: str | None) -> str | None:
-    """`continuer` ou `s-arreter`, le dernier mot du recul, ponctuation,
-    accents et apostrophe mis à part ; `None` s'il n'est ni l'un ni
-    l'autre."""
-    mots = mots_du_recul(recul or "")
-    return DECISIONS_DU_RECUL.get(outils.cle(mots[-1].replace("’", "'"))) if mots else None
-
-
-def refus_du_recul(p: Passe) -> str | None:
-    """Pourquoi la passe n'a pas son recul (D-0124, point 4), `None` si elle
-    l'a : un paragraphe qui commence par « Recul : », de soixante mots au
-    moins, dont le dernier est « continuer » ou « s'arrêter »."""
-    if p.recul is None:
-        return trad("la passe {n} n'a pas son recul : un paragraphe qui commence par « Recul : »", n=p.numero)
-    n = len(mots_du_recul(p.recul))
-    if n < MOTS_DU_RECUL:
-        return trad("le recul de la passe {n} a {mots} mot(s) : il en faut {seuil} au moins, qui répondent aux trois "
-                    "questions", n=p.numero, mots=n, seuil=MOTS_DU_RECUL)
-    if decision_du_recul(p.recul) is None:
-        return trad("le recul de la passe {n} ne finit ni par « continuer » ni par « s'arrêter » : son dernier mot "
-                    "est sa décision, et ce qui rendra la passe suivante différente s'écrit avant", n=p.numero)
-    return None
-
-
-def demandes_du_recul(p: Passe) -> list[str]:
-    """Les demandes que nomme un recul : celle qu'un arrêt pose à
-    l'humain."""
-    return list(dict.fromkeys(i for i, _ in mentions(p.recul or "") if type_d_id(i) == "D"))
-
-
-def cite_le_lot(e: Entree, lot: Entree) -> bool:
-    """L'entrée `e` cite le lot dans son texte, par son identifiant ou par
-    un ancien numéro."""
-    return bool({lot.id, *lot.anciens} & {i for i, _ in mentions(e.texte)})
-
-
-def leve_l_arret(mem: "Memoire", lot: Entree, demande: str) -> bool:
-    """La demande `demande`, qu'un recul « s'arrêter » nomme, lève l'arrêt
-    du lot (ADR-0084, point 6) : elle cite le lot, et l'humain y a répondu.
-    Retirée, ou ancienne et d'un autre sujet, elle ne le lève pas."""
-    e = mem.entree(demande)
-    return e is not None and e.fichier in mem.repondues and "retiree" not in e.meta and cite_le_lot(e, lot)
-
-
-def _revient(p: Passe) -> bool:
-    """Le relecteur voit une cause revenir : à partir de la deuxième passe."""
-    return p.numero >= 2 and p.voit_revenir
-
-
-def refus_de_la_suite(mem: "Memoire", lot: Entree, deja: list[Passe]) -> tuple[str, str] | None:
-    """Pourquoi rien ne suit la dernière passe de `deja`, ni une passe de
-    plus, que `socle review` refuse, ni la clôture « fait » du lot, que le
-    contrôle du backlog refuse (D-0124, points 2, 3, 5 et 6 ; ADR-0084) :
-    les mêmes règles, sans ce que git donne. `None` si rien ne l'arrête ;
-    sinon (nature, raison), la nature disant ce que l'agent fait ensuite :
-    `regard`, consigner le regard du relecteur sur un bloquant, à partir de
-    la deuxième passe ; `recul`, écrire le recul ; `arret`, s'arrêter sur
-    une demande qui cite le lot, après deux passes de suite où une même
-    cause revient, ou sur un arrêt qu'aucune demande nommée ne lève ;
-    `attente`, attendre la réponse de l'humain à la demande de l'arrêt."""
-    derniere = deja[-1]
-    n = derniere.numero
-    sans = [cause for cause, regard in derniere.bloquants if regard is None] if n >= 2 else []
-    if sans:
-        return "regard", trad("la passe {n} ne consigne pas le regard du relecteur sur {m} bloquant(s), « · même "
-                              "cause » ou « · cause nouvelle » au bout de sa ligne : {causes}", n=n, m=len(sans),
-                              causes=" ; ".join(sans))
-    raison = refus_du_recul(derniere)
-    if raison:
-        return "recul", raison
-    decision = decision_du_recul(derniere.recul)
-    precedente = deja[-2] if len(deja) > 1 else None
-    if decision == "continuer" and precedente and _revient(precedente) and _revient(derniere):
-        return "arret", trad("le relecteur a vu une même cause revenir deux passes de suite, aux passes {a} et {b} "
-                             ": « continuer » est refusé, le lot s'arrête", a=precedente.numero, b=n)
-    if decision != "s-arreter":
-        return None
-    demandes = demandes_du_recul(derniere)
-    if not demandes:
-        return "arret", trad("le recul de la passe {n} s'arrête sans nommer sa demande (`D-NNNN`), la décision qu'il "
-                             "pose à l'humain", n=n)
-    if any(leve_l_arret(mem, lot, d) for d in demandes):
-        return None
-    # Une demande que la mémoire n'a pas encore se dit attendue, comme une
-    # demande du lot qui attend sa réponse.
-    attendues = [d for d in demandes if (e := mem.entree(d)) is None or (
-        cite_le_lot(e, lot) and e.fichier not in mem.repondues and "retiree" not in e.meta)]
-    if attendues:
-        return "attente", trad("le lot s'est arrêté à la passe {n}, et attend la réponse à {demandes} : il avance "
-                               "ailleurs jusque-là", n=n, demandes=", ".join(attendues))
-    return "arret", trad("l'arrêt de la passe {n} n'est levé par aucune des demandes que nomme son recul "
-                         "({demandes}) : seule le lève la réponse de l'humain à une demande qui cite le lot ({lot}) ; "
-                         "une demande retirée, ou qui ne le cite pas, ne le lève pas", n=n,
-                         demandes=", ".join(demandes), lot=lot.id)
 
 
 @dataclass
@@ -1200,6 +1066,28 @@ def lignes_ordre(mem: "Memoire", plafond: int | None = 8, titre: int | None = No
     if o.attendent_une_demande:
         res.append(trad("{n} entrée(s) attendent une demande sans réponse", n=o.attendent_une_demande))
     return res
+
+
+def lots_trop_longs(mem: "Memoire", seuil: int | float) -> list[str]:
+    """Pour l'état et le rappel de fin de tour, un avertissement, sur une
+    ligne, qui nomme chaque lot ouvert attendant encore plus de `seuil`
+    tâches ouvertes, en cours ou bloquées : il ne se mène pas en une
+    session (B-0233). Seul le nombre se juge : l'état ne sait pas quels
+    fichiers touchera une tâche pas encore faite. Rien n'en échoue."""
+    g = Graphe(mem)
+    longs = []
+    for i in g.ouverts:
+        if not est_lot(g.entrees[i]):
+            continue
+        n = sum(1 for d in dict.fromkeys(dependances(g.entrees[i]))
+                if d in g.entrees and est_tache(g.entrees[d]) and g.ouvert(d))
+        if n > seuil:
+            longs.append(trad("{id} ({n} tâches)", id=i, n=n))
+    if not longs:
+        return []
+    return [trad("!! {n} lot(s) attendent encore plus de tâches qu'une session n'en mène (seuil : {seuil}, "
+                 "`[batches] max_tasks` des garde-fous) : {lots} ; les couper en lots, ou en faire un jalon et former "
+                 "leurs lots dessous", n=len(longs), seuil=seuil, lots=", ".join(longs))]
 
 
 def empreinte_index(mem: "Memoire", index: str, sauf: set[str] = frozenset()) -> str:

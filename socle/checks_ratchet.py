@@ -37,6 +37,9 @@ REGLES = [
     # Relevé, le seuil laisserait dériver en silence la durée des étapes
     # rapides (B-0258) ; baissé, il avertit plus tôt.
     (("verify", "fast_max_seconds"), "bas"),
+    # Relevé, le seuil tairait un lot qui ne se mène pas en une session
+    # (B-0233) ; baissé, il avertit plus tôt.
+    (("batches", "max_tasks"), "bas"),
     (("mutation", "caps", "*", "max"), "bas"),
     (("mutation", "caps", "*", "reason"), "libre"),
     (("mutation", "caps", "*", "pending"), "faux"),
@@ -62,7 +65,8 @@ REGLES = [
 # telle quelle ne change rien (D-0087).
 DEFAUTS = {("branches", "disposable"): list(config.BRANCHES_JETABLES),
            ("startup", "max_bytes"): config.BORNE_DEMARRAGE,
-           ("verify", "fast_max_seconds"): config.SEUIL_RAPIDE}
+           ("verify", "fast_max_seconds"): config.SEUIL_RAPIDE,
+           ("batches", "max_tasks"): config.TACHES_PAR_SESSION}
 
 
 def _pas_un_nombre(valeur) -> bool:

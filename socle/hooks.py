@@ -1756,13 +1756,18 @@ def _ecrits_hors_remise(projet: config.Projet, c: commandes.Commande,
 
 def _cite_chemin(texte: str, rel: str) -> bool:
     """Le texte cite `rel`, ou un dossier qui le contient (`.socle/`,
-    `.socle/**`, `.socle`), écrit seul et non comme début d'un autre chemin."""
+    `.socle/**`, `.socle`), écrit seul et non comme début d'un autre chemin.
+    Un dossier ne se cite pas dans un texte recopié entre accents graves,
+    une valeur attendue ou une sortie dont il n'est qu'un mot : seul entre
+    les siens, il est cité (B-0227)."""
     if rel in texte:
         return True
+    hors_recopies = demandes.CODE_CITE.sub(lambda m: m.group(0) if len(m.group(0).strip("`").split()) == 1 else " ",
+                                           texte)
     parties = rel.split("/")[:-1]
     for i in range(1, len(parties) + 1):
         dossier = re.escape("/".join(parties[:i]))
-        if re.search(r"(?<![\w./-])" + dossier + r"(?:/\**)?(?![\w./-])", texte):
+        if re.search(r"(?<![\w./-])" + dossier + r"(?:/\**)?(?![\w./-])", hors_recopies):
             return True
     return False
 
@@ -2802,7 +2807,8 @@ def exiger_recap(projet: config.Projet, entree: dict, avertissement: str | None 
         liste = "\n".join(humain.texte(humain.a_faire(projet)))
         suite = humain.prochaines_etapes(projet) or trad("(le chantier actif n'a pas de section « Prochaines "
                                                          "étapes »)")
-        ordre = memoire.lignes_ordre(memoire.Memoire.charger(projet.racine))
+        mem = memoire.Memoire.charger(projet.racine)
+        ordre = memoire.lignes_ordre(mem) + memoire.lots_trop_longs(mem, projet.taches_par_session())
         if ordre:
             suite += "\n\n" + trad("Selon l'ordre du backlog :") + "\n" + "\n".join(f"- {l}" for l in ordre)
         raisons.append(trad(

@@ -578,6 +578,8 @@ MESSAGES: dict[str, str] = {
         "# Local trace of the socle's hooks",
     "{commentaire} (voir {source})":
         "{commentaire} (see {source})",
+    "# Les worktrees des sous-agents de Claude Code":
+        "# Claude Code's subagent worktrees",
     "# Le socle : ses fichiers se commitent":
         "# The socle: its files are committed",
     ".gitignore : {n} fichier(s) du socle n'y sont plus ignorés":
@@ -1975,8 +1977,8 @@ MESSAGES: dict[str, str] = {
         "A box of a task is checked by a test, except one whose deliverable is a request posed, a report written (the account of a measurement or a trial) or a memory entry rewritten: it is checked by what it produces, which the box names (the request, and the human's answer recorded in the journal once given; the report's file; what `socle show` or `socle roadmap` shows of it). Then judge that this product exists and says what the box promises; the lack of a test is not a finding there.",
     "Ta barre est celle des entrées du backlog que sert le lot, plus bas : leurs critères (« Fait quand » d'une tâche, « Satisfait quand » d'un besoin), les décisions qu'elles citent, et, pour une entrée qui pose ou change un garde-fou, son modèle de menace, ce que le garde-fou arrête et ce qu'il laisse passer. Cherche ce qui casse (un cas limite, une erreur de logique, une régression), ce qu'aucun test ne prouve, et ce qui contredit un critère ou une décision. Ne juge ni le style, ni ce que les contrôles automatiques jugent déjà : la forme de la mémoire, les liens, la présence des tests.":
         "Your bar is that of the backlog entries the batch serves, below: their criteria (a task's “Done when”, a need's “Satisfied when”), the decisions they cite, and, for an entry that adds or changes a guardrail, its threat model, what the guardrail stops and what it lets through. Look for what breaks (an edge case, a logic error, a regression), what no test proves, and what contradicts a criterion or a decision. Judge neither style nor what the automatic checks already judge: the form of the memory, the links, the presence of tests.",
-    "Classe chaque constat. **Bloquant** : il contredit un critère coché ou une décision citée, fait régresser ce qui marchait avant le lot, perd des données, ou contourne un garde-fou dans son modèle de menace ; un garde-fou que le lot pose ou change sans modèle de menace écrit est lui-même un constat bloquant. **Pour le backlog** : un constat qui ne bloque pas, s'il peut se produire dans l'usage normal du projet, ou si rien ne rattrape ensuite son effet ; un contournement hors du modèle de menace, un critère que le lot ne coche pas, un défaut voisin, une amélioration, jugés de même. **Écarté** : un constat exotique (un geste rare, une forme qu'on n'écrit que pour contourner, un cas jamais reproduit) dont l'effet est rattrapé, par un contrôle, la CI ou une erreur que l'agent voit aussitôt ; et un constat infondé. Une forme du shell qu'un agent n'écrit pas dans son travail (ni vue dans une session d'agent, ni dans un skill, ni dans une documentation courante), et qui échappe au hook de l'agent, ne se classe pas bloquante, même refusée avant le lot par accident, ni pour le backlog, quel qu'en soit l'effet : écarte-la, d'une ligne, pour la liste des formes connues que le hook ne juge pas, dans le guide du socle (`python3 .socle/socle help`). Seuls les bloquants se corrigent dans le lot. Rends trois listes numérotées, « Bloquants », « Pour le backlog » puis « Écartés », chaque constat avec son fichier et sa ligne, ce qui casse et comment le vérifier, pour un bloquant ce qu'il contredit, pour un écarté pourquoi ; ou « aucun constat ».":
-        "Classify each finding. **Blocking**: it contradicts a ticked criterion or a cited decision, breaks what worked before the batch, loses data, or bypasses a guardrail within its threat model; a guardrail the batch adds or changes without a written threat model is itself a blocking finding. **For the backlog**: a finding that does not block, if it can occur in the project's normal use, or if nothing catches its effect afterwards; a bypass outside the threat model, a criterion the batch does not tick, a neighbouring defect, an improvement, judged the same way. **Dismissed**: an exotic finding (a rare gesture, a form one only writes to get around something, a case never reproduced) whose effect is caught, by a check, the CI or an error the agent sees at once; and an unfounded finding. A shell form an agent does not write in its work (seen neither in an agent session, nor in a skill, nor in current documentation), and that escapes the agent's hook, is not classed as blocking, even if refused before the batch by accident, nor for the backlog, whatever its effect: dismiss it, in one line, for the list of known forms the hook does not judge, in the socle's guide (`python3 .socle/socle help`). Only blocking findings are fixed in the batch. Return three numbered lists, “Blocking”, “For the backlog” then “Dismissed”, each finding with its file and line, what breaks and how to verify it, for a blocking one what it contradicts, for a dismissed one why; or “no finding”.",
+    "Classe chaque constat. **Bloquant** : il contredit un critère coché ou une décision citée, fait régresser ce qui marchait avant le lot, perd des données, ou contourne un garde-fou dans son modèle de menace ; un garde-fou que le lot pose ou change sans modèle de menace écrit est lui-même un constat bloquant. **Pour le backlog** : un constat qui ne bloque pas, s'il peut se produire dans l'usage normal du projet, ou si rien ne rattrape ensuite son effet ; un contournement hors du modèle de menace, un critère que le lot ne coche pas, un défaut voisin, une amélioration, jugés de même. **Écarté** : un constat exotique (un geste rare, une forme qu'on n'écrit que pour contourner, un cas jamais reproduit) dont l'effet est rattrapé, par un contrôle, la CI ou une erreur que l'agent voit aussitôt ; et un constat infondé. Seuls les bloquants se corrigent dans le lot. Rends trois listes numérotées, « Bloquants », « Pour le backlog » puis « Écartés », chaque constat avec son fichier et sa ligne, ce qui casse et comment le vérifier, pour un bloquant ce qu'il contredit, pour un écarté pourquoi ; ou « aucun constat ».":
+        "Classify each finding. **Blocking**: it contradicts a ticked criterion or a cited decision, breaks what worked before the batch, loses data, or bypasses a guardrail within its threat model; a guardrail the batch adds or changes without a written threat model is itself a blocking finding. **For the backlog**: a finding that does not block, if it can occur in the project's normal use, or if nothing catches its effect afterwards; a bypass outside the threat model, a criterion the batch does not tick, a neighbouring defect, an improvement, judged the same way. **Dismissed**: an exotic finding (a rare gesture, a form one only writes to get around something, a case never reproduced) whose effect is caught, by a check, the CI or an error the agent sees at once; and an unfounded finding. Only blocking findings are fixed in the batch. Return three numbered lists, “Blocking”, “For the backlog” then “Dismissed”, each finding with its file and line, what breaks and how to verify it, for a blocking one what it contradicts, for a dismissed one why; or “no finding”.",
     "Seconde revue : ce diff corrige des constats bloquants d'une première revue, que disent les messages de ses commits ci-dessous ; le reste du lot a déjà été relu. Ne juge que cette correction : un bloquant mal corrigé, ce qu'elle fait régresser, contre les mêmes entrées.":
         "Second review: this diff fixes blocking findings of a first review, which the messages of its commits below state; the rest of the batch has already been reviewed. Judge only this fix: a blocking finding badly fixed, what it breaks, against the same entries.",
     "## Seconde revue":
@@ -2341,6 +2343,15 @@ MESSAGES: dict[str, str] = {
         "duration of the fast steps at the last complete run: {total}, beyond the threshold of {seuil} "
         "(`[verify] fast_max_seconds` of the guardrails); the longest one: `{etape}`, {duree} — shorten it, or "
         "raise the threshold through a validated request",
+    "{id} ({n} tâches)": "{id} ({n} tasks)",
+    "!! {n} lot(s) attendent encore plus de tâches qu'une session n'en mène (seuil : {seuil}, "
+    "`[batches] max_tasks` des garde-fous) : {lots} ; les couper en lots, ou en faire un jalon et former leurs lots "
+    "dessous":
+        "!! {n} batch(es) still wait for more tasks than one session carries (threshold: {seuil}, "
+        "`[batches] max_tasks` of the guardrails): {lots}; cut them into batches, or make each a milestone with its "
+        "batches under it",
+    "lots trop longs : incalculables ({erreur})":
+        "batches too long: not computable ({erreur})",
     "durée des étapes rapides : illisible ({erreur})":
         "duration of the fast steps: unreadable ({erreur})",
     "délai dépassé : {commande}":
@@ -2950,6 +2961,8 @@ MESSAGES: dict[str, str] = {
         "device no doc names",
     "fin d'intervention sans dire ce qui revient à l'humain":
         "end of intervention without saying what falls to the human",
+    "lot ouvert qui attend plus de tâches qu'une session n'en mène, au-delà de `[batches] max_tasks`":
+        "open batch that waits for more tasks than one session carries, beyond `[batches] max_tasks`",
     "fin d'intervention qui ne dit pas la suite":
         "end of intervention that does not say what comes next",
     "fin d'intervention dont la seule ligne « Ensuite : » est celle d'une sortie collée dans un bloc de code":
@@ -3101,6 +3114,12 @@ MESSAGES: dict[str, str] = {
         "outside GitHub (B-0175)",
     "durcir un garde-fou est libre":
         "tightening a guardrail is free",
+    "un lot ouvert qui attend autant de tâches que `[batches] max_tasks` : ni l'état ni le rappel de fin de tour "
+    "n'avertissent":
+        "an open batch that waits for as many tasks as `[batches] max_tasks`: neither the state nor the end-of-turn "
+        "reminder warns",
+    "l'état ou le rappel de fin de tour ne disent pas le lot :\n{etat}\n{rappel}":
+        "the state or the end-of-turn reminder does not name the batch:\n{etat}\n{rappel}",
     "baisser le seuil de durée des étapes rapides est libre : la CI passe":
         "lowering the duration threshold of the fast steps is free: the CI passes",
     "un seuil de durée des étapes rapides à `nan` en base, gardé tel quel, passe la CI":
@@ -3255,6 +3274,48 @@ MESSAGES: dict[str, str] = {
     "mot pour mot":
         "record a decision taken in session, with the human's answer; the agent relays (--relayed) your answer word "
         "for word",
+    "le titre doit énoncer la décision en une phrase":
+        "the title must state the decision in one sentence",
+    "une décision donnée se consigne avec le texte exact de l'humain (--quote ou --quote-file)":
+        "a given decision is recorded with the human's exact text (--quote or --quote-file)",
+    "le titre cite {ids}, que le texte de l'humain ne cite pas : le citer avec son empreinte (`ID@…`, que donne "
+    "`socle show`), ou s'en tenir à ce qu'il nomme":
+        "the title cites {ids}, which the human's text does not cite: cite it with its fingerprint (`ID@…`, given by "
+        "`socle show`), or keep to what the text names",
+    "refus : une décision donnée sans question n'a ni réponse à choisir ni question posée ; son texte exact va dans "
+    "--quote ou --quote-file":
+        "refused: a decision given without a question has neither an answer to choose nor a question asked; its "
+        "exact text goes in --quote or --quote-file",
+    "décision donnée par l'humain consignée : {chemin}, validée, sa réponse dans {reponse} — à commiter avec la "
+    "suite.":
+        "decision given by the human recorded: {chemin}, approved, its answer in {reponse} — to commit with the "
+        "rest.",
+    "refus : la réponse de l'humain manque ; une décision qu'il a donnée sans question se consigne avec "
+    "--unprompted":
+        "refused: the human's answer is missing; a decision they gave without a question is recorded with "
+        "--unprompted",
+    "une décision que l'humain a donnée de lui-même, sans question : son texte exact (--quote ou --quote-file), "
+    "sans réponse à choisir":
+        "a decision the human gave on their own, without a question: their exact text (--quote or --quote-file), "
+        "with no answer to choose",
+    "valeur attendue changée sous une décision que l'humain a donnée de lui-même sans nommer le test":
+        "expected value changed under a decision the human gave on their own without naming the test",
+    "une valeur attendue changée sous une décision que l'humain a donnée de lui-même et qui nomme le test, "
+    "consignée par `socle decision --unprompted`, passe la CI":
+        "an expected value changed under a decision the human gave on their own and that names the test, recorded "
+        "by `socle decision --unprompted`, passes the CI",
+    "{quoi}, en attente de {attente} : il se commite et se pousse, la CI le refuse jusqu'à la réponse de "
+    "l'humain, qui le lit dans la pull request":
+        "{quoi}, awaiting {attente}: it is committed and pushed, the CI refuses it until the human's answer, who "
+        "reads it in the pull request",
+    "valeur attendue commitée sous une demande en attente, la CI du socle exigée":
+        "expected value committed under a pending request, the socle's CI required",
+    "valeur attendue commitée sans demande, la CI du socle exigée":
+        "expected value committed without a request, the socle's CI required",
+    "une valeur attendue changée sous une demande en attente, poussée, la CI du socle exigée : elle se commite et "
+    "se pousse":
+        "an expected value changed under a pending request, pushed, the socle's CI required: it is committed and "
+        "pushed",
     "consigner une décision sans --relayed":
         "recording a decision without --relayed",
     "décision en séance consignée : {chemin}, et sa réponse « {answer} » — à commiter avec la suite.":
@@ -3291,6 +3352,15 @@ MESSAGES: dict[str, str] = {
         "adapter  : !! language(s) the adapter ({couvert}) does not cover: {liste} — their tests, build and mutation "
         "go through no capability; tell the human through a request (another adapter, or these files declared "
         "third-party)",
+    # Les copies protégées en retard sur leurs gabarits, en mode amont (B-0218).
+    "copies   : comparaison à leurs gabarits impossible ({erreur})":
+        "copies   : comparison with their templates impossible ({erreur})",
+    "copies   : !! mode amont : {n} copie(s) protégée(s) diffèrent de ce que l'installeur poserait : {liste} — le "
+    "projet ne tourne pas sur ce que le moteur installe ; les remettre, l'installeur relancé en mode amont, passe par "
+    "une demande":
+        "copies   : !! upstream mode: {n} protected copy(ies) differ from what the installer would lay down: {liste} "
+        "— the project does not run on what the engine installs; restoring them, with the installer run again in "
+        "upstream mode, goes through a request",
     # Les skills (ADR-0034).
     "Un skill se nomme comme son dossier et dit, dans sa description, ce qu'il fait et quand s'en servir ; "
     "`socle-` reste aux skills du socle.":
@@ -3618,179 +3688,51 @@ MESSAGES: dict[str, str] = {
         '… and {n} more ready task(s)',
     "range les entrées closes du backlog à l'écart des ouvertes":
         'files the closed backlog entries apart from the open ones',
-    # L'historique des revues d'un lot (ADR-0084).
-    '`{id}` est clos « fait » sans le recul de sa dernière passe de revue : {raison}':
-        '`{id}` is closed "done" without the step back of its last review pass: {raison}',
-    '`{id}` est clos « fait » avant ce que sa dernière passe de revue exige : {raison}':
-        '`{id}` is closed "done" before what its last review pass requires: {raison}',
+    # L'historique des revues d'un lot (ADR-0084, ADR-0100).
+    "`{id}` : « {ligne} », dans sa section « Revues », se donne pour un bloquant sans la forme que lit "
+    "l'historique du lot, une ligne `- Bloquant : <sa cause>` par bloquant, ni gras, ni numéro, ni pluriel":
+        "`{id}`: “{ligne}”, in its “Reviews” section, presents itself as a blocker without the form the batch's "
+        "history reads, one line `- Blocker: <its cause>` per blocker, no bold, no number, no plural",
+    "passe {n} du lot {lot} écrite dans {chemin} : au retour du relecteur, y écrire une ligne « - Bloquant : <sa "
+    "cause, en quelques mots> » par bloquant, et « - Ouvre : <les entrées que la passe ouvre> »":
+        'pass {n} of batch {lot} written in {chemin}: when the reviewer returns, write in it one line "- Blocker: '
+        '<its cause, in a few words>" per blocker, and "- Opens: <the entries the pass opens>"',
+    "une deuxième et une troisième passe de revue, sans recul, `socle review` les produit et les écrit dans le lot":
+        "a second and a third review pass, without a step back, `socle review` produces them and writes them in "
+        "the batch",
+    "un lot relu clos « fait », ses deux passes sans recul, passe le commit et la CI":
+        'a reviewed batch closed "done", its two passes without a step back, passes the commit and the CI',
+    "un lot en cours dont la passe consigne son bloquant « - Bloquant : … », et un paragraphe replié sur une ligne "
+    "qui commence par « bloquants », passe le commit et la CI":
+        'a batch in progress whose pass records its blocker "- Blocker: …", and a paragraph wrapped on a line that '
+        'starts with "blockers", passes the commit and the CI',
     "le lot dont c'est la passe de revue, qui s'écrit dans sa section « Revues » (par défaut : le lot en cours du "
     "backlog)":
         'the batch this review pass belongs to, written in its "Reviews" section (default: the batch in progress '
         'in the backlog)',
-    "la passe {n} n'a pas son recul : un paragraphe qui commence par « Recul : »":
-        'pass {n} has no step back: a paragraph that starts with "Step back:"',
-    'le recul de la passe {n} a {mots} mot(s) : il en faut {seuil} au moins, qui répondent aux trois questions':
-        'the step back of pass {n} has {mots} word(s): it needs at least {seuil}, answering the three questions',
-    "le recul de la passe {n} ne finit ni par « continuer » ni par « s'arrêter » : son dernier mot est sa décision, "
-    "et ce qui rendra la passe suivante différente s'écrit avant":
-        'the step back of pass {n} ends with neither "continue" nor "stop": its last word is its decision, and what '
-        'will make the next pass different is written before it',
-    "Ce lot a déjà eu des passes de revue : voici les causes de leurs bloquants, telles que l'agent les a "
-    "consignées. Pour chaque bloquant que tu trouves, dis s'il a la même cause que l'un d'eux, « même cause : » "
-    "suivi de celle-ci, ou une cause nouvelle, « cause nouvelle ».":
-        'This batch has already had review passes: here are the causes of their blockers, as the agent recorded '
-        'them. For each blocker you find, say whether it has the same cause as one of them, "same cause:" followed '
-        'by that cause, or a new cause, "new cause".',
-    "Y répondre dans la passe {n}, d'un paragraphe qui commence par « Recul : », de soixante mots au moins, dont "
-    "le dernier mot est « continuer », ce qui rendra la passe suivante différente écrit avant, ou « s'arrêter ». "
-    "S'arrêter, c'est une demande à l'humain, qui cite le lot ({lot}), que le paragraphe nomme (`D-NNNN`) et que "
-    "le lot attend par son `après` : ce qui tourne, en clair, la règle qui le fait tourner, et une proposition qui "
-    "la borne. L'agent avance ailleurs jusqu'à sa réponse, seule à lever l'arrêt.":
-        'Answer them in pass {n}, in a paragraph that starts with "Step back:", of at least sixty words, whose last '
-        'word is "continue", with what will make the next pass different written before it, or "stop". Stopping '
-        'is a request to the human, which cites the batch ({lot}), which the paragraph names (`D-NNNN`) and which '
-        'the batch waits for through its `after`: what goes round, in plain words, the rule that makes it go round, '
-        'and a proposal that bounds it. The agent moves on elsewhere until the answer, the only thing that lifts '
-        'the stop.',
-    "Le recul de la passe {n} finit donc par « s'arrêter » : une demande à l'humain, qui cite le lot ({lot}), que "
-    "le paragraphe nomme (`D-NNNN`) et que le lot attend par son `après` : ce qui tourne, en clair, la règle qui le "
-    "fait tourner, et une proposition qui la borne. L'agent avance ailleurs jusqu'à sa réponse, seule à lever "
-    "l'arrêt.":
-        'The step back of pass {n} therefore ends with "stop": a request to the human, which cites the batch '
-        '({lot}), which the paragraph names (`D-NNNN`) and which the batch waits for through its `after`: what goes '
-        'round, in plain words, the rule that makes it go round, and a proposal that bounds it. The agent moves on '
-        'elsewhere until the answer, the only thing that lifts the stop.',
-    'Les bloquants de cette passe ont-ils la même cause que ceux de la précédente ?':
-        "Do this pass's blockers have the same cause as the previous pass's?",
-    "Les entrées que le lot ouvre sont-elles de même nature que celles qu'il ferme ?":
-        'Are the entries the batch opens of the same nature as those it closes?',
-    "Les lots clos qui ont touché les mêmes fichiers ont-ils déjà ouvert ce genre d'entrées ?":
-        'Have the closed batches that touched the same files already opened this kind of entries?',
-    'socle review : la passe {n} du lot {lot} est refusée — {raison}.':
-        'socle review: pass {n} of batch {lot} is refused — {raison}.',
-    "## L'historique du lot ({chemin})":
-        "## The batch's history ({chemin})",
-    'la passe {n} ne consigne pas le regard du relecteur sur {m} bloquant(s), « · même cause » ou « · cause '
-    'nouvelle » au bout de sa ligne : {causes}':
-        'pass {n} does not record the reviewer\'s view on {m} blocker(s), "· same cause" or "· new cause" at the '
-        'end of its line: {causes}',
-    "le relecteur a vu une même cause revenir deux passes de suite, aux passes {a} et {b} : « continuer » est "
-    "refusé, le lot s'arrête":
-        'the reviewer saw a same cause come back two passes in a row, at passes {a} and {b}: "continue" is '
-        'refused, the batch stops',
-    'passe {n} du lot {lot} écrite dans {chemin} : au retour du relecteur, y écrire une ligne « - Bloquant : <sa '
-    'cause, en quelques mots> » par bloquant, suivie à partir de la deuxième passe du regard du relecteur, « · '
-    'même cause » ou « · cause nouvelle », et « - Ouvre : <les entrées que la passe ouvre> » ; puis, avant la '
-    'passe suivante ou la clôture du lot, son recul, « Recul : … »':
-        'pass {n} of batch {lot} written in {chemin}: when the reviewer returns, write in it one line "- Blocker: '
-        '<its cause, in a few words>" per blocker, followed from the second pass on by the reviewer\'s view, "· '
-        'same cause" or "· new cause", and "- Opens: <the entries the pass opens>"; then, before the next pass or '
-        'the closing of the batch, its step back, "Step back: …"',
-    "## Le second regard : les causes des passes d'avant":
-        '## The second look: the causes of the earlier passes',
     "{n} lots sont en cours ({lots}) : `socle review --batch L-NNNN` nomme celui de cette revue ; rien n'est relu":
         '{n} batches are in progress ({lots}): `socle review --batch L-NNNN` names the one of this review; nothing '
         'is reviewed',
-    '- rien':
-        '- none',
-    '## Ce que git donne depuis le début du lot ({debut})':
-        '## What git gives since the start of the batch ({debut})',
-    'Les entrées que le lot a ouvertes :':
-        'The entries the batch has opened:',
-    "Les entrées qu'il a closes :":
-        'The entries it has closed:',
-    'Les lots clos qui ont touché les mêmes fichiers :':
-        'The closed batches that touched the same files:',
-    '## Trois questions, de nature et non de nombre':
-        '## Three questions, of nature and not of number',
-    "le recul de la passe {n} s'arrête sans nommer sa demande (`D-NNNN`), la décision qu'il pose à l'humain":
-        'the step back of pass {n} stops without naming its request (`D-NNNN`), the decision it puts to the human',
-    "le lot s'est arrêté à la passe {n}, et attend la réponse à {demandes} : il avance ailleurs jusque-là":
-        'the batch stopped at pass {n}, and waits for the answer to {demandes}: it moves on elsewhere until then',
-    "l'arrêt de la passe {n} n'est levé par aucune des demandes que nomme son recul ({demandes}) : seule le lève la "
-    "réponse de l'humain à une demande qui cite le lot ({lot}) ; une demande retirée, ou qui ne le cite pas, ne le "
-    "lève pas":
-        'the stop of pass {n} is lifted by none of the requests its step back names ({demandes}): only the '
-        'human\'s answer to a request that cites the batch ({lot}) lifts it; a withdrawn request, or one that does '
-        'not cite it, does not',
     "(aucun lot en cours au backlog : cette passe ne s'écrit dans aucun lot ; `socle review --batch L-NNNN` nomme "
     "le sien)":
         '(no batch in progress in the backlog: this pass is written in no batch; `socle review --batch L-NNNN` '
         'names its own)',
-    "(le début du lot, que garde la ligne « Commits » de sa première passe, n'est pas dans ce dépôt : git ne donne "
-    "ni les entrées ouvertes et closes depuis, ni les lots voisins)":
-        "(the batch's start, which the “Commits” line of its first pass keeps, is not in this repository: git gives "
-        "neither the entries opened and closed since, nor the neighbouring batches)",
-    "`{id}` : « {ligne} », dans sa section « Revues », se donne pour un bloquant sans la forme que lit `socle "
-    "review`, une ligne `- Bloquant : <sa cause>` par bloquant, ni gras, ni numéro, ni pluriel ; ignorée, elle "
-    "n'exigerait ni le regard du relecteur ni la règle de la même cause":
-        "`{id}`: “{ligne}”, in its “Reviews” section, presents itself as a blocker without the form `socle review` "
-        "reads, one line `- Blocker: <its cause>` per blocker, no bold, no number, no plural; ignored, it would "
-        "require neither the reviewer's view nor the same-cause rule",
     "(la passe {n} du lot {lot} : rien n'a changé hors de la mémoire depuis ce qu'elle a relu, son commit et "
     "l'arbre de travail ; son dossier se redonne, rien ne s'écrit)":
         '(pass {n} of batch {lot}: nothing has changed outside the memory since what it reviewed, its commit and '
         'the working tree; its brief is given again, nothing is written)',
-    '- passe {n} : {cause}':
-        '- pass {n}: {cause}',
     "--batch {nom} : aucun lot de ce nom au backlog public ; rien n'est relu":
         '--batch {nom}: no batch of that name in the public backlog; nothing is reviewed',
     "--batch {nom} : le lot est clos (« {statut} ») ; une passe s'écrit dans un lot ouvert ; rien n'est relu":
         '--batch {nom}: the batch is closed ("{statut}"); a pass is written in an open batch; nothing is reviewed',
-    '- … et {n} de plus':
-        '- … and {n} more',
-    '- passe {n} : aucun bloquant consigné':
-        '- pass {n}: no blocker recorded',
-    "deuxième passe de revue d'un lot sans le recul de la première":
-        "second review pass of a batch without the first one's step back",
     "dossier court de revue pour un lot qui touche un garde-fou":
         "short review dossier for a batch that touches a guardrail",
-    'lot relu clos « fait » sans le recul de sa dernière passe':
-        'reviewed batch closed "done" without the step back of its last pass',
-    "passe de plus d'un lot arrêté dont la demande attend sa réponse":
-        'one more pass of a stopped batch whose request waits for its answer',
-    "passe de plus d'un lot arrêté sur une demande ancienne, répondue, qui ne cite pas le lot":
-        'one more pass of a batch stopped on an old, answered request that does not cite the batch',
-    "lot relu clos « fait » dont la dernière passe, la deuxième, a un bloquant sans le regard du relecteur":
-        'reviewed batch closed "done" whose last pass, the second, has a blocker without the reviewer\'s view',
-    "lot relu clos « fait » sur « continuer » après deux passes de suite où le relecteur voit une même cause revenir":
-        'reviewed batch closed "done" on "continue" after two passes in a row where the reviewer sees a same cause '
-        'come back',
     "ligne de bloquant d'une passe de revue écrite sans puce, que rien ne lit":
         "blocker line of a review pass written without a bullet, which nothing reads",
     "ligne de bloquant d'une passe de revue écrite autrement que « - Bloquant : … », que rien ne lit":
         'blocker line of a review pass written otherwise than "- Blocker: …", which nothing reads',
-    'lot relu clos « fait » sur un arrêt dont la demande attend sa réponse':
-        'reviewed batch closed "done" on a stop whose request waits for its answer',
-    'un lot arrêté dont la demande, qui cite le lot, a sa réponse, `socle review` produit sa passe suivante':
-        'a stopped batch whose request, which cites the batch, has its answer, `socle review` produces its next '
-        'pass',
-    "un lot relu clos « fait » avec le recul de sa dernière passe, et le regard du relecteur sur son bloquant, passe "
-    "le commit et la CI":
-        'a reviewed batch closed "done" with the step back of its last pass, and the reviewer\'s view on its '
-        'blocker, passes the commit and the CI',
-    "un lot en cours dont la passe consigne son bloquant « - Bloquant : … », et un recul replié sur une ligne qui "
-    "commence par « bloquants », passe le commit et la CI":
-        'a batch in progress whose pass records its blocker "- Blocker: …", and a step back wrapped on a line that '
-        'starts with "blockers", passes the commit and the CI',
-    "un lot relu clos « fait » sur « continuer » après une seule passe où le relecteur voit une cause revenir passe "
-    "le commit et la CI":
-        'a reviewed batch closed "done" on "continue" after a single pass where the reviewer sees a cause come back '
-        'passes the commit and the CI',
-    "un lot relu clos « fait » sur un arrêt dont la demande, qui cite le lot, a sa réponse passe le commit et la CI":
-        'a reviewed batch closed "done" on a stop whose request, which cites the batch, has its answer passes the '
-        'commit and the CI',
     "un petit lot qui ne touche aucun garde-fou, `socle review --short` en donne le dossier court":
         "a small batch that touches no guardrail, `socle review --short` gives its short dossier",
-    "une deuxième passe de revue après le recul de la première, `socle review` la produit et l'écrit dans le lot":
-        "a second review pass after the first one's step back, `socle review` produces it and writes it in the "
-        "batch",
-    '« continuer » après deux passes de suite où le relecteur voit une même cause revenir':
-        '"continue" after two passes in a row where the reviewer sees a same cause come back',
-    '« continuer » après une seule passe où le relecteur voit une cause revenir, `socle review` produit la '
-    'suivante':
-        '"continue" after a single pass where the reviewer sees a cause come back, `socle review` produces the '
-        'next one',
     # La suite du projet, `socle roadmap`.
     '{n} tâche dans aucun lot':
         '{n} task in no batch',

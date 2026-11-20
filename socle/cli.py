@@ -530,7 +530,9 @@ def cmd_decision(args) -> int:
     """Une décision prise en séance : l'humain a lu la question
     dans la conversation et y a répondu ; l'agent la consigne avec sa réponse
     mot pour mot (`--relayed`), ou l'humain le fait lui-même. `--about` nomme
-    ce qu'elle approuve."""
+    ce qu'elle approuve. Avec `--unprompted`, une décision que l'humain a
+    donnée de lui-même : son texte exact, sans question ni réponse à
+    choisir (B-0185)."""
     from socle import requests as demandes
 
     projet = _projet(args)
@@ -551,11 +553,29 @@ def cmd_decision(args) -> int:
             print(trad("refus : « {chemin} » n'existe pas dans le dépôt", chemin=chemin), file=sys.stderr)
             return 2
         sujet = chemin
+    canal = "conversation" if args.relayed else "terminal"
+    if getattr(args, "unprompted", False):
+        if args.answer or args.question_file:
+            print(trad("refus : une décision donnée sans question n'a ni réponse à choisir ni question posée ; "
+                       "son texte exact va dans --quote ou --quote-file"), file=sys.stderr)
+            return 2
+        try:
+            chemin, reponse = demandes.ecrire_decision_donnee(projet, args.question, citation, par,
+                                                              date.today().isoformat(), canal, sujet)
+        except ValueError as e:
+            print(trad("refus : {erreur}", erreur=e), file=sys.stderr)
+            return 2
+        print(trad("décision donnée par l'humain consignée : {chemin}, validée, sa réponse dans {reponse} — à "
+                   "commiter avec la suite.", chemin=chemin, reponse=reponse))
+        return 0
+    if not args.answer:
+        print(trad("refus : la réponse de l'humain manque ; une décision qu'il a donnée sans question se consigne "
+                   "avec --unprompted"), file=sys.stderr)
+        return 2
     question = Path(args.question_file).read_text(encoding="utf-8") if args.question_file else ""
     try:
         chemin, reponse = demandes.ecrire_seance(projet, args.question, question, args.answer,
-                                                 par, date.today().isoformat(),
-                                                 "conversation" if args.relayed else "terminal", citation, sujet)
+                                                 par, date.today().isoformat(), canal, citation, sujet)
     except ValueError as e:
         print(trad("refus : {erreur}", erreur=e), file=sys.stderr)
         return 2
@@ -976,8 +996,11 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s = sp.add_parser("decision", help=trad("consigner une décision prise en séance, avec la réponse de l'humain ; "
                                             "l'agent y relaie (--relayed) ta réponse mot pour mot"))
     s.add_argument("question")
-    s.add_argument("answer")
+    s.add_argument("answer", nargs="?")
     s.add_argument("--question-file", help=trad("fichier qui contient la question telle que l'humain l'a lue"))
+    s.add_argument("--unprompted", action="store_true",
+                   help=trad("une décision que l'humain a donnée de lui-même, sans question : son texte exact "
+                             "(--quote ou --quote-file), sans réponse à choisir"))
     s.add_argument("--about", help=trad("ce que la décision approuve (le chemin du document)"))
     s.add_argument("--by")
     s.add_argument("--relayed", action="store_true", help=trad("réponse donnée par l'humain dans la "

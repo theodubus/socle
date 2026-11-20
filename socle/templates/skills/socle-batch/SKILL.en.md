@@ -5,11 +5,9 @@ description: Run a batch of backlog tasks, from its announcement to its delivery
 
 # Running a batch
 
-A batch gathers ready tasks that are handled together: those that touch
-the same files, the same guardrail or the same tests, which one review
-judges. The agent running it orchestrates: it announces, delegates, has
-the work reviewed, integrates and delivers; it implements itself only a
-small task.
+A batch gathers ready tasks that one review judges: those that touch
+the same files, the same guardrail or the same tests. The agent running
+it orchestrates; it implements itself only a small task.
 
 ## Forming and announcing
 
@@ -17,10 +15,11 @@ small task.
    over the whole open backlog, without asking: the ready tasks its rule
    applies to, those of the next milestone and of high priority first; a
    need to split gets its tasks first; the rest goes to the next batch
-   not yet in progress whose rule applies, and the recap states each
+   not in progress whose rule applies, and the recap states each
    placement. It is kept in the backlog: `python3 .socle/socle new batch
    "Batch …"`, then `after:` the previous batch and its tasks; its body
-   says what brings them together.
+   says what brings them together. A whole that one session does not
+   carry through is formed as a milestone, its batches under it.
 2. Read each task (`python3 .socle/socle show <ID>`) and estimate the
    batch's cost: if it does not fit in what remains of the window, split
    it, start with a smaller batch or wait for the reset. Announce the
@@ -46,6 +45,7 @@ closed if its criteria are met; python3 .socle/socle verify --fast.
 Forbidden: pushing, touching a wake-up, writing a protected file, changing
 an expected value or deleting a test (report it), fixing a neighbouring
 defect (a need in the backlog).
+Economy: read what serves, not whole files; no full suite rerun without reason.
 Report: your model, the commit, what the tests prove, the choices, what remains.
 ```
 
@@ -58,34 +58,33 @@ the other, one commit each, the review on the whole batch.
 
 ## The review, before any push
 
-Skill `socle-review`, on the committed batch. A blocking finding goes back
-to whoever implemented, if it still answers, otherwise to a new subagent,
-with the instructions and the finding: a subagent stopped for more than
-five minutes is not resumed. The rest goes to the backlog. A batch leaves only once its blocking
-findings are fixed: once pushed, a decision, a journal entry and an
-expected value are no longer rewritten.
+Skill `socle-review`, on the committed batch, and its sorting of the
+findings. A blocking finding goes back to whoever implemented, if it
+still answers, otherwise to a new subagent, with the instructions and the
+finding: a subagent stopped for more than five minutes is not resumed. A
+batch leaves only once its blocking findings are fixed: once pushed, a
+decision, a journal entry and an expected value are no longer rewritten.
 
 ## Integrating, pushing, delivering
 
 1. On the work branch: `git merge --ff-only` of the subagent's branch if
    its commit follows the head, otherwise `git merge --squash`, then a
-   commit that reuses its message. An identifier taken twice, by two
-   tasks or by the default branch: `python3 .socle/socle renumber <ID>`
-   on the second.
+   commit that reuses its message. An identifier taken twice:
+   `python3 .socle/socle renumber <ID>` on the second.
 2. Remove the isolated copy and its branch;
    `python3 .socle/socle verify --fast`.
 3. Push; open the pull request if there is none, only one open. Wait for
    the CI of the head commit: the "CI" line of `python3 .socle/socle state`
    says `success` (or `failure`) on its short SHA. An announced wait has
-   its wake-up (under Claude Code, `send_later`).
+   its wake-up in a cloud session (`send_later`); elsewhere, `Next:` says
+   so, and the human restarts the agent.
 4. Who merges, the project's instructions say: by default the human, and
    the next batch is added to the same pull request; the agent, its own,
    if they allow it: green CI on the head commit, review done, no pending
    request on its content, giving the expected head commit.
 5. The active work and the journal are written before the merge, in the
    last commit of the pull request, with the batch's closure: its tasks
-   closed and its step back written, it becomes `done`, then `python3
-   .socle/socle archive`; the closing recap pastes the output of `python3
+   closed, it becomes `done`, then `python3 .socle/socle archive`; the closing recap pastes the output of `python3
    .socle/socle roadmap` in a code block. After the merge, the local
    branch restarts from the default branch and is pushed only with the
    first commit of the next batch: pushed alone, it would recreate the
@@ -116,8 +115,8 @@ expected value are no longer rewritten.
   lighten it. Among those that do it equally well, the one that uses the
   least of the limit per token; the human chooses the session's, on the
   agent's advice. The one set by the project's instructions prevails. A
-  subagent receives its own explicitly at launch (`model`), the latest
-  version of its family (an alias that designates an older one: without
+  subagent receives its own explicitly at launch (`model`), never Fable
+  unless the human wants it, the latest version of its family (an alias that designates an older one: without
   `model`, it inherits the session's; otherwise, tell the human), named
   in the recap.
 
@@ -127,13 +126,12 @@ When the batch is delivered and the window does not allow running
 another one whole, or a wait of more than an hour is coming. Tidy up
 first, so that a new session restarts from the repository alone:
 
-1. nothing that lives only in the container: everything is pushed, and a
-   commit not yet reviewed leaves as a patch (`git format-patch`) in a
-   handover folder of the repository, removed at its integration;
-2. the isolated copies and their branches removed;
-3. the active work, written before the merge, gives the batch and what is
-   waiting;
-4. in a cloud session, the wake-ups removed.
+1. everything is pushed; a commit not reviewed leaves as a patch
+   (`git format-patch`) in a handover folder of the repository, removed
+   at its integration;
+2. the isolated copies, their branches and, in a cloud session, the
+   wake-ups removed;
+3. the active work gives the batch and what is waiting.
 
 Then tell the human why sessions must change, with the prompt of the
 next one in a block to copy:

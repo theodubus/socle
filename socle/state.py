@@ -329,7 +329,23 @@ def calculer(projet: config.Projet, contenus: bool = True, supplement: list[str]
         ajouter(ACTION, _blocs(audit_adaptateur(projet)))
     except Exception as e:
         ajouter(ACTION, [[trad("adaptateur : audit impossible ({erreur})", erreur=erreur_(e))]])
+    try:
+        ajouter(ACTION, _blocs(copies_en_retard(projet)))
+    except Exception as e:
+        ajouter(ACTION, [[trad("copies   : comparaison à leurs gabarits impossible ({erreur})", erreur=erreur_(e))]])
     ajouter(ACTION, _blocs(alerte_budget_actif(projet)))
+    # La mémoire, lue une fois : un lot ouvert qui ne se mène pas en une
+    # session se dit avec ce qui demande d'agir (B-0233), le reste plus bas.
+    mem, illisible = None, None
+    try:
+        mem = memoire.Memoire.charger(racine)
+    except Exception as e:
+        illisible = e
+    if mem is not None:
+        try:
+            ajouter(ACTION, _blocs(memoire.lots_trop_longs(mem, projet.taches_par_session())))
+        except Exception as e:
+            ajouter(ACTION, [[trad("lots trop longs : incalculables ({erreur})", erreur=erreur_(e))]])
     # Tant que le dernier passage complet des étapes rapides, sur cette
     # machine, dépasse le seuil des garde-fous (B-0258).
     try:
@@ -346,9 +362,10 @@ def calculer(projet: config.Projet, contenus: bool = True, supplement: list[str]
     except outils.ErreurGit as e:
         ajouter(INFO, [[trad("git : indisponible ({erreur})", erreur=e)]])
     ajouter(INFO, _blocs(branche + mutation))
-    mem, backlog = None, []
+    backlog = []
     try:
-        mem = memoire.Memoire.charger(racine)
+        if illisible is not None:
+            raise illisible
         ajouter(INFO, _blocs(_memoire(mem, projet)))
         backlog = _backlog(mem, borne=contenus)
     except Exception as e:
@@ -622,6 +639,22 @@ def audit_adaptateur(projet: config.Projet) -> list[str]:
     return [trad("adaptateur : !! langage(s) que l'adaptateur ({couvert}) ne couvre pas : {liste} — leurs tests, leur "
                  "compilation et leur mutation ne passent par aucune capacité ; le dire à l'humain par une demande "
                  "(un autre adaptateur, ou ces fichiers déclarés tiers)", couvert=couvert, liste=liste)]
+
+
+def copies_en_retard(projet: config.Projet) -> list[str]:
+    """En mode amont, les copies protégées que l'installeur pose et qui
+    diffèrent de ce qu'il poserait, à chaque état : sans elle, le retard ne
+    se voit qu'en relançant l'installeur (B-0218). Une ligne, pas un
+    contrôle : leur remise passe par une demande, et ne doit rien rendre
+    rouge en attendant."""
+    from socle import installer as installeur
+
+    retard = installeur.copies_en_retard(projet)
+    if not retard:
+        return []
+    return [trad("copies   : !! mode amont : {n} copie(s) protégée(s) diffèrent de ce que l'installeur poserait : "
+                 "{liste} — le projet ne tourne pas sur ce que le moteur installe ; les remettre, l'installeur "
+                 "relancé en mode amont, passe par une demande", n=len(retard), liste=", ".join(retard))]
 
 
 def _git(racine, projet, borne: bool = False) -> list[tuple[int, list[str]]]:

@@ -190,19 +190,41 @@ def _justifie(ctx, nom: str) -> str | None:
 
 
 def _en_attente(ctx, nom: str) -> str | None:
-    """À la fin du tour seulement (étage agent), une demande en attente,
-    poussée telle quelle, qui nomme le test : le travail qui attend
-    la réponse de l'humain peut rester dans l'arbre, au lieu d'être remisé
-    hors de la mémoire. Le commit et la CI le refusent toujours."""
+    """Une demande en attente, poussée telle quelle, qui nomme le test (ou
+    cite le fichier de cas) : à la fin du tour (étage agent), le travail qui
+    attend la réponse de l'humain peut rester dans l'arbre ; si la branche
+    par défaut exige la CI du socle, il se commite (étage git) et se pousse
+    aussi (le hook avant push, qui juge la plage comme la CI), la CI le
+    refusant jusqu'à la réponse : la tolérance des fichiers protégés de
+    D-0071, sous la même condition (D-0147). La CI le refuse toujours."""
     from socle import requests as demandes
+    from socle.checks_ratchet import fusion_gardee
 
-    if ctx.etage != "agent":
+    if ctx.etage != "agent" and not (ctx.etage == "git" or ctx.avant_push):
         return None
     for d in ctx.demandes:
         if (d.id and d.reponse is None and d.entree is not None and "retiree" not in d.entree.meta
                 and _nomme(d.texte, nom) and demandes.illisible(ctx.projet, d) is None):
+            if ctx.etage != "agent" and not fusion_gardee(ctx.projet):
+                return None
             return d.id
     return None
+
+
+def _dire_en_attente(ctx, r, quoi: str, attente: str, fichier: str, ligne: int | None = None):
+    """Le changement qu'une demande en attente couvre : un avertissement,
+    qui dit s'il se commite et se pousse (la branche par défaut exige la CI
+    du socle) ou s'il attend la réponse dans l'arbre."""
+    from socle.checks_ratchet import fusion_gardee
+
+    if fusion_gardee(ctx.projet):
+        r.avertir("tests.attendus", trad("{quoi}, en attente de {attente} : il se commite et se pousse, la CI le "
+                                         "refuse jusqu'à la réponse de l'humain, qui le lit dans la pull request",
+                                         quoi=quoi, attente=attente), fichier, ligne)
+    else:
+        r.avertir("tests.attendus", trad("{quoi}, en attente de {attente} : le tour peut finir, le commit "
+                                         "et la CI attendent la réponse de l'humain",
+                                         quoi=quoi, attente=attente), fichier, ligne)
 
 
 def _specs_nommant(ctx, nom: str) -> list[str]:
@@ -267,9 +289,7 @@ def _fichiers_de_cas(ctx, r):
         if pourquoi:
             r.avertir("tests.attendus", f"{quoi} ({pourquoi})", c)
         elif attente:
-            r.avertir("tests.attendus", trad("{quoi}, en attente de {attente} : le tour peut finir, le commit "
-                                             "et la CI attendent la réponse de l'humain",
-                                             quoi=quoi, attente=attente), c)
+            _dire_en_attente(ctx, r, quoi, attente, c)
         else:
             r.erreur("tests.attendus", trad("{quoi} — {n} ligne(s) d'un fichier de cas changée(s) ou retirée(s) : "
                                             "un cas existant ne change qu'avec une demande validée qui cite ce "
@@ -322,9 +342,7 @@ def attendus(ctx, r):
         if pourquoi:
             r.avertir("tests.attendus", f"{quoi} ({pourquoi})", fichier, ligne)
         elif attente:
-            r.avertir("tests.attendus", trad("{quoi}, en attente de {attente} : le tour peut finir, le commit "
-                                             "et la CI attendent la réponse de l'humain",
-                                             quoi=quoi, attente=attente), fichier, ligne)
+            _dire_en_attente(ctx, r, quoi, attente, fichier, ligne)
         else:
             r.erreur("tests.attendus", trad("{faute}{note}", faute=faute, note=_note_agent(ctx, nom)), fichier, ligne)
 

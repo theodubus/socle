@@ -7,6 +7,155 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+## 2026-11-20-j — Une forme du shell que le hook ne juge pas ne se liste ni ne se signale plus : le guide garde le modèle de menace du hook
+
+Le skill `socle-review`, la consigne du relecteur de `socle review` et
+la section du socle d'`AGENTS.md` ne disent plus la forme du shell qu'un
+agent n'écrit pas : la revue ne la cherche pas, et une forme trouvée
+s'écarte comme tout constat exotique, sans ligne qui la nomme au récap ni
+signalement au dépôt du socle. Le guide (`python3 .socle/socle help`)
+perd la liste des formes connues que le hook ne juge pas et les phrases
+qui disaient quand un trou du hook ouvre une entrée du backlog ; il garde
+ce que juge le hook, ce qu'il refuse de ne pas savoir lire, et ce qu'il
+ne modélise pas, que rattrape le contrôle des fichiers protégés.
+
+À faire : rien ; le skill `socle-review` est une copie protégée, dans la
+demande de l'installeur, et la section du socle d'`AGENTS.md` se
+régénère avec la mise à jour. Une forme déjà nommée dans un récap ne se
+signale pas.
+
+## 2026-11-20-i — Le skill `socle-review` fait demander à l'humain s'il veut Fable pour le relecteur d'un lot implémenté sur Fable
+
+Un lot que l'humain a fait implémenter sur Fable (le lot, pas la session
+qui orchestre) : l'agent lui demande, avant la revue, s'il veut aussi
+Fable pour le relecteur. Hors de ce cas, la règle ne change pas : le
+modèle le plus capable jusqu'à Opus, jamais un moindre que celui qui a
+implémenté, et Fable seulement si l'humain le demande.
+
+À faire : rien ; le skill `socle-review` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-20-h — Le skill `socle-batch` situe le réveil en session cloud, forme en jalon ce qu'une session ne mène pas, renvoie au tri de `socle-review` et donne aux sous-agents la ligne « Économie »
+
+Le skill `socle-batch` change en cinq points :
+
+- une attente annoncée a son réveil en session cloud (`send_later`), le
+  seul lieu où l'outil existe ; ailleurs, la ligne `Ensuite :` du récap
+  la dit, et l'humain relance l'agent ;
+- un ensemble qu'une session ne mène pas se forme en jalon, ses lots
+  dessous ;
+- les constats de la revue qui ne bloquent pas suivent le tri de
+  `socle-review`, au backlog ou écartés, au lieu d'aller tous au
+  backlog ;
+- la consigne des sous-agents porte la ligne « Économie : lire ce qui
+  sert, pas les fichiers entiers ; pas de suite complète relancée sans
+  raison » ;
+- un sous-agent ne reçoit jamais Fable, sauf si l'humain le veut.
+
+À faire : rien ; le skill `socle-batch` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-20-g — Un test changé sous sa demande en attente se commite et se pousse, la CI du socle exigée
+
+Un test supprimé, ou dont la valeur attendue change, ou un cas d'un
+fichier de cas déclaré, qu'une demande en attente nomme ne quittait pas
+l'arbre de l'agent : `tests.attendus` ne le tolérait qu'à la fin du tour.
+Il se tolère désormais comme un fichier protégé sous sa demande en
+attente : si la branche par défaut exige la CI du socle avant toute
+fusion, il se commite et se pousse dès que la demande qui le nomme est
+poussée telle quelle, et la CI le refuse jusqu'à la réponse de l'humain,
+qui le lit dans la pull request. Sans cette protection, rien ne change :
+le commit et la CI attendent la réponse. Un commit sans demande poussée
+reste refusé.
+
+À faire : rien.
+
+## 2026-11-20-f — Le relecteur à froid d'une demande reçoit le modèle le plus capable jusqu'à Opus, à son lancement
+
+Le skill `socle-request` faisait relire une demande à froid par un
+sous-agent du modèle de la session, que la règle du modèle de
+`socle-batch` peut faire moins coûteux. Comme le relecteur d'un lot, il
+reçoit désormais explicitement à son lancement (`model`) le modèle le
+plus capable disponible jusqu'à Opus, quel que soit celui de la session,
+sur la dernière version de sa famille ; Fable seulement si l'humain le
+demande. Le récap nomme le modèle : `Relecture à froid (<modèle>) : …`.
+
+À faire : rien ; le skill `socle-request` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-20-e — `socle decision --unprompted` consigne une décision que l'humain donne sans qu'on la lui ait demandée
+
+`socle decision` exigeait une réponse de base ou une option nommée par la
+question : une décision que l'humain donnait de lui-même se consignait
+sous `valider`, avec une « question posée » inventée. `socle decision "<la
+décision en une phrase>" --unprompted --relayed --by <nom> --quote-file
+<fichier>` l'écrit sans question ni réponse à choisir : son texte exact
+sous la section `Décision donnée`, et la réponse `valider` que le moteur
+pose, son texte cité. Elle autorise ce qu'elle nomme comme une demande
+validée. Le titre ne cite pas seul un identifiant que le texte de
+l'humain ne cite pas. Le skill `socle-request` et le guide le disent.
+
+À faire : rien ; le skill `socle-request` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-20-d — L'état et le rappel de fin de tour avertissent d'un lot ouvert qui attend plus de tâches qu'une session n'en mène
+
+Un lot ouvert qui attend encore plus de tâches ouvertes, en cours ou
+bloquées que `[batches] max_tasks` des garde-fous, 9 par défaut, se dit
+dans l'état, avec ce qui demande d'agir, et dans le rappel de fin de
+tour, sous l'ordre du backlog : une ligne nomme chaque lot et son
+compte, et dit de le couper en lots, ou d'en faire un jalon et de
+former ses lots dessous. Un avertissement, jamais un échec. Le seuil se
+règle comme `[verify] fast_max_seconds` : le baisser est libre, le
+relever exige une demande validée.
+
+À faire : rien ; la clé, que l'installeur nomme à la mise à jour, se
+déclare au besoin dans `.socle/guardrails.toml`. Un lot que l'état
+signale se coupe à sa prochaine annonce.
+## 2026-11-20-c — Le recul n'est plus exigé : `socle review` écrit les passes d'un lot et le contrôle du backlog le laisse se clore sans lui
+
+`socle review` écrit chaque passe d'un lot dans sa section « Revues »
+sans exiger le recul de la précédente : ni paragraphe « Recul : », ni
+regard du relecteur sur les bloquants (`· même cause`, `· cause
+nouvelle`), ni arrêt sur une demande qui cite le lot. Le contrôle
+`memoire.backlog` laisse se clore `fait` un lot relu sans recul. Le
+dossier d'une passe au-delà de la première est celui de toute passe : il
+ne donne plus au relecteur les causes des passes d'avant. La section
+« Revues » garde ses passes, leurs commits et leurs lignes `- Bloquant :`
+et `- Ouvre :` ; une ligne de bloquant écrite sous une autre forme reste
+refusée. Un recul et des marques de cause déjà écrits restent dans le
+lot, lus comme du texte. Les skills `socle-review` et `socle-batch` et le
+guide ne disent plus le recul.
+
+À faire : rien ; les skills `socle-review` et `socle-batch` sont des
+copies protégées, dans la demande de l'installeur. Un lot arrêté sur une
+demande ne l'attend plus que si son `après` la nomme.
+
+## 2026-11-20-b — L'installeur fait ignorer par git les worktrees des sous-agents
+
+Le skill `socle-batch` lance ses sous-agents dans des worktrees, que
+Claude Code pose sous `.claude/worktrees/` ; non ignorés, ils paraissent
+dans `git status` comme des fichiers à commiter. L'installeur ajoute
+`/.claude/worktrees/` au `.gitignore` du projet, sous un commentaire qui
+le dit, sauf si une ligne l'y ignore déjà, lui ou `.claude/`.
+
+À faire : rien ; la ligne arrive avec la mise à jour, à commiter avec
+elle.
+
+## 2026-11-20-a — Le hook de l'agent laisse remettre un fichier protégé dont une demande ne cite le dossier que dans un texte recopié
+
+Le hook de l'agent refusait de remettre à son état du dernier commit un
+fichier protégé qu'aucune demande n'approuve, quand une demande en
+attente, ou validée sans sa réponse commitée, citait son dossier dans un
+texte recopié entre accents graves : une valeur attendue d'un test, une
+ligne de sortie (`skills du socle posés dans .claude/skills : …`). Un
+dossier qui n'est qu'un mot d'un tel texte, entre accents graves ou dans
+un bloc de code, n'y est plus une citation. Le fichier nommé en toutes
+lettres, et son dossier cité dans la prose ou seul entre ses accents
+graves (`.claude/skills/`), l'épargnent toujours.
+
+À faire : rien.
+
 ## 2026-11-19-t — Le hook de l'agent lit la branche courante dans `git push origin "$(git branch --show-current)"`
 
 Le hook de l'agent développe en la branche courante trois substitutions

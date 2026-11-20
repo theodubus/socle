@@ -40,6 +40,11 @@ BORNE_DEMARRAGE = 9500
 # delà de cinq minutes d'attente, un sous-agent perd le cache de sa
 # conversation (B-0258).
 SEUIL_RAPIDE = 300
+# Le nombre de tâches qu'un lot ouvert peut encore attendre sans que l'état
+# et le rappel de fin de tour ne disent qu'il ne se mène pas en une session,
+# quand les garde-fous n'en disent rien (`[batches] max_tasks`) : la valeur
+# du gabarit, mesurée sur les lots faits (B-0233).
+TACHES_PAR_SESSION = 9
 PREFIXE_DE_BRANCHE = re.compile(r"[A-Za-z0-9._/-]+")
 COMPTEUR_STOP = ".socle/trace/stop-echecs"
 INSTRUCTIONS = "AGENTS.md"
@@ -314,6 +319,20 @@ class Projet:
         valeur = self.gf("verify", "fast_max_seconds", defaut=None)
         if not isinstance(valeur, (int, float)):
             return SEUIL_RAPIDE
+        if isinstance(valeur, bool):
+            return int(valeur)
+        return valeur if valeur == valeur else 0
+
+    def taches_par_session(self) -> int | float:
+        """Le nombre de tâches qu'un lot ouvert peut encore attendre, `[batches]
+        max_tasks` des garde-fous : au-delà, l'état et le rappel de fin de
+        tour avertissent qu'il ne se mène pas en une session, sans rien
+        refuser (B-0233). Celui du gabarit à défaut, ou si la valeur n'est
+        pas un nombre ; un nombre se prend tel quel : plus bas avertit plus
+        tôt, comme le cliquet le juge, et `nan` vaut zéro, le plus strict."""
+        valeur = self.gf("batches", "max_tasks", defaut=None)
+        if not isinstance(valeur, (int, float)):
+            return TACHES_PAR_SESSION
         if isinstance(valeur, bool):
             return int(valeur)
         return valeur if valeur == valeur else 0

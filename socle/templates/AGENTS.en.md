@@ -140,9 +140,7 @@ or the decision it cites). Only blocking findings are fixed in the batch;
 another goes to the backlog if it can occur in the project's normal use,
 or if nothing catches its effect afterwards; otherwise, exotic and
 caught, or unfounded, it is dismissed. In the backlog, it becomes a task
-if its fix is clear, a need otherwise. A shell form an agent does not
-write in its work, and that escapes the hook, is dismissed whatever its
-effect: the guide gives the list of known forms. The recap gives the findings, and
+if its fix is clear, a need otherwise. The recap gives the findings, and
 why each dismissed one is.
 
 By default, everything happens on one development branch, with only one

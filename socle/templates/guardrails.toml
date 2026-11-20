@@ -52,6 +52,13 @@ max_bytes = 9500
 # l'imprime, sans seuil.
 fast_max_seconds = 300
 
+[batches]
+# Le nombre de tâches qu'un lot ouvert peut encore attendre : au-delà, l'état
+# et le rappel de fin de tour avertissent, sans rien refuser, qu'il ne se
+# mène pas en une session ; le couper en lots, ou en faire un jalon et
+# former ses lots dessous. Baisser le seuil est libre.
+max_tasks = 9
+
 [references]
 # Fichiers où chaque identifiant, lien et chemin cité doit exister.
 scan = ["**/*.md"]

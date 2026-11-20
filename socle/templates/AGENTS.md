@@ -141,10 +141,8 @@ qu'il cite). Seuls les constats bloquants se corrigent dans le lot ; un
 autre va au backlog s'il peut se produire dans l'usage normal du projet,
 ou si rien ne rattrape ensuite son effet ; sinon, exotique et rattrapé,
 ou infondé, il s'écarte. Au backlog, il devient une tâche si sa
-correction est claire, un besoin sinon. Une forme du shell qu'un agent n'écrit pas dans
-son travail, et qui échappe au hook, s'écarte quel qu'en soit l'effet :
-le guide donne la liste des formes connues. Le récap dit les constats, et pourquoi chaque
-écarté l'est.
+correction est claire, un besoin sinon. Le récap dit les constats, et
+pourquoi chaque écarté l'est.
 
 Par défaut, tout se fait sur une branche de développement, avec une seule
 pull request ouverte à la fois : chaque lot fini s'y ajoute, l'humain la

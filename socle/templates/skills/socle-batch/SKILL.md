@@ -5,10 +5,9 @@ description: Mener un lot de tâches du backlog, de son annonce à sa livraison.
 
 # Mener un lot
 
-Un lot réunit les tâches prêtes qui se traitent ensemble : celles qui
-touchent les mêmes fichiers, le même garde-fou ou les mêmes tests, qu'une
-seule revue juge. L'agent qui le mène orchestre : il annonce, délègue,
-fait relire, intègre et livre ; il n'implémente lui-même qu'une petite
+Un lot réunit les tâches prêtes qu'une seule revue juge : celles qui
+touchent les mêmes fichiers, le même garde-fou ou les mêmes tests.
+L'agent qui le mène orchestre ; il n'implémente lui-même qu'une petite
 tâche.
 
 ## Former et annoncer
@@ -17,22 +16,22 @@ tâche.
    sur tout le backlog ouvert, sans le demander : les tâches prêtes
    auxquelles sa règle s'applique, du prochain jalon et de priorité haute
    d'abord ; un besoin à découper reçoit d'abord ses tâches ; le reste va
-   au prochain lot pas encore en cours dont la règle s'applique, et le
-   récap dit chaque placement. Il se garde
-   au backlog : `python3 .socle/socle new batch "Lot …"`, puis `après :`
-   le lot d'avant et ses tâches ; son corps dit ce qui les réunit.
+   au prochain lot pas en cours dont la règle s'applique, et le récap dit
+   chaque placement. Il se garde au backlog : `python3 .socle/socle new
+   batch "Lot …"`, puis `après :` le lot d'avant et ses tâches ; son corps
+   dit ce qui les réunit. Un ensemble qu'une session ne mène pas se forme
+   en jalon, ses lots dessous.
 2. Lire chaque tâche (`python3 .socle/socle show <ID>`) et estimer le
-   coût du lot : s'il ne tient pas dans ce qui
-   reste de la fenêtre, le découper, commencer par un lot plus petit ou
-   attendre la remise à zéro. Annoncer le lot à l'humain (les tâches,
-   leur taille, le jalon servi, le coût estimé), et le passer `en cours`.
-3. En session cloud, armer les réveils (skill
-   `socle-resume`).
+   coût du lot : s'il ne tient pas dans ce qui reste de la fenêtre, le
+   découper, commencer par un lot plus petit ou attendre la remise à zéro.
+   Annoncer le lot à l'humain (les tâches, leur taille, le jalon servi, le
+   coût estimé), et le passer `en cours`.
+3. En session cloud, armer les réveils (skill `socle-resume`).
 4. Partir d'une branche de travail propre et poussée.
 
 ## Un sous-agent par tâche
 
-Sous Claude Code : outil `Agent`, dans une copie isolée du dépôt
+Sous Claude Code : outil `Agent`, dans une copie isolée
 (`isolation: "worktree"`), en arrière-plan ; deux à la fois au plus.
 Sans la conversation, sa consigne se lit seule.
 
@@ -47,51 +46,49 @@ et close si ses critères sont tenus ; python3 .socle/socle verify --fast.
 Interdits : pousser, toucher un réveil, écrire un fichier protégé, changer
 une valeur attendue ou supprimer un test (le signaler), corriger un défaut
 voisin (un besoin au backlog).
+Économie : lire ce qui sert, pas les fichiers entiers ; pas de suite complète relancée sans raison.
 Compte rendu : ton modèle, le commit, ce que les tests prouvent, les choix, ce qui reste.
 ```
 
 **Une petite tâche**, moins de 150 lignes de code et de tests (seuil
-provisoire, à mesurer), s'implémente dans la session qui
-orchestre, sauf si elle touche un garde-fou ou un format que d'autres
-parties du projet lisent.
-**Sans sous-agents**, l'agent mène le lot seul : une tâche après
+provisoire, à mesurer), s'implémente dans la session qui orchestre, sauf
+si elle touche un garde-fou ou un format que d'autres parties du projet
+lisent. **Sans sous-agents**, l'agent mène le lot seul : une tâche après
 l'autre, un commit chacune, la revue sur le lot entier.
 
 ## La revue, avant tout push
 
-Skill `socle-review`, sur le lot commité. Un bloquant retourne à qui a
-implémenté, s'il répond encore, sinon à un sous-agent neuf, avec la
-consigne et le constat : un sous-agent arrêté depuis plus de cinq
-minutes ne se reprend pas. Le reste va au backlog. Un lot ne part qu'après la correction de ses bloquants :
-une fois poussés, une décision, une entrée de journal et une valeur
-attendue ne se réécrivent plus.
+Skill `socle-review`, sur le lot commité, et son tri des constats. Un
+bloquant retourne à qui a implémenté, s'il répond encore, sinon à un
+sous-agent neuf, avec la consigne et le constat : un sous-agent arrêté
+depuis plus de cinq minutes ne se reprend pas. Un lot ne part qu'après
+la correction de ses bloquants : une fois poussés, une décision, une
+entrée de journal et une valeur attendue ne se réécrivent plus.
 
 ## Intégrer, pousser, livrer
 
 1. Sur la branche de travail : `git merge --ff-only` de la branche du
    sous-agent si son commit suit la tête, sinon `git merge --squash`, puis
-   un commit qui reprend son message. Un identifiant pris deux fois, par
-   deux tâches ou par la branche par défaut : `python3 .socle/socle
-   renumber <ID>` sur le second.
+   un commit qui reprend son message. Un identifiant pris deux fois :
+   `python3 .socle/socle renumber <ID>` sur le second.
 2. Retirer la copie isolée et sa branche ;
    `python3 .socle/socle verify --fast`.
 3. Pousser ; ouvrir la pull request s'il n'y en a pas, une seule ouverte.
    Attendre `success` sur le SHA court du commit de tête, ligne « CI » de
-   `python3 .socle/socle state`. Une attente annoncée a son réveil (sous
-   Claude Code, `send_later`).
+   `python3 .socle/socle state`. Une attente annoncée a son réveil en
+   session cloud (`send_later`) ; ailleurs, `Ensuite :` le dit, et
+   l'humain relance l'agent.
 4. Qui fusionne, les instructions du projet le disent : par défaut
    l'humain, et le lot suivant s'ajoute à la même pull request ; l'agent,
-   la sienne, si elles le permettent : CI verte sur le commit de tête
-   attendu, qu'il donne, revue faite, aucune demande en attente sur son
-   contenu.
+   la sienne, si elles le permettent : CI verte sur le commit de tête,
+   qu'il donne, revue faite, aucune demande en attente sur son contenu.
 5. Le chantier actif et le journal s'écrivent avant la fusion, dans le
    dernier commit de la pull request, avec la clôture du lot : ses tâches
-   closes et son recul écrit, il passe `fait`, puis `python3 .socle/socle
-   archive` ; le récap de la clôture colle la sortie de `python3
-   .socle/socle roadmap` dans un bloc de code. Après la fusion, la branche
-   locale repart de la branche par défaut et ne se pousse qu'avec le
-   premier commit du lot suivant : seule, elle recréerait la branche
-   distante.
+   closes, il passe `fait`, puis `python3 .socle/socle archive` ; le récap
+   de la clôture colle la sortie de `python3 .socle/socle roadmap` dans un
+   bloc de code. Après la fusion, la branche locale repart de la branche
+   par défaut et ne se pousse qu'avec le premier commit du lot suivant :
+   seule, elle recréerait la branche distante.
 
 ## La consommation
 
@@ -99,9 +96,9 @@ attendue ne se réécrivent plus.
   pas, reste courte.
 - Les coûts se mesurent : l'utilisation de chaque fenêtre, avant chaque
   lancement et à chaque compte rendu (en session cloud, `list_events`,
-  `rate_limit_event`). La clôture
-  note au journal le coût de chaque sous-agent, du relecteur, de chaque
-  demande et du rangement : celui d'un lot s'estime sur ces mesures.
+  `rate_limit_event`). La clôture note au journal le coût de chaque
+  sous-agent, du relecteur, de chaque demande et du rangement : celui
+  d'un lot s'estime sur ces mesures.
 - Un seul sous-agent au-delà de 75 % de la semaine. Un sous-agent se
   lance si ce qui reste de chaque fenêtre couvre son coût mesuré et celui
   du rangement ; sans mesure, aucun au-delà de 85 % de la semaine ou de
@@ -109,10 +106,9 @@ attendue ne se réécrivent plus.
   dix points d'une limite : finir le pas en cours, puis changer de session.
 - L'agent ne compacte pas lui-même : il écrit la mémoire (chantier actif,
   journal), puis le demande à l'humain (`/compact`), à la fin d'un lot
-  si l'humain garde la session, et avant toute attente qui peut
-  passer l'heure sans changer de session. Près d'une limite, le seuil
-  plus haut prime : changer de session. Après la pause, il est trop
-  tard.
+  si l'humain garde la session, et avant toute attente qui peut passer
+  l'heure sans changer de session. Près d'une limite, le seuil plus haut
+  prime : changer de session. Après la pause, il est trop tard.
 - Une limite proche change l'ordre des tâches, jamais la profondeur du
   travail (une tâche qui demande plus de réflexion se commence quand
   même) ni le modèle : celui que demande la qualité du travail, jamais
@@ -121,9 +117,10 @@ attendue ne se réécrivent plus.
   moins de la limite par jeton ; l'humain choisit celui de la session,
   sur le conseil de l'agent. Celui que fixent les instructions du projet
   prime. Un sous-agent reçoit le sien explicitement à son lancement
-  (`model`), la dernière version de sa famille (un alias qui en désigne
-  une plus ancienne : sans `model`, il hérite de la session ; sinon, le
-  dire à l'humain), nommé au récap.
+  (`model`), jamais Fable sauf si l'humain le veut, la dernière version
+  de sa famille (un alias qui en désigne une plus ancienne : sans
+  `model`, il hérite de la session ; sinon, le dire à l'humain), nommé au
+  récap.
 
 ## Changer de session
 
@@ -131,20 +128,20 @@ Quand le lot est livré et que la fenêtre ne permet pas d'en mener un
 autre entier, ou qu'une attente de plus d'une heure s'annonce. Ranger
 d'abord, pour qu'une session neuve reparte du dépôt seul :
 
-1. rien qui ne vive que dans le conteneur : tout est poussé, et un commit
-   pas encore relu part en correctif (`git format-patch`) dans un dossier
-   de passation du dépôt, retiré à son intégration ;
-2. les copies isolées et leurs branches retirées ;
-3. le chantier actif, écrit avant la fusion, dit le lot et ce qui attend ;
-4. en session cloud, les réveils retirés.
+1. tout est poussé ; un commit non relu part en correctif
+   (`git format-patch`) dans un dossier de passation du dépôt, retiré à
+   son intégration ;
+2. les copies isolées, leurs branches et, en session cloud, les réveils
+   retirés ;
+3. le chantier actif dit le lot et ce qui attend.
 
 Puis dire à l'humain pourquoi changer de session, avec le prompt de la
 suivante dans un bloc à copier :
 
 ```text
 Reprends le travail de ce dépôt, en session neuve.
-Avant tout : lis l'état que le démarrage injecte ; une ligne « !! coupé »
-dit ce qui y manque et où le lire. Puis le chantier actif, et applique-les.
+Avant tout : lis l'état que le démarrage injecte, et ce qu'une ligne
+« !! coupé » y dit manquer ; puis le chantier actif, et applique-les.
 Le lot : <le lot de l'état, ses tâches dans l'ordre>, selon le skill socle-batch.
 Ce qui attend : <un compte rendu, une CI, une demande> | rien.
 ```
