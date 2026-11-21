@@ -7,6 +7,67 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+## 2026-11-21-d — The installer names the end-of-turn hook the project already has
+
+The installer keeps the hooks the project declares itself in
+`.claude/settings.json`, next to the socle's, and already pointed out a
+start-up state of the project's own. It said nothing of a `Stop` hook of
+the project's own: that hook fires at every end of turn next to the
+socle's, and, if it runs the same checks, every end of turn pays for
+them twice. On install as on update, the installer now names it, with a
+line that says it may duplicate the socle's.
+
+To do: if the installer names an end-of-turn hook of the project, tell
+the human: only they remove it from `.claude/settings.json`, or leave in
+it only what is the project's own, if the socle's hook already does the
+rest.
+
+## 2026-11-21-c — “What now” no longer has an update's protected files committed before its request
+
+In a cloud session, an update that changes protected files told the
+session that had to add the socle's repository to commit there, push
+the branch and open the pull request, the request being put afterwards
+in a new session. Yet the pre-commit hook refuses a changed protected
+file that no pending request covers: that session could not do what it
+was told. It now commits the protected files there only after putting
+the request there, in two steps like any session, when the default
+branch requires the socle CI; otherwise, it commits nothing there, and
+the update is redone in a new session on the project's repository
+alone, the socle's repository cloned without being added to it.
+
+To do: nothing.
+
+## 2026-11-21-b — An update no longer lays down a second adapter for the language of a copy already there
+
+A project in which Python is a language besides the main one has its
+copy `.socle/adapters/python.toml`. When a `conftest.py` appeared in
+it, an update with `--adapter auto` detected `python-pytest` and laid
+down its copy next to it: two adapters for the same language, whose
+patterns overlap, which the `adaptateur.recouvrement` check then
+refused. The installer compared the language of a detected or named
+adapter with that of the main adapter only; it now also compares it
+with that of each copy already laid down, and an adapter for that
+language is that copy, which it refreshes or keeps as before.
+
+To do: nothing, unless an earlier update laid down in
+`.socle/adapters/` a second adapter for the language of a copy already
+there (`adaptateur.recouvrement` failing): then propose to the human,
+through a request, to remove whichever of the two the project did not
+choose.
+
+## 2026-11-21-a — Run again before an update is committed, the installer still names its release notes
+
+The installer read the release notes already seen in the engine copy of
+the working tree. Run again before the update was committed (after
+`git fetch --unshallow`, or to correct `--adapter`), it found the new
+copy there already and saw no new notes: the commit message it
+proposes, like the step that opens the agent, no longer named them. It
+now reads them in the engine copy of the last commit; in the working
+tree only when the repository has no commit, or the last one has no
+engine copy.
+
+To do: nothing.
+
 ## 2026-11-20-r — The `socle-batch` skill has the agent wait, after a merge by the agent, for the workflows it starts
 
 A merge into the default branch may start a deployment or a release; if

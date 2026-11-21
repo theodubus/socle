@@ -2501,9 +2501,12 @@ MESSAGES: dict[str, str] = {
     "nouveau. Poussée, elle laisse commiter et "
     "pousser ces fichiers si la branche par défaut exige la CI du socle, qui les refuse jusqu'à la réponse et où "
     "l'humain les lit dans la pull request (D-0071) ; sinon, ils restent dans l'arbre jusqu'à sa réponse, puis se "
-    "commitent avec elle. Une session qui a dû "
-    "ajouter le dépôt du socle ne se reprend pas : y commiter, pousser la branche et ouvrir la pull request, d'une traite et sans rien "
-    "attendre, et poser la demande dans une session neuve sur le seul dépôt du projet, sur cette branche":
+    "commitent avec elle. Une session qui a dû ajouter le dépôt du socle ne se reprend pas, et n'y commite les "
+    "fichiers protégés qu'après la demande, que le hook avant commit exige : si la branche par défaut exige la CI du "
+    "socle, y poser la demande, puis commiter en deux temps comme à l'étape du commit, pousser la branche et ouvrir "
+    "la pull request, d'une traite et sans rien attendre, l'humain répondant dans une session neuve sur le seul "
+    "dépôt du projet, sur cette branche ; sinon, n'y rien commiter, et refaire la mise à jour dans une session neuve "
+    "sur le seul dépôt du projet, le dépôt du socle cloné sans y être ajouté":
         "approve the protected files the update changed: in a cloud session, the human has no terminal for `socle "
         "approve`; put a request that cites each changed protected file and its fingerprint (`python3 .socle/socle "
         "check` gives them), which the human approves in the conversation. Put it with `python3 .socle/socle new "
@@ -2514,10 +2517,13 @@ MESSAGES: dict[str, str] = {
         "engine. Once pushed, it lets these files be "
         "committed and pushed if the default branch requires the socle CI, which refuses them until the answer and "
         "where the human reads them in the pull request (D-0071); otherwise they stay in the tree until the answer, "
-        "then are committed with it. A session that had to add the socle's "
-        "repository is not resumed: commit there, push the branch and open the pull request, in one go and without "
-        "waiting for anything, and put the request in a new session on the project's repository alone, on that "
-        "branch",
+        "then are committed with it. A session that had to add the socle's repository is not resumed, and commits "
+        "the protected files there only after the request, which the pre-commit hook requires: if the default "
+        "branch requires the socle CI, put the request there, then commit in two steps as in the commit step, push "
+        "the branch and open the pull request, in one go and without waiting for anything, the human answering in a "
+        "new session on the project's repository alone, on that branch; otherwise, commit nothing there, and redo "
+        "the update in a new session on the project's repository alone, the socle's repository cloned without being "
+        "added to it",
     "{sha} « {sujet} » : aucun PreToolUse n'a tiré pendant la session — les hooks de l'agent n'étaient pas chargés. "
     "{remede}":
         "{sha} “{sujet}”: no PreToolUse fired during the session — the agent's hooks were not loaded. {remede}",
@@ -3371,6 +3377,12 @@ MESSAGES: dict[str, str] = {
         "!! the project already has its own state at startup ({commandes}): every session also receives the "
         "socle's, and the two overlap (branch, commits, what is the human's). To keep only one, the human removes "
         "theirs from .claude/settings.json, or leaves in it only what is the project's own",
+    "!! le projet a déjà son propre hook de fin de tour ({commandes}) : il tire à chaque fin de tour à côté de celui "
+    "du socle, et peut le doubler, les mêmes vérifications lancées deux fois. Pour n'en garder qu'un, l'humain "
+    "retire le sien de .claude/settings.json, ou n'y laisse que ce qui est propre au projet":
+        "!! the project already has its own end-of-turn hook ({commandes}): it fires at every end of turn next to "
+        "the socle's, and may duplicate it, the same checks run twice. To keep only one, the human removes theirs "
+        "from .claude/settings.json, or leaves in it only what is the project's own",
     "un chemin qui n'existe que dans une rustine suivie du dépôt passe la CI":
         "a path that only exists in a patch tracked by the repository passes the CI",
     "adaptateur : audit impossible ({erreur})":

@@ -225,15 +225,23 @@ def langages_en_sous_dossier(cible: Path) -> dict[str, list[str]]:
 def langages_en_place(cible: Path, ch: config.Chemins) -> set[str]:
     """Les langages des adaptateurs que le projet a déjà, le principal
     compris : sa clé `language`, le nom du fichier à défaut."""
-    res = set()
-    for c in [ch.adaptateur, *config.fichiers_adaptateurs(cible, ch.adaptateurs)]:
+    return set(_langages_des(cible, [ch.adaptateur, *config.fichiers_adaptateurs(cible, ch.adaptateurs)]))
+
+
+def _langages_des(cible: Path, chemins: list[str]) -> dict[str, str]:
+    """Le langage de chacun de ces adaptateurs que le projet a, et le chemin
+    du premier qui le couvre : sa clé `language`, le nom du fichier à
+    défaut."""
+    res: dict[str, str] = {}
+    for c in chemins:
         p = cible / c
         if not p.is_file():
             continue
         try:
-            res.add(str(config.lire_toml(p.read_text(encoding="utf-8")).get("language") or Path(c).stem))
+            langage = str(config.lire_toml(p.read_text(encoding="utf-8")).get("language") or Path(c).stem)
         except (tomllib.TOMLDecodeError, OSError):
-            res.add(Path(c).stem)
+            langage = Path(c).stem
+        res.setdefault(langage, c)
     return res
 
 
@@ -661,6 +669,24 @@ def identifiants_des_notes(paquet: Path) -> set[str]:
     et l'autre langue ; vide s'il n'en a pas."""
     return {ident for f in paquet.glob("CHANGES*.md") if f.is_file()
             for ident, _ in entrees_des_notes(f.read_text(encoding="utf-8", errors="replace"))}
+
+
+def notes_deja_lues(cible: Path, dossier_moteur: str) -> set[str]:
+    """Les identifiants des notes de version de la copie du moteur que le
+    projet a, lus dans le dernier commit, comme l'historique des adaptateurs
+    (ADR-0052) : relancé avant le commit d'une mise à jour, l'installeur
+    trouve déjà dans l'arbre la copie nouvelle, et ses notes s'y perdaient
+    (B-0225). Dans l'arbre quand le dépôt n'a pas de commit, ou que le
+    dernier n'a pas de copie du moteur."""
+    paquet = f"{dossier_moteur}/socle"
+    commit = outils.git(cible, "rev-parse", "--verify", "-q", "HEAD", check=False).strip()
+    chemins = [c for c in outils.git(cible, "ls-tree", "-z", "--name-only", commit, "--", f"{paquet}/",
+                                     check=False).split("\0") if c] if commit else []
+    if not chemins:
+        return identifiants_des_notes(cible / paquet)
+    # Une copie commitée sans notes, d'avant ADR-0078, n'en a lu aucune.
+    return {ident for c in chemins if fnmatch.fnmatch(Path(c).name, "CHANGES*.md")
+            for ident, _ in entrees_des_notes(outils.git(cible, "show", f"{commit}:{c}", check=False))}
 
 
 def notes_nouvelles(deja: set[str], paquet: Path, lg: str = "fr") -> list[tuple[str, str]]:
@@ -1219,6 +1245,11 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
                          else charges[0][2])
     texte_adaptateur, nom_adaptateur = charges[0][1], charges[0][0]
     langages, autres, sans_langage = {langage_principal}, [], []
+    # Les copies déjà posées pour les autres langages : un adaptateur de leur
+    # langage, détecté ou nommé, est la copie, que la mise à jour rafraîchit
+    # ou garde ; posé à côté, il en ferait deux du même langage, dont les
+    # motifs se recouvrent (B-0144).
+    copies = _langages_des(cible, config.fichiers_adaptateurs(cible, ch.adaptateurs))
     for nom, texte, langage, nomme in charges[1:] if not principal.is_file() else charges:
         if langage in langages:
             continue
@@ -1228,6 +1259,8 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
             sans_langage.append(nom)
             continue
         langages.add(langage)
+        if langage in copies and Path(copies[langage]).stem != nom:
+            nom, texte = Path(copies[langage]).stem, (cible / copies[langage]).read_text(encoding="utf-8")
         autres.append((nom, texte))
     if principal.is_file() and autres and charges[0][2] != langage_principal:
         # Le premier nommé n'est pas le principal du projet : la CI part du
@@ -1299,10 +1332,11 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
     # consignera que ceux qu'il change (ADR-0077).
     avant = _etat_des_proteges(cible) if ancien and mode != config.MODE_AMONT else None
 
-    # Les notes de version de la copie du moteur que le projet a, lues avant
-    # qu'elle ne soit remplacée : la mise à jour donne celles que la copie
-    # nouvelle a en plus (ADR-0078).
-    lues = (identifiants_des_notes(cible / str(ancien.get("engine_dir") or ch.moteur) / "socle")
+    # Les notes de version de la copie du moteur que le projet a, lues dans
+    # le dernier commit avant qu'elle ne soit remplacée : la mise à jour
+    # donne celles que la copie nouvelle a en plus (ADR-0078), relancée
+    # avant son commit comme au premier passage (B-0225).
+    lues = (notes_deja_lues(cible, str(ancien.get("engine_dir") or ch.moteur))
             if ancien and mode != config.MODE_AMONT else None)
 
     # 1. Le moteur, remplacé en bloc, et son verrou.
@@ -1550,14 +1584,36 @@ def _settings(cible: Path) -> list[str]:
                         "aussi celui du socle, et les deux se recoupent (branche, commits, ce qui revient à "
                         "l'humain). Pour n'en garder qu'un, l'humain retire le sien de .claude/settings.json, ou "
                         "n'y laisse que ce qui est propre au projet", commandes=", ".join(propres)))
+    fins = fins_de_tour_du_projet(conf)
+    if fins:
+        # Chacun tire à chaque fin de tour à côté de celui du socle : s'il
+        # lance les mêmes vérifications, chaque fin de tour les paie deux
+        # fois (B-0183).
+        res.append(trad("!! le projet a déjà son propre hook de fin de tour ({commandes}) : il tire à chaque fin "
+                        "de tour à côté de celui du socle, et peut le doubler, les mêmes vérifications lancées "
+                        "deux fois. Pour n'en garder qu'un, l'humain retire le sien de .claude/settings.json, ou "
+                        "n'y laisse que ce qui est propre au projet", commandes=", ".join(fins)))
     return res
+
+
+def _commandes_du_projet(conf: dict, evenement: str) -> list[str]:
+    """Les commandes de l'événement `evenement` que le projet déclare
+    lui-même dans ses réglages de Claude Code, à côté de celle du socle."""
+    return [h.get("command", "") for b in (conf.get("hooks") or {}).get(evenement, [])
+            for h in b.get("hooks", []) if h.get("command") and ".socle/socle hook" not in h["command"]]
 
 
 def etats_du_projet(conf: dict) -> list[str]:
     """Les commandes `SessionStart` que le projet déclare lui-même, à côté de
     celle du socle."""
-    return [h.get("command", "") for b in (conf.get("hooks") or {}).get("SessionStart", [])
-            for h in b.get("hooks", []) if h.get("command") and ".socle/socle hook" not in h["command"]]
+    return _commandes_du_projet(conf, "SessionStart")
+
+
+def fins_de_tour_du_projet(conf: dict) -> list[str]:
+    """Les commandes `Stop` que le projet déclare lui-même, à côté de celle
+    du socle : chacune tire à chaque fin de tour, et peut doubler celle du
+    socle (B-0183)."""
+    return _commandes_du_projet(conf, "Stop")
 
 
 def _codeowners(cible: Path, proprietaire: str) -> list[str]:
@@ -1827,7 +1883,9 @@ def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str], notes: list
     etapes = []
     if "protege.fichiers" in echecs and os.environ.get(hooks.SESSION_CLOUD) == "true":
         # En session cloud, l'humain n'a pas de terminal, et la session qui a
-        # ajouté le dépôt du socle ne se reprend pas (B-0107).
+        # ajouté le dépôt du socle ne se reprend pas (B-0107). Aucune session
+        # ne commite les fichiers protégés avant la demande : le hook avant
+        # commit les refuse (B-0152).
         etapes.append(trad("approuver les fichiers protégés que la mise à jour a changés : en session cloud, "
                            "l'humain n'a pas de terminal pour `socle approve` ; poser une demande qui cite chaque "
                            "fichier protégé changé et son empreinte (`python3 .socle/socle check` les donne), que "
@@ -1840,10 +1898,14 @@ def et_maintenant(cible: Path, mise_a_jour: bool, echecs: list[str], notes: list
                            "Poussée, elle laisse commiter et pousser ces "
                            "fichiers si la branche par défaut exige la CI du socle, qui les refuse jusqu'à la réponse "
                            "et où l'humain les lit dans la pull request (D-0071) ; sinon, ils restent dans l'arbre "
-                           "jusqu'à sa réponse, puis se commitent avec elle. Une session qui a dû ajouter le dépôt du socle "
-                           "ne se reprend pas : y commiter, pousser la branche et ouvrir la pull request, d'une "
-                           "traite et sans rien attendre, et poser la demande dans une session neuve sur le seul "
-                           "dépôt du projet, sur cette branche"))
+                           "jusqu'à sa réponse, puis se commitent avec elle. Une session qui a dû ajouter le dépôt du "
+                           "socle ne se reprend pas, et n'y commite les fichiers protégés qu'après la demande, que le "
+                           "hook avant commit exige : si la branche par défaut exige la CI du socle, y poser la "
+                           "demande, puis commiter en deux temps comme à l'étape du commit, pousser la branche et "
+                           "ouvrir la pull request, d'une traite et sans rien attendre, l'humain répondant dans une "
+                           "session neuve sur le seul dépôt du projet, sur cette branche ; sinon, n'y rien commiter, "
+                           "et refaire la mise à jour dans une session neuve sur le seul dépôt du projet, le dépôt du "
+                           "socle cloné sans y être ajouté"))
     elif "protege.fichiers" in echecs:
         etapes.append(trad("approuver les fichiers protégés que la mise à jour a changés (la liste s'affiche, "
                            'à confirmer) : `python3 .socle/socle approve --text "Mise à jour du socle '
