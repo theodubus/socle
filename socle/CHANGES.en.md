@@ -7,6 +7,113 @@ letter. On an update, the installer gives the entries that the project's
 engine copy did not have, and the commit message it proposes names their
 identifiers.
 
+Each entry says, in a paragraph that starts with “To do:”, what the
+project's agent must do. When it has nothing to do, that paragraph is
+written “To do: nothing.”, or “To do: nothing;” followed by a detail that
+asks nothing: of such an entry, the installer prints only the title,
+under a line that names this file. Any other form (“nothing, unless …”,
+“nothing in the project …”, an action) is printed in full, before them.
+
+## 2026-11-22-g — The guide says how to import a journal numbered like the socle's
+
+A project that already kept a journal whose entries have the form of
+the socle's (`J-`, a date and a letter) knew neither which letters its
+imported entries take, nor how to cite the old ones before their
+migration, which the references check says do not exist. The guide now
+says so, in its reference, after the adopted project: an imported entry
+keeps its identifier, except on a day the socle's journal already has,
+where it takes the letters that follow the socle's own, its citations
+rewritten in the same commit, except in the journal, the decisions and
+the requests, where the migration's entry gives the mapping; before the
+migration, a new citation names the entry by its file, its date and its
+letter: on a day that clashes, its identifier would silently designate
+the socle's entry.
+
+To do: nothing, unless the project kept such a journal: propose its
+migration to the human, following the guide (“A journal from before the
+socle”).
+
+## 2026-11-22-f — The guide says that a box delivering a request, a report or a memory entry is checked by what it produces
+
+The memory format and the reviewer's instructions already said so: a
+box of a task's “Done when” whose deliverable is a request posed, a
+report written or a memory entry rewritten is checked by what it
+produces, which the box names, not by a test. The human's guide still
+said that every “Done when” is checked by a test; it now states the
+exception.
+
+To do: nothing.
+
+## 2026-11-22-e — The installer no longer shows again in full a policy difference already shown
+
+On every update, the installer showed in full what separates the
+project's policy from the template of this version, even when the
+difference was made only of lines the human wrote there on purpose,
+already shown at the previous update. It now also compares the policy
+with the template of the engine copy of the last commit: if each
+changed line of the difference was already there, a single line says
+so, with their number and the command that shows it in full; otherwise,
+or without a committed copy, the difference is shown in full, as before.
+
+To do: a difference shown in full holds at least one line that the
+template of this version changes: show it to the human, who alone writes
+the policy.
+
+## 2026-11-22-d — The installer says in one line that an empty adoption has nothing to enter
+
+An adoption that found no failing check, or an update of an adopted
+project whose `[adoption] warn_only` list was empty, said nothing of the
+adoption: knowing there was nothing to enter took a dry run. The
+installer now says so in one line: “adoption: no check in `[adoption]
+warn_only`, no finding to tolerate: nothing to enter”. A project never
+adopted gets none.
+
+To do: nothing.
+
+## 2026-11-22-c — The settings merge keeps the project's command placed in a block of the socle
+
+On install as on every update, the installer replaces the socle's hooks
+in `.claude/settings.json` and keeps the project's. Yet it removed any
+hooks block that carried a command of the socle, and with it a command
+of the project placed in the same block (a `bash tools/lint.sh` next to
+the socle's `Stop` hook, for instance), without saying so. It now
+removes from a block only the socle's commands, keeps the block if any
+are left, and names the kept command like a hook of the project in its
+own block. Run again, it duplicates nothing.
+
+To do: if a command of the project has vanished from
+`.claude/settings.json` at a previous update, tell the human: only they
+put it back, the file being protected.
+
+## 2026-11-22-b — The installer names the named adapter that the copy of its language replaces
+
+An adapter named by `--adapter`, a file or a maintained adapter, of the
+language of a copy already in `.socle/adapters/` becomes that copy,
+which the update refreshes or keeps: it is not set. The installer did
+not say so, and its log named only the copy. It now says so with a `!!`
+line, of the form of the main copy's: the adapter set aside, the copy
+kept, and how to replace it. An adapter detected automatically becomes
+the copy without the installer saying more.
+
+To do: if the installer says that a named adapter is not set, tell the
+human: the copy kept remains the project's, and replacing it is done as
+the line says, through a request on an equipped project.
+
+## 2026-11-22-a — On an update, the installer prints in full only the release notes that ask something
+
+On every update, the installer printed in full each release note that
+the project's engine copy did not have, even those that ask nothing:
+often more than half of what it printed. It now prints in full, first,
+only those whose “To do” asks something; of the others, whose “To do”
+is “nothing.”, or “nothing;” followed by a detail, one line each, their
+title, under a line that says how many they are and the file to read
+them in. Any other form, “nothing, unless …” included, is printed in
+full. The commit message it proposes still names all the entries.
+
+To do: read the notes the installer prints in full, and do what each
+one asks; a note it names only by its title asks nothing, and is read
+in the file it names when it matters.
+
 ## 2026-11-21-d — The installer names the end-of-turn hook the project already has
 
 The installer keeps the hooks the project declares itself in
@@ -281,9 +388,9 @@ milestone with its batches under it. A warning, never a failure. The
 threshold is set like `[verify] fast_max_seconds`: lowering it is free,
 raising it requires a validated request.
 
-To do: nothing; the key, which the installer names on update, can be
-declared in `.socle/guardrails.toml` if needed. A batch the state
-reports is cut at its next announcement.
+To do: nothing, unless the state reports a batch: cut it at its next
+announcement. The key, which the installer names on update, can be
+declared in `.socle/guardrails.toml` if needed.
 ## 2026-11-20-c — The step back is no longer required: `socle review` writes a batch's passes and the backlog check lets it close without one
 
 `socle review` writes each pass of a batch in its “Reviews” section

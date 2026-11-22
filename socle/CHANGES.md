@@ -7,6 +7,115 @@ une lettre. À la mise à jour, l'installeur donne les entrées que la copie du
 moteur du projet n'avait pas, et le message de commit qu'il propose nomme
 leurs identifiants.
 
+Chaque entrée dit, en un paragraphe qui commence par « À faire : », ce que
+l'agent du projet doit faire. Quand il n'a rien à faire, ce paragraphe
+s'écrit « À faire : rien. », ou « À faire : rien ; » suivi d'une précision
+qui ne demande rien : de cette entrée, l'installeur n'imprime que le
+titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
+sauf si … », « rien dans le projet … », une action) s'imprime en entier,
+avant elles.
+
+## 2026-11-22-g — Le guide dit comment importer un journal numéroté comme celui du socle
+
+Un projet qui tenait déjà un journal dont les entrées ont la forme de
+celles du socle (`J-`, une date et une lettre) ne savait ni quelles
+lettres prennent ses entrées importées, ni comment citer les anciennes
+avant leur migration, que le contrôle des références dit inexistantes.
+Le guide le dit désormais, dans sa référence, après le projet adopté :
+une entrée importée garde son identifiant, sauf un jour que le journal
+du socle a déjà, où elle prend les lettres qui suivent les siennes, ses
+citations récrites dans le même commit, sauf dans le journal, les
+décisions et les demandes, où l'entrée de la migration donne la
+correspondance ; avant la migration, une citation nouvelle nomme
+l'entrée par son fichier, sa date et sa lettre : un jour qui se heurte,
+son identifiant désignerait en silence l'entrée du socle.
+
+À faire : rien, sauf si le projet tenait un tel journal : proposer à
+l'humain sa migration, selon le guide (« Un journal d'avant le socle »).
+
+## 2026-11-22-f — Le guide dit qu'une case qui livre une demande, un relevé ou une entrée de la mémoire se vérifie par ce qu'elle produit
+
+Le format de la mémoire et la consigne du relecteur le disaient déjà :
+une case du « Fait quand » d'une tâche dont le livrable est une demande
+posée, un relevé écrit ou une entrée de la mémoire récrite se vérifie par
+ce qu'elle produit, que la case nomme, et non par un test. Le guide de
+l'humain disait encore que tout « Fait quand » se vérifie par un test ;
+il dit désormais l'exception.
+
+À faire : rien.
+
+## 2026-11-22-e — L'installeur ne réaffiche plus en entier un écart de politique déjà montré
+
+À chaque mise à jour, l'installeur montrait en entier ce qui sépare la
+politique du projet du gabarit de cette version, même quand l'écart
+n'était fait que des lignes que l'humain y a écrites exprès, déjà
+montrées à la mise à jour précédente. Il compare désormais aussi la
+politique au gabarit de la copie du moteur du dernier commit : si chaque
+ligne changée de l'écart y figurait déjà, une ligne seule le dit, avec
+leur nombre et la commande qui le montre en entier ; sinon, ou sans
+copie commitée, l'écart s'affiche en entier, comme avant.
+
+À faire : un écart montré en entier contient au moins une ligne que le
+gabarit de cette version change : la montrer à l'humain, qui seul écrit
+la politique.
+
+## 2026-11-22-d — L'installeur dit en une ligne qu'une adoption vide n'a rien à inscrire
+
+Une adoption qui ne trouvait aucun contrôle en échec, ou une mise à jour
+d'un projet adopté dont la liste `[adoption] warn_only` était vide, ne
+disait rien de l'adoption : pour savoir qu'il n'y avait rien à inscrire,
+il fallait un essai à blanc. L'installeur le dit désormais d'une ligne :
+« adoption : aucun contrôle en `[adoption] warn_only`, aucun constat à
+tolérer : rien à inscrire ». Un projet jamais adopté n'en reçoit pas.
+
+À faire : rien.
+
+## 2026-11-22-c — La fusion des réglages garde la commande du projet placée dans un bloc du socle
+
+À l'installation comme à chaque mise à jour, l'installeur remplace dans
+`.claude/settings.json` les hooks du socle et garde ceux du projet. Il
+retirait pourtant tout bloc de hooks qui portait une commande du socle,
+et avec lui une commande du projet placée dans le même bloc (un `bash
+tools/lint.sh` à côté du hook `Stop` du socle, par exemple), sans le
+dire. Il ne retire plus d'un bloc que les commandes du socle, garde le
+bloc s'il lui en reste, et nomme la commande gardée comme un hook du
+projet dans son propre bloc. Relancé, il ne duplique rien.
+
+À faire : si une commande du projet a disparu de `.claude/settings.json`
+à une mise à jour précédente, le dire à l'humain : lui seul la remet, le
+fichier étant protégé.
+
+## 2026-11-22-b — L'installeur dit l'adaptateur nommé que la copie de son langage remplace
+
+Un adaptateur nommé par `--adapter`, un fichier ou un adaptateur
+maintenu, du langage d'une copie déjà posée dans `.socle/adapters/`
+devient cette copie, que la mise à jour rafraîchit ou garde : il n'est
+pas posé. L'installeur ne le disait pas, et son journal ne nommait que
+la copie. Il le dit désormais d'une ligne `!!`, de la forme de celle de
+la copie principale : l'adaptateur écarté, la copie gardée, et comment
+la remplacer. Un adaptateur détecté en automatique devient la copie sans
+que l'installeur en dise plus.
+
+À faire : si l'installeur dit qu'un adaptateur nommé n'est pas posé, le
+dire à l'humain : la copie gardée reste celle du projet, et la remplacer
+se fait comme la ligne le dit, par une demande sur un projet équipé.
+
+## 2026-11-22-a — À une mise à jour, l'installeur n'imprime en entier que les notes de version qui demandent quelque chose
+
+À chaque mise à jour, l'installeur imprimait en entier chaque note de
+version que la copie du moteur du projet n'avait pas, même celles qui ne
+demandent rien : souvent plus de la moitié de ce qu'il imprimait. Il
+n'imprime désormais en entier, d'abord, que celles dont « À faire »
+demande quelque chose ; des autres, dont « À faire » est « rien. », ou
+« rien ; » suivi d'une précision, une ligne chacune, leur titre, sous
+une ligne qui dit combien elles sont et le fichier où les lire. Toute
+autre forme, « rien, sauf si … » comprise, s'imprime en entier. Le
+message de commit qu'il propose nomme toujours toutes les entrées.
+
+À faire : lire les notes que l'installeur imprime en entier, et faire ce
+que chacune demande ; une note qu'il ne nomme que par son titre ne
+demande rien, et se lit dans le fichier qu'il nomme quand elle sert.
+
 ## 2026-11-21-d — L'installeur nomme le hook de fin de tour que le projet a déjà
 
 L'installeur garde les hooks que le projet déclare lui-même dans
@@ -290,9 +399,9 @@ former ses lots dessous. Un avertissement, jamais un échec. Le seuil se
 règle comme `[verify] fast_max_seconds` : le baisser est libre, le
 relever exige une demande validée.
 
-À faire : rien ; la clé, que l'installeur nomme à la mise à jour, se
-déclare au besoin dans `.socle/guardrails.toml`. Un lot que l'état
-signale se coupe à sa prochaine annonce.
+À faire : rien, sauf si l'état signale un lot : le couper à sa
+prochaine annonce. La clé, que l'installeur nomme à la mise à jour, se
+déclare au besoin dans `.socle/guardrails.toml`.
 ## 2026-11-20-c — Le recul n'est plus exigé : `socle review` écrit les passes d'un lot et le contrôle du backlog le laisse se clore sans lui
 
 `socle review` écrit chaque passe d'un lot dans sa section « Revues »

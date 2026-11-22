@@ -101,7 +101,9 @@ Juste après l'installation :
 Si le projet avait déjà son propre hook `SessionStart`, l'installeur le
 signale : le retirer de `.claude/settings.json`, sans quoi chaque session
 reçoit deux états. Il nomme de même un hook `Stop` du projet, qui tire à
-chaque fin de tour à côté de celui du socle et peut le doubler.
+chaque fin de tour à côté de celui du socle et peut le doubler. Une
+commande du projet placée dans le même bloc qu'un hook du socle est gardée
+et nommée de même : l'installeur ne retire du bloc que celle du socle.
 
 ## 2. Travailler avec l'agent
 
@@ -124,7 +126,11 @@ votre intention manque, section 3). Le backlog a quatre formes d'entrée,
 chacune son préfixe : un **besoin** (`B-`), un défaut à corriger ou une
 fonction à ajouter, avec ce qui le satisfait (« Satisfait quand », un
 résultat) ; une **tâche** (`T-`), un livrable qui sert un besoin, avec ce
-qui la rend faite (« Fait quand », qu'un test vérifie) ; un **lot**
+qui la rend faite (« Fait quand », qu'un test vérifie ; une case qui
+livre une demande posée, un relevé écrit ou une entrée de la mémoire
+récrite se vérifie par ce qu'elle produit, que la case nomme : la
+demande et votre réponse, le fichier du relevé, ce qu'en montre
+`socle show`) ; un **lot**
 (`L-`), les tâches qui touchent les mêmes fichiers, menées et relues
 ensemble ; un **jalon** (`JA-`), les besoins qui servent un même but.
 Chacune dit ce qu'elle attend (`après` : une autre entrée, ou une demande
@@ -257,8 +263,8 @@ actions externes. Pour qu'il fusionne lui-même la sienne, décommentez la
 ligne `tools` que la section `[irreversible]` de la politique
 (`.socle/policy.toml`) porte en commentaire : la liste des outils externes
 que le moteur refuse, moins la fusion. Une politique posée avant cette
-option ne l'a pas ; le diff de la politique, montré à la mise à jour, la
-donne. Seul l'humain écrit la politique, et approuve ce changement comme
+option ne l'a pas ; le diff de la politique, montré à la mise à jour qui
+l'apporte, la donne. Seul l'humain écrit la politique, et approuve ce changement comme
 tout changement protégé : l'agent ne s'en donne pas le droit. Il ne
 fusionne alors qu'à quatre conditions : sa propre pull request
 seulement, jamais celle d'une autre session ; la CI verte sur son commit
@@ -453,10 +459,15 @@ commit (`Dispense-test: f — <raison>`) ; un correctif apporte un test qui
 **Mettre à jour le socle.** Relancer la commande d'installation depuis un
 clone à jour du moteur (`git clone --depth 1
 https://github.com/theodubus/socle /tmp/socle`). Les fichiers du projet ne sont jamais écrasés ; le
-diff de la politique est montré. Entre ce qu'il a posé et l'audit,
+diff de la politique est montré, en une ligne quand chacune de ses lignes
+était déjà dans son diff au gabarit de la copie remplacée, montré à la
+mise à jour précédente (les lignes que l'humain a écrites exprès). Entre ce qu'il a posé et l'audit,
 l'installeur imprime les [notes de version](CHANGES.md) que la copie du
 moteur du projet n'avait pas, toutes si elle n'en avait aucune : ce que
-chaque changement fait au projet, et ce que l'agent doit faire. Le message
+chaque changement fait au projet, et ce que l'agent doit faire. Il
+n'imprime en entier que celles qui demandent quelque chose ; de celles
+dont « À faire » est « rien », le titre seul, leur texte restant dans le
+fichier qu'il nomme. Le message
 de commit qu'il propose nomme leurs identifiants, pour l'agent qui n'a pas
 vu passer la mise à jour. Le hook de l'agent refuse l'installeur visé
 sur un projet équipé dans un autre mode que celui de son verrou, ou sur
@@ -602,6 +613,32 @@ l'adoption tolère encore ; à zéro, le contrôle peut sortir de `warn_only`.
 Un projet adopté avant cette règle reçoit sa liste à la mise à jour du
 moteur, faite des constats de la branche par défaut (ceux nés sur la
 branche ne sont pas tolérés, l'installeur les nomme) ; tant qu'elle manque, l'état dit le contrôle désarmé en entier.
+Quand l'adoption ne trouve aucun contrôle en échec, ou que la liste
+`warn_only` est vide à la mise à jour, l'installeur le dit d'une ligne :
+rien à inscrire.
+
+**Un journal d'avant le socle.** Un projet qui tenait déjà un journal
+dont les entrées ont la forme de celles du socle (`J-`, une date et une
+lettre) le migre dans `memory/journal/`, chaque entrée dans le fichier
+de son mois, au format du socle ; dès l'installation, une entrée
+nouvelle ne s'écrit qu'au journal du socle. Une entrée importée garde
+son identifiant, sauf un jour où le journal du socle a déjà les siennes
+(celui de l'installation, qui l'ouvre) : les entrées importées de ce
+jour y prennent, dans leur ordre, les lettres qui suivent la dernière
+du journal du socle, et leurs citations se récrivent dans le même
+commit, sauf dans le journal, les décisions et les demandes, qui ne se
+récrivent pas : l'entrée du journal qui consigne la migration y donne
+la correspondance des lettres de ce jour. L'ancien journal se retire
+dans ce commit, ou n'y garde qu'un renvoi vers `memory/journal/` : ses
+titres d'un jour renuméroté désigneraient sinon d'autres entrées. En
+attendant la migration, le contrôle des références refuse l'identifiant
+d'une entrée ancienne, sauf un jour qui se heurte, où il désigne en
+silence l'entrée du socle de même lettre : les citations que le projet
+a déjà sont tolérées à l'adoption (paragraphe précédent), et celles que
+la migration résout se retirent ensuite de la liste ; une citation
+nouvelle, quel que soit son jour, la nomme sans la forme d'un
+identifiant, par son fichier, sa date et sa lettre (« l'entrée B du
+3 mars 2026 de l'ancien journal »).
 
 **Un sous-dossier travaillé par d'autres agents.** Quand d'autres sessions
 d'agents, qui n'ont ni les hooks ni les règles du socle, travaillent un

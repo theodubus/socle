@@ -530,10 +530,12 @@ def politique_langue(texte: str, lg: str) -> str:
     return texte.replace('# [memory]\n# language = "fr"\n', f'[memory]\nlanguage = "{lg}"\n', 1)
 
 
-def diff_politique(cible: Path) -> list[str]:
+def diff_politique(cible: Path, modele: str | None = None) -> list[str]:
     """Ce qui sépare la politique du projet de celle du gabarit de cette
     version : affiché à la mise à jour, jamais appliqué. La politique est à
-    l'humain."""
+    l'humain. `modele` : le texte d'un autre gabarit de la politique, dans la
+    langue du projet, au lieu de celui de cette version (celui de la copie du
+    moteur remplacée, `politique_d_avant`)."""
     import difflib
 
     p = cible / config.FORMAT_ACTUEL.politique
@@ -541,14 +543,56 @@ def diff_politique(cible: Path) -> list[str]:
         return []
     # Le gabarit tel que l'installeur le poserait pour ce projet : dans sa
     # langue, qu'il écrit dans la politique.
-    lg = langue.du_projet(config.Projet.charger(cible))
-    gab = gabarit("policy.toml", lg)
+    projet = config.Projet.charger(cible)
+    lg = langue.du_projet(projet)
+    gab = gabarit("policy.toml", lg) if modele is None else modele
     gab = politique_langue(gab, lg) if lg != "fr" else gab
     # Le nom de l'humain, que l'installeur y a écrit, n'est pas un écart.
-    gab = politique_nom(gab, str(config.Projet.charger(cible).pol("human", "name", defaut="") or ""))
-    projet, gab = p.read_text(encoding="utf-8").splitlines(), gab.splitlines()
-    return list(difflib.unified_diff(projet, gab, trad("politique du projet"), trad("gabarit de cette version"),
+    gab = politique_nom(gab, str(projet.pol("human", "name", defaut="") or ""))
+    lignes, gab = p.read_text(encoding="utf-8").splitlines(), gab.splitlines()
+    return list(difflib.unified_diff(lignes, gab, trad("politique du projet"), trad("gabarit de cette version"),
                                      lineterm=""))
+
+
+def _gabarit_de_politique(cible: Path, dossier_moteur: str, lg: str) -> str:
+    """Le chemin, sous le dossier du moteur, du gabarit de la politique dans
+    la langue `lg`, comme `gabarit` le choisit : sa version traduite si le
+    moteur en a une, sinon le français."""
+    traduit = f"{dossier_moteur}/socle/templates/policy.{lg}.toml"
+    return traduit if lg != "fr" and (cible / traduit).is_file() else f"{dossier_moteur}/socle/templates/policy.toml"
+
+
+def politique_d_avant(cible: Path, dossier_moteur: str) -> str | None:
+    """Le gabarit de la politique de la copie du moteur du dernier commit,
+    dans la langue du projet s'il en a une version, lu par git comme ses
+    notes de version (`notes_deja_lues`) : quand l'installeur compare la
+    politique, la copie nouvelle est déjà dans l'arbre. None sans commit, ou
+    sans gabarit commité sous `dossier_moteur`."""
+    commit = outils.git(cible, "rev-parse", "--verify", "-q", "HEAD", check=False).strip()
+    if not commit:
+        return None
+    lg = langue.du_projet(config.Projet.charger(cible))
+    noms = dict.fromkeys([f"policy.{lg}.toml"] * (lg != "fr") + ["policy.toml"])
+    for nom in noms:
+        chemin = f"{dossier_moteur}/socle/templates/{nom}"
+        if outils.git(cible, "ls-tree", "--name-only", commit, "--", chemin, check=False).strip():
+            return outils.git(cible, "show", f"{commit}:{chemin}", check=False)
+    return None
+
+
+def lignes_changees(ecart: list[str]) -> list[str]:
+    """Les lignes changées d'un diff unifié, avec leur signe : sans ses deux
+    lignes d'en-tête, ses repères de bloc ni son contexte."""
+    return [l for l in ecart[2:] if l.startswith(("+", "-"))]
+
+
+def ecart_deja_montre(ecart: list[str], avant: list[str] | None) -> bool:
+    """Chaque ligne changée de l'écart `ecart` de la politique au gabarit de
+    cette version figurait déjà dans son écart `avant` au gabarit de la
+    copie du moteur remplacée : la mise à jour précédente l'a montré, ce
+    sont les lignes que l'humain a écrites exprès. Faux sans écart d'avant
+    lisible (`None`)."""
+    return bool(ecart) and avant is not None and set(lignes_changees(ecart)) <= set(lignes_changees(avant))
 
 
 _ENTETE = re.compile(r"^#?\s*\[\[?([\w.]+)\]\]?\s*$")
@@ -637,6 +681,14 @@ def _refus_cible(cible: Path) -> str | None:
 # porte son identifiant, la date du changement et une lettre (ADR-0078).
 NOTES = "CHANGES.md"
 TITRE_DE_NOTE = re.compile(r"^## (?P<id>\d{4}-\d{2}-\d{2}-[a-z]) — (?P<titre>\S.*?)\s*$")
+# Le paragraphe d'une entrée qui dit ce que l'agent du projet doit faire, et
+# les deux seules formes qui ne demandent rien : « rien. », le paragraphe
+# entier, ou « rien ; » suivi d'une précision (« nothing » en anglais).
+# « rien. » suivi d'une consigne, « rien, sauf si … », « rien dans un
+# projet dont … » ou une action demandent quelque chose : dans le doute,
+# l'entrée s'imprime en entier (B-0324).
+A_FAIRE = re.compile(r"^(?:À faire[   ]?:|To do:)[   ]*(?P<suite>.*)$", re.MULTILINE)
+RIEN_A_FAIRE = re.compile(r"(?:rien|nothing)(?:\.$|[   ]?;)")
 
 
 def fichier_des_notes(paquet: Path, lg: str = "fr") -> Path:
@@ -700,10 +752,26 @@ def notes_nouvelles(deja: set[str], paquet: Path, lg: str = "fr") -> list[tuple[
             if ident not in deja]
 
 
+def ne_demande_rien(entree: str) -> bool:
+    """L'entrée des notes de version `entree` ne demande rien à l'agent du
+    projet : son paragraphe « À faire » (« To do ») est « rien. » en entier,
+    ou commence par « rien ; » (« nothing. », « nothing; »). Sans ce
+    paragraphe, ou sous toute autre forme, « rien. » suivi d'une consigne
+    compris, elle demande quelque chose."""
+    m = A_FAIRE.search(entree)
+    if not m:
+        return False
+    paragraphe = " ".join(entree[m.start("suite"):].split("\n\n", 1)[0].split())
+    return bool(RIEN_A_FAIRE.match(paragraphe))
+
+
 def texte_des_notes(notes: list[tuple[str, str]], fichier: str, toutes: bool) -> str:
     """Les notes de version qu'une mise à jour apporte, telles que
-    l'installeur les imprime : une ligne qui dit quoi en faire, puis chaque
-    entrée entière. `toutes` : la copie remplacée n'avait pas de notes."""
+    l'installeur les imprime : une ligne qui dit quoi en faire, puis entière
+    chaque entrée qui demande quelque chose ; de celles qui ne demandent rien
+    (`ne_demande_rien`), le titre seul, sous une ligne qui dit combien elles
+    sont et le fichier où les lire. `toutes` : la copie remplacée n'avait pas
+    de notes."""
     if toutes:
         tete = trad("Notes de version : la copie du moteur remplacée n'en avait pas ; voici toutes leurs entrées "
                     "({n}), dans `{fichier}`, dont certaines décrivent ce que le projet a déjà : leur date le dit, à "
@@ -713,7 +781,13 @@ def texte_des_notes(notes: list[tuple[str, str]], fichier: str, toutes: bool) ->
         tete = trad("Notes de version : ce que cette mise à jour change pour le projet, {n} entrée(s) que la copie "
                     "du moteur remplacée n'avait pas, dans `{fichier}`. Les lire, et faire ce que chacune demande :",
                     n=len(notes), fichier=fichier)
-    return "\n\n".join([tete, *(texte for _, texte in notes)])
+    blocs = [tete, *(texte for _, texte in notes if not ne_demande_rien(texte))]
+    titres = [texte.splitlines()[0] for _, texte in notes if ne_demande_rien(texte)]
+    if titres:
+        blocs.append("\n".join([trad("{n} entrée(s) ne demandent rien (« À faire : rien ») : leur titre seul, et "
+                                     "leur texte dans `{fichier}`, à lire au besoin :", n=len(titres),
+                                     fichier=fichier), *titres]))
+    return "\n\n".join(blocs)
 
 
 def _poser_moteur(cible: Path, mode: str, source: Path, ch: config.Chemins,
@@ -872,7 +946,18 @@ def _poser_configuration(cible: Path, texte_adaptateur: str, ancien: dict, prive
                                 "approuver", prive=prive))
     if ancien and (cible / ch.politique).is_file():
         ecart = diff_politique(cible)
-        if ecart:
+        # Un écart que la mise à jour précédente a déjà montré, les lignes
+        # que l'humain a écrites exprès, ne se redit qu'en une ligne (B-0195).
+        dossier = str(ancien.get("engine_dir") or ch.moteur)
+        modele = politique_d_avant(cible, dossier) if ecart else None
+        if ecart_deja_montre(ecart, None if modele is None else diff_politique(cible, modele)):
+            journal.append(trad("la politique du projet diffère du gabarit de cette version de {n} ligne(s), toutes "
+                                "déjà dans son écart au gabarit de la copie du moteur remplacée, montré à la mise à "
+                                "jour précédente : rien de nouveau, rien n'est écrit. Pour le revoir en entier : `git "
+                                "diff --no-index {politique} {gabarit}` (le nom de l'humain et la langue, que "
+                                "l'installeur y a écrits, s'y ajoutent)", n=len(lignes_changees(ecart)),
+                                politique=ch.politique, gabarit=_gabarit_de_politique(cible, dossier, lg)))
+        elif ecart:
             journal.append(trad("la politique du projet diffère du gabarit de cette version ; rien n'est écrit, "
                                 "elle est à l'humain — à relire :\n      {ecart}", ecart="\n      ".join(ecart)))
     for nom, contenu in (
@@ -1250,6 +1335,13 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
     # ou garde ; posé à côté, il en ferait deux du même langage, dont les
     # motifs se recouvrent (B-0144).
     copies = _langages_des(cible, config.fichiers_adaptateurs(cible, ch.adaptateurs))
+    # Un adaptateur nommé par `--adapter` que la copie de son langage
+    # remplace : l'installeur le dit, comme pour la copie principale ;
+    # détecté, personne ne l'a demandé (B-0327). Un fichier donné du même nom
+    # que la copie l'est aussi, s'il en diffère : la mise à jour garde la
+    # copie, et le perdrait sans le dire (revue de L-0021) ; un adaptateur
+    # maintenu de ce nom, lui, est la copie, qui s'en rafraîchit.
+    remplaces = []
     for nom, texte, langage, nomme in charges[1:] if not principal.is_file() else charges:
         if langage in langages:
             continue
@@ -1259,8 +1351,11 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
             sans_langage.append(nom)
             continue
         langages.add(langage)
-        if langage in copies and Path(copies[langage]).stem != nom:
-            nom, texte = Path(copies[langage]).stem, (cible / copies[langage]).read_text(encoding="utf-8")
+        if langage in copies and (Path(copies[langage]).stem != nom or nom in de_fichier):
+            copie = (cible / copies[langage]).read_text(encoding="utf-8")
+            if nomme and texte != copie:
+                remplaces.append((nom, copies[langage], langage))
+            nom, texte = Path(copies[langage]).stem, copie
         autres.append((nom, texte))
     if principal.is_file() and autres and charges[0][2] != langage_principal:
         # Le premier nommé n'est pas le principal du projet : la CI part du
@@ -1286,6 +1381,12 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
                             "par `git switch` et relancer l'installeur sur une branche neuve ; sur un projet "
                             "équipé, proposer le changement à l'humain par une demande, l'adaptateur étant protégé",
                             nom=nom, adaptateur=ch.adaptateur, langage=langage_principal))
+    for nom, copie, langage in remplaces:
+        journal.append(trad("!! {nom} non posé : {copie} existe déjà pour {langage}, et se garde. Pour le "
+                            "remplacer : sur un essai, le commiter sur sa branche, revenir à la branche de départ "
+                            "par `git switch` et relancer l'installeur sur une branche neuve ; sur un projet "
+                            "équipé, proposer à l'humain, par une demande, de retirer {copie}, protégé, puis "
+                            "relancer l'installeur avec le même `--adapter`", nom=nom, copie=copie, langage=langage))
     # Les langages couverts : ceux de cet appel, et ceux des copies déjà
     # posées (revue de B-0168), détectés ou nommés par `--adapter` (B-0178).
     poses_sans_cle = [sans_cle[n] for n in [nom_adaptateur, *(n for n, _ in autres)] if n in sans_cle]
@@ -1571,9 +1672,10 @@ def _settings(cible: Path) -> list[str]:
     hooks = conf.setdefault("hooks", {})
     for evt, blocs in modele["hooks"].items():
         existants = hooks.setdefault(evt, [])
-        # Les blocs du socle sont remplacés, ceux du projet gardés.
-        existants[:] = [b for b in existants
-                        if not any(".socle/socle hook" in h.get("command", "") for h in b.get("hooks", []))]
+        # Les commandes du socle sont remplacées, celles du projet gardées,
+        # même dans un bloc qu'elles partagent avec une du socle : le bloc
+        # ne tombe que s'il ne lui reste rien (B-0328).
+        existants[:] = [b for b in map(_sans_le_socle, existants) if b is not None]
         existants.extend(blocs)
     outils.ecrire(p, json.dumps(conf, ensure_ascii=False, indent=2) + "\n")
     res = [trad("hooks de Claude Code déclarés dans .claude/settings.json")]
@@ -1594,6 +1696,16 @@ def _settings(cible: Path) -> list[str]:
                         "deux fois. Pour n'en garder qu'un, l'humain retire le sien de .claude/settings.json, ou "
                         "n'y laisse que ce qui est propre au projet", commandes=", ".join(fins)))
     return res
+
+
+def _sans_le_socle(bloc: dict) -> dict | None:
+    """Le bloc de hooks `bloc` sans les commandes du socle : tel quel s'il
+    n'en a pas, None s'il n'avait qu'elles."""
+    commandes = bloc.get("hooks", [])
+    gardees = [h for h in commandes if ".socle/socle hook" not in h.get("command", "")]
+    if len(gardees) == len(commandes):
+        return bloc
+    return {**bloc, "hooks": gardees} if gardees else None
 
 
 def _commandes_du_projet(conf: dict, evenement: str) -> list[str]:
@@ -1851,6 +1963,11 @@ def consigner_tolerances(cible: Path, mise_a_jour: bool = False) -> list[str]:
                                 "constat(s) présent(s) sont consignés comme tolérés (`[adoption.tolerated]`), et "
                                 "tout constat nouveau échouera désormais (B-0180)", controle=c, n=len(presents[c])))
         projet = config.Projet.charger(cible)
+    if not contexte.tolerances(projet) and (not mise_a_jour or projet.gf("adoption") is not None):
+        # Une adoption vide le dit : sans cette ligne, l'agent ne savait
+        # qu'à l'essai à blanc qu'il n'y avait rien à inscrire (B-0195).
+        res.append(trad("adoption : aucun contrôle en `[adoption] warn_only`, aucun constat à tolérer : rien à "
+                        "inscrire"))
     return res + contexte.bilan_adoption(projet)
 
 

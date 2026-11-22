@@ -510,6 +510,14 @@ MESSAGES: dict[str, str] = {
     ":\n      {ecart}":
         "the project's policy differs from the template of this version; nothing is written, it belongs to the human "
         "— to review:\n      {ecart}",
+    "la politique du projet diffère du gabarit de cette version de {n} ligne(s), toutes déjà dans son écart au "
+    "gabarit de la copie du moteur remplacée, montré à la mise à jour précédente : rien de nouveau, rien n'est écrit. "
+    "Pour le revoir en entier : `git diff --no-index {politique} {gabarit}` (le nom de l'humain et la langue, que "
+    "l'installeur y a écrits, s'y ajoutent)":
+        "the project's policy differs from the template of this version by {n} line(s), all already in its "
+        "difference from the template of the replaced engine copy, shown at the previous update: nothing new, "
+        "nothing is written. To see it again in full: `git diff --no-index {politique} {gabarit}` (the human's name "
+        "and the language, which the installer wrote there, are added to it)",
     "{nom} existe : conservé (comparer au gabarit à la main si besoin)":
         "{nom} exists: kept (compare it with the template by hand if needed)",
     "!! réglages du gabarit absents de {nom} ({n}) : à déclarer s'ils servent au projet, une fois ce moteur commité "
@@ -644,6 +652,14 @@ MESSAGES: dict[str, str] = {
         "it on its branch, go back to the starting branch with `git switch` and run the installer again on a new "
         "branch; on an equipped project, propose the change to the human through a request, the adapter being "
         "protected",
+    "!! {nom} non posé : {copie} existe déjà pour {langage}, et se garde. Pour le remplacer : sur un essai, le "
+    "commiter sur sa branche, revenir à la branche de départ par `git switch` et relancer l'installeur sur une "
+    "branche neuve ; sur un projet équipé, proposer à l'humain, par une demande, de retirer {copie}, protégé, puis "
+    "relancer l'installeur avec le même `--adapter`":
+        "!! {nom} not set: {copie} already exists for {langage}, and is kept. To replace it: on a trial, commit it on "
+        "its branch, go back to the starting branch with `git switch` and run the installer again on a new branch; "
+        "on an equipped project, propose to the human, through a request, to remove {copie}, protected, then run "
+        "the installer again with the same `--adapter`",
     "fichier d'adaptateur introuvable : {nom}":
         "adapter file not found: {nom}",
     "refus : l'adaptateur {chemin} ne tient pas le contrat des adaptateurs :\n  - {ecarts}":
@@ -683,6 +699,8 @@ MESSAGES: dict[str, str] = {
         "adoption: !! {controle} entirely disarmed: no list of tolerated findings (`[adoption.tolerated]`), all its "
         "errors, even new ones, become warnings. Remedy: run the installer again (`python3 .socle/socle install "
         "--target .`), which records the present findings as tolerated",
+    "adoption : aucun contrôle en `[adoption] warn_only`, aucun constat à tolérer : rien à inscrire":
+        "adoption: no check in `[adoption] warn_only`, no finding to tolerate: nothing to enter",
     "adoption : {controle} — plus aucun constat toléré : il peut sortir de "
     "`[adoption] warn_only` (durcir est libre)":
         "adoption: {controle} — no tolerated finding left: it can leave `[adoption] warn_only` (tightening is free)",
@@ -799,6 +817,10 @@ MESSAGES: dict[str, str] = {
     "remplacée n'avait pas, dans `{fichier}`. Les lire, et faire ce que chacune demande :":
         "Release notes: what this update changes for the project, {n} entry(ies) that the replaced engine copy did "
         "not have, in `{fichier}`. Read them, and do what each one asks:",
+    "{n} entrée(s) ne demandent rien (« À faire : rien ») : leur titre seul, et leur texte dans `{fichier}`, à lire "
+    "au besoin :":
+        "{n} entry(ies) ask nothing (“To do: nothing”): their title only, and their text in `{fichier}`, to read "
+        "when needed:",
     "ouvrir l'agent dans le projet : il lit l'état au démarrage, et te donne le lien des questions de départ, une "
     "demande à laquelle tu réponds dans la conversation":
         "open the agent in the project: it reads the state at startup, and gives you the link of the starting "

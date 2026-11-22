@@ -97,7 +97,9 @@ If the project already had its own `SessionStart` hook, the installer
 points it out: remove it from `.claude/settings.json`, otherwise each
 session receives two states. It names likewise a `Stop` hook of the
 project, which fires at every end of turn next to the socle's and may
-duplicate it.
+duplicate it. A command of the project placed in the same block as a hook
+of the socle is kept and named likewise: the installer removes from the
+block only the socle's.
 
 ## 2. Working with the agent
 
@@ -119,7 +121,10 @@ intention is missing, section 3). The backlog has four forms of entry,
 each with its prefix: a **need** (`B-`), a defect to fix or a feature to
 add, with what satisfies it (“Satisfied when”, a result); a **task**
 (`T-`), a deliverable that serves a need, with what makes it done (“Done
-when”, which a test checks); a **batch** (`L-`), the tasks that touch the
+when”, which a test checks; a box that delivers a request posed, a report
+written or a memory entry rewritten is checked by what it produces, which
+the box names: the request and your answer, the report's file, what
+`socle show` shows of it); a **batch** (`L-`), the tasks that touch the
 same files, carried out and reviewed together; a **milestone** (`JA-`),
 the needs that serve one goal. Each says what it waits on (`after`:
 another entry, or a request until it is answered), and its boxes are all
@@ -249,7 +254,7 @@ For it to merge its own itself, uncomment the `tools` line that the
 `[irreversible]` section of the policy (`.socle/policy.toml`) carries as a
 comment: the list of external tools the engine refuses, minus the merge. A
 policy laid down before this option does not have it; the diff of the
-policy, shown on an update, gives it. Only the human writes the policy, and
+policy, shown on the update that brings it, gives it. Only the human writes the policy, and
 approves this change like any protected change: the agent does not grant
 itself the right. It then merges only under four conditions: its own pull
 request only, never another session's; the CI green on its head commit,
@@ -441,10 +446,14 @@ previous commit.
 **Updating the socle.** Run the installation command again from an
 up-to-date clone of the engine (`git clone --depth 1
 https://github.com/theodubus/socle /tmp/socle`). The project's files are never overwritten;
-the diff of the policy is shown. Between what it put in place and the
+the diff of the policy is shown, in one line when each of its lines was
+already in its diff to the template of the replaced copy, shown at the
+previous update (the lines the human wrote on purpose). Between what it put in place and the
 audit, the installer prints the [release notes](CHANGES.en.md) that the
 project's engine copy did not have, all of them if it had none: what each
-change does to the project, and what the agent must do. The commit message
+change does to the project, and what the agent must do. It prints in full
+only those that ask something; of those whose “To do” is “nothing”, the
+title alone, their text staying in the file it names. The commit message
 it proposes names their identifiers, for the agent that did not see the
 update go by. The agent's hook refuses the installer aimed
 at an equipped project in another mode than its lock's, or at a target
@@ -591,6 +600,31 @@ list when the engine is updated, made of the default branch's findings
 (those born on the branch are not tolerated, the installer names them);
 while it is missing, the state says the
 check is entirely disarmed.
+When the adoption finds no failing check, or the `warn_only` list is
+empty on update, the installer says so in one line: nothing to enter.
+
+**A journal from before the socle.** A project that already kept a
+journal whose entries have the form of the socle's (`J-`, a date and a
+letter) migrates it into `memory/journal/`, each entry in the file of
+its month, in the socle's format; from the installation on, a new entry
+is written in the socle's journal only. An imported entry keeps its
+identifier, except on a day for which the socle's journal already has
+its own (the day of the installation, which opens it): the imported
+entries of that day take, in their order, the letters that follow the
+last one of the socle's journal, and their citations are rewritten in
+the same commit, except in the journal, the decisions and the requests,
+which are not rewritten: the journal entry that records the migration
+gives there the mapping of that day's letters. The old journal is
+removed in that commit, or keeps only a pointer to `memory/journal/`:
+otherwise its headings for a renumbered day would designate other
+entries. Until the migration, the references check refuses the
+identifier of an old entry, except on a day that clashes, where it
+silently designates the socle's entry with the same letter: the
+citations the project already has are tolerated at adoption (previous
+paragraph), and those the migration resolves are then removed from the
+list; a new citation, whatever its day, names it without the form of an
+identifier, by its file, its date and its letter (“entry B of 3 March
+2026 in the old journal”).
 
 **A subfolder worked on by other agents.** When other agent sessions,
 which have neither the socle's hooks nor its rules, work on a subfolder on
