@@ -28,12 +28,11 @@ One per window, named "Resume after limit (five hours) — <repository>" and
 reset of its window, day or night, however full it is.
 
 The time of the reset: `list_events` with `kinds: ["rate_limit_event"]`
-and `limit: 100` (the session's id: its link, `…/code/session_…`, or
-`get_session` without argument), going back with
-`before_id` while nothing is found; in the most recent,
+and `limit: 100` (the session's id: `get_session` without
+argument), going back with `before_id` while nothing is found; in the most recent,
 `rate_limit_info.unifiedWindows.five_hour.resetsAt` and
 `….seven_day.resetsAt`, in seconds since 1970, UTC. A time read earlier,
-still to come, still holds: it is not read again.
+still to come, holds: it is not read again.
 
 **Never in the past.** A wake-up armed at a past time fires at once. The
 current time is read by `date -u` (in the turn's first command);
@@ -47,13 +46,12 @@ and re-arm it at the bound.
 **Without the `list_events` tool**, every wake-up is armed at the bound,
 and the five-hour one, whose window began no one knows when, is pushed
 back to it at the start of every turn where the agent acts and when
-launching a subagent (`run_once_at`, in the planned call). It falls after
-the limit lifts as long as no window restarted between that push and the
-cut; otherwise it fires too early and is lost. `list_triggers` finds the
-wake-ups again.
+launching a subagent (`run_once_at`, in the planned call). If a window
+restarted between that push and the cut, it fires too early and is
+lost. `list_triggers` finds the wake-ups again.
 
-Their text carries what the agent finds nowhere else: the batch, and the
-subagents under way. The step it finds in its conversation, git, the
+Their text carries what the agent finds nowhere else: the batch and the
+subagents under way. The step is found in its conversation, git, the
 active work and the worktrees.
 
 ```text
@@ -72,12 +70,12 @@ Once, before or with its first action:
    `enabled: true` and `limit: 100`, those with these two names whose
    `persistent_session_id` is this session). The turn that opens,
    on a message from the human as on a wake-up, makes them its own: the
-   cut they guarded is over, and a wake-up of an elapsed window would
-   restart the agent for nothing; its text, the earlier batch's, would
-   resume the old batch. The one to move gets, in a single call, this
-   turn's time and the text of its batch (`update_trigger`, with
-   `run_once_at` and `prompt`); the one whose time is right gets the
-   text, from the same call, only if the batch changed.
+   cut they guarded is over; a wake-up of an elapsed window, or with
+   another batch's text, would restart the agent wrongly. The one to
+   move gets, in a single call, this turn's time and the text of its
+   batch (`update_trigger`, with `run_once_at` and `prompt`); the one
+   whose time is right gets the text, from the same call, only if the
+   batch changed.
 2. The missing wake-up is armed: `send_later`, with `at` (the reset plus
    five minutes, never in the past), `name` and `message`. Never two
    wake-ups for the same window.
@@ -103,18 +101,20 @@ A message that starts with "Resume after limit":
 
 1. Read `list_events` with `kinds: ["result"]` and `limit: 100`: the
    last result before this wake-up closes the previous turn, whatever
-   opened it (a message from the human, a subagent's result, another
-   wake-up); it ended on a limit if it is an error `usage_limit_reached`.
+   opened it; it ended on a limit if it is an error `usage_limit_reached`.
    Then, with `kinds: ["user"]`, the messages that arrived since the cut,
    even refused: the human's are typed text, neither a tool result, nor a
    wake-up, nor a notification; a resume message from the application
    (`text_not_typed`) counts as "resume".
-   **Without `list_events`**, the conversation alone tells: the previous
-   turn cut off short, with no closing recap nor interruption by the
-   human, and no message from them since, the agent resumes; otherwise,
-   it does not resume the old work. A message refused during the limit
-   cannot be read there: the first answer says so at its top, so that the
-   human repeats it.
+   **Without `list_events`**, the local transcript tells: the most recent
+   `.jsonl` of the project under `~/.claude/projects/`, where a
+   `quotaLimits` record closes a turn cut off, at its `timestamp`, and
+   where the `user` records of typed text that follow are the human's.
+   Without a transcript, the conversation: the previous turn cut off
+   short, with no recap nor interruption nor message from the human
+   since, the agent resumes; otherwise, not. A message refused during the
+   limit may be missing there: the first answer says so at its top, for
+   the human to repeat it.
 2. Do not resume:
    - if the previous turn did not end on a limit (the human interrupted
      it, or it ended normally);
@@ -124,7 +124,7 @@ A message that starts with "Resume after limit":
      commit (`git fetch`, then compare);
    - if the branch's pull request was merged or closed since.
 
-   Then answer briefly why, with the closing lines the project requires,
+   Then answer briefly why, with the project's closing lines,
    and remove the remaining wake-up, or leave it if a subagent is running.
 3. Otherwise, resume the noted batch, at the step the conversation, git,
    the active work and the worktrees tell. Every noted subagent whose
@@ -132,8 +132,9 @@ A message that starts with "Resume after limit":
    its id) if it still answers, otherwise relaunch it with its message as
    is. The wake-up that fired will not fire again: the start of the turn
    re-arms it, as on "resume". The recap says so ("Resume after limit: cut
-   off at <time>, resumed at <time>"; without `list_events`, "cut off at an
-   unknown time"), and so does the journal.
+   off at <time>, resumed at <time>"; without `list_events`, the time from
+   the transcript, else "cut off at an unknown time"), and so does the
+   journal.
 
 ## What the agent never does
 

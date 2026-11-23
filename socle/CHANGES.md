@@ -15,6 +15,21 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-23-a — Sans list_events, la reprise lit dans la transcription locale si la session a été coupée par une limite
+
+Le skill `socle-resume` donne au réveil une source de plus quand la
+session n'a pas l'outil `list_events` : la transcription que Claude Code
+tient pour le projet, le `.jsonl` le plus récent de son dossier sous
+`~/.claude/projects/`. Le tour d'avant a fini sur une limite si un
+enregistrement qui porte `quotaLimits`, le refus, le clôt ; son
+horodatage est l'heure de la coupure, que le récap donne au lieu d'« une
+heure inconnue », et les messages tapés depuis par l'humain sont ceux qui
+le suivent. Sans transcription, la conversation seule décide, comme
+avant.
+
+À faire : rien ; le skill `socle-resume` est une copie protégée, dans la
+demande de l'installeur.
+
 ## 2026-11-22-j — Le relecteur à froid d'une demande répond en un seul message, sans outil
 
 Le skill `socle-request` borne ce que fait le relecteur à froid d'une

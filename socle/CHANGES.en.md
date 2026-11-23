@@ -14,6 +14,20 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-23-a — Without list_events, the resumption reads in the local transcript whether a limit cut the session off
+
+The `socle-resume` skill gives the wake-up one more source when the
+session lacks the `list_events` tool: the transcript Claude Code keeps
+for the project, the most recent `.jsonl` of its folder under
+`~/.claude/projects/`. The previous turn ended on a limit if a record
+carrying `quotaLimits`, the refusal, closes it; its timestamp is the time
+of the cut, which the recap gives instead of "an unknown time", and the
+messages the human typed since are the ones that follow it. Without a
+transcript, the conversation alone decides, as before.
+
+To do: nothing; the `socle-resume` skill is a protected copy, in the
+installer's request.
+
 ## 2026-11-22-j — The cold reader of a request answers in a single message, with no tool
 
 The `socle-request` skill bounds what the cold reader of a request does:
