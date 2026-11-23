@@ -15,6 +15,52 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-22-j — Le relecteur à froid d'une demande répond en un seul message, sans outil
+
+Le skill `socle-request` borne ce que fait le relecteur à froid d'une
+demande : son seul message reste le dossier de `socle review --request`,
+et il rend sa lecture en un seul message, sans lancer d'outil. Mesurée
+ainsi, une relecture ne lit rien du projet hors de son dossier et ne
+coûte que le prix fixe d'un sous-agent, son dossier et sa réponse,
+environ le tiers d'un relecteur de lot. Un compte rendu de sous-agent
+qui compte un outil lancé dit une lecture qui n'était pas à froid, et le
+récap le dit.
+
+À faire : rien ; le skill `socle-request` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-22-i — Une commande dit ce qu'une session de Claude Code a coûté, et ce qui l'a fait coûter
+
+`python3 .socle/socle consumption` lit les transcriptions que Claude Code
+tient pour le projet, ou celles d'un dossier donné en argument, et
+imprime en Markdown ce que la session a coûté, par jour et par modèle,
+la conversation principale et les sous-agents à part, et ce qui l'a fait
+coûter : la taille du contexte relu à chaque appel, les reprises après
+une pause, les compactages, et ce que le socle injecte dans la
+conversation. Le coût est pondéré au tarif public, une hypothèse que des
+options changent ; des relevés de la fenêtre de cinq heures (`--point`)
+disent ce que vaut un point de la limite d'usage. Le rapport ne porte que
+des agrégats, jamais un texte de la conversation. Le guide dit quand
+s'en servir.
+
+À faire : rien, sauf quand l'humain demande ce qu'une session a coûté,
+ou pourquoi une limite d'usage est tombée si tôt : lancer
+`python3 .socle/socle consumption` et lui en donner la sortie.
+
+## 2026-11-22-h — En session cloud, un échec de l'historique du clone ne se repaie plus à chaque reprise
+
+En session cloud, le hook de démarrage complète un clone superficiel
+(`git fetch --unshallow`) en 120 secondes au plus. Un fetch qui pendait
+les reprenait à chaque démarrage du même conteneur, une reprise ou un
+compactage. Un échec, délai dépassé ou code non nul, se marque désormais
+à côté de la trace des hooks : le démarrage suivant du même conteneur ne
+retente l'historique que 15 secondes, et la ligne `!!` dit, comme avant,
+la commande à relancer à la main avant de commiter. Les outils de
+l'adaptateur ont le reste du délai du démarrage, 270 secondes en tout :
+au moins 140 au premier démarrage, 245 à une reprise.
+
+À faire : rien.
+
 ## 2026-11-22-g — Le guide dit comment importer un journal numéroté comme celui du socle
 
 Un projet qui tenait déjà un journal dont les entrées ont la forme de

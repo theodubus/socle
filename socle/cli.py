@@ -51,6 +51,25 @@ def cmd_roadmap(args) -> int:
     return 0
 
 
+def cmd_consumption(args) -> int:
+    """Ce qu'une session de Claude Code a coûté, lu dans ses transcriptions :
+    celles du dossier donné, ou de celui que Claude Code tient pour le
+    projet."""
+    from socle import consumption as consommation
+
+    dossier = args.folder or consommation.dossier_de_claude_code(_projet(args).racine)
+    poids = consommation.Poids(args.weight_input, args.weight_write_5m, args.weight_write_1h, args.weight_read,
+                               args.weight_output)
+    texte = consommation.mesurer(dossier, args.session, set(args.day) if args.day else None, args.until,
+                                 args.point, args.control, poids, args.bytes_per_token)
+    if texte is None:
+        print(trad("aucune transcription de Claude Code dans {dossier} : donner le dossier des transcriptions en "
+                   "argument", dossier=dossier), file=sys.stderr)
+        return 1
+    print(texte)
+    return 0
+
+
 def cmd_check(args) -> int:
     from socle import context as contexte
 
@@ -808,8 +827,8 @@ def cmd_checks(args) -> int:
 # Les commandes par public : l'humain en a peu, l'agent
 # davantage, le reste sert aux hooks, à la CI et au moteur lui-même.
 GROUPES = {
-    a_traduire("pour l'humain"): ["help", "install", "init", "state", "roadmap", "answer", "decision", "approve", "reviewed",
-                                  "private install"],
+    a_traduire("pour l'humain"): ["help", "install", "init", "state", "roadmap", "consumption", "answer", "decision",
+                                  "approve", "reviewed", "private install"],
     a_traduire("pour l'agent"): ["new", "show", "url", "review", "verify", "check", "next-id", "private",
                                  "mutation-verdict", "mutation-run", "renumber", "archive", "checks"],
     a_traduire("internes (hooks, CI, moteur)"): ["hook", "ci", "selftest", "fingerprint"],
@@ -884,6 +903,37 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("--all", action="store_true", help=trad("en markdown, détailler tous les lots, ou tous les besoins ; "
                                                            "en text, montrer chaque lot en sa ligne"))
     s.set_defaults(f=cmd_roadmap)
+
+    from socle import consumption as consommation
+
+    s = sp.add_parser("consumption", help=trad("ce qu'une session de Claude Code a coûté, et ce qui l'a fait coûter, "
+                                               "lu dans ses transcriptions"))
+    s.add_argument("folder", nargs="?", type=Path,
+                   help=trad("le dossier des transcriptions, les <id>.jsonl et leurs sous-agents (défaut : celui que "
+                             "Claude Code tient pour ce projet)"))
+    s.add_argument("--session", help=trad("le début de l'identifiant d'une session : le nom de son fichier .jsonl"))
+    s.add_argument("--day", action="append", help=trad("un jour UTC à garder (AAAA-MM-JJ), répétable"))
+    s.add_argument("--until", type=consommation.instant,
+                   help=trad("ignorer ce qui suit cet instant (AAAA-MM-JJTHH:MM:SSZ ; UTC sans fuseau)"))
+    s.add_argument("--point", action="append", default=[], type=consommation.releve,
+                   help=trad("un relevé de la fenêtre de cinq heures : INSTANT,PART[/SEMAINE], point décimal "
+                             "(répétable)"))
+    s.add_argument("--control", action="append", default=[], type=consommation.releve,
+                   help=trad("un relevé hors échantillon, prédit depuis le dernier --point (même forme, répétable)"))
+    s.add_argument("--weight-input", type=float, default=consommation.Poids.entree,
+                   help=trad("le poids d'un jeton d'entrée non cachée (défaut : %(default)s)"))
+    s.add_argument("--weight-write-5m", type=float, default=consommation.Poids.ecriture_5m,
+                   help=trad("le poids d'un jeton écrit au cache pour cinq minutes (défaut : %(default)s)"))
+    s.add_argument("--weight-write-1h", type=float, default=consommation.Poids.ecriture_1h,
+                   help=trad("le poids d'un jeton écrit au cache pour une heure (défaut : %(default)s)"))
+    s.add_argument("--weight-read", type=float, default=consommation.Poids.lecture,
+                   help=trad("le poids d'un jeton lu dans le cache (défaut : %(default)s)"))
+    s.add_argument("--weight-output", type=float, default=consommation.Poids.sortie,
+                   help=trad("le poids d'un jeton de sortie (défaut : %(default)s)"))
+    s.add_argument("--bytes-per-token", type=float, default=3.5,
+                   help=trad("les octets d'un jeton, pour estimer en jetons ce que le socle injecte (défaut : "
+                             "%(default)s, une hypothèse)"))
+    s.set_defaults(f=cmd_consumption)
 
     s = sp.add_parser("check", help=trad("contrôles du socle, un code de sortie"))
     s.add_argument("--stage", choices=("agent", "git", "ci"), default="ci")

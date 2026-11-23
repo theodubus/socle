@@ -52,8 +52,11 @@ réponse mot pour mot, sans jamais la choisir.
    famille (un alias qui en désigne une plus ancienne : sans `model`, il
    hérite de la session) ; Fable, s'il est disponible, seulement si
    l'humain le demande. Il lit la demande dans le rôle de l'humain qui n'a pas ouvert le projet depuis
-   trois semaines, sans lien ni fichier, et rend ce qu'il en a compris et
-   ce qui lui manque pour décider. Réécrire ce que l'humain ne
+   trois semaines, et rend en un seul message, sans lancer d'outil, ce
+   qu'il en a compris et ce qui lui manque pour décider : il ne coûte
+   alors que le prix fixe d'un sous-agent, son dossier et sa réponse. Un
+   compte rendu qui compte un outil lancé dit une lecture qui n'était pas
+   à froid : le récap le dit. Réécrire ce que l'humain ne
    comprendrait pas davantage ; écarter, d'une raison, ce qui n'aide pas à
    décider ou qu'un document lié donne déjà. Le récap le dit : `Relecture
    à froid (<modèle>) : <n> points, <k> corrigés ; écartés : …`. Un agent sans

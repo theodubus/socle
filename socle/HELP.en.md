@@ -443,6 +443,23 @@ named by a test, or waived in the commit message
 (`Waive-test: f — <reason>`); a fix brings a test that fails on the
 previous commit.
 
+**Measuring what a session cost.** When a Claude Code session used up
+its usage limits faster than expected, or before changing the way a
+batch is run: `python3 .socle/socle consumption` reads the transcripts
+Claude Code keeps for the project (under ~/.claude/projects/, one
+folder per project; another folder is given as an argument), and says
+what the session cost, by day and by model, the main conversation and
+the subagents apart, and what made it cost: the size of the context
+read again at each call, the resumptions after a pause, the
+compactions, and what the socle injects into it. `--session <id>`
+keeps one session (the name of its `.jsonl` file), `--day YYYY-MM-DD`
+one day. The cost is weighted at the public price, an assumption that
+options change; readings of the five-hour window, given by
+`--point INSTANT,SHARE`, say what a point of the limit is worth. The
+report carries only aggregates, never a text of the conversation.
+Under another agent than Claude Code, the command finds nothing to
+read.
+
 **Updating the socle.** Run the installation command again from an
 up-to-date clone of the engine (`git clone --depth 1
 https://github.com/theodubus/socle /tmp/socle`). The project's files are never overwritten;
@@ -544,6 +561,7 @@ agent, which fixes them alone. Those that concern the human:
 | `init` | describe the project |
 | `state` | the project's state |
 | `roadmap` | the project's roadmap: milestones, batches, tasks and needs |
+| `consumption` | what a Claude Code session cost, and what made it cost |
 | `answer`, `decision`, `reviewed` | answer a request, record a decision in session, a review |
 | `approve` | approve one's own protected changes |
 | `private install` | set up the private memory |

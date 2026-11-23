@@ -14,6 +14,50 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-22-j — The cold reader of a request answers in a single message, with no tool
+
+The `socle-request` skill bounds what the cold reader of a request does:
+its only message is still the brief of `socle review --request`, and it
+returns its reading in a single message, launching no tool. Measured
+this way, a reading reads nothing of the project outside its brief and
+costs only the fixed price of a subagent, its brief and its answer,
+about a third of a batch reviewer. A subagent report that counts a tool
+launched means a reading that was not cold, and the recap says so.
+
+To do: nothing; the `socle-request` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-22-i — A command says what a Claude Code session cost, and what made it cost
+
+`python3 .socle/socle consumption` reads the transcripts Claude Code
+keeps for the project, or those of a folder given as an argument, and
+prints in Markdown what the session cost, by day and by model, the main
+conversation and the subagents apart, and what made it cost: the size of
+the context read again at each call, the resumptions after a pause, the
+compactions, and what the socle injects into the conversation. The cost
+is weighted at the public price, an assumption that options change;
+readings of the five-hour window (`--point`) say what a point of the
+usage limit is worth. The report carries only aggregates, never a text
+of the conversation. The guide says when to use it.
+
+To do: nothing, except when the human asks what a session cost, or why a
+usage limit fell so early: run `python3 .socle/socle consumption` and
+give them its output.
+
+## 2026-11-22-h — In a cloud session, a failed fetch of the clone's history is no longer paid again on each resume
+
+In a cloud session, the startup hook completes a shallow clone
+(`git fetch --unshallow`) in 120 seconds at most. A fetch that hung took
+them again at each start of the same container, a resume or a
+compaction. A failure, timed out or a non-zero code, is now marked next
+to the hooks' trace: the next start of the same container retries the
+history for 15 seconds only, and the `!!` line gives, as before, the
+command to run again by hand before committing. The adapter's tools get
+the rest of the startup delay, 270 seconds in all: at least 140 on the
+first start, 245 on a resume.
+
+To do: nothing.
+
 ## 2026-11-22-g — The guide says how to import a journal numbered like the socle's
 
 A project that already kept a journal whose entries have the form of

@@ -3907,4 +3907,169 @@ MESSAGES: dict[str, str] = {
         'in markdown, detail every batch, or every need; in text, show every batch on its own line',
     "  la suite : `python3 .socle/socle roadmap` (détaillée : `--format markdown`)":
         "  the roadmap: `python3 .socle/socle roadmap` (detailed: `--format markdown`)",
+    # La consommation d'une session de Claude Code (`socle consumption`).
+    "ce qu'une session de Claude Code a coûté, et ce qui l'a fait coûter, lu dans ses transcriptions":
+        "what a Claude Code session cost, and what made it cost, read in its transcripts",
+    "le dossier des transcriptions, les <id>.jsonl et leurs sous-agents (défaut : celui que Claude Code tient pour "
+    "ce projet)":
+        "the transcripts folder, the <id>.jsonl and their subagents (default: the one Claude Code keeps for this "
+        "project)",
+    "le début de l'identifiant d'une session : le nom de son fichier .jsonl":
+        "the start of a session's identifier: the name of its .jsonl file",
+    "un jour UTC à garder (AAAA-MM-JJ), répétable":
+        "a UTC day to keep (YYYY-MM-DD), repeatable",
+    "ignorer ce qui suit cet instant (AAAA-MM-JJTHH:MM:SSZ ; UTC sans fuseau)":
+        "ignore what follows this instant (YYYY-MM-DDTHH:MM:SSZ; UTC without a time zone)",
+    "un relevé de la fenêtre de cinq heures : INSTANT,PART[/SEMAINE], point décimal (répétable)":
+        "a reading of the five-hour window: INSTANT,SHARE[/WEEK], decimal point (repeatable)",
+    "un relevé hors échantillon, prédit depuis le dernier --point (même forme, répétable)":
+        "an out-of-sample reading, predicted from the last --point (same form, repeatable)",
+    "le poids d'un jeton d'entrée non cachée (défaut : %(default)s)":
+        "the weight of an uncached input token (default: %(default)s)",
+    "le poids d'un jeton écrit au cache pour cinq minutes (défaut : %(default)s)":
+        "the weight of a token written to the cache for five minutes (default: %(default)s)",
+    "le poids d'un jeton écrit au cache pour une heure (défaut : %(default)s)":
+        "the weight of a token written to the cache for one hour (default: %(default)s)",
+    "le poids d'un jeton lu dans le cache (défaut : %(default)s)":
+        "the weight of a token read from the cache (default: %(default)s)",
+    "le poids d'un jeton de sortie (défaut : %(default)s)":
+        "the weight of an output token (default: %(default)s)",
+    "les octets d'un jeton, pour estimer en jetons ce que le socle injecte (défaut : %(default)s, une hypothèse)":
+        "the bytes of a token, to estimate in tokens what the socle injects (default: %(default)s, an assumption)",
+    "aucune transcription de Claude Code dans {dossier} : donner le dossier des transcriptions en argument":
+        "no Claude Code transcript in {dossier}: give the transcripts folder as an argument",
+    "AGENTS.md, section du socle":
+        "AGENTS.md, socle section",
+    "sortie de hook relue":
+        "hook output read again",
+    "refus PreToolUse":
+        "PreToolUse refusal",
+    "refus Stop":
+        "Stop refusal",
+    "dossier de revue":
+        "review file",
+    "principale":
+        "main",
+    "sous-agents":
+        "subagents",
+    "commande socle {sous}":
+        "socle command {sous}",
+    "relevé illisible : {texte} ; attendu INSTANT,PART[/SEMAINE], avec un point décimal (0.39, pas 0,39)":
+        "unreadable reading: {texte}; expected INSTANT,SHARE[/WEEK], with a decimal point (0.39, not 0,39)",
+    "instant illisible : {texte} ; attendu AAAA-MM-JJTHH:MM:SSZ (UTC sans fuseau)":
+        "unreadable instant: {texte}; expected YYYY-MM-DDTHH:MM:SSZ (UTC without a time zone)",
+    "## Étalonnage sur les relevés de la fenêtre":
+        "## Calibration on the window readings",
+    "| de | à | appels | lecture | écriture | coût pondéré | points | jetons par point |":
+        "| from | to | calls | read | write | weighted cost | points | tokens per point |",
+    "compactage":
+        "compaction",
+    "{n} + compactage":
+        "{n} + compaction",
+    "Étalonnage impossible : entre deux relevés que rien ne coupe, aucun point pris, ou aucun appel chiffré.":
+        "Calibration impossible: between two readings that nothing cuts, no point taken, or no call with a cost.",
+    "Les relevés ne départagent aucun poids de lecture (trop peu de relevés par suite) : le poids donné, {lecture}, "
+    "est gardé ; un point vaut alors {valeur} k jetons pondérés (médiane des intervalles), de {bas} à {haut}.":
+        "The readings single out no read weight (too few readings per run): the given weight, {lecture}, is kept; "
+        "a point is then worth {valeur} k weighted tokens (median of the intervals), from {bas} to {haut}.",
+    "Poids de lecture qui explique le mieux les relevés (hors compactage) : {lecture} ; un point vaut alors {valeur} "
+    "k jetons pondérés, soit {ecrits} jetons écrits pour une heure ou {lus} jetons lus":
+        "Read weight that best explains the readings (compactions aside): {lecture}; a point is then worth {valeur} "
+        "k weighted tokens, that is {ecrits} tokens written for one hour or {lus} tokens read",
+    " ; de {bas} à {haut} selon l'intervalle (un relevé est arrondi au point près).":
+        "; from {bas} to {haut} depending on the interval (a reading is rounded to the point).",
+    "À l'arrondi des relevés près : lecture de {lecture_bas} à {lecture_haut}, un point de {point_bas} k à "
+    "{point_haut} k jetons pondérés.":
+        "Within the rounding of the readings: read from {lecture_bas} to {lecture_haut}, a point from {point_bas} k "
+        "to {point_haut} k weighted tokens.",
+    "À l'arrondi des relevés près, aucun poids de lecture n'explique tous les relevés.":
+        "Within the rounding of the readings, no read weight explains all the readings.",
+    "Compactage entre {debut} et {fin} : {points} points relevés, dont {reste} que les appels chiffrés n'expliquent "
+    "pas (à un point près).":
+        "Compaction between {debut} and {fin}: {points} points read, of which {reste} that the calls with a cost do "
+        "not explain (to within a point).",
+    "Un point de la semaine vaut {rapport} points de la fenêtre ({fenetre} contre {semaine} ; de {bas} à {haut} à "
+    "l'arrondi près).":
+        "A point of the week is worth {rapport} points of the window ({fenetre} against {semaine}; from {bas} to "
+        "{haut} within rounding).",
+    "Les colonnes en points de ce rapport supposent `--weight-read {lecture}`.":
+        "The columns in points of this report assume `--weight-read {lecture}`.",
+    "Poids (hypothèse) : entrée {entree}, écriture 5 min {e5m}, écriture 1 h {e1h}, lecture {lecture}, sortie "
+    "{sortie}.":
+        "Weights (assumption): input {entree}, 5 min write {e5m}, 1 h write {e1h}, read {lecture}, output "
+        "{sortie}.",
+    "## Par jour, par modèle":
+        "## By day, by model",
+    "| jour | modèle | portée | conv. | appels | entrée | écr. 5 min | écr. 1 h | lecture | sortie | coût pondéré "
+    "| médiane / conv. | max / conv. |":
+        "| day | model | scope | conv. | calls | input | 5 min write | 1 h write | read | output | weighted cost "
+        "| median / conv. | max / conv. |",
+    "Total pondéré : {total} ; principale {principale}, sous-agents {sous_agents}.":
+        "Weighted total: {total}; main {principale}, subagents {sous_agents}.",
+    "## Sous-agents à la fois (maximum du jour, coupé à cinq minutes d'inactivité)":
+        "## Subagents at once (maximum of the day, cut at five minutes of inactivity)",
+    "Premier appel d'un sous-agent, sur toute la période lue ({nombre}) : contexte médian {contexte}, maximum "
+    "{maximum}, coût médian {cout} ; {cout_1h} si le cache s'écrivait pour une heure.":
+        "First call of a subagent, over the whole period read ({nombre}): median context {contexte}, maximum "
+        "{maximum}, median cost {cout}; {cout_1h} if the cache were written for one hour.",
+    "## Coût d'un appel tiède selon le contexte (période lue)":
+        "## Cost of a warm call by context size (period read)",
+    "| modèle | contexte | appels | coût médian | dont lecture | en points |":
+        "| model | context | calls | median cost | of which read | in points |",
+    "{points} (lecture {lecture})":
+        "{points} (read {lecture})",
+    "{bas} à {haut}":
+        "{bas} to {haut}",
+    "## Reprises après une pause":
+        "## Resumptions after a pause",
+    "| portée | pause de plus de | reprises | conv. | coût des premiers appels | part du total | premier appel / "
+    "appel médian |":
+        "| scope | pause longer than | resumptions | conv. | cost of the first calls | share of the total | first "
+        "call / median call |",
+    "## Compactages":
+        "## Compactions",
+    "| instant | déclencheur | avant | après | résumé | borne basse (modèle) | appel suivant |":
+        "| instant | trigger | before | after | summary | lower bound (model) | next call |",
+    "## Taille de la conversation principale (jetons relus par appel)":
+        "## Size of the main conversation (tokens read again per call)",
+    "| jour | appels | médiane | 90e centile | maximum | appels > 400 k |":
+        "| day | calls | median | 90th percentile | maximum | calls > 400 k |",
+    "## Ce que le socle injecte":
+        "## What the socle injects",
+    "| jour | nature | nombre | octets | plus grande |":
+        "| day | kind | count | bytes | largest |",
+    "Sortie entière du hook de démarrage, sur toute la période lue : de {bas} à {haut} octets ; l'agent n'en reçoit "
+    "que la colonne « octets ».":
+        "Whole output of the start hook, over the whole period read: from {bas} to {haut} bytes; the agent only "
+        "receives the “bytes” column of it.",
+    "Dossier de revue reçu par un sous-agent (somme de ses lectures) : {n} sous-agents, de {bas} à {haut} octets, "
+    "médiane {mediane}.":
+        "Review file received by a subagent (sum of its reads): {n} subagents, from {bas} to {haut} bytes, median "
+        "{mediane}.",
+    "### Ce qu'ils pèsent une fois dans le contexte (toute la période lue)":
+        "### What they weigh once in the context (whole period read)",
+    "À {octets} octets par jeton ; chaque appel relit ce qui a été injecté depuis le dernier compactage.":
+        "At {octets} bytes per token; each call reads again what was injected since the last compaction.",
+    "| portée | nature | conv. | part du contexte | coût pondéré |":
+        "| scope | kind | conv. | share of the context | weighted cost |",
+    "**total** sans AGENTS.md / avec":
+        "**total** without AGENTS.md / with",
+    "{sans} / {avec} du coût":
+        "{sans} / {avec} of the cost",
+    "## Fenêtres de cinq heures closes par un refus":
+        "## Five-hour windows closed by a refusal",
+    "| ouverture | refus | appels | coût pondéré | dont sous-agents | par modèle | points de {modele} | un point des "
+    "autres |":
+        "| opening | refusal | calls | weighted cost | of which subagents | by model | points of {modele} | a point "
+        "of the others |",
+    "l’étalonné":
+        "the calibrated one",
+    "Un point des autres modèles : médiane {mediane}, de {bas} à {haut} ({n} fenêtres sur {total}).":
+        "A point of the other models: median {mediane}, from {bas} to {haut} ({n} windows out of {total}).",
+    "Contrôle jusqu'à {instant} : un compactage s'y trouve, pas de prédiction.":
+        "Check up to {instant}: a compaction lies within, no prediction.",
+    "Contrôle hors échantillon, de {debut} à {fin} : {predits} points prédits ({detail} ; les autres modèles à "
+    "{defaut} par point), {releves} relevés.":
+        "Out-of-sample check, from {debut} to {fin}: {predits} points predicted ({detail}; the other models at "
+        "{defaut} per point), {releves} read.",
 }

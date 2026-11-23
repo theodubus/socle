@@ -456,6 +456,23 @@ publique ajoutée est nommée par un test, ou dispensée dans le message du
 commit (`Dispense-test: f — <raison>`) ; un correctif apporte un test qui
 échoue sur le commit précédent.
 
+**Mesurer ce qu'une session a coûté.** Quand une session de Claude Code
+a vidé ses limites d'usage plus vite que prévu, ou avant de changer la
+façon de mener un lot : `python3 .socle/socle consumption` lit les
+transcriptions que Claude Code tient pour le projet (sous
+~/.claude/projects/, un dossier par projet ; un autre dossier se donne
+en argument), et dit ce que la session a coûté, par jour et par modèle,
+la conversation principale et les sous-agents à part, et ce qui l'a
+fait coûter : la taille du contexte relu à chaque appel, les reprises
+après une pause, les compactages, et ce que le socle y injecte.
+`--session <id>` garde une session (le nom de son fichier `.jsonl`),
+`--day AAAA-MM-JJ` un jour. Le coût est pondéré au tarif public, une
+hypothèse que des options changent ; des relevés de la fenêtre de cinq
+heures, donnés par `--point INSTANT,PART`, disent ce que vaut un point
+de la limite. Le rapport ne porte que des agrégats, jamais un texte de
+la conversation. Sous un autre agent que Claude Code, la commande ne
+trouve rien à lire.
+
 **Mettre à jour le socle.** Relancer la commande d'installation depuis un
 clone à jour du moteur (`git clone --depth 1
 https://github.com/theodubus/socle /tmp/socle`). Les fichiers du projet ne sont jamais écrasés ; le
@@ -558,6 +575,7 @@ Chaque refus dit ce qu'il a vu et comment en sortir. La plupart s'adressent
 | `init` | décrire le projet |
 | `state` | l'état du projet |
 | `roadmap` | la suite du projet : jalons, lots, tâches et besoins |
+| `consumption` | ce qu'une session de Claude Code a coûté, et ce qui l'a fait coûter |
 | `answer`, `decision`, `reviewed` | répondre à une demande, consigner une décision en séance, une relecture |
 | `approve` | approuver ses propres changements protégés |
 | `private install` | mettre en place la mémoire privée |

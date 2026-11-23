@@ -166,8 +166,9 @@ def session_start(projet: config.Projet, entree: dict) -> int:
     # Ses lignes entrent dans l'état, en tête avec les autres lignes d'action :
     # toute la sortie du hook tient sous la borne du démarrage (ADR-0071).
     # Gardées, `socle state --short` les redit, où la ligne de coupe renvoie.
-    # L'historique, puis les outils, sous un seul délai : celui du hook.
-    fin = time.monotonic() + DELAI_OUTILS
+    # L'historique, puis les outils, sous un seul délai : les outils ont ce
+    # que l'historique leur laisse (ADR-0105).
+    fin = time.monotonic() + DELAI_DEMARRAGE
     supplement = completer_historique(projet.racine, fin) + installer_outils(projet, fin)
     if not git_ok and (projet.racine / config.GIT_HOOKS).is_dir():
         supplement.append(trad("\n!! hooks git non branchés : `git config core.hooksPath .socle/git-hooks`"))
@@ -180,10 +181,16 @@ def session_start(projet: config.Projet, entree: dict) -> int:
 # zéro à chaque session.
 SESSION_CLOUD = "CLAUDE_CODE_REMOTE"
 # Le travail du démarrage en session cloud, l'historique puis les outils,
-# sous le délai de son hook (`.claude/settings.json`).
-DELAI_OUTILS = 270
-# L'historique en prend au plus cette part ; les outils ont le reste.
+# sous un seul délai, que borne celui de son hook (`.claude/settings.json`,
+# 300 secondes) en laissant à l'état ses trente secondes (ADR-0105).
+DELAI_DEMARRAGE = 270
+# L'historique en prend au plus cette part, son arrêt en plus ; les outils
+# ont le reste, au moins 140 secondes.
 DELAI_HISTORIQUE = 120
+# Après un échec dans le même conteneur, l'historique ne se retente que sous
+# ce délai, son arrêt en plus : un fetch qui pend ne repaie pas ses 120
+# secondes à chaque reprise ou compactage (ADR-0105).
+DELAI_HISTORIQUE_REPRISE = 15
 # Arrêté au délai, git a ce temps pour retirer ses verrous avant d'être tué.
 ARRET_HISTORIQUE = 10
 # Une ligne de la sortie d'un échec des outils, en octets au plus.
@@ -197,19 +204,24 @@ def completer_historique(racine: Path, fin: float | None = None) -> list[str]:
     `memoire.references` ne trouve pas les commits que la mémoire cite, et
     refuse le premier commit de l'agent (B-0202). Complété, le clone ne
     l'est plus : rien à marquer. Un échec se dit sans bloquer le démarrage,
-    et se retente au suivant. Rend les lignes à montrer à l'agent."""
+    et se marque pour le conteneur : le démarrage suivant ne le retente que
+    sous un délai court (ADR-0105). Rend les lignes à montrer à l'agent."""
     if os.environ.get(SESSION_CLOUD) != "true":
         return []
     r = subprocess.run(["git", "rev-parse", "--is-shallow-repository"], cwd=racine, capture_output=True, text=True)
     if r.returncode != 0 or r.stdout.strip() != "true":
         return []
-    reste = (fin if fin is not None else time.monotonic() + DELAI_OUTILS) - time.monotonic()
+    # À côté de la trace, comme celle des outils : une session neuve, dans un
+    # conteneur neuf, ne l'a pas.
+    marque = config.chemin_trace(racine).parent / "historique-echoue"
+    delai = DELAI_HISTORIQUE_REPRISE if marque.is_file() else DELAI_HISTORIQUE
+    reste = (fin if fin is not None else time.monotonic() + DELAI_DEMARRAGE) - time.monotonic()
     # Aucune invite d'identifiants : personne ne la verrait.
     p = subprocess.Popen(["git", "fetch", "--quiet", "--unshallow"], cwd=racine, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
                          env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
     try:
-        sortie, erreurs = p.communicate(timeout=max(1, min(DELAI_HISTORIQUE, reste)))
+        sortie, erreurs = p.communicate(timeout=max(1, min(delai, reste)))
     except subprocess.TimeoutExpired:
         # Tué d'emblée (SIGKILL), git laisserait `.git/shallow.lock`, et le
         # clone resterait superficiel, la commande relancée à la main
@@ -220,14 +232,21 @@ def completer_historique(racine: Path, fin: float | None = None) -> list[str]:
         except subprocess.TimeoutExpired:
             p.kill()
             p.communicate()
-        return [trad("!! clone superficiel : `{commande}` dépasse le délai du démarrage ; le relancer avant de "
-                     "commiter, sans quoi les commits que la mémoire cite manquent", commande=COMPLETER)]
-    if p.returncode == 0:
-        return [trad("historique du clone complété (session cloud) : `{commande}`", commande=COMPLETER)]
-    derniere = (sortie + erreurs).strip().splitlines()[-1:] or [""]
-    return [trad("!! clone superficiel : `{commande}` a rendu {code} ; le relancer avant de commiter, sans quoi "
-                 "les commits que la mémoire cite manquent\n    {queue}", commande=COMPLETER, code=p.returncode,
-                 queue=outils.raccourcir(derniere[0], LIGNE_DE_SORTIE))]
+        ligne = trad("!! clone superficiel : `{commande}` dépasse le délai du démarrage ; le relancer avant de "
+                     "commiter, sans quoi les commits que la mémoire cite manquent", commande=COMPLETER)
+    else:
+        if p.returncode == 0:
+            return [trad("historique du clone complété (session cloud) : `{commande}`", commande=COMPLETER)]
+        derniere = (sortie + erreurs).strip().splitlines()[-1:] or [""]
+        ligne = trad("!! clone superficiel : `{commande}` a rendu {code} ; le relancer avant de commiter, sans quoi "
+                     "les commits que la mémoire cite manquent\n    {queue}", commande=COMPLETER, code=p.returncode,
+                     queue=outils.raccourcir(derniere[0], LIGNE_DE_SORTIE))
+    try:
+        marque.parent.mkdir(parents=True, exist_ok=True)
+        marque.write_text(ligne + "\n", encoding="utf-8")
+    except OSError:
+        pass  # sans marque, le démarrage suivant repaie le délai entier, sans rien bloquer
+    return [ligne]
 
 
 def installer_outils(projet: config.Projet, fin: float | None = None) -> list[str]:
@@ -255,7 +274,7 @@ def installer_outils(projet: config.Projet, fin: float | None = None) -> list[st
             return dit
     except OSError:
         pass
-    fin = fin if fin is not None else time.monotonic() + DELAI_OUTILS
+    fin = fin if fin is not None else time.monotonic() + DELAI_DEMARRAGE
     lignes, reussi = list(dit), True
     for c in commandes_ci:
         try:

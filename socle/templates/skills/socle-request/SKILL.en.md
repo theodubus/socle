@@ -52,8 +52,10 @@ never choosing it.
    one: without `model`, it inherits the session's); Fable, if available,
    only if the human asks for it. It reads the
    request as the human who has not opened the project for three weeks,
-   with no link and no file, and returns what it understood and what it
-   lacks to decide. Rewrite what the human would not understand either;
+   and returns in a single message, launching no tool, what it understood
+   and what it lacks to decide: it then costs only the fixed price of a
+   subagent, its brief and its answer. A report that counts a tool
+   launched means a reading that was not cold: the recap says so. Rewrite what the human would not understand either;
    set aside, with a reason, what does not help to decide or what a linked
    document already gives. The recap says so: `Cold reading (<model>): <n>
    points, <k> fixed; set aside: …`. An agent without subagents skips this step,
