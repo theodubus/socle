@@ -110,6 +110,9 @@ class Conversation:
     limites: list[dict] = field(default_factory=list)
     # ce que le socle injecte : horodatage, nature (SessionStart:resume…, refus…), octets reçus par l'agent
     injections: list[dict] = field(default_factory=list)
+    # les messages que l'humain a tapés, leur horodatage : un `user` dont `origin.kind` vaut `human`, que
+    # n'ont ni un résultat d'outil, ni un skill chargé (`isMeta`), relevé sur une transcription réelle
+    tapes: list[datetime] = field(default_factory=list)
 
 
 def _date(texte: str) -> datetime:
@@ -233,6 +236,8 @@ def lire_conversation(chemin: Path, sous_agent: bool = False) -> Conversation:
                         if section:
                             injecter(horo, AGENTS_SOCLE, len(section.encode()))
             elif nature == "user":
+                if horo and (o.get("origin") or {}).get("kind") == "human":
+                    conv.tapes.append(_date(horo))
                 contenu = (o.get("message") or {}).get("content")
                 blocs = contenu if isinstance(contenu, list) else [{"type": "text", "text": contenu}]
                 for b in blocs:
@@ -715,7 +720,9 @@ def modele_etalonne(tranches: list[dict]) -> str | None:
 def fenetres_limitees(conversations: list[Conversation], poids: Poids = Poids()) -> list[dict]:
     """Chaque fenêtre de cinq heures qui s'est terminée sur un refus : le coût
     pondéré de toutes les conversations entre son ouverture et le premier
-    refus, qui vaut donc la fenêtre entière (si rien d'autre ne l'a consommée)."""
+    refus, qui vaut donc la fenêtre entière (si rien d'autre ne l'a consommée),
+    et les messages que l'humain a tapés après ce refus, jusqu'à la levée :
+    refusés, ils ne se lisent que dans la transcription (le skill `socle-resume`)."""
     premiers: dict[datetime, datetime] = {}
     for c in conversations:
         for lim in c.limites:
@@ -731,7 +738,8 @@ def fenetres_limitees(conversations: list[Conversation], poids: Poids = Poids())
         resultat.append({"debut": debut, "refus": refus, "appels": len(tranche),
                          "cout": sum(cout(a, poids) for _, a in tranche),
                          "cout_sous_agents": sum(cout(a, poids) for c, a in tranche if c.sous_agent),
-                         "par_modele": dict(par_modele)})
+                         "par_modele": dict(par_modele),
+                         "tapes": sum(1 for c in conversations for h in c.tapes if refus < h <= fin)})
     return resultat
 
 
@@ -1017,6 +1025,10 @@ def rapport(conversations: list[Conversation], poids: Poids = Poids(), jours: se
             autres = _k(f["autres_par_point"]) if f.get("autres_par_point") else "—"
             lignes.append(f"| {f['debut']:%m-%d %H:%M} | {f['refus']:%m-%d %H:%M} | {f['appels']} | {_k(f['cout'])} "
                           f"| {_k(f['cout_sous_agents'])} | {modeles} | {connus} | {autres} |")
+        tapes = sum(f["tapes"] for f in limitees)
+        if tapes:
+            lignes += ["", trad("Pendant ces limites, l'humain a tapé {n} message(s), refusé(s) : sans `list_events`, la "
+                                "reprise ne les lit que dans la transcription.", n=tapes)]
         valeurs = sorted(f["autres_par_point"] for f in limitees if f.get("autres_par_point"))
         if valeurs:
             lignes += ["", trad("Un point des autres modèles : médiane {mediane}, de {bas} à {haut} ({n} fenêtres "

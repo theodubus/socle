@@ -15,6 +15,70 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-23-f — La reprise couvre l'attente à heure bornée et le réveil d'un travail interrompu
+
+Le skill `socle-resume` couvre deux cas que sa règle laissait. Un tour
+qui finit en attendant un événement dont l'agent connaît l'heure au plus
+tard (un rappel, une commande en arrière-plan, une CI) garde ses deux
+réveils, repoussés après cette heure : si une limite refuse le tour de
+l'événement, le réveil le fait reprendre à la levée, au lieu de laisser
+la session arrêtée jusqu'au retour de l'humain. Et au réveil d'un
+travail que l'humain a interrompu, si le contrôle de fin de tour refuse
+sur des contrôles en échec, l'agent le dit en une ligne, sans finir ce
+travail ni réarmer ses réveils. Au réveil, les messages de l'humain se
+lisent depuis le dernier travail de l'agent, celui qui a provoqué le
+refus compris, et le réveil qui a tiré, éteint, se réarme.
+
+À faire : rien ; le skill `socle-resume` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-23-e — socle consumption compte les messages que l'humain a tapés pendant une limite
+
+Dans sa section des fenêtres de cinq heures closes par un refus, `socle
+consumption` dit combien de messages l'humain a tapés entre le refus et
+la levée de la limite : refusés, ils ne se lisent ensuite que dans la
+transcription. Un message tapé se reconnaît, comme dans le skill
+`socle-resume`, à `origin.kind`, qui vaut `human`.
+
+À faire : rien.
+
+## 2026-11-23-d — La reprise dit à l'humain les réveils qu'une session archivée a laissés
+
+Le skill `socle-resume` lit les tâches programmées au premier tour d'une
+session, comme après un compactage. Les réveils de reprise d'une
+session archivée du même dépôt, qui tireraient pour rien, se disent à
+l'humain avec leurs heures ; l'agent ne les désactive qu'à sa demande.
+Le skill dit où l'humain retrouve lui-même ces tâches : la liste des
+tâches programmées de son compte, claude.ai/code/routines.
+
+À faire : rien ; le skill `socle-resume` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-23-c — Sans list_events, la coupure lue dans la transcription est le premier refus après le dernier appel du modèle
+
+Le skill `socle-resume` précise la lecture de la transcription locale
+quand la session n'a pas l'outil `list_events`. Plusieurs refus peuvent
+se suivre : la coupure est le premier enregistrement `quotaLimits` qui
+suit le dernier appel du modèle, et tout message tapé par l'humain
+ensuite compte, même suivi d'un autre refus. Un message tapé se
+reconnaît à `origin.kind`, qui vaut `human`. Une transcription qui n'a
+pas le tour d'avant, celle d'un conteneur remplacé, vaut absence de
+transcription : la conversation décide.
+
+À faire : rien ; le skill `socle-resume` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-23-b — Le démarrage ne dit plus débranchés des hooks git désignés par leur chemin absolu
+
+Le démarrage disait « hooks git non branchés » quand `core.hooksPath`
+désignait les hooks du socle par le chemin absolu de `.socle/git-hooks`
+à la racine du projet, comme on l'a vu après le redémarrage d'un
+conteneur cloud, alors qu'ils tiraient. Il les tient désormais pour
+branchés. Un autre chemin, ceux d'un autre worktree compris, reste un
+choix local : le démarrage le signale toujours, sans le récrire.
+
+À faire : rien.
+
 ## 2026-11-23-a — Sans list_events, la reprise lit dans la transcription locale si la session a été coupée par une limite
 
 Le skill `socle-resume` donne au réveil une source de plus quand la

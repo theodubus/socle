@@ -4066,6 +4066,10 @@ MESSAGES: dict[str, str] = {
         "the calibrated one",
     "Un point des autres modèles : médiane {mediane}, de {bas} à {haut} ({n} fenêtres sur {total}).":
         "A point of the other models: median {mediane}, from {bas} to {haut} ({n} windows out of {total}).",
+    "Pendant ces limites, l'humain a tapé {n} message(s), refusé(s) : sans `list_events`, la reprise ne les lit que "
+    "dans la transcription.":
+        "During these limits, the human typed {n} message(s), refused: without `list_events`, the resumption reads "
+        "them only in the transcript.",
     "Contrôle jusqu'à {instant} : un compactage s'y trouve, pas de prédiction.":
         "Check up to {instant}: a compaction lies within, no prediction.",
     "Contrôle hors échantillon, de {debut} à {fin} : {predits} points prédits ({detail} ; les autres modèles à "

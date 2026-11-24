@@ -141,14 +141,18 @@ def arbre_juge(racine: Path, entree: dict) -> Path:
 
 def installer_hooks_git(racine: Path) -> bool:
     """Pointe git vers `.socle/git-hooks` s'il ne pointe nulle part ailleurs.
-    Rend vrai si la configuration est en place."""
+    Rend vrai si la configuration est en place : ce chemin tel quel, ou un
+    chemin absolu qui se résout vers celui de la racine, comme après le
+    redémarrage d'un conteneur cloud (B-0252). Tout autre chemin, ceux d'un
+    autre worktree compris, est un choix local, qui reste."""
     if not (racine / config.GIT_HOOKS).is_dir() or not outils.est_depot(racine):
         return False
     actuel = outils.git(racine, "config", "--get", "core.hooksPath", check=False).strip()
     if actuel == config.GIT_HOOKS:
         return True
     if actuel:
-        return False  # un choix local existe : ne pas l'écraser
+        # un choix local existe : ne pas l'écraser
+        return Path(actuel).is_absolute() and Path(actuel).resolve() == (racine / config.GIT_HOOKS).resolve()
     outils.git_reussit(racine, "config", "core.hooksPath", config.GIT_HOOKS)
     return True
 

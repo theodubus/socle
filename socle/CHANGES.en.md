@@ -14,6 +14,70 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-23-f — The resumption covers the wait with a bounded time and the wake-up of interrupted work
+
+The `socle-resume` skill covers two cases its rule left. A turn that
+ends waiting for an event whose latest time the agent knows (a
+reminder, a background command, a CI) keeps its two wake-ups, pushed
+back after that time: if a limit refuses the event's turn, the wake-up
+makes it resume when the limit lifts, instead of leaving the session
+stopped until the human comes back. And on the wake-up of work the
+human interrupted, if the end-of-turn check refuses on failing checks,
+the agent says so in one line, without finishing that work or
+re-arming its wake-ups. On waking, the human's messages are read since
+the agent's last work, the one that provoked the refusal included, and
+the wake-up that fired, spent, is re-armed.
+
+To do: nothing; the `socle-resume` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-23-e — socle consumption counts the messages the human typed during a limit
+
+In its section on the five-hour windows closed by a refusal, `socle
+consumption` says how many messages the human typed between the
+refusal and the lifting of the limit: refused, they can then be read
+only in the transcript. A typed message is recognised, as in the
+`socle-resume` skill, by `origin.kind`, set to `human`.
+
+To do: nothing.
+
+## 2026-11-23-d — The resumption tells the human the wake-ups an archived session left
+
+The `socle-resume` skill reads the scheduled tasks at a session's first
+turn, as after a compaction. The resume wake-ups of an archived session
+of the same repository, which would fire for nothing, are told to the
+human with their times; the agent disables them only at their request.
+The skill says where the human finds these tasks themselves: the list
+of scheduled tasks of their account, claude.ai/code/routines.
+
+To do: nothing; the `socle-resume` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-23-c — Without list_events, the cut read in the transcript is the first refusal after the model's last call
+
+The `socle-resume` skill makes the reading of the local transcript more
+precise when the session lacks the `list_events` tool. Several refusals
+can follow one another: the cut is the first `quotaLimits` record that
+follows the model's last call, and every message the human typed after
+it counts, even if another refusal follows. A typed message is
+recognised by `origin.kind`, set to `human`. A transcript without the
+previous turn, that of a replaced container, counts as no transcript:
+the conversation decides.
+
+To do: nothing; the `socle-resume` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-23-b — The startup no longer calls git hooks unwired when their absolute path designates them
+
+The startup said “git hooks not wired” when `core.hooksPath`
+designated the socle's hooks by the absolute path of `.socle/git-hooks`
+at the project root, as seen after a cloud container restarted, even
+though they fired. It now holds them wired. Any other path,
+another worktree's included, remains a local choice: the startup still
+reports it, without rewriting it.
+
+To do: nothing.
+
 ## 2026-11-23-a — Without list_events, the resumption reads in the local transcript whether a limit cut the session off
 
 The `socle-resume` skill gives the wake-up one more source when the
