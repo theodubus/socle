@@ -105,7 +105,8 @@ must be read again. `socle new` puts in the index fingerprint.
 A rare procedure is read in its skill, which the agent loads on its
 description: `socle-request` (requests, a decision taken in session),
 `socle-private-memory` (the private memory), `socle-batch` (running a
-batch), `socle-review` (the review of a batch, before its delivery) and
+batch), `socle-handoff` (handing over to a new session, scheduled or by a
+prompt to copy), `socle-review` (the review of a batch, before its delivery) and
 `socle-resume` (in a cloud session, at every turn that acts: resuming
 after a usage limit), in `.claude/skills/`, laid by the installer and
 protected; another agent reads their `SKILL.md` at that path.
@@ -151,7 +152,8 @@ agent”), the agent merges its own itself, under the conditions of the
 `socle-batch` skill. One pull request per task, only if the human chose
 it (a fact of the memory says so). A new session that finds another
 session's pull request open asks the human to merge it first, or to let
-it continue on it. A prototype not meant to be merged is done on a
+it continue on it; started from a handoff prompt that its guard accepts,
+it continues on it, and that pull request becomes its own. A prototype not meant to be merged is done on a
 disposable branch, named with a prefix of `[branches] disposable` in the
 guardrails (`proto/` by default): the CI does not judge it on push.
 

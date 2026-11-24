@@ -172,7 +172,10 @@ Une entrée du backlog a l'une de quatre formes, que son préfixe dit
   une entrée de la mémoire récrite se vérifie aussi par ce qu'elle
   produit, que la case nomme : la demande, et la réponse de l'humain
   consignée au journal ; le fichier du relevé ; ce qu'en montre `socle
-  show` ou `socle roadmap` ; tout autre livrable garde son test ;
+  show` ou `socle roadmap` ; tout autre livrable garde son test ; une
+  tâche qui dit ce qu'un comportement doit devenir nomme, dès son
+  écriture, le test qui affirme le contraire, et la demande qui
+  autorise à le changer se pose aussitôt, avant le lancement du lot ;
 - un **lot**, `L-` : des tâches qui touchent les mêmes fichiers, le même
   garde-fou ou les mêmes tests, menées et relues ensemble ; son corps dit
   ce qui les réunit ; une tâche est dans un lot au plus ;

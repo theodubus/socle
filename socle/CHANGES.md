@@ -15,6 +15,64 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-24-d — Le skill des lots : le test contraire nommé avant le lot, et la tâche qu'une revue ouvre placée dans un lot
+
+Deux règles de `socle-batch`, « Former et annoncer » et la clôture d'un
+lot. Une tâche qui change un comportement nomme, dès son écriture, le
+test qui affirme le contraire, et la demande qui autorise à le changer
+se pose aussitôt, avant le lot : le lot ne s'arrête plus en son milieu
+sur ce conflit. Le format de la mémoire (`FORMAT.md`) le dit aussi, là
+où il dit ce qu'est une tâche. À la clôture d'un lot, une tâche que sa
+revue a ouverte rejoint le prochain lot dont la règle s'applique, sinon
+un lot neuf dans le jalon de son besoin : elle ne reste plus hors de
+tout lot.
+
+À faire : rien ; le skill `socle-batch` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-24-c — La session suivante se programme seule : la passation programmée, `socle handoff` et sa garde
+
+À la fin d'un lot, près d'une limite d'usage ou avant une attente de
+plus d'une heure, l'agent range, puis passe la main à une session neuve
+selon l'un de deux modes, que l'humain change en le disant. Par défaut,
+en session cloud de Claude Code, la session programmée : l'agent crée
+lui-même la session suivante et programme son prompt, tout de suite ou
+à la remise à zéro d'une fenêtre déjà à 15 % (cinq heures) ou à 75 %
+(semaine). La chaîne s'arrête, et le récap donne le prompt à copier,
+quand le lot suivant n'a aucune tâche prête, après deux lots menés sans
+message de l'humain, ou si la plateforme refuse de créer la session.
+L'autre mode, le prompt à copier, est celui d'avant : l'humain colle le
+prompt dans une session qu'il ouvre ; y passer annule ce qui est
+programmé. Le skill nouveau `socle-handoff` dit les modes, le moment,
+les bornes et les deux appels ; « Changer de session » de `socle-batch`
+s'y réduit au rangement, et un agent sans l'humain pour compacter change
+de session sans l'attendre.
+
+Le prompt vient d'une commande nouvelle : `python3 .socle/socle handoff
+prompt` refuse tant que la tête locale n'est pas poussée, nomme la
+branche distante, sa tête et l'heure, en UTC, puis donne le prompt de
+session neuve, le lot et ses tâches lus dans l'état ; avec
+`--scheduled`, il refuse aux deux premières bornes. Dans la session
+neuve, `python3 .socle/socle handoff check`, après `git fetch`, refuse,
+en disant pourquoi, si quelqu'un a poussé sur la branche depuis la
+passation, ou si une autre branche distante porte un commit daté
+d'après elle qui touche la mémoire sans être dans la tête passée : une
+autre session travaille sur le projet. Une pull request fusionnée par
+un commit de fusion pendant l'attente fait repartir la session de la
+branche par défaut ; fusionnée par squash, la garde refuse. L'auto-test
+(`socle selftest`) injecte un défaut pour chacun de ces refus. Une session
+partie d'un prompt de passation que sa garde accepte continue la pull
+request ouverte de sa branche, qui devient la sienne. Au réveil après
+une limite, `socle-resume` appelle la même garde, et au premier tour il
+dit à l'humain une passation qui attend.
+
+À faire : dire à l'humain, dans le récap de la mise à jour, qu'à la fin
+d'un lot l'agent programme désormais lui-même la session suivante, et
+qu'il garde le prompt à copier en le disant ; s'il le dit, écrire la
+consigne au chantier actif, et son texte exact au journal. Les skills
+`socle-batch`, `socle-handoff` et `socle-resume` et les instructions
+sont des copies protégées, dans la demande de l'installeur.
+
 ## 2026-11-24-b — L'auto-test ne fait plus échouer la CI au hasard sur un clone de son projet d'essai
 
 L'auto-test du socle joue ses cas sur plusieurs fils, chacun dans un

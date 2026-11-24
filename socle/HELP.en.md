@@ -270,6 +270,34 @@ engine later adds to its own is not refused in the project until you have
 copied it into the line, which the release note that adds it will say.
 Removing the line gives the merge back to the human.
 
+**Chaining sessions.** The agent runs only one batch per session: a
+conversation that grows costs more at each exchange. At the end of a
+batch, near a usage limit or before a long wait, it tidies up, then hands
+over to a new session, in one of two modes. By default, in a Claude Code
+cloud session, the **scheduled session**: it creates the next session
+itself, which appears at once in your list of sessions with its title and
+start time, and schedules its prompt; never on a five-hour window already
+at 15% nor on a week at 75%, where it waits for the reset. The chain
+stops without you, and the recap gives you the prompt to copy, when the
+next batch has no ready task (a decision is up to you, for example),
+after two batches run without a message from you, or if Claude Code
+refuses to create the session. The **prompt to copy**: the recap gives
+the prompt of the next session, which you paste into a session you open
+whenever you want; it is the mode of whoever has several accounts or
+wants to keep control. To change the mode, tell the agent (“switch to the
+prompt to copy”, “go back to the scheduled session”): it writes it in the
+active work, and switching to the prompt to copy cancels what is
+scheduled, giving you the link of each cancelled session. To stop a
+scheduled session without changing the mode: write "stop" in the session
+that scheduled it, or delete its task from the list of scheduled tasks
+of your account and archive the session. In both modes, the prompt the
+agent writes (`python3 .socle/socle handoff prompt`) starts with a guard
+(`python3 .socle/socle handoff check`): the new session does not work if
+someone pushed to its branch since, or if another session wrote the
+project's memory on another branch, and says so. Accepted, it continues
+the open pull request of its branch, which becomes its own: it merges it
+if the policy allows the agent to; otherwise, you merge it.
+
 A prototype not meant to be merged is done on a disposable branch, named
 `proto/…` (or with another prefix declared in `[branches] disposable` of the
 guardrails). The socle's CI does not judge it on push, and the dead

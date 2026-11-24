@@ -66,7 +66,8 @@ Once, before or with its first action:
    session are its own. Those of an archived session (`get_session`:
    `SESSION_STATUS_ARCHIVED`) are told to the human with their times, and
    are disabled (`update_trigger`, `enabled: false`) only at their
-   request. The turn that opens, on a message from the human as on a
+   request. A handoff that is waiting ("Handoff — <repository>") likewise.
+   The turn that opens, on a message from the human as on a
    wake-up, makes the wake-ups left its own; the one that fired, spent,
    is missing. The one to move gets, in a single call, this turn's time
    and the text of its batch (`update_trigger`, with
@@ -119,8 +120,9 @@ A message that starts with "Resume after limit":
      it, or it ended normally);
    - if the human wrote during the limit: answer their message, which comes
      first; if it says to stop, stop;
-   - if another session pushed to the branch since the agent's last
-     commit (`git fetch`, then compare);
+   - if the guard refuses: `git fetch`, then `python3 .socle/socle handoff
+     check --ref origin/<branch> --head <its head before the fetch> --since
+     <the cut, if known>`;
    - if the branch's pull request was merged or closed since.
 
    Then answer briefly why, with the project's closing lines,

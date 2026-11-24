@@ -4076,4 +4076,124 @@ MESSAGES: dict[str, str] = {
     "{defaut} par point), {releves} relevés.":
         "Out-of-sample check, from {debut} to {fin}: {predits} points predicted ({detail}; the other models at "
         "{defaut} per point), {releves} read.",
+    # La passation à une session neuve (`socle handoff`).
+    "aucun commit : rien à passer":
+        "no commit: nothing to hand off",
+    "des changements de fichiers suivis ne sont pas commités : les commiter et les pousser d'abord, la session neuve "
+    "ne repart que du dépôt":
+        "changes to tracked files are not committed: commit and push them first, the new session restarts from the "
+        "repository alone",
+    "la tête locale {sha} n'est pas poussée : pousser d'abord ; la garde nomme la tête distante, et rien ne se pousse "
+    "plus après la passation":
+        "the local head {sha} is not pushed: push first; the guard names the remote head, and nothing is pushed any "
+        "more after the handoff",
+    "`--chain` compte des lots : 0 ou plus":
+        "`--chain` counts batches: 0 or more",
+    "le prompt à copier porte la chaîne 0, que l'humain remet à zéro en le collant : `--chain` va avec `--scheduled`":
+        "the prompt to copy carries chain 0, which the human resets by pasting it: `--chain` goes with "
+        "`--scheduled`",
+    "chaîne : {n} lots menés sans message de l'humain, sa borne est {borne} : ne rien programmer, donner le prompt à "
+    "copier (sans `--scheduled`)":
+        "chain: {n} batches run without a message from the human, its bound is {borne}: schedule nothing, give the "
+        "prompt to copy (without `--scheduled`)",
+    "le prochain lot n'a aucune tâche prête dans l'état (une décision revient à l'humain, ou rien n'est prêt) : ne "
+    "rien programmer, donner le prompt à copier (sans `--scheduled`)":
+        "the next batch has no ready task in the state (a decision is up to the human, or nothing is ready): "
+        "schedule nothing, give the prompt to copy (without `--scheduled`)",
+    "aucun dans l'état, à former":
+        "none in the state, to be formed",
+    "rien":
+        "nothing",
+    "Passation de {session} — {depot}, à {heure}.":
+        "Handoff from {session} — {depot}, at {heure}.",
+    "Passation — {depot}, à {heure}.":
+        "Handoff — {depot}, at {heure}.",
+    "Avant tout : git fetch {distant}, puis":
+        "First: git fetch {distant}, then",
+    "S'il refuse, ne fais rien d'autre que le dire ; s'il accepte, place-toi où il le dit, et la pull request ouverte "
+    "de cette branche devient la tienne.":
+        "If it refuses, do nothing else but say so; if it accepts, move to where it says, and the open pull request "
+        "of this branch becomes yours.",
+    "Chaîne : {n} lot(s) mené(s) sans message de l'humain.":
+        "Chain: {n} batch(es) run without a message from the human.",
+    "Reprends le travail de ce dépôt, en session neuve.":
+        "Resume the work of this repository, in a new session.",
+    "Puis : lis l'état que le démarrage injecte, et ce qu'une ligne « !! coupé » y dit manquer ; puis le chantier "
+    "actif, et applique-les.":
+        "Then: read the state the startup injects, and what a \"!! cut\" line says is missing from it; then the "
+        "active work, and apply them.",
+    "Le lot : {lot}, selon le skill socle-batch.":
+        "The batch: {lot}, following the socle-batch skill.",
+    "Ce qui attend : {attente}.":
+        "What is waiting: {attente}.",
+    "--head {tete} est introuvable dans ce clone : `git fetch {distant}` d'abord ; sinon, la branche a été réécrite "
+    "depuis la passation":
+        "--head {tete} is not found in this clone: `git fetch {distant}` first; otherwise, the branch was rewritten "
+        "since the handoff",
+    "la tête de {ref} est {actuelle}, plus {tete} : quelqu'un a poussé sur {ref} depuis la passation":
+        "the head of {ref} is {actuelle}, no longer {tete}: someone pushed to {ref} since the handoff",
+    "{ref} n'existe plus, et {tete} n'est pas dans {defaut} : la pull request a été fusionnée par squash, ou la "
+    "branche supprimée":
+        "{ref} no longer exists, and {tete} is not in {defaut}: the pull request was squash-merged, or the branch "
+        "deleted",
+    "la branche par défaut":
+        "the default branch",
+    "{branche} porte {n} commit(s) daté(s) d'après {heure} qui touche(nt) {memoire}/ sans être dans {tete} (le "
+    "dernier : {sha} {sujet}) : une autre session travaille sur le projet":
+        "{branche} carries {n} commit(s) dated after {heure} that touch {memoire}/ without being in {tete} (the "
+        "latest: {sha} {sujet}): another session is working on the project",
+    "pas de passation : {raison}":
+        "no handoff: {raison}",
+    "`socle handoff check` : --ref et --head, que donne le prompt de passation":
+        "`socle handoff check`: --ref and --head, which the handoff prompt gives",
+    "--since {valeur} : une heure ISO 8601, en UTC (2026-11-24T10:05:00Z)":
+        "--since {valeur}: an ISO 8601 time, in UTC (2026-11-24T10:05:00Z)",
+    "passation refusée — {raison}":
+        "handoff refused — {raison}",
+    "passation acceptée : se placer sur {ref} ({sha})":
+        "handoff accepted: move to {ref} ({sha})",
+    "la passation à une session neuve : `prompt` écrit son prompt, avec sa garde ; `check`, dans la session neuve, "
+    "juge cette garde":
+        "the handoff to a new session: `prompt` writes its prompt, with its guard; `check`, in the new session, "
+        "judges that guard",
+    "avec `prompt` : les lots menés sans message de l'humain, le lot en cours compris (0 par défaut)":
+        "with `prompt`: the batches run without a message from the human, the current batch included (0 by "
+        "default)",
+    "avec `prompt` : le lien de la session qui part, que le moteur ne devine pas":
+        "with `prompt`: the link of the leaving session, which the engine does not guess",
+    "avec `prompt` : ce qui attend (un compte rendu, une CI, une demande) ; « rien » par défaut":
+        "with `prompt`: what is waiting (a report, a CI, a request); “nothing” by default",
+    "avec `prompt` : pour une session programmée, refusé à la borne de la chaîne ou sans tâche prête au prochain lot":
+        "with `prompt`: for a scheduled session, refused at the chain's bound or without a ready task in the next "
+        "batch",
+    "avec `check` : la branche distante de la passation":
+        "with `check`: the remote branch of the handoff",
+    "avec `check` : sa tête à la passation":
+        "with `check`: its head at the handoff",
+    "avec `check` : l'heure de la passation, en UTC (par défaut : la date de --head)":
+        "with `check`: the time of the handoff, in UTC (by default: the date of --head)",
+    "session neuve d'une passation alors que la session qui part a poussé après elle":
+        "new session of a handoff while the leaving session pushed after it",
+    "session neuve d'une passation alors qu'une autre session a écrit la mémoire sur une autre branche depuis":
+        "new session of a handoff while another session has written the memory on another branch since",
+    "une passation dont la pull request est fusionnée par un commit de fusion pendant l'attente, un robot ayant "
+    "poussé sans toucher la mémoire, passe sa garde, qui place la session neuve sur la branche par défaut":
+        "a handoff whose pull request is merged by a merge commit during the wait, a robot having pushed without "
+        "touching the memory, passes its guard, which places the new session on the default branch",
+    "prompt de passation collé après la fusion par squash de la pull request et la suppression de sa branche":
+        "handoff prompt pasted after the pull request was squash-merged and its branch deleted",
+    "session neuve d'une passation dont la pull request a été fusionnée par squash et sa branche supprimée, son "
+    "`git fetch` élaguant":
+        "new session of a handoff whose pull request was squash-merged and its branch deleted, its `git fetch` "
+        "pruning",
+    "prompt de passation alors que la tête locale n'est pas poussée":
+        "handoff prompt while the local head is not pushed",
+    "prompt de passation alors qu'un fichier suivi a un changement non commité":
+        "handoff prompt while a tracked file has an uncommitted change",
+    "session programmée après deux lots menés sans message de l'humain":
+        "scheduled session after two batches run without a message from the human",
+    "session programmée alors qu'aucune tâche n'est prête":
+        "scheduled session while no task is ready",
+    "une session programmée, une tâche prête et un lot mené sans message de l'humain, reçoit son prompt":
+        "a scheduled session, with a ready task and one batch run without a message from the human, gets its prompt",
 }

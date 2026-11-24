@@ -106,7 +106,8 @@ refusée ; il faut relire l'entrée. `socle new` pose l'empreinte de l'index.
 Une procédure rare se lit dans son skill, que l'agent charge sur sa
 description : `socle-request` (les demandes, une décision en séance),
 `socle-private-memory` (la mémoire privée), `socle-batch` (mener un lot),
-`socle-review` (la revue d'un lot, avant sa livraison) et `socle-resume`
+`socle-handoff` (passer la main à une session neuve, programmée ou par un
+prompt à copier), `socle-review` (la revue d'un lot, avant sa livraison) et `socle-resume`
 (en session cloud, à chaque tour qui agit : reprendre après une limite
 d'usage), dans `.claude/skills/`, posés par l'installeur et protégés ; un
 autre agent lit leur `SKILL.md` à ce chemin.
@@ -151,7 +152,8 @@ l'agent fusionne lui-même la sienne, aux conditions du skill
 `socle-batch`. Une pull request par tâche, seulement si l'humain l'a choisi (un
 fait de la mémoire le dit). Une session neuve qui trouve ouverte la pull
 request d'une autre demande à l'humain de la fusionner d'abord, ou de
-l'autoriser à y continuer. Un prototype qu'on ne compte pas fusionner se
+l'autoriser à y continuer ; partie d'un prompt de passation que sa garde
+accepte, elle y continue, et cette pull request devient la sienne. Un prototype qu'on ne compte pas fusionner se
 fait sur une branche jetable, nommée d'un préfixe de `[branches] disposable`
 des garde-fous (`proto/` par défaut) : la CI ne la juge pas aux envois.
 

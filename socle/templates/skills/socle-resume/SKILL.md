@@ -5,21 +5,19 @@ description: Faire reprendre seul l'agent qu'une limite d'usage coupe, par deux 
 
 # La reprise après une limite d'usage
 
-Une limite d'usage du compte, sur cinq heures ou sept jours, coupe la
-session ; l'agent ne reprend alors qu'au message suivant de l'humain. Deux
-réveils, messages que l'agent programme pour sa propre session, le font
-reprendre à la levée. Ils ne vivent que pendant un tour qui travaille ou
-une attente à heure bornée : un tour qui finit autrement que sur une
-limite ne relance jamais l'agent.
+Une limite d'usage, sur cinq heures ou sept jours, coupe la session
+jusqu'au message suivant de l'humain. Deux réveils, que l'agent programme
+pour sa propre session, le font reprendre à la levée, pendant un tour qui
+travaille ou une attente à heure bornée : un tour qui finit autrement que
+sur une limite ne relance jamais l'agent.
 
 ## Quand
 
 Dans une session cloud de Claude Code seulement, où existent `send_later`,
 `update_trigger`, `delete_trigger`, `list_triggers` et `get_session` ;
 ailleurs, ce skill ne s'applique pas. Une réponse en texte seul n'arme
-rien, et retire les réveils laissés par un tour d'avant ; un
-tour où l'agent lance une commande, écrit un fichier ou lance un
-sous-agent arme.
+rien, et retire les réveils laissés ; un tour qui lance une commande,
+écrit un fichier ou lance un sous-agent arme.
 Un sous-agent ne touche à aucun réveil : ni armer, ni déplacer, ni retirer.
 
 ## Les deux réveils
@@ -69,8 +67,9 @@ Une fois, avant ou avec sa première action :
    sont les siens. Ceux d'une session archivée (`get_session` :
    `SESSION_STATUS_ARCHIVED`) se disent à l'humain avec leurs heures, et
    ne se désactivent (`update_trigger`, `enabled: false`) qu'à sa
-   demande. Le tour qui s'ouvre, sur un message de l'humain comme sur un
-   réveil, fait siens les réveils laissés ; celui qui a tiré, éteint,
+   demande. Une passation qui attend (« Passation — <dépôt> ») de même.
+   Le tour qui s'ouvre, sur un message de l'humain comme sur un réveil,
+   fait siens les réveils laissés ; celui qui a tiré, éteint,
    manque. Celui qu'il faut déplacer reçoit, dans un seul appel,
    l'heure de ce tour et le texte de son lot (`update_trigger`, avec
    `run_once_at` et `prompt`) ; celui dont l'heure est bonne ne reçoit le
@@ -124,8 +123,9 @@ Un message qui commence par « Reprise après limite » :
      interrompu, ou il a fini normalement) ;
    - si l'humain a écrit pendant la limite : répondre à son message, qui
      prime ; s'il dit d'arrêter, s'arrêter ;
-   - si une autre session a poussé sur la branche depuis le dernier commit
-     de l'agent (`git fetch`, puis comparer) ;
+   - si la garde refuse : `git fetch`, puis `python3 .socle/socle handoff
+     check --ref origin/<branche> --head <sa tête avant le fetch> --since
+     <la coupure, si connue>` ;
    - si la pull request de la branche a été fusionnée ou fermée depuis.
 
    Répondre alors brièvement pourquoi, avec les lignes de fin du projet,

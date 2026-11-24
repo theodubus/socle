@@ -14,7 +14,9 @@ it orchestrates; it implements itself only a small task.
 1. The next batch is in the state (`next batch`). Otherwise, form it
    over the whole open backlog, without asking: the ready tasks its rule
    applies to, those of the next milestone and of high priority first; a
-   need to split gets its tasks first; the rest goes to the next batch
+   need to split gets its tasks first; a task that changes a behaviour
+   names the test that asserts the opposite, its request made at once,
+   before the batch; the rest goes to the next batch
    not in progress whose rule applies, and the recap states each
    placement. It is kept in the backlog: `python3 .socle/socle new batch
    "Batch …"`, then `after:` the previous batch and its tasks; its body
@@ -85,7 +87,9 @@ decision, a journal entry and an expected value are no longer rewritten.
    starts on the default branch; the recap says whether they succeeded.
 5. The active work and the journal are written before the merge, in the
    last commit of the pull request, with the batch's closure: its tasks
-   closed, it becomes `done`, then `python3 .socle/socle archive`; the closing recap pastes the output of `python3
+   closed, it becomes `done`, then `python3 .socle/socle archive`; a task
+   its review opens joins the next batch whose rule applies, otherwise a
+   new batch in its need's milestone; the closing recap pastes the output of `python3
    .socle/socle roadmap` in a code block. After the merge, the local
    branch restarts from the default branch and is pushed only with the
    first commit of the next batch: pushed alone, it would recreate the
@@ -93,10 +97,9 @@ decision, a journal entry and an expected value are no longer rewritten.
 
 ## Consumption
 
-- One batch per session: the orchestrating conversation, reread at each
-  step, stays short.
+- One batch per session: the orchestrating conversation stays short.
 - Costs are measured: the use of each window, before each launch and at
-  each report (in a cloud session, `list_events`, `rate_limit_event`). The closure notes in the journal the cost of each
+  each report (skill `socle-resume`). The closure notes in the journal the cost of each
   subagent, of the reviewer, of each request and of the tidying up: a
   batch's cost is estimated on these measures.
 - Only one subagent beyond 75% of the week. A subagent is launched if
@@ -109,7 +112,8 @@ decision, a journal entry and an expected value are no longer rewritten.
   batch if the human keeps the session, and before any wait
   that may exceed an hour without changing sessions. Near a limit, the
   threshold above prevails: change sessions. After the pause, it is too
-  late.
+  late. Without the human to compact, the agent does not wait for them: it
+  changes sessions.
 - A nearby limit changes the order of tasks, never the depth of the work
   (a task that needs more thought is started anyway) nor the model: the one the quality of the work calls for, never a
   lesser one to stay within a limit: a limit delays a batch, it does not
@@ -123,24 +127,16 @@ decision, a journal entry and an expected value are no longer rewritten.
 
 ## Changing sessions
 
-When the batch is delivered and the window does not allow running
-another one whole, or a wait of more than an hour is coming. Tidy up
-first, so that a new session restarts from the repository alone:
+At the end of the batch, near a limit or before a wait of more than an
+hour (the moment: the `socle-handoff` skill). Tidy up first:
 
-1. everything is pushed; a commit not reviewed leaves as a patch
-   (`git format-patch`) in a handover folder of the repository, removed
-   at its integration;
+1. the active work gives the batch and what is waiting, the journal the
+   handoff;
 2. the isolated copies, their branches and, in a cloud session, the
    wake-ups removed;
-3. the active work gives the batch and what is waiting.
+3. everything is pushed; a commit not reviewed leaves as a patch
+   (`git format-patch`) in a handover folder of the repository, removed
+   at its integration. Nothing is pushed afterwards.
 
-Then tell the human why sessions must change, with the prompt of the
-next one in a block to copy:
-
-```text
-Resume the work of this repository, in a new session.
-First: read the state the startup injects; a "!! cut" line says what is
-missing from it and where to read it. Then the active work, and apply them.
-The batch: <the state's batch, its tasks in order>, following the socle-batch skill.
-What is waiting: <a report, a CI, a request> | nothing.
-```
+Then the `socle-handoff` skill: depending on the mode, it schedules the
+next session, or gives the prompt of the next one to copy.

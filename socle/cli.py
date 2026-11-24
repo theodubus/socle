@@ -815,6 +815,39 @@ def cmd_archive(args) -> int:
     return archivage.archiver_backlog(_projet(args))
 
 
+def cmd_handoff(args) -> int:
+    """La passation à une session neuve (skill `socle-handoff`) : `prompt`
+    écrit son prompt, avec sa garde ; `check`, dans la session neuve, juge
+    cette garde. Le moteur ne programme rien : la plateforme de l'agent le
+    fait, ou l'humain colle le prompt."""
+    from socle import handoff as passation
+
+    projet = _projet(args)
+    if args.action == "prompt":
+        try:
+            print(passation.prompt(projet, args.chain, args.session, args.waiting, args.scheduled))
+        except passation.PassationRefusee as refus:
+            print(trad("pas de passation : {raison}", raison=refus), file=sys.stderr)
+            return 1
+        return 0
+    if not args.ref or not args.head:
+        print(trad("`socle handoff check` : --ref et --head, que donne le prompt de passation"), file=sys.stderr)
+        return 2
+    try:
+        depuis = passation.heure(args.since) if args.since else None
+    except ValueError:
+        print(trad("--since {valeur} : une heure ISO 8601, en UTC (2026-11-24T10:05:00Z)", valeur=args.since),
+              file=sys.stderr)
+        return 2
+    verdict = passation.juger(projet, args.ref, args.head, depuis)
+    for raison in verdict.refus:
+        print(trad("passation refusée — {raison}", raison=raison), file=sys.stderr)
+    if verdict.refus:
+        return 1
+    print(trad("passation acceptée : se placer sur {ref} ({sha})", ref=verdict.place, sha=verdict.sha[:10]))
+    return 0
+
+
 def cmd_checks(args) -> int:
     from socle import context as contexte
 
@@ -830,7 +863,7 @@ GROUPES = {
     a_traduire("pour l'humain"): ["help", "install", "init", "state", "roadmap", "consumption", "answer", "decision",
                                   "approve", "reviewed", "private install"],
     a_traduire("pour l'agent"): ["new", "show", "url", "review", "verify", "check", "next-id", "private",
-                                 "mutation-verdict", "mutation-run", "renumber", "archive", "checks"],
+                                 "mutation-verdict", "mutation-run", "renumber", "archive", "handoff", "checks"],
     a_traduire("internes (hooks, CI, moteur)"): ["hook", "ci", "selftest", "fingerprint"],
 }
 
@@ -1128,6 +1161,24 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
 
     s = sp.add_parser("archive", help=trad("range les entrées closes du backlog à l'écart des ouvertes"))
     s.set_defaults(f=cmd_archive)
+
+    s = sp.add_parser("handoff", help=trad("la passation à une session neuve : `prompt` écrit son prompt, avec sa "
+                                           "garde ; `check`, dans la session neuve, juge cette garde"))
+    s.add_argument("action", choices=("prompt", "check"))
+    s.add_argument("--chain", type=int, default=0, help=trad("avec `prompt` : les lots menés sans message de "
+                                                             "l'humain, le lot en cours compris (0 par défaut)"))
+    s.add_argument("--session", metavar="URL", help=trad("avec `prompt` : le lien de la session qui part, que le "
+                                                         "moteur ne devine pas"))
+    s.add_argument("--waiting", metavar="TEXTE", help=trad("avec `prompt` : ce qui attend (un compte rendu, une "
+                                                           "CI, une demande) ; « rien » par défaut"))
+    s.add_argument("--scheduled", action="store_true", help=trad("avec `prompt` : pour une session programmée, "
+                                                                 "refusé à la borne de la chaîne ou sans tâche "
+                                                                 "prête au prochain lot"))
+    s.add_argument("--ref", help=trad("avec `check` : la branche distante de la passation"))
+    s.add_argument("--head", metavar="SHA", help=trad("avec `check` : sa tête à la passation"))
+    s.add_argument("--since", metavar="HEURE", help=trad("avec `check` : l'heure de la passation, en UTC (par "
+                                                         "défaut : la date de --head)"))
+    s.set_defaults(f=cmd_handoff)
 
 
     s = sp.add_parser("checks", help=trad("liste des contrôles"))

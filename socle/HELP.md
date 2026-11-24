@@ -280,6 +280,36 @@ projet tant que vous ne l'avez pas recopié dans la ligne, ce que dira la
 note de version qui l'ajoute. Retirer la ligne rend la fusion à
 l'humain.
 
+**L'enchaînement des sessions.** L'agent ne mène qu'un lot par session :
+une conversation qui s'allonge coûte plus cher à chaque échange. À la fin
+d'un lot, près d'une limite d'usage ou avant une longue attente, il range,
+puis passe la main à une session neuve, selon l'un de deux modes. Par
+défaut, en session cloud de Claude Code, la **session programmée** : il
+crée lui-même la session suivante, qui paraît aussitôt dans votre liste
+de sessions avec son titre et son heure de départ, et programme son
+prompt ; jamais sur une fenêtre de cinq heures déjà à 15 % ni sur une
+semaine à 75 %, où elle attend la remise à zéro. La chaîne s'arrête sans
+vous, et le récap vous donne le prompt à copier, quand le lot suivant
+n'a aucune tâche prête (une décision vous revient, par exemple), après
+deux lots menés sans message de votre part, ou si Claude Code refuse de
+créer la session. Le **prompt à copier** : le récap donne le prompt de la
+session suivante, que vous collez dans une session que vous ouvrez quand
+vous voulez ; c'est le mode de qui a plusieurs comptes ou veut garder la
+main. Pour changer de mode, dites-le à l'agent (« passe au prompt à
+copier », « reprends la session programmée ») : il l'écrit au chantier
+actif, et passer au prompt à copier annule ce qui est programmé, en vous
+donnant le lien de chaque session annulée. Pour arrêter une session
+programmée sans changer de mode : écrire « arrête » dans la session qui
+l'a programmée, ou supprimer sa tâche de la liste des tâches programmées
+de votre compte et archiver la session. Dans les deux modes, le prompt
+que l'agent écrit (`python3 .socle/socle handoff prompt`) commence par
+une garde (`python3 .socle/socle handoff check`) : la session neuve ne
+travaille pas si quelqu'un a poussé sur sa branche depuis, ou si une
+autre session a écrit la mémoire du projet sur une autre branche, et le
+dit. Acceptée, elle continue la pull request ouverte de sa branche, qui
+devient la sienne : elle la fusionne si la politique le permet à
+l'agent ; sinon, vous la fusionnez.
+
 Un prototype qu'on ne compte pas fusionner se fait sur une branche
 jetable, nommée `proto/…` (ou d'un autre préfixe déclaré dans
 `[branches] disposable` des garde-fous). La CI du socle ne la juge pas aux

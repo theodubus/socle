@@ -15,7 +15,9 @@ tâche.
 1. Le prochain lot est dans l'état (`prochain lot`). Sinon, le former
    sur tout le backlog ouvert, sans le demander : les tâches prêtes
    auxquelles sa règle s'applique, du prochain jalon et de priorité haute
-   d'abord ; un besoin à découper reçoit d'abord ses tâches ; le reste va
+   d'abord ; un besoin à découper reçoit d'abord ses tâches ; une tâche
+   qui change un comportement nomme le test qui affirme le contraire, sa
+   demande posée aussitôt, avant le lot ; le reste va
    au prochain lot pas en cours dont la règle s'applique, et le récap dit
    chaque placement. Il se garde au backlog : `python3 .socle/socle new
    batch "Lot …"`, puis `après :` le lot d'avant et ses tâches ; son corps
@@ -85,7 +87,9 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
    fusion lance sur la branche par défaut ; le récap dit s'ils ont réussi.
 5. Le chantier actif et le journal s'écrivent avant la fusion, dans le
    dernier commit de la pull request, avec la clôture du lot : ses tâches
-   closes, il passe `fait`, puis `python3 .socle/socle archive` ; le récap
+   closes, il passe `fait`, puis `python3 .socle/socle archive` ; une tâche
+   que sa revue ouvre rejoint le prochain lot dont la règle s'applique,
+   sinon un lot neuf dans le jalon de son besoin ; le récap
    de la clôture colle la sortie de `python3 .socle/socle roadmap` dans un
    bloc de code. Après la fusion, la branche locale repart de la branche
    par défaut et ne se pousse qu'avec le premier commit du lot suivant :
@@ -93,11 +97,9 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
 
 ## La consommation
 
-- Un lot par session : la conversation qui orchestre, relue à chaque
-  pas, reste courte.
+- Un lot par session : la conversation qui orchestre reste courte.
 - Les coûts se mesurent : l'utilisation de chaque fenêtre, avant chaque
-  lancement et à chaque compte rendu (en session cloud, `list_events`,
-  `rate_limit_event`). La clôture note au journal le coût de chaque
+  lancement et à chaque compte rendu (skill `socle-resume`). La clôture note au journal le coût de chaque
   sous-agent, du relecteur, de chaque demande et du rangement : celui
   d'un lot s'estime sur ces mesures.
 - Un seul sous-agent au-delà de 75 % de la semaine. Un sous-agent se
@@ -109,7 +111,8 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
   journal), puis le demande à l'humain (`/compact`), à la fin d'un lot
   si l'humain garde la session, et avant toute attente qui peut passer
   l'heure sans changer de session. Près d'une limite, le seuil plus haut
-  prime : changer de session. Après la pause, il est trop tard.
+  prime : changer de session. Après la pause, il est trop tard. Sans
+  l'humain pour compacter, l'agent ne l'attend pas : il change de session.
 - Une limite proche change l'ordre des tâches, jamais la profondeur du
   travail (une tâche qui demande plus de réflexion se commence quand
   même) ni le modèle : celui que demande la qualité du travail, jamais
@@ -125,24 +128,16 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
 
 ## Changer de session
 
-Quand le lot est livré sans fenêtre pour un autre, ou avant une attente
-de plus d'une heure. Ranger d'abord, qu'une session neuve reparte du dépôt
-seul :
+À la fin du lot, près d'une limite ou avant une attente de plus d'une
+heure (le moment : skill `socle-handoff`). Ranger d'abord :
 
-1. tout est poussé ; un commit non relu part en correctif
-   (`git format-patch`) dans un dossier de passation du dépôt, retiré à son
-   intégration ;
+1. le chantier actif dit le lot et ce qui attend, le journal la
+   passation ;
 2. les copies isolées, leurs branches et, en session cloud, les réveils
    retirés ;
-3. le chantier actif dit le lot et ce qui attend.
+3. tout est poussé ; un commit non relu part en correctif
+   (`git format-patch`) dans un dossier de passation du dépôt, retiré à son
+   intégration. Plus rien ne se pousse ensuite.
 
-Puis dire à l'humain pourquoi, avec le prompt de la suivante dans un bloc
-à copier :
-
-```text
-Reprends le travail de ce dépôt, en session neuve.
-Avant tout : lis l'état que le démarrage injecte, et ce qu'une ligne
-« !! coupé » y dit manquer ; puis le chantier actif, et applique-les.
-Le lot : <le lot de l'état, ses tâches dans l'ordre>, selon le skill socle-batch.
-Ce qui attend : <un compte rendu, une CI, une demande> | rien.
-```
+Puis le skill `socle-handoff` : selon le mode, il programme la session
+suivante, ou donne le prompt de la suivante à copier.
