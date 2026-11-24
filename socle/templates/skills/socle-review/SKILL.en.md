@@ -82,14 +82,17 @@ The reviewer classifies them; the agent checks each classification.
   breaks what worked, loses data, or bypasses a guardrail within its
   threat model): fixed in the batch, before the push.
 - **For the backlog**: a finding that does not block goes to the
-  backlog if it can occur in the project's normal use, or if nothing
-  catches its effect afterwards: one task per finding if its fix is
-  clear, a need otherwise, or one entry for several of the same kind.
-- **Dismissed**: an exotic finding (a rare gesture, a form one only
-  writes to get around something, a case never reproduced) whose effect
-  is caught, by a check, the CI or an error the agent sees at once; and
-  an unfounded finding. One line of the recap says why each is
-  dismissed.
+  backlog only if it matters and has been seen in real use (a session,
+  a CI run, a message from the human shows it), or if its effect would
+  be irreversible (lost data, a push to the default branch, a deletion):
+  one task per finding if its fix is clear, a need otherwise, or one
+  entry for several of the same kind.
+- **Dismissed**: any other finding, including a case imagined and
+  never seen, a slight nuisance the agent handles itself (what a check,
+  the CI or an error it sees at once catches), a bypass outside the
+  threat model, and an unfounded finding. When in doubt, it is
+  dismissed. One line of the recap says why each is dismissed; it
+  comes back if seen in real use.
 
 Post nothing on GitHub: the human reads the recap, not the review. The
 recap says it in one line: `Review: <b> blocking, fixed; <n> to the

@@ -165,11 +165,10 @@ class Atelier:
             "GIT_AUTHOR_NAME": "autotest", "GIT_AUTHOR_EMAIL": "autotest@socle",
             "GIT_COMMITTER_NAME": "autotest", "GIT_COMMITTER_EMAIL": "autotest@socle",
             "GIT_CONFIG_NOSYSTEM": "1", "HOME": str(self.dossier),
-            # Les cas clonent l'origine en parallèle, en local : une
-            # maintenance automatique de git, lancée en arrière-plan par un
-            # commit ou une réception, y range les objets pendant qu'un clone
-            # les copie (« failed to copy file », « hardlink different from
-            # source »). Elle n'a rien à faire dans des dépôts jetables.
+            # La maintenance automatique de git, lancée en arrière-plan par
+            # un commit ou une réception, n'a rien à faire dans des dépôts
+            # jetables. Ce qui faisait échouer les clones parallèles de
+            # l'origine était la quarantaine d'un push : voir `clone`.
             "GIT_CONFIG_COUNT": "3",
             "GIT_CONFIG_KEY_0": "gc.auto", "GIT_CONFIG_VALUE_0": "0",
             "GIT_CONFIG_KEY_1": "maintenance.auto", "GIT_CONFIG_VALUE_1": "false",
@@ -240,11 +239,16 @@ class Atelier:
         p.write_text(p.read_text().rstrip("\n") + "\n" + bloc)
 
     def clone(self, origine: Path | None = None, config: tuple[str, ...] = ()) -> Path:
+        """Un clone jetable de l'origine, par le protocole (`--no-local`) :
+        d'autres cas y poussent en même temps, et un clone local, qui lit
+        le dossier des objets, y rencontre la quarantaine d'un push en
+        cours (« hardlink different from source », « failed to copy
+        file » ; B-0341)."""
         with self._verrou:
             self.n += 1
             c = self.dossier / f"cas-{self.n:02d}"
         options = [x for cle in config for x in ("-c", cle)]
-        self.git(self.dossier, "clone", "-q", *options, str(origine or self.origine), str(c))
+        self.git(self.dossier, "clone", "-q", "--no-local", *options, str(origine or self.origine), str(c))
         self.git(c, "config", "core.hooksPath", ".socle/git-hooks")
         self.git(c, "checkout", "-q", "-b", "travail")
         return c
@@ -259,7 +263,8 @@ class Atelier:
         o = self.dossier / f"origine-{mode}"
         if o.is_dir():
             return o
-        self.git(self.dossier, "clone", "-q", *(x for cle in self.filtre() for x in ("-c", cle)), str(self.origine), str(o))
+        self.git(self.dossier, "clone", "-q", "--no-local", *(x for cle in self.filtre() for x in ("-c", cle)),
+                 str(self.origine), str(o))
         pol = o / ".socle/policy.toml"
         relecture = 'review = "lots"\n' if mode == "compagnon" else ""
         pol.write_text(pol.read_text() + f'\n[private]\nmode = "{mode}"\n' + relecture)
@@ -299,7 +304,7 @@ class Atelier:
         o = self.origine_privee(mode)
         c = self.clone(o, self.filtre() if mode == "chiffre" and cle else ())
         if mode == "compagnon" and compagnon:
-            self.git(c, "clone", "-q", str(self.dossier / "prive-origine"), "memory/private")
+            self.git(c, "clone", "-q", "--no-local", str(self.dossier / "prive-origine"), "memory/private")
         return c
 
     def commit(self, c: Path, message: str, verifier: bool = False, env=None):
@@ -3584,6 +3589,17 @@ def _temoins() -> list[tuple[str, Callable]]:
 # --------------------------------------------------------------------------
 
 
+def jouer(a: Atelier, tache) -> tuple:
+    """Un cas ou un témoin dans son clone : (sa sortie, None), ou (None,
+    l'exception). Le clone est dans le `try` : un clone qui échoue n'échoue
+    que son cas, pas l'auto-test entier (B-0341)."""
+    nom, f, cas = tache
+    try:
+        return (f or cas.fonction)(a, a.clone()), None
+    except Exception as e:
+        return None, e
+
+
 def executer(projet=None, bavard: bool = False) -> Rapport:
     import socle
 
@@ -3601,17 +3617,8 @@ def executer(projet=None, bavard: bool = False) -> Rapport:
         # 76 à moins de 40 secondes sur quatre cœurs (L6). Le rapport garde
         # l'ordre des cas.
         taches = [(nom, f, None) for nom, f in _temoins()] + [(None, None, cas) for cas in _cas()]
-
-        def jouer(tache):
-            nom, f, cas = tache
-            c = a.clone()
-            try:
-                return (f or cas.fonction)(a, c), None
-            except Exception as e:
-                return None, e
-
         with ThreadPoolExecutor(max_workers=FILS) as fils:
-            resultats = list(fils.map(jouer, taches))
+            resultats = list(fils.map(lambda tache: jouer(a, tache), taches))
         for (nom, f, cas), (sortie, panne) in zip(taches, resultats):
             if cas is None:
                 ident = "autotest.temoins"

@@ -240,11 +240,12 @@ review --short`, qui refuse un lot qui touche un garde-fou) ; celui de
 tout autre lot reçoit le dossier complet (`python3 .socle/socle review`).
 L'agent corrige dans le lot les constats bloquants (un critère contredit,
 une régression, une perte de données, un contournement dans le modèle de
-menace) ; il envoie au backlog, où vous les voyez, ceux qui peuvent se
-produire dans l'usage normal du projet ou dont rien ne rattrape ensuite
-l'effet, en tâche si leur correction est claire, en besoin sinon, et
-écarte les autres, exotiques et rattrapés, ou infondés. Son
-récap dit combien, et pourquoi chacun est écarté.
+menace) ; il envoie au backlog, où vous les voyez, ceux qui sont
+importants et ont été vus en usage réel, ou dont l'effet serait
+irréversible, en tâche si leur correction est claire, en besoin sinon,
+et écarte tous les autres, dont un cas imaginé et jamais vu, une légère
+gêne ou un constat infondé ; un écarté revient s'il se voit. Son récap dit combien, et
+pourquoi chacun est écarté.
 
 **L'historique des revues.** L'agent garde, dans l'entrée de chaque lot,
 ses passes de revue et leurs bloquants : une session neuve qui reprend le

@@ -14,6 +14,37 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-24-b — The self-test no longer fails the CI at random on a clone of its test project
+
+The socle's self-test plays its cases on several threads, each in a
+clone of the same test project, where other cases push at the same
+time. The clone was local: it read the origin's object directory, where
+the quarantine of a push in progress changes under it, and failed a few
+times in a hundred (“hardlink different from source”, “failed to copy
+file”). And it was outside the case's guard: its failure brought down
+the whole self-test, and the CI job with it, with nothing wrong in the
+project. Clones now go through git's protocol (`--no-local`), which does
+not read that directory, and a clone that fails only fails its case.
+
+To do: nothing.
+
+## 2026-11-24-a — The review sends to the backlog only what matters and was seen, or is irreversible
+
+The sorting of a review's findings changes. Blocking findings are still
+fixed in the batch. Another finding no longer goes to the backlog
+because it can occur in the project's normal use: it goes there only if
+it matters and has been seen in real use (a session, a CI run, a message
+from the human shows it), or if its effect would be irreversible (lost
+data, a push to the default branch, a deletion). Any other is dismissed,
+including a case the reviewer imagines without having seen it and a
+slight nuisance the agent handles itself; when in
+doubt, it is dismissed, and it comes back if it is seen. The reviewer's
+instructions, the `socle-review` skill, the instructions and the guide
+say so: a review stops filling the backlog with edge cases.
+
+To do: nothing; the `socle-review` skill and the instructions are
+protected copies, in the installer's request.
+
 ## 2026-11-23-f — The resumption covers the wait with a bounded time and the wake-up of interrupted work
 
 The `socle-resume` skill covers two cases its rule left. A turn that

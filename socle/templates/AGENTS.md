@@ -138,9 +138,8 @@ sans contexte, contre le « Fait quand » de ses tâches (le skill
 spécification avant son code ; un besoin qui pose ou change un garde-fou,
 son modèle de menace (sa section `## Modèle de menace`, ou la décision
 qu'il cite). Seuls les constats bloquants se corrigent dans le lot ; un
-autre va au backlog s'il peut se produire dans l'usage normal du projet,
-ou si rien ne rattrape ensuite son effet ; sinon, exotique et rattrapé,
-ou infondé, il s'écarte. Au backlog, il devient une tâche si sa
+autre va au backlog s'il est important et vu en usage réel, ou d'effet
+irréversible ; sinon il s'écarte, et revient s'il est vu. Au backlog, il devient une tâche si sa
 correction est claire, un besoin sinon. Le récap dit les constats, et
 pourquoi chaque écarté l'est.
 

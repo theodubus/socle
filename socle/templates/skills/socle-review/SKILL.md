@@ -82,15 +82,18 @@ Le relecteur les classe ; l'agent vérifie chaque classement.
 - **Bloquant** (il contredit un critère coché ou une décision citée, fait
   régresser ce qui marchait, perd des données, ou contourne un garde-fou
   dans son modèle de menace) : corrigé dans le lot, avant le push.
-- **Pour le backlog** : un constat qui ne bloque pas va au backlog s'il
-  peut se produire dans l'usage normal du projet, ou si rien ne rattrape
-  ensuite son effet : une tâche par constat si sa correction est claire,
+- **Pour le backlog** : un constat qui ne bloque pas va au backlog
+  seulement s'il est important et a été vu en usage réel (une session,
+  une CI, un message de l'humain le montre), ou si son effet serait
+  irréversible (une perte de données, un push sur la branche par défaut,
+  une suppression) : une tâche par constat si sa correction est claire,
   un besoin sinon, ou une entrée pour plusieurs de même nature.
-- **Écarté** : un constat exotique (un geste rare, une forme qu'on
-  n'écrit que pour contourner, un cas jamais reproduit) dont l'effet est
-  rattrapé, par un contrôle, la CI ou une erreur que l'agent voit
-  aussitôt ; et un constat infondé. Une ligne du récap dit pourquoi
-  chacun est écarté.
+- **Écarté** : tout autre constat, dont un cas imaginé et jamais vu,
+  une légère gêne que l'agent règle lui-même (ce que rattrape un
+  contrôle, la CI ou une erreur qu'il voit aussitôt), un contournement
+  hors du modèle de menace, et un constat infondé. En cas de doute, il
+  s'écarte. Une ligne du récap dit pourquoi
+  chacun est écarté ; il revient s'il est vu en usage réel.
 
 Ne rien poster sur GitHub : l'humain lit le récap, pas la revue. Le récap
 le dit en une ligne : `Revue : <b> bloquants, corrigés ; <n> au backlog

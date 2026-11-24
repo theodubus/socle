@@ -233,10 +233,12 @@ files touched, against its tasks' criteria (`python3 .socle/socle review
 of any other batch gets the full brief (`python3 .socle/socle review`).
 The agent fixes the blocking findings in the batch (a contradicted
 criterion, a regression, a data loss, a bypass within the threat model);
-it sends to the backlog, where you see them, those that can occur in the
-project's normal use or whose effect nothing catches afterwards, as a
-task if its fix is clear, as a need otherwise, and dismisses the others, exotic and caught, or unfounded. Its recap says how
-many, and why each is dismissed.
+it sends to the backlog, where you see them, those that matter and have
+been seen in real use, or whose effect would be irreversible, as a task
+if its fix is clear, as a need otherwise, and dismisses all the others,
+including a case imagined and never seen, a slight nuisance or an
+unfounded finding; a dismissed one comes back if it is seen. Its recap says how many, and why each is
+dismissed.
 
 **The review history.** The agent keeps, in each batch's entry, its
 review passes and their blockers: a new session that resumes the batch

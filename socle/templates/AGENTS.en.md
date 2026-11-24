@@ -137,9 +137,9 @@ when” of its tasks (the `socle-review` skill). A need whose design is
 not settled writes its specification before its code; a need that adds
 or changes a guardrail, its threat model (its `## Threat model` section,
 or the decision it cites). Only blocking findings are fixed in the batch;
-another goes to the backlog if it can occur in the project's normal use,
-or if nothing catches its effect afterwards; otherwise, exotic and
-caught, or unfounded, it is dismissed. In the backlog, it becomes a task
+another goes to the backlog if it matters and was seen in real use, or
+if its effect would be irreversible; otherwise it is dismissed, and comes
+back if seen. In the backlog, it becomes a task
 if its fix is clear, a need otherwise. The recap gives the findings, and
 why each dismissed one is.
 
