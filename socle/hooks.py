@@ -2813,7 +2813,14 @@ def exiger_recap(projet: config.Projet, entree: dict, avertissement: str | None 
         return dire(None)
     manque = humain.recap_manquant(projet, message) if a_agi else []
     morts, sans_lien = liens.problemes(projet, message)
-    if not (manque or morts or sans_lien):
+    # Une branche que « Pour toi » donne à supprimer et que l'origine n'a
+    # plus : l'humain n'a rien à supprimer (B-0311, D-0178).
+    absentes, non_verifiees = liens.branches_absentes(projet, message)
+    if non_verifiees:
+        avertissement = "\n\n".join(x for x in (avertissement, trad(
+            "branche(s) à supprimer non vérifiée(s), l'origine ne répondant pas : {branches}",
+            branches=", ".join(f"`{b}`" for b in non_verifiees))) if x)
+    if not (manque or morts or sans_lien or absentes):
         if a_agi:
             retenir()
         return dire(None)
@@ -2822,7 +2829,8 @@ def exiger_recap(projet: config.Projet, entree: dict, avertissement: str | None 
             retenir()
         defauts = ([trad("sans {manque}", manque=trad(" ni ").join(manque))] if manque else []) + (
             [trad("{n} lien(s) que l'humain ne pourra pas suivre", n=len(morts) + len(sans_lien))]
-            if morts or sans_lien else [])
+            if morts or sans_lien else []) + (
+            [trad("{n} branche(s) à supprimer que l'origine n'a plus", n=len(absentes))] if absentes else [])
         return dire({"systemMessage": trad("fin d'intervention {defauts}, malgré un rappel",
                                            defauts=", ".join(defauts))})
     raisons = []
@@ -2856,8 +2864,14 @@ def exiger_recap(projet: config.Projet, entree: dict, avertissement: str | None 
             "Ton dernier message cite {demandes}, en attente de l'humain, sans son lien : il doit pouvoir l'ouvrir "
             "d'un clic. Ajoute la sortie de `socle url {ids}`.",
             demandes=", ".join(sans_lien), ids=" ".join(sans_lien)))
-    tracer_refus(racine, "Stop", ",".join(x for x, oui in (("recap", manque), ("liens", morts), ("lien-de-demande", sans_lien))
-                                         if oui), entree.get("session_id", ""))
+    if absentes:
+        raisons.append(trad(
+            "Ton dernier message donne à l'humain, dans « Pour toi », à supprimer {branches}, que l'origine n'a plus "
+            "(`git ls-remote --heads origin`) : il n'a rien à supprimer. Retire-les de « Pour toi » ; les branches à "
+            "supprimer, vérifiées sur l'origine, sont celles que donne l'état (`python3 .socle/socle state`).",
+            branches=", ".join(f"`{b}`" for b in absentes)))
+    tracer_refus(racine, "Stop", ",".join(x for x, oui in (("recap", manque), ("liens", morts), ("lien-de-demande", sans_lien),
+                                                          ("branches", absentes)) if oui), entree.get("session_id", ""))
     return dire({"decision": "block", "reason": "\n\n".join(raisons)})
 
 

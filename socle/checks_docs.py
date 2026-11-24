@@ -196,13 +196,32 @@ def correspondance(ctx, r):
             r.avertir("docs.correspondance", trad("{n} fichier(s) de code sans doc associée, dispensé : « "
                                                   "{dispenses} »", n=len(code), dispenses=dispenses[code[0]]))
             continue
+        egares = _dispenses_hors_bloc(ctx, restants)
         r.erreur(
             "docs.correspondance",
             trad("code changé sans sa doc associée : {code} → mettre à jour {docs}, ou motiver une dispense par un "
                  "trailer de commit `Dispense-doc: <raison>`, dans le commit qui change ce code",
                  code=", ".join(restants[:5]) + (" …" if len(restants) > 5 else ""),
-                 docs=trad(" ou ").join(ligne.get("docs", []))),
+                 docs=trad(" ou ").join(ligne.get("docs", [])))
+            + (trad(" ; le commit {sha} porte une ligne `Dispense-doc:` hors du dernier paragraphe de son message, "
+                    "où les trailers ne se lisent pas : la mettre dans ce dernier paragraphe, avec les autres "
+                    "trailers (les lignes d'attribution comprises)", sha=", ".join(egares)) if egares else ""),
         )
+
+
+def _dispenses_hors_bloc(ctx, fichiers: list[str]) -> list[str]:
+    """Les SHA courts des commits de la plage qui changent l'un de ces
+    fichiers et portent `Dispense-doc:` hors du dernier paragraphe de leur
+    message : une dispense que l'agent croit avoir écrite, et qui ne vaut
+    pas (B-0275)."""
+    res = []
+    for c in ctx.commits:
+        if not langue.trailers_hors_bloc(c["message"]).get("dispense-doc"):
+            continue
+        parent = c["parents"][0] if c["parents"] else None
+        if set(fichiers) & set(outils.fichiers_changes(ctx.racine, parent, c["sha"])):
+            res.append(c["sha"][:7])
+    return res
 
 
 def paragraphes(texte: str):

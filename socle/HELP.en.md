@@ -75,7 +75,11 @@ Right after the installation:
 3. Commit and push.
 4. Protect the default branch on GitHub (repository settings, "Rules"):
    require the CI "Socle — verify, checks, self-test" before any merge.
-   Without it, a red CI does not prevent merging. The code owners' review
+   Without it, a red CI does not prevent merging. In the same ruleset, tick
+   "Block force pushes" and "Restrict deletions": outside the agent's hook,
+   only GitHub refuses a force push to the default branch, or its
+   deletion; the state says whether they are refused, and otherwise asks
+   you to have them refused. The code owners' review
    is added only if another human reviews: the author of a pull request
    cannot approve it, and the agent opens its own under the human's name.
    In the general settings, tick "Automatically delete head branches": a
@@ -85,7 +89,9 @@ Right after the installation:
    moved for a week without being merged, to deliver or to delete. If such a
    branch alone keeps a commit the memory cites, the state first gives the
    command that tags it: without it, CI would no longer find it. It only
-   proposes a branch the origin still has; when the origin does not answer,
+   proposes a branch the origin still has, and reports a branch as kept by
+   the working branch only if the origin still has the latter; when the
+   origin does not answer,
    it says its list comes from the last fetch, and that `git fetch --prune
    origin` refreshes it.
 5. Open the agent in the project. It reads the state at start-up, then

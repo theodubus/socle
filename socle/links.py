@@ -252,6 +252,51 @@ def url_morte(racine, depot: str, url: str) -> str | None:
     return trad("version « {version} » inconnue ou pas poussée", version=parties[1][:12])
 
 
+# Une ligne de « Pour toi » qui donne une branche à supprimer : elle dit le
+# geste et le mot, en français ou en anglais ; une branche locale n'est pas
+# sur l'origine (B-0311, D-0178).
+SUPPRIMER = re.compile(r"(?i)supprim|\bdelet")
+BRANCHE = re.compile(r"(?i)\bbranch")
+LOCALE = re.compile(r"(?i)\blocal(?:e|es)?\b")
+
+
+def branches_a_supprimer_citees(projet: config.Projet, message: str) -> list[str]:
+    """Les branches que la partie « Pour toi » du message donne à supprimer :
+    sur chaque ligne qui dit supprimer et branche, hors d'une branche
+    locale, les noms entre accents graves que git accepte pour une branche,
+    `origin/` retiré."""
+    from socle import human as humain
+
+    res: list[str] = []
+    for ligne in humain.pour_toi(projet, message).splitlines():
+        if not (SUPPRIMER.search(ligne) and BRANCHE.search(ligne)) or LOCALE.search(ligne):
+            continue
+        for m in CODE.finditer(ligne):
+            nom = m["code"].strip().removeprefix("origin/")
+            if nom and nom not in res and outils.git(projet.racine, "check-ref-format", "--branch", nom,
+                                                     check=False).strip() == nom:
+                res.append(nom)
+    return res
+
+
+def branches_absentes(projet: config.Projet, message: str) -> tuple[list[str], list[str]]:
+    """(celles que l'origine n'a plus, celles qu'elle n'a pas pu confirmer)
+    parmi les branches que « Pour toi » donne à supprimer : l'agent les
+    reprend parfois d'une entrée du journal ou d'un récap d'avant, sans les
+    vérifier, et l'humain n'a rien à supprimer (B-0311, D-0178). L'origine
+    n'est interrogée (`git ls-remote`, comme l'état, ADR-0090) que si le
+    message en donne une ; sans sa réponse, aucune n'est dite absente."""
+    from socle import human as humain
+
+    citees = branches_a_supprimer_citees(projet, message)
+    if not citees:
+        return [], []
+    vivantes = humain.branches_de_l_origine(projet)
+    if vivantes is None:
+        return [], citees
+    return [b for b in citees if b not in vivantes], []
+
+
 def problemes(projet: config.Projet, message: str) -> tuple[list[str], list[str]]:
     """(liens morts, demandes sans lien) du message de l'agent."""
     racine = projet.racine

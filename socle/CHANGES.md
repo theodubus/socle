@@ -15,6 +15,80 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-24-i — La fin de tour refuse un récap qui donne à supprimer une branche que l'origine n'a plus
+
+L'agent donnait parfois à l'humain, dans « Pour toi », une branche à
+supprimer que l'origine n'avait déjà plus : reprise d'une entrée du
+journal, d'un récap d'avant ou d'une référence que le clone garde faute
+d'élagage, sans la vérifier ; l'état, lui, les vérifie déjà. Le hook de
+fin de tour lit désormais, dans la partie « Pour toi » du dernier
+message, hors de ses blocs de code, chaque ligne qui parle de supprimer
+une branche (sauf une branche locale), et cherche sur l'origine chaque
+nom de branche écrit entre accents graves (`git ls-remote --heads
+origin`, seulement s'il y en a un). Une branche absente fait refuser la
+fin de tour, une fois : la retirer de « Pour toi ». Une origine qui ne
+répond pas ne refuse rien ; un avertissement le dit.
+
+À faire : rien.
+
+## 2026-11-24-h — Une dispense écrite hors du dernier paragraphe du message : le refus nomme le commit et dit où l'écrire
+
+Les trailers ne se lisent que dans le dernier paragraphe du message de
+commit, comme git les lit. Une ligne `Dispense-doc:` ou `Dispense-test:`
+écrite dans un paragraphe à part, avant celui des lignes d'attribution
+(`Co-Authored-By: …`), ne dispense donc rien ; le refus de
+`docs.correspondance` ou de `tests.code-teste` redemandait jusqu'ici le
+trailer, sans dire qu'il l'avait vu. Il nomme maintenant le commit qui
+porte la ligne (son SHA court ; au hook `commit-msg`, le commit en cours)
+et dit de la mettre dans le dernier paragraphe, avec les autres
+trailers, les lignes d'attribution comprises.
+
+À faire : rien.
+
+## 2026-11-24-g — L'état dit si la branche par défaut refuse le push forcé et sa suppression, et le guide les fait refuser
+
+Hors du hook de l'agent, seul l'ensemble de règles de GitHub refuse un
+push forcé sur la branche par défaut, ou sa suppression ; l'état n'y
+lisait que la CI exigée et la revue des propriétaires du code. La ligne
+« branche » de `socle state` dit désormais le push forcé et la
+suppression refusés, permis ou inconnus (une protection classique dont
+le détail ne se lit pas) ; permis, l'un ou l'autre devient une action de
+l'humain, avec les cases à cocher dans l'ensemble de règles, « Block
+force pushes » et « Restrict deletions », et le lien de la page. L'étape
+4 du guide les fait cocher avec la CI exigée.
+
+À faire : rien ; l'état demande à l'humain, s'il y a lieu, de faire
+refuser le push forcé et la suppression de la branche par défaut.
+
+## 2026-11-24-f — La ligne « CI » de l'état dit l'exécution du commit de tête, pas la dernière de la branche
+
+La ligne « CI » de `socle state` disait la dernière exécution de la
+branche, par son nom : après la fusion de la pull request, la branche
+repartie de la branche par défaut y lisait encore l'ancienne tête, et une
+boucle qui attendait `success sur <sha court>` du commit de tête
+n'aboutissait jamais. Elle cherche désormais les exécutions du commit de
+tête lui-même (`gh run list --commit`), et dit qu'il n'en a aucune
+plutôt que celle d'un autre. Quand il en a plusieurs, la CI et la
+distribution après une fusion par exemple, elle dit la pire : un échec,
+puis ce qui tourne encore, puis le succès ; `success` ne se lit qu'une
+fois toutes réussies.
+
+À faire : rien.
+
+## 2026-11-24-e — L'état ne dit plus une branche gardée par une branche de travail que l'origine n'a plus
+
+L'état disait d'une branche distante qu'elle était « déjà contenue dans
+`origin/<travail>`, la branche de travail poussée : son contenu ne se
+perd pas », même quand l'origine n'avait plus cette branche de travail,
+fusionnée par écrasement puis supprimée, ou supprimée sans fusion : la
+référence du dernier fetch la gardait. Supprimer l'autre branche en
+aurait perdu les commits. L'état demande déjà à l'origine les branches
+qu'elle a encore ; il ne dit plus une branche gardée que si l'origine a
+encore la branche de travail qui la garde. Inactive, la branche que plus
+rien ne garde se signale comme les autres, à examiner.
+
+À faire : rien.
+
 ## 2026-11-24-d — Le skill des lots : le test contraire nommé avant le lot, et la tâche qu'une revue ouvre placée dans un lot
 
 Deux règles de `socle-batch`, « Former et annoncer » et la clôture d'un

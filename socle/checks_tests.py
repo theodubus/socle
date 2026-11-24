@@ -509,6 +509,11 @@ def code_teste(ctx, r):
             nommes.append(tests_lecture.sans_commentaires(texte, cfg))
     nommes = "\n".join(nommes)
     dispenses = dispenses_tests(ctx, r)
+    # Les dispenses écrites hors du dernier paragraphe du message, qui ne
+    # valent pas : le refus nomme leur commit, pour dire où les écrire ; au
+    # hook commit-msg, c'est le commit en cours.
+    egarees = [(trad("en cours") if c["sha"] == "en-cours" else c["sha"][:7], v) for c in ctx.commits_du_projet
+               for v in langue.trailers_hors_bloc(c["message"]).get("dispense-test", [])]
     # Un fichier renommé se compare à son ancien nom : ses fonctions n'y sont
     # pas nouvelles.
     ancien_nom = {neuf: ancien for ancien, neuf in ctx.renommes.items()}
@@ -530,6 +535,13 @@ def code_teste(ctx, r):
                       if f.nom in avant else
                       trad("fonction `{nom}` ajoutée, qu'aucun test ne nomme : écrire le test qui l'appelle, ou la "
                            "dispenser par un trailer de commit `Dispense-test: {nom} — <raison>`", nom=f.nom))
+            shas = list(dict.fromkeys(sha for sha, v in egarees
+                                      if re.search(rf"(?<![\w]){re.escape(f.nom)}(?![\w])", v)))
+            if shas:
+                texte_ += trad(" ; le commit {sha} porte une ligne `Dispense-test:` qui la nomme, hors du dernier "
+                               "paragraphe de son message, où les trailers ne se lisent pas : la mettre dans ce "
+                               "dernier paragraphe, avec les autres trailers (les lignes d'attribution comprises)",
+                               sha=", ".join(shas))
             r.erreur("tests.code-teste", texte_, chemin, f.ligne)
 
 

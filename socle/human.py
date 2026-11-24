@@ -248,8 +248,7 @@ def a_faire(projet: config.Projet) -> list[Element]:
     page = f"{depot}/branches" if depot else ""
     a_supprimer = branches_a_supprimer(projet)
     contenues = branches_contenues_dans_le_travail(projet)
-    dites = {b for b, _ in contenues}
-    inactives = [i for i in branches_inactives(projet) if i[0] not in dites]
+    inactives = branches_inactives(projet)
     # Calculées sur le dernier fetch : l'origine dit celles qu'elle a encore,
     # interrogée seulement s'il y en a une à dire (B-0193).
     vivantes = (branches_de_l_origine(projet)
@@ -261,7 +260,15 @@ def a_faire(projet: config.Projet) -> list[Element]:
                     "rafraîchit)")
     else:
         a_supprimer = [b for b in a_supprimer if b in vivantes]
-        contenues = [(b, p) for b, p in contenues if b in vivantes]
+        # Une branche de travail que l'origine n'a plus ne garde rien :
+        # supprimée sans fusion, la branche qu'elle contenait perdrait ses
+        # commits (B-0292).
+        contenues = [(b, p) for b, p in contenues if b in vivantes and p.removeprefix("origin/") in vivantes]
+    # Une branche dite gardée ne se dit pas inactive en plus ; une que la
+    # branche de travail disparue ne garde plus peut l'être.
+    dites = {b for b, _ in contenues}
+    inactives = [i for i in inactives if i[0] not in dites]
+    if vivantes is not None:
         disparues = [i for i in inactives if i[0] not in vivantes]
         inactives = [i for i in inactives if i[0] in vivantes]
     for b in a_supprimer:
@@ -398,6 +405,20 @@ def _hors_des_blocs_de_code(message: str) -> str:
         elif re.fullmatch(rf"[ \t]*{re.escape(ouvert[0])}{{{len(ouvert)},}}[ \t]*", ligne):
             ouvert = None
     return "\n".join(gardees)
+
+
+def pour_toi(projet: config.Projet, message: str) -> str:
+    """La partie « Pour toi » du message, hors de ses blocs de code : de sa
+    ligne à celle de « Ensuite », ou à la fin du message ; vide sans elle."""
+    defaut = MARQUEURS_RECAP_EN if langue.du_projet(projet) == "en" else MARQUEURS_RECAP
+    motifs = list(projet.pol("human", "recap_markers", defaut=defaut).values())
+    texte = _hors_des_blocs_de_code(message)
+    debut = re.search(motifs[0], texte) if motifs else None
+    if not debut:
+        return ""
+    reste = texte[debut.start():]
+    fin = re.search(motifs[1], reste) if len(motifs) > 1 else None
+    return reste[:fin.start()] if fin and fin.start() > 0 else reste
 
 
 def recap_manquant(projet: config.Projet, message: str) -> list[str]:

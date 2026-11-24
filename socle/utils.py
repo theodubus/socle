@@ -499,6 +499,22 @@ def trailers(message: str) -> dict[str, list[str]]:
     return res
 
 
+def trailers_hors_bloc(message: str) -> dict[str, list[str]]:
+    """Les lignes en forme de trailer écrites hors du dernier paragraphe d'un
+    message de commit, où ni git ni `trailers` ne les lisent (un paragraphe à
+    part, avant celui des lignes d'attribution), clés en minuscules. La ligne
+    de sujet n'en est jamais une ; un message d'un seul paragraphe n'a pas de
+    bloc final, toutes ses autres lignes sont hors bloc."""
+    paragraphes = [p for p in re.split(r"\n\s*\n", message.strip()) if p.strip()]
+    res: dict[str, list[str]] = {}
+    for i, p in enumerate(paragraphes[:-1] if len(paragraphes) >= 2 else paragraphes):
+        for ligne in p.splitlines()[1 if i == 0 else 0:]:
+            m = TRAILER.match(ligne)
+            if m:
+                res.setdefault(m.group(1).lower(), []).append(m.group(2))
+    return res
+
+
 @lru_cache(maxsize=512)
 def motif_vers_regex(motif: str) -> re.Pattern:
     """Motif de chemin à la gitignore, relatif à la racine : `*` ne traverse pas

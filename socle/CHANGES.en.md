@@ -14,6 +14,79 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-24-i — The end of turn refuses a recap that gives a branch to delete that the origin no longer has
+
+The agent sometimes gave the human, under "For you", a branch to delete
+that the origin no longer had: taken from a journal entry, an earlier
+recap or a reference the clone keeps for want of pruning, without
+checking it; the state already checks them. The end-of-turn hook now
+reads, in the "For you" part of the last message, outside its code
+blocks, each line that speaks of deleting a branch (except a local
+branch), and looks up on the origin each branch name written between
+backticks (`git ls-remote --heads origin`, only if there is one). A
+missing branch makes the end of turn refused, once: remove it from "For
+you". An origin that does not answer refuses nothing; a warning says
+so.
+
+To do: nothing.
+
+## 2026-11-24-h — A waiver written outside the last paragraph of the message: the refusal names the commit and says where to write it
+
+Trailers are only read in the last paragraph of the commit message, as
+git reads them. A `Waive-doc:` or `Waive-test:` line written in a
+paragraph of its own, before the one with the attribution lines
+(`Co-Authored-By: …`), therefore waives nothing; the refusal of
+`docs.correspondance` or `tests.code-teste` used to ask for the trailer
+again, without saying it had seen it. It now names the commit that
+carries the line (its short SHA; at the `commit-msg` hook, the commit in
+progress) and says to put it in the last paragraph, with the other
+trailers, attribution lines included.
+
+To do: nothing.
+
+## 2026-11-24-g — The state says whether the default branch refuses force pushes and its deletion, and the guide has them refused
+
+Outside the agent's hook, only GitHub's ruleset refuses a force push to
+the default branch, or its deletion; the state only read the required CI
+and the code owners' review there. The "branch" line of `socle state`
+now says whether force pushes and deletion are refused, allowed or
+unknown (a classic protection whose details cannot be read); allowed,
+either one becomes an action for the human, with the boxes to tick in
+the ruleset, "Block force pushes" and "Restrict deletions", and the link
+to the page. Step 4 of the guide has them ticked along with the
+required CI.
+
+To do: nothing; the state asks the human, where needed, to have force
+pushes and the deletion of the default branch refused.
+
+## 2026-11-24-f — The state's "CI" line gives the run of the head commit, not the branch's last one
+
+The "CI" line of `socle state` gave the branch's last run, by its name:
+after the pull request was merged, the branch restarted from the default
+branch still read the old head there, and a loop waiting for `success on
+<short sha>` of the head commit never ended. It now looks for the runs
+of the head commit itself (`gh run list --commit`), and says it has none
+rather than giving another commit's. When it has several, the CI and the
+distribution after a merge for instance, it gives the worst: a failure,
+then what is still running, then success; `success` only reads once all
+have succeeded.
+
+To do: nothing.
+
+## 2026-11-24-e — The state no longer reports a branch as kept by a working branch the origin no longer has
+
+The state said of a remote branch that it was "already contained in
+`origin/<work>`, the pushed working branch: its content is not lost",
+even when the origin no longer had that working branch, squash-merged
+then deleted, or deleted without a merge: the reference from the last
+fetch kept it. Deleting the other branch would have lost its commits.
+The state already asks the origin which branches it still has; it now
+reports a branch as kept only if the origin still has the working branch
+that keeps it. Inactive, the branch that nothing keeps any more is
+reported like the others, to be examined.
+
+To do: nothing.
+
 ## 2026-11-24-d — The batch skill: the opposing test named before the batch, and the task a review opens placed in a batch
 
 Two rules of `socle-batch`, "Forming and announcing" and the closing of a

@@ -246,6 +246,16 @@ MESSAGES: dict[str, str] = {
         "without {manque}",
     "{n} lien(s) que l'humain ne pourra pas suivre":
         "{n} link(s) the human will not be able to follow",
+    "branche(s) à supprimer non vérifiée(s), l'origine ne répondant pas : {branches}":
+        "branch(es) to delete not checked, the origin not answering: {branches}",
+    "{n} branche(s) à supprimer que l'origine n'a plus":
+        "{n} branch(es) to delete that the origin no longer has",
+    "Ton dernier message donne à l'humain, dans « Pour toi », à supprimer {branches}, que l'origine n'a plus "
+    "(`git ls-remote --heads origin`) : il n'a rien à supprimer. Retire-les de « Pour toi » ; les branches à "
+    "supprimer, vérifiées sur l'origine, sont celles que donne l'état (`python3 .socle/socle state`).":
+        "Your last message gives the human, under “For you”, {branches} to delete, which the origin no longer has "
+        "(`git ls-remote --heads origin`): there is nothing to delete. Remove them from “For you”; the branches to "
+        "delete, checked against the origin, are those the state gives (`python3 .socle/socle state`).",
     "fin d'intervention {defauts}, malgré un rappel":
         "end of intervention {defauts}, despite a reminder",
     "(le chantier actif n'a pas de section « Prochaines étapes »)":
@@ -899,6 +909,11 @@ MESSAGES: dict[str, str] = {
     "commit `Dispense-doc: <raison>`, dans le commit qui change ce code":
         "code changed without its associated doc: {code} → update {docs}, or give a reason for a waiver with a "
         "commit trailer `Waive-doc: <reason>`, in the commit that changes this code",
+    " ; le commit {sha} porte une ligne `Dispense-doc:` hors du dernier paragraphe de son message, où les trailers "
+    "ne se lisent pas : la mettre dans ce dernier paragraphe, avec les autres trailers (les lignes d'attribution "
+    "comprises)":
+        "; commit {sha} has a `Waive-doc:` line outside the last paragraph of its message, where trailers are not "
+        "read: put it in that last paragraph, with the other trailers (attribution lines included)",
     " ou ":
         " or ",
     "paragraphe identique aussi présent en {autres} : garder une source, renvoyer vers elle":
@@ -1281,6 +1296,11 @@ MESSAGES: dict[str, str] = {
     "de commit `Dispense-test: {nom} — <raison>`":
         "function `{nom}` added, which no test names: write the test that calls it, or waive it with a commit "
         "trailer `Waive-test: {nom} — <reason>`",
+    " ; le commit {sha} porte une ligne `Dispense-test:` qui la nomme, hors du dernier paragraphe de son message, "
+    "où les trailers ne se lisent pas : la mettre dans ce dernier paragraphe, avec les autres trailers (les lignes "
+    "d'attribution comprises)":
+        "; commit {sha} has a `Waive-test:` line naming it, outside the last paragraph of its message, where "
+        "trailers are not read: put it in that last paragraph, with the other trailers (attribution lines included)",
     "capacité absente : {absent} — remplacement : {remplacement}":
         "capability absent: {absent} — replacement: {remplacement}",
     "non déclarée":
@@ -1643,8 +1663,10 @@ MESSAGES: dict[str, str] = {
         "not available locally (gh missing) — see the pull request",
     "non disponible (gh ne répond pas)":
         "not available (gh does not answer)",
-    "non disponible (gh non authentifié ou aucune exécution)":
-        "not available (gh not authenticated or no run)",
+    "non disponible (gh non authentifié, ou en erreur)":
+        "not available (gh not authenticated, or in error)",
+    "aucune exécution sur {sha}, le commit de tête":
+        "no run on {sha}, the head commit",
     "non disponible (réponse illisible)":
         "not available (unreadable answer)",
     "{ci} : {etat} sur {sha}":
@@ -1675,10 +1697,30 @@ MESSAGES: dict[str, str] = {
         "requests : unreadable ({erreur})",
     "protéger la branche `{nom}` : y exiger la CI « {ci} » avant toute fusion":
         "protect the branch `{nom}`: require the CI “{ci}” there before any merge",
-    "branche  : {nom} — CI du socle exigée avant fusion{revue}":
-        "branch   : {nom} — socle CI required before merging{revue}",
-    "branche  : {nom} — CI du socle NON exigée : une CI rouge n'empêche pas de fusionner":
-        "branch   : {nom} — socle CI NOT required: a red CI does not prevent merging",
+    "branche  : {nom} — CI du socle exigée avant fusion{revue}{gardes}":
+        "branch   : {nom} — socle CI required before merging{revue}{gardes}",
+    "branche  : {nom} — CI du socle NON exigée : une CI rouge n'empêche pas de fusionner{gardes}":
+        "branch   : {nom} — socle CI NOT required: a red CI does not prevent merging{gardes}",
+    " ; push forcé refusé":
+        "; force push refused",
+    " ; push forcé PERMIS":
+        "; force push ALLOWED",
+    " ; push forcé : inconnu":
+        "; force push: unknown",
+    " ; suppression refusée":
+        "; deletion refused",
+    " ; suppression PERMISE":
+        "; deletion ALLOWED",
+    " ; suppression : inconnue":
+        "; deletion: unknown",
+    "« {case} »":
+        "“{case}”",
+    "le push forcé":
+        "force pushes",
+    "la suppression":
+        "deletion",
+    "faire refuser par GitHub {quoi} de la branche `{nom}` : cocher {cases} dans son ensemble de règles ; hors du hook de l'agent, rien d'autre ne les refuse":
+        "have GitHub refuse {quoi} of the branch `{nom}`: tick {cases} in its ruleset; outside the agent's hook, nothing else refuses them",
     "branche  : protection inconnue ({detail})":
         "branch   : protection unknown ({detail})",
     "ce qui revient à l'humain : incalculable ({erreur})":
@@ -3028,6 +3070,8 @@ MESSAGES: dict[str, str] = {
         "permalink to a file absent from the pushed version",
     "demande en attente citée sans son lien":
         "pending request cited without its link",
+    "branche donnée à supprimer à l'humain que l'origine n'a plus":
+        "branch given to the human to delete that the origin no longer has",
     "fonction publique ajoutée sans test qui la nomme":
         "public function added without a test that names it",
     "fonction modifiée sans test, couverte seulement par une dispense déjà poussée":
@@ -3223,6 +3267,8 @@ MESSAGES: dict[str, str] = {
         "end-of-turn hook",
     "des liens que l'humain peut suivre passent le hook de fin de tour":
         "links the human can follow pass the end-of-turn hook",
+    "une branche donnée à supprimer que l'origine a encore passe le hook de fin de tour":
+        "a branch given to delete that the origin still has passes the end-of-turn hook",
     "une fonction ajoutée avec le test qui la nomme passe la CI":
         "a function added with the test that names it passes the CI",
     "deux pushes sains de suite passent le hook avant push, qui juge la plage de chacun":

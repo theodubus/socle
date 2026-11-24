@@ -299,6 +299,16 @@ def trailers(message: str) -> dict[str, list[str]]:
     return res
 
 
+def trailers_hors_bloc(message: str) -> dict[str, list[str]]:
+    """Les lignes en forme de trailer écrites hors du dernier paragraphe d'un
+    message de commit, que `trailers` ne lit pas, sous leurs noms internes :
+    ce qu'un refus qui attend une dispense nomme, pour dire où l'écrire."""
+    res: dict[str, list[str]] = {}
+    for k, v in outils.trailers_hors_bloc(message).items():
+        res.setdefault(trailer(k), []).extend(v)
+    return res
+
+
 def meta(lg: str, type_: str | None = None, **champs: str) -> str:
     """Une ligne de métadonnées dans la langue du projet :
     `meta("en", "F", statut="mesure", preuve="file:x")` →

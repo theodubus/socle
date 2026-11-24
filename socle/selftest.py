@@ -2550,6 +2550,14 @@ def _cas() -> list[Cas]:
         pousser(a, c)
         return etage_stop(a, c, "J'ai posé la demande D-0001.\n\nPour toi : répondre à D-0001.\nEnsuite : rien.")
 
+    @defaut("branche-a-supprimer-absente", "branche donnée à supprimer à l'humain que l'origine n'a plus", "agent",
+            "branche absente")
+    def _(a, c):
+        # B-0311 (D-0178) : reprise d'une entrée du journal sans la vérifier.
+        maj_memoire(c, "Travail du tour.")
+        return etage_stop(a, c, f"Lot clos.\n\nPour toi : supprimer la branche distante `fantome-{c.name}`, déjà "
+                          "fusionnée.\nEnsuite : rien.")
+
     @defaut("fonction-sans-test", "fonction publique ajoutée sans test qui la nomme", "ci", "tests.code-teste")
     def _(a, c):
         ajouter(c, "calc.py", "\n\ndef triple(x):\n    return 3 * x\n")
@@ -3427,6 +3435,13 @@ def _temoins() -> list[tuple[str, Callable]]:
         return etage_stop(a, c, "J'ai posé la demande D-0001, sur le module `calc.py` et sa doc `docs/calc.md`.\n\n"
                           + r.stdout + "\nPour toi : répondre à D-0001.\nEnsuite : rien.")
 
+    @temoin("une branche donnée à supprimer que l'origine a encore passe le hook de fin de tour")
+    def _(a, c):
+        a.git(c, "push", "-q", "--no-verify", "origin", f"HEAD:refs/heads/morceau-{c.name}")
+        maj_memoire(c, "Travail du tour.")
+        return etage_stop(a, c, f"Lot clos.\n\nPour toi : supprimer la branche distante `morceau-{c.name}`, déjà "
+                          "fusionnée.\nEnsuite : rien.")
+
     @temoin("une fonction ajoutée avec le test qui la nomme passe la CI")
     def _(a, c):
         ajouter(c, "calc.py", "\n\ndef triple(x):\n    return 3 * x\n")
@@ -3856,6 +3871,7 @@ RAISONS_AGENT = {
     "suite": "pas Ensuite :",
     "liens": "liens que l'humain ne pourra pas suivre",
     "lien de demande": "sans son lien",
+    "branche absente": "que l'origine n'a plus",
     "signal indisponible": "mémoire privée : INDISPONIBLE",
     "fuite": "fuite de la mémoire privée",
     "relecture": "relecture avant publication",
