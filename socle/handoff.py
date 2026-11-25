@@ -102,8 +102,8 @@ def lot_de_l_etat(racine: Path) -> tuple[str | None, list[str], bool]:
     return o.lot.id, [i for i, _ in reste], any(a in A_REPRENDRE for _, a in reste)
 
 
-def prompt(projet: config.Projet, chaine: int = 0, session: str | None = None, attente: str | None = None,
-           programmee: bool = False, maintenant: datetime | None = None) -> str:
+def prompt(projet: config.Projet, chaine: int = 0, attente: str | None = None, programmee: bool = False,
+           maintenant: datetime | None = None) -> str:
     """Le prompt de la session neuve, précédé de la passation et de sa garde.
     `chaine` : les lots menés sans message de l'humain, le lot en cours
     compris ; le prompt à copier porte 0. `programmee` : pour une session
@@ -133,8 +133,7 @@ def prompt(projet: config.Projet, chaine: int = 0, session: str | None = None, a
         texte_lot = trad("aucun dans l'état, à former")
     attente = (attente or "").strip().rstrip(".") or trad("rien")
     return "\n".join([
-        trad("Passation de {session} — {depot}, à {heure}.", session=session, depot=depot, heure=quand) if session
-        else trad("Passation — {depot}, à {heure}.", depot=depot, heure=quand),
+        trad("Passation — {depot}, à {heure}.", depot=depot, heure=quand),
         trad("Avant tout : git fetch {distant}, puis", distant=DISTANT),
         f"python3 .socle/socle handoff check --ref {ref} --head {tete} --since {quand}",
         trad("S'il refuse, ne fais rien d'autre que le dire ; s'il accepte, place-toi où il le dit, et la pull "

@@ -1188,6 +1188,17 @@ def _cas() -> list[Cas]:
         maj_memoire(c, "Correctif de `double` sur les chaînes.")
         return etage_ci(a, c, "fix: double accepte une chaîne")
 
+    @defaut("correctif-egare-sans-test", "correctif dont le `Corrige:` est hors du dernier paragraphe du message, "
+            "sans test de régression", "ci", "tests.regression")
+    def _(a, c):
+        # Une ligne que git ne lit pas comme un trailer, dans un paragraphe à
+        # part, avant les lignes d'attribution : le commit reste un correctif
+        # (B-0348, ADR-0109).
+        remplacer(c, "calc.py", "return FACTEUR * x", "return FACTEUR * int(x)")
+        remplacer(c, "docs/calc.md", "la\nconstante", "la constante\nentière")
+        maj_memoire(c, "Correctif de `double` sur les chaînes.")
+        return etage_ci(a, c, MESSAGE_CORRIGE_EGARE)
+
     @defaut("regression-qui-ne-se-charge-pas", "test de régression qui échoue sur le parent faute de s'y charger",
             "ci", "tests.regression")
     def _(a, c):
@@ -2679,6 +2690,11 @@ class TestChaine(unittest.TestCase):
         self.assertEqual(double("3"), 6)
 '''
 
+# Un correctif dont le `Corrige:` est dans un paragraphe à part, avant les
+# lignes d'attribution, où git ne lit pas de trailer (B-0348).
+MESSAGE_CORRIGE_EGARE = ("Double accepte une chaîne\n\nLe calcul convertit son entrée.\n\nCorrige: B-0001\n\n"
+                         "Signed-off-by: Essai <essai@example.org>")
+
 
 def _temoins() -> list[tuple[str, Callable]]:
     t = []
@@ -2703,6 +2719,15 @@ def _temoins() -> list[tuple[str, Callable]]:
         (c / "tests/test_regression.py").write_text(TEST_REGRESSION)
         maj_memoire(c, "Correctif de `double` sur les chaînes, avec son test.")
         return etage_ci(a, c, "fix: double accepte une chaîne")
+
+    @temoin("un correctif dont le `Corrige:` est hors du dernier paragraphe du message, avec son test de "
+            "régression, passe la CI")
+    def _(a, c):
+        remplacer(c, "calc.py", "return FACTEUR * x", "return FACTEUR * int(x)")
+        remplacer(c, "docs/calc.md", "la\nconstante", "la constante\nentière")
+        (c / "tests/test_regression.py").write_text(TEST_REGRESSION)
+        maj_memoire(c, "Correctif de `double` sur les chaînes, avec son test.")
+        return etage_ci(a, c, MESSAGE_CORRIGE_EGARE)
 
     @temoin("sous l'adoption, une référence morte d'avant l'installation, déplacée d'une ligne, reste en "
             "avertissement au commit (B-0180)")

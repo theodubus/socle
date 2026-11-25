@@ -825,7 +825,7 @@ def cmd_handoff(args) -> int:
     projet = _projet(args)
     if args.action == "prompt":
         try:
-            print(passation.prompt(projet, args.chain, args.session, args.waiting, args.scheduled))
+            print(passation.prompt(projet, args.chain, args.waiting, args.scheduled))
         except passation.PassationRefusee as refus:
             print(trad("pas de passation : {raison}", raison=refus), file=sys.stderr)
             return 1
@@ -1167,8 +1167,6 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("action", choices=("prompt", "check"))
     s.add_argument("--chain", type=int, default=0, help=trad("avec `prompt` : les lots menés sans message de "
                                                              "l'humain, le lot en cours compris (0 par défaut)"))
-    s.add_argument("--session", metavar="URL", help=trad("avec `prompt` : le lien de la session qui part, que le "
-                                                         "moteur ne devine pas"))
     s.add_argument("--waiting", metavar="TEXTE", help=trad("avec `prompt` : ce qui attend (un compte rendu, une "
                                                            "CI, une demande) ; « rien » par défaut"))
     s.add_argument("--scheduled", action="store_true", help=trad("avec `prompt` : pour une session programmée, "

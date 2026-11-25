@@ -70,11 +70,10 @@ pushed afterwards: the guard names the remote head, and the scheduled
 prompt is no longer rewritten. A commit needed later cancels the handoff
 (the task deleted, the session archived), which is done again.
 
-1. The prompt, with the link of this session (the one its commits carry)
-   and what is waiting:
+1. The prompt, with the chain and what is waiting:
 
 ```sh
-python3 .socle/socle handoff prompt --scheduled --chain <n> --session <link> --waiting "<what is waiting>"
+python3 .socle/socle handoff prompt --scheduled --chain <n> --waiting "<what is waiting>"
 ```
 
 2. `create_session`, without `prompt`: `source_url` the repository's
@@ -99,7 +98,7 @@ replaces the handoff, the recap saying why.
 In a block to copy in the recap, with the reason for changing sessions:
 
 ```sh
-python3 .socle/socle handoff prompt --session <link> --waiting "<what is waiting>"
+python3 .socle/socle handoff prompt --waiting "<what is waiting>"
 ```
 
 Pasted late, its guard judges it all the same.

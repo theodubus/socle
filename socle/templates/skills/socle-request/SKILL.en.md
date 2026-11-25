@@ -88,7 +88,8 @@ the socle's CI is required: the answer then leaves alone, harmlessly.
 An answer is only relayed to a request pushed as is: the human must have
 been able to read it. An answered request is frozen. The answer
 `insufficient-context` sends the request back: rewrite it as a new request
-that replaces it.
+that replaces it and cites it in its cited elements; the state then no
+longer says to rewrite it.
 
 A test whose expected value changes while waiting for a request that names
 it may stay changed in the tree at the end of the turn; it is only

@@ -36,7 +36,7 @@ and a new session only has the memory.
 | Canonical | `memory/canonical.md` | facts with status and proof; only changes with a new proof |
 | Active | `memory/active.md` | work in progress, next steps; rewritten, kept short |
 | Decisions | `memory/decisions/` | one ADR per file, the project's only decision register; only its status changes afterwards |
-| Journal | `memory/journal/` | one dated entry per event; append only |
+| Journal | `memory/journal/` | one dated entry per event; append only; no future step for the human |
 | Backlog | `@@BACKLOG@@` | four forms, each with its prefix: need `B-` (“Satisfied when”), task `T-` that names its need (“Done when”), batch `L-` of tasks, milestone `JA-` of needs; ordered by `after`, with their priority (the state computes the ready tasks); closed with a reference, then filed by `socle archive` |
 | Requests | `memory/requests/` | human decisions in a queue, under the contract of the skill `socle-request` |
 

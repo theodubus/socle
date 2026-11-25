@@ -12,17 +12,16 @@ tâche.
 
 ## Former et annoncer
 
-1. Le prochain lot est dans l'état (`prochain lot`). Sinon, le former
-   sur tout le backlog ouvert, sans le demander : les tâches prêtes
-   auxquelles sa règle s'applique, du prochain jalon et de priorité haute
-   d'abord ; un besoin à découper reçoit d'abord ses tâches ; une tâche
-   qui change un comportement nomme le test qui affirme le contraire, sa
-   demande posée aussitôt, avant le lot ; le reste va
-   au prochain lot pas en cours dont la règle s'applique, et le récap dit
-   chaque placement. Il se garde au backlog : `python3 .socle/socle new
-   batch "Lot …"`, puis `après :` le lot d'avant et ses tâches ; son corps
-   dit ce qui les réunit. Un ensemble qu'une session ne mène pas se forme
-   en jalon, ses lots dessous.
+1. Le prochain lot est dans l'état (`prochain lot`). Sinon, le former sur
+   tout le backlog ouvert, sans le demander : les tâches prêtes auxquelles
+   sa règle s'applique, du prochain jalon et de priorité haute d'abord ; un
+   besoin à découper reçoit d'abord ses tâches ; une tâche qui change un
+   comportement nomme le test qui affirme le contraire, sa demande posée
+   aussitôt, avant le lot ; le reste va au prochain lot pas en cours dont la
+   règle s'applique, et le récap dit chaque placement. Il se garde au
+   backlog : `python3 .socle/socle new batch "Lot …"`, puis `après :` le lot
+   d'avant et ses tâches ; son corps dit ce qui les réunit. Un ensemble
+   qu'une session ne mène pas se forme en jalon, ses lots dessous.
 2. Lire chaque tâche (`python3 .socle/socle show <ID>`) et estimer le
    coût du lot : s'il ne tient pas dans ce qui reste de la fenêtre, le
    découper, commencer par un lot plus petit ou attendre la remise à zéro.
@@ -76,10 +75,10 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
 2. Retirer la copie isolée et sa branche ;
    `python3 .socle/socle verify --fast`.
 3. Pousser ; ouvrir la pull request s'il n'y en a pas, une seule ouverte.
-   Attendre `success` sur le SHA court du commit de tête, ligne « CI » de
-   `python3 .socle/socle state`. Une attente annoncée a son réveil en
-   session cloud (`send_later`) ; ailleurs, `Ensuite :` le dit, et
-   l'humain relance l'agent.
+   Attendre la CI du commit poussé (`gh run list --commit <sha>`) : la
+   ligne « CI » de l'état suit la tête. Une attente annoncée a son
+   réveil en session cloud (`send_later`) ; ailleurs, `Ensuite :` le dit,
+   et l'humain relance l'agent.
 4. Qui fusionne : par défaut l'humain, et le lot suivant s'ajoute à la
    même pull request ; l'agent, la sienne, si la politique le permet : CI
    verte sur le commit de tête, qu'il donne, revue faite, aucune demande
@@ -114,25 +113,23 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
   prime : changer de session. Après la pause, il est trop tard. Sans
   l'humain pour compacter, l'agent ne l'attend pas : il change de session.
 - Une limite proche change l'ordre des tâches, jamais la profondeur du
-  travail (une tâche qui demande plus de réflexion se commence quand
-  même) ni le modèle : celui que demande la qualité du travail, jamais
-  un moindre pour tenir une limite : une limite retarde un lot, elle ne
-  l'allège pas. Entre ceux qui le font aussi bien, celui qui consomme le
-  moins de la limite par jeton ; l'humain choisit celui de la session,
-  sur le conseil de l'agent. Celui que fixent les instructions du projet
-  prime. Un sous-agent reçoit le sien explicitement à son lancement
-  (`model`), jamais Fable sauf si l'humain le veut, la dernière version
-  de sa famille (un alias qui en désigne une plus ancienne : sans
-  `model`, il hérite de la session ; sinon, le dire à l'humain), nommé au
-  récap.
+  travail (une tâche qui demande plus de réflexion se commence quand même)
+  ni le modèle : celui que demande la qualité du travail, jamais un moindre
+  pour tenir une limite : une limite retarde un lot, elle ne l'allège pas.
+  Entre ceux qui le font aussi bien, celui qui consomme le moins de la
+  limite par jeton ; l'humain choisit celui de la session, sur le conseil de
+  l'agent. Celui que fixent les instructions du projet prime. Un sous-agent
+  reçoit le sien explicitement à son lancement (`model`), jamais Fable sauf
+  si l'humain le veut, la dernière version de sa famille (un alias qui en
+  désigne une plus ancienne : sans `model`, il hérite de la session ; sinon,
+  le dire à l'humain), nommé au récap.
 
 ## Changer de session
 
 À la fin du lot, près d'une limite ou avant une attente de plus d'une
 heure (le moment : skill `socle-handoff`). Ranger d'abord :
 
-1. le chantier actif dit le lot et ce qui attend, le journal la
-   passation ;
+1. le chantier actif dit le lot et ce qui attend, le journal la passation ;
 2. les copies isolées, leurs branches et, en session cloud, les réveils
    retirés ;
 3. tout est poussé ; un commit non relu part en correctif

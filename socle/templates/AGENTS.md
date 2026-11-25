@@ -36,7 +36,7 @@ session neuve n'a que la mémoire.
 | Canonique | `memory/canonical.md` | faits avec statut et preuve ; ne change qu'avec une preuve nouvelle |
 | Actif | `memory/active.md` | chantier en cours, prochaines étapes ; réécrit, borné |
 | Décisions | `memory/decisions/` | une ADR par fichier, le seul registre des décisions du projet ; seul son statut change ensuite |
-| Journal | `memory/journal/` | une entrée datée par événement ; ajout seul |
+| Journal | `memory/journal/` | une entrée datée par événement ; ajout seul ; aucun geste futur de l'humain |
 | Backlog | `@@BACKLOG@@` | quatre formes, chacune son préfixe : besoin `B-` (« Satisfait quand »), tâche `T-` qui nomme son besoin (« Fait quand »), lot `L-` de tâches, jalon `JA-` de besoins ; ordonnées par `après`, avec leur priorité (l'état en calcule les tâches prêtes) ; closes avec une référence, puis rangées par `socle archive` |
 | Demandes | `memory/requests/` | décisions humaines en file, au contrat du skill `socle-request` |
 

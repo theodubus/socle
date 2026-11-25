@@ -546,10 +546,15 @@ def code_teste(ctx, r):
 
 
 def est_correctif(projet, message: str) -> bool:
+    """Un correctif : son sujet suit `[regression] fix_subject`, ou il porte
+    `Corrige:` ou `Fixes:` dans le dernier paragraphe de son message, comme
+    git lit les trailers, ou hors de lui (ADR-0109) : une telle ligne, que
+    git ne lit pas, dit encore ce que l'auteur voulait dire, et son test de
+    régression se vérifie au lieu d'être sauté en silence."""
     sujet = message.strip().splitlines()[0] if message.strip() else ""
     motif = projet.gf("regression", "fix_subject", defaut=FIX_DEFAUT)
-    tr = outils.trailers(message)
-    return bool(re.search(motif, sujet)) or "corrige" in tr or "fixes" in tr
+    return (bool(re.search(motif, sujet)) or "corrige" in langue.trailers(message)
+            or "corrige" in langue.trailers_hors_bloc(message))
 
 
 @controle("tests.regression", etages=("ci",), base=True, lent=True, par_adaptateur=True)

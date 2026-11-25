@@ -14,6 +14,71 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-24-o — A `Corrige:` or `Fixes:` line written outside the last paragraph of the message makes the commit a fix, whose regression test is checked
+
+A commit is a fix by its subject (`fix:` by default) or by a `Corrige:`
+or `Fixes:` trailer. That trailer was only read in the last paragraph of
+the message, as git reads trailers: a `Corrige: T-NNNN` line written in a
+paragraph of its own, before the one with the attribution lines
+(`Co-Authored-By: …`), did not make the commit a fix, and
+`tests.regression` silently skipped checking its test, as did the
+`commit-msg` hook's warning. Such a line, wherever it is after the
+subject, now makes the commit a fix: the CI requires its test that fails
+on the parent commit, and the `commit-msg` hook warns at commit time if it
+brings none. Commits already merged are not judged again.
+
+To do: nothing.
+
+## 2026-11-24-n — The state no longer lists "to rewrite" a request sent back that another request cites
+
+`socle state` listed under "SENT BACK (insufficient context) … to
+rewrite" every request sent back, even when a new request had already
+replaced it and received its answer; a new session, which knows only
+what the state shows it, could rewrite it a second time. The request
+that replaces one sent back cites it in its "Cited elements" ("Éléments
+cités" in French), as the format now says; the state no longer lists a
+request sent back that another request describes there. A request that
+cites itself does not count.
+
+To do: nothing.
+
+## 2026-11-24-m — The handoff prompt no longer carries the link of the leaving session
+
+`socle handoff prompt` no longer has a `--session` option, and its prompt
+starts with “Handoff — <repository>, at <time>”: the new session did not
+use the link of the leaving session (its guard only reads the branch,
+the head and the time, and the commits already carry the link of their
+session), and from another account it did not even open. The
+`socle-handoff` skill no longer has it passed.
+
+To do: nothing; the `socle-handoff` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-24-k — The batch skill waits for the CI of the pushed commit, by its SHA
+
+Step 3 of the `socle-batch` skill made the agent wait for `success` on
+the short SHA of the head commit in the "CI" line of `socle state`. That
+line follows the local head: a commit made during the wait moved it, it
+said "no run" on a commit the CI had not received, and the agent was
+still waiting for a CI that had long finished. The skill now has the
+agent wait for the CI of the pushed commit, by its SHA (`gh run list
+--commit <sha>`).
+
+To do: nothing; the `socle-batch` skill is a protected copy, in the
+installer's request.
+
+## 2026-11-24-j — A journal entry notes no future step for the human
+
+A journal entry that noted a step to come for the human (“the branch to
+delete after the merge”) was later copied into a recap without being
+checked: a branch already deleted was still given to the human to
+delete. The memory format (`FORMAT.md`, “Journal” section) and the socle
+section of `AGENTS.md` now say so: an entry says what happened, and what
+falls to the human, the state alone computes, checked at the moment it
+says it.
+
+To do: nothing.
+
 ## 2026-11-24-i — The end of turn refuses a recap that gives a branch to delete that the origin no longer has
 
 The agent sometimes gave the human, under "For you", a branch to delete
@@ -673,6 +738,7 @@ raising it requires a validated request.
 To do: nothing, unless the state reports a batch: cut it at its next
 announcement. The key, which the installer names on update, can be
 declared in `.socle/guardrails.toml` if needed.
+
 ## 2026-11-20-c — The step back is no longer required: `socle review` writes a batch's passes and the backlog check lets it close without one
 
 `socle review` writes each pass of a batch in its “Reviews” section

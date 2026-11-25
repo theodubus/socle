@@ -829,7 +829,8 @@ def _demandes(projet: config.Projet, plafond: int | None = None, dites: bool = T
     """Les demandes en attente, en blocs de l'état : leur nombre ; une
     lisible se dit sous « ce qui revient à l'humain », avec son lien, quand
     il se calcule (`dites`), et ici sinon, avec son lien ; une illisible se
-    dit ici, telle, par son chemin. Puis les demandes renvoyées. Au-delà de
+    dit ici, telle, par son chemin. Puis les demandes renvoyées qu'aucune
+    autre ne cite dans ses éléments cités. Au-delà de
     `plafond`, le nombre des autres et où les lire."""
     from socle import human as humain, links as liens
 
@@ -853,8 +854,12 @@ def _demandes(projet: config.Projet, plafond: int | None = None, dites: bool = T
                              if d.entree else
                              [trad("  illisible : {chemin} — `python3 .socle/socle check` dit pourquoi",
                                    chemin=d.chemin)] for d in ici], plafond)
+    # Une renvoyée que cite une autre demande, dans ses éléments cités, est
+    # déjà réécrite : celle qui la cite la remplace (B-0344).
+    remplacees = demandes.citees_par_une_autre(toutes)
     res += _elements([], [[trad("  RENVOYÉE (contexte insuffisant) : {id} — à réécrire en une demande qui la "
-                                "remplace", id=d.id)] for d in toutes if d.statut == "renvoyée"], plafond)
+                                "remplace", id=d.id)] for d in toutes
+                          if d.statut == "renvoyée" and d.id not in remplacees], plafond)
     return res
 
 

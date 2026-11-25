@@ -76,10 +76,10 @@ decision, a journal entry and an expected value are no longer rewritten.
 2. Remove the isolated copy and its branch;
    `python3 .socle/socle verify --fast`.
 3. Push; open the pull request if there is none, only one open. Wait for
-   the CI of the head commit: the "CI" line of `python3 .socle/socle state`
-   says `success` (or `failure`) on its short SHA. An announced wait has
-   its wake-up in a cloud session (`send_later`); elsewhere, `Next:` says
-   so, and the human restarts the agent.
+   the CI of the pushed commit (`gh run list --commit <sha>`): the "CI"
+   line of the state follows the head. An announced wait has its wake-up
+   in a cloud session (`send_later`); elsewhere, `Next:` says so, and the
+   human restarts the agent.
 4. Who merges: by default the human, and the next batch is added to the
    same pull request; the agent, its own, if the policy allows it: green
    CI on the head commit, which it gives, review done, no pending request

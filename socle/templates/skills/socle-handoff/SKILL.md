@@ -69,11 +69,10 @@ se pousse ensuite : la garde nomme la tête distante, et le prompt
 programmé ne se récrit plus. Un commit nécessaire après annule la
 passation (la tâche supprimée, la session archivée), qui se refait.
 
-1. Le prompt, le lien de cette session (celui que portent ses commits)
-   et ce qui attend donnés :
+1. Le prompt, la chaîne et ce qui attend donnés :
 
 ```sh
-python3 .socle/socle handoff prompt --scheduled --chain <n> --session <lien> --waiting "<ce qui attend>"
+python3 .socle/socle handoff prompt --scheduled --chain <n> --waiting "<ce qui attend>"
 ```
 
 2. `create_session`, sans `prompt` : `source_url` l'adresse du dépôt ;
@@ -97,7 +96,7 @@ remplace la passation, le récap disant pourquoi.
 Dans un bloc à copier du récap, avec la raison du changement de session :
 
 ```sh
-python3 .socle/socle handoff prompt --session <lien> --waiting "<ce qui attend>"
+python3 .socle/socle handoff prompt --waiting "<ce qui attend>"
 ```
 
 Collé tard, sa garde le juge de même.

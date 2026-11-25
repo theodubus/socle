@@ -487,6 +487,18 @@ def descriptions(bloc: str, motifs: list[re.Pattern]) -> set[str]:
     return res
 
 
+def citees_par_une_autre(liste: list[Demande]) -> set[str]:
+    """Les identifiants qu'une demande de `liste` décrit dans ses « Éléments
+    cités » (« Cited elements » en anglais), sauf le sien : la demande qui
+    en remplace une renvoyée la cite là, et une demande répondue est gelée,
+    si bien qu'aucun champ ajouté après coup ne dirait le remplacement
+    (B-0344)."""
+    res = set()
+    for d in liste:
+        res |= descriptions(d.sections.get("elements-cites", ""), [memoire.ID_RE]) - {d.id}
+    return res
+
+
 def verifier_reponse(d: Demande) -> list[str]:
     if d.reponse is None:
         return []

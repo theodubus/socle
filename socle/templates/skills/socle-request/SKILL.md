@@ -89,7 +89,8 @@ sans dommage. `demandes.reponse-seule` avertit avant qu'elle parte seule.
 Une réponse ne se relaie qu'à une demande poussée telle quelle : l'humain
 doit avoir pu la lire. Une demande répondue est gelée. La réponse
 `contexte-insuffisant` renvoie la demande : la réécrire en une demande
-nouvelle, qui la remplace.
+nouvelle, qui la remplace et la cite dans ses éléments cités ; l'état ne
+la dit plus alors à réécrire.
 
 Un test dont la valeur attendue change en attendant une demande qui le
 nomme peut rester changé dans l'arbre à la fin du tour ; il ne se commite

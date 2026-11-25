@@ -15,6 +15,72 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-24-o — Une ligne `Corrige:` ou `Fixes:` écrite hors du dernier paragraphe du message fait du commit un correctif, dont le test de régression se vérifie
+
+Un commit est un correctif par son sujet (`fix:` par défaut) ou par un
+trailer `Corrige:` ou `Fixes:`. Ce trailer ne se lisait que dans le
+dernier paragraphe du message, comme git lit les trailers : une ligne
+`Corrige: T-NNNN` écrite dans un paragraphe à part, avant celui des
+lignes d'attribution (`Co-Authored-By: …`), ne faisait pas du commit un
+correctif, et `tests.regression` sautait en silence la vérification de
+son test, comme l'avertissement du hook `commit-msg`. Une telle ligne,
+où qu'elle soit après le sujet, fait désormais du commit un correctif :
+la CI exige son test qui échoue sur le commit parent, et le hook
+`commit-msg` avertit dès le commit s'il n'en apporte aucun. Les commits
+déjà fusionnés ne sont pas rejugés.
+
+À faire : rien.
+
+## 2026-11-24-n — L'état ne liste plus « à réécrire » une demande renvoyée qu'une autre demande cite
+
+`socle state` listait sous « RENVOYÉE (contexte insuffisant) … à
+réécrire » toute demande renvoyée, même quand une demande nouvelle
+l'avait déjà remplacée et reçu sa réponse ; une session neuve, qui ne
+sait que ce que l'état lui montre, pouvait la réécrire une seconde fois.
+La demande qui en remplace une renvoyée la cite dans ses « Éléments
+cités » (« Cited elements » en anglais), comme le format le dit
+désormais ; l'état ne liste plus une demande renvoyée qu'une autre
+demande décrit là. Une demande qui se cite elle-même ne compte pas.
+
+À faire : rien.
+
+## 2026-11-24-m — Le prompt de passation ne porte plus le lien de la session qui part
+
+`socle handoff prompt` n'a plus d'option `--session`, et son prompt
+commence par « Passation — <dépôt>, à <heure> » : la session neuve ne se
+servait pas du lien de la session qui part (sa garde ne lit que la
+branche, la tête et l'heure, et les commits portent déjà le lien de leur
+session), et d'un autre compte il ne s'ouvrait même pas. Le skill
+`socle-handoff` ne le fait plus passer.
+
+À faire : rien ; le skill `socle-handoff` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-24-k — Le skill des lots attend la CI du commit poussé, par son SHA
+
+L'étape 3 du skill `socle-batch` faisait attendre `success` sur le SHA
+court du commit de tête dans la ligne « CI » de `socle state`. Cette
+ligne suit la tête locale : un commit fait pendant l'attente la
+déplaçait, elle disait « aucune exécution » sur un commit que la CI
+n'avait pas reçu, et l'agent attendait encore une CI finie depuis
+longtemps. Le skill fait désormais attendre la CI du commit poussé, par
+son SHA (`gh run list --commit <sha>`).
+
+À faire : rien ; le skill `socle-batch` est une copie protégée, dans la
+demande de l'installeur.
+
+## 2026-11-24-j — Une entrée du journal ne note aucun geste futur pour l'humain
+
+Une entrée du journal qui notait un geste à venir pour l'humain (« la
+branche à supprimer après la fusion ») se recopiait plus tard, dans un
+récap, sans être vérifiée : une branche déjà supprimée lui était encore
+donnée à supprimer. Le format de la mémoire (`FORMAT.md`, section
+« Journal ») et la section du socle d'`AGENTS.md` le disent désormais :
+une entrée dit ce qui s'est passé, et ce qui revient à l'humain, l'état
+seul le calcule, vérifié au moment où il le dit.
+
+À faire : rien.
+
 ## 2026-11-24-i — La fin de tour refuse un récap qui donne à supprimer une branche que l'origine n'a plus
 
 L'agent donnait parfois à l'humain, dans « Pour toi », une branche à
@@ -690,6 +756,7 @@ relever exige une demande validée.
 À faire : rien, sauf si l'état signale un lot : le couper à sa
 prochaine annonce. La clé, que l'installeur nomme à la mise à jour, se
 déclare au besoin dans `.socle/guardrails.toml`.
+
 ## 2026-11-20-c — Le recul n'est plus exigé : `socle review` écrit les passes d'un lot et le contrôle du backlog le laisse se clore sans lui
 
 `socle review` écrit chaque passe d'un lot dans sa section « Revues »
