@@ -5,15 +5,13 @@ description: Mener un lot de tâches du backlog, de son annonce à sa livraison.
 
 # Mener un lot
 
-Un lot réunit les tâches prêtes qu'une seule revue juge : celles qui
-touchent les mêmes fichiers, le même garde-fou ou les mêmes tests.
-L'agent qui le mène orchestre ; il n'implémente lui-même qu'une petite
-tâche.
+Un lot réunit ce qui se relit ensemble : les tâches prêtes qui touchent
+les mêmes fichiers, le même garde-fou ou les mêmes tests.
 
 ## Former et annoncer
 
-1. Le prochain lot est dans l'état (`prochain lot`). Sinon, le former sur
-   tout le backlog ouvert, sans le demander : les tâches prêtes auxquelles
+1. Le prochain lot est dans l'état (`prochain lot`). Sinon, le former une
+   fois, par thème, sur tout le backlog ouvert, sans le demander : les tâches prêtes auxquelles
    sa règle s'applique, du prochain jalon et de priorité haute d'abord ; un
    besoin à découper reçoit d'abord ses tâches ; une tâche qui change un
    comportement nomme le test qui affirme le contraire, sa demande posée
@@ -30,7 +28,13 @@ tâche.
 3. En session cloud, armer les réveils (skill `socle-resume`).
 4. Partir d'une branche de travail propre et poussée.
 
-## Un sous-agent par tâche
+## Qui implémente
+
+L'agent qui orchestre implémente, une tâche après l'autre, un commit
+chacune. **Un sous-agent implémente quand il paie** : des tâches
+indépendantes qui avancent en parallèle, ou une tâche dont la lecture
+saturerait la conversation qui orchestre (plus de 400 lignes changées,
+ou des fichiers longs à lire).
 
 Sous Claude Code : outil `Agent`, dans une copie isolée
 (`isolation: "worktree"`), en arrière-plan ; deux à la fois au plus.
@@ -48,23 +52,18 @@ Interdits : pousser, toucher un réveil, écrire un fichier protégé, changer
 une valeur attendue ou supprimer un test (le signaler), corriger un défaut
 voisin (un besoin au backlog).
 Économie : lire ce qui sert, pas les fichiers entiers ; pas de suite complète relancée sans raison.
+Fichiers temporaires : dans le dossier temporaire commun, nommés de l'identifiant de ta tâche.
 Compte rendu : ton modèle, le commit, ce que les tests prouvent, les choix, ce qui reste.
 ```
-
-**Une petite tâche**, moins de 150 lignes de code et de tests (seuil
-provisoire, à mesurer), s'implémente dans la session qui orchestre, sauf
-si elle touche un garde-fou ou un format que d'autres parties du projet
-lisent. **Sans sous-agents**, l'agent mène le lot seul : une tâche après
-l'autre, un commit chacune, la revue sur le lot entier.
 
 ## La revue, avant tout push
 
 Skill `socle-review`, sur le lot commité, et son tri des constats. Un
-bloquant retourne à qui a implémenté, s'il répond encore, sinon à un
-sous-agent neuf, avec la consigne et le constat : un sous-agent arrêté
-depuis plus de cinq minutes ne se reprend pas. Un lot ne part qu'après
-la correction de ses bloquants : une fois poussés, une décision, une
-entrée de journal et une valeur attendue ne se réécrivent plus.
+bloquant retourne à qui a implémenté, s'il répond encore. Un sous-agent
+arrêté (une vérification en arrière-plan dont il n'a pas repris le fil)
+se reprend depuis sa copie isolée, par l'agent qui orchestre. Un lot ne
+part qu'après la correction de ses bloquants : une fois poussées, une décision et une
+entrée de journal ne se réécrivent plus.
 
 ## Intégrer, pousser, livrer
 
@@ -96,22 +95,22 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
 
 ## La consommation
 
-- Un lot par session : la conversation qui orchestre reste courte.
+- **La session est l'unité de budget.** À la fin d'un lot, elle enchaîne
+  le suivant si son coût estimé tient dans ce qui reste de la fenêtre de
+  cinq heures et de la semaine, la marge du rangement comprise, et si sa
+  conversation reste sous 300 000 jetons de contexte, deux lots au plus
+  sans message de l'humain ; sinon, elle change de session.
 - Les coûts se mesurent : l'utilisation de chaque fenêtre, avant chaque
   lancement et à chaque compte rendu (skill `socle-resume`). La clôture note au journal le coût de chaque
   sous-agent, du relecteur, de chaque demande et du rangement : celui
   d'un lot s'estime sur ces mesures.
-- Un seul sous-agent au-delà de 75 % de la semaine. Un sous-agent se
-  lance si ce qui reste de chaque fenêtre couvre son coût mesuré et celui
+- Un sous-agent se lance si ce qui reste de chaque fenêtre couvre son coût mesuré et celui
   du rangement ; sans mesure, aucun au-delà de 85 % de la semaine ou de
   60 % de la fenêtre de cinq heures. Le rangement commence au plus tard à
   dix points d'une limite : finir le pas en cours, puis changer de session.
-- L'agent ne compacte pas lui-même : il écrit la mémoire (chantier actif,
-  journal), puis le demande à l'humain (`/compact`), à la fin d'un lot
-  si l'humain garde la session, et avant toute attente qui peut passer
-  l'heure sans changer de session. Près d'une limite, le seuil plus haut
-  prime : changer de session. Après la pause, il est trop tard. Sans
-  l'humain pour compacter, l'agent ne l'attend pas : il change de session.
+- L'agent ne compacte pas lui-même : si l'humain garde la session
+  au-delà de ce seuil, il écrit la mémoire (chantier actif, journal), puis
+  lui demande `/compact`.
 - Une limite proche change l'ordre des tâches, jamais la profondeur du
   travail (une tâche qui demande plus de réflexion se commence quand même)
   ni le modèle : celui que demande la qualité du travail, jamais un moindre
@@ -126,15 +125,16 @@ entrée de journal et une valeur attendue ne se réécrivent plus.
 
 ## Changer de session
 
-À la fin du lot, près d'une limite ou avant une attente de plus d'une
-heure (le moment : skill `socle-handoff`). Ranger d'abord :
+Quand le lot suivant ne tient pas, près d'une limite ou avant une
+attente de plus d'une heure (skill `socle-handoff`). Ranger d'abord :
 
 1. le chantier actif dit le lot et ce qui attend, le journal la passation ;
 2. les copies isolées, leurs branches et, en session cloud, les réveils
    retirés ;
-3. tout est poussé ; un commit non relu part en correctif
+3. tout est commité ; un commit non relu part en correctif
    (`git format-patch`) dans un dossier de passation du dépôt, retiré à son
-   intégration. Plus rien ne se pousse ensuite.
+   intégration.
 
-Puis le skill `socle-handoff` : selon le mode, il programme la session
-suivante, ou donne le prompt de la suivante à copier.
+Puis le skill `socle-handoff` : la passation écrite, commitée et poussée.
+Plus rien ne se pousse ensuite. Selon le mode, il programme la session
+suivante, ou dit de demander la reprise.

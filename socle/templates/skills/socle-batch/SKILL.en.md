@@ -5,14 +5,13 @@ description: Run a batch of backlog tasks, from its announcement to its delivery
 
 # Running a batch
 
-A batch gathers ready tasks that one review judges: those that touch
-the same files, the same guardrail or the same tests. The agent running
-it orchestrates; it implements itself only a small task.
+A batch gathers what is reviewed together: the ready tasks that touch
+the same files, the same guardrail or the same tests.
 
 ## Forming and announcing
 
 1. The next batch is in the state (`next batch`). Otherwise, form it
-   over the whole open backlog, without asking: the ready tasks its rule
+   once, by theme, over the whole open backlog, without asking: the ready tasks its rule
    applies to, those of the next milestone and of high priority first; a
    need to split gets its tasks first; a task that changes a behaviour
    names the test that asserts the opposite, its request made at once,
@@ -30,7 +29,13 @@ it orchestrates; it implements itself only a small task.
 3. In a cloud session, arm the wake-ups (skill `socle-resume`).
 4. Start from a clean, pushed work branch.
 
-## One subagent per task
+## Who implements
+
+The orchestrating agent implements, one task after the other, one commit
+each. **A subagent implements when it pays**: independent tasks that
+move forward in parallel, or a task whose reading would saturate the
+orchestrating conversation (more than 400 lines changed, or long files
+to read).
 
 Under Claude Code: the `Agent` tool, in an isolated copy of the repository
 (`isolation: "worktree"`), in the background; two at a time at most.
@@ -48,24 +53,18 @@ Forbidden: pushing, touching a wake-up, writing a protected file, changing
 an expected value or deleting a test (report it), fixing a neighbouring
 defect (a need in the backlog).
 Economy: read what serves, not whole files; no full suite rerun without reason.
+Temporary files: in the shared temporary directory, named with your task's identifier.
 Report: your model, the commit, what the tests prove, the choices, what remains.
 ```
-
-**A small task**, under 150 lines of code and tests (a provisional
-threshold, to be measured), is implemented in the
-orchestrating session, unless it touches a guardrail or a format that
-other parts of the project read.
-**Without subagents**, the agent runs the batch alone: one task after
-the other, one commit each, the review on the whole batch.
 
 ## The review, before any push
 
 Skill `socle-review`, on the committed batch, and its sorting of the
 findings. A blocking finding goes back to whoever implemented, if it
-still answers, otherwise to a new subagent, with the instructions and the
-finding: a subagent stopped for more than five minutes is not resumed. A
-batch leaves only once its blocking findings are fixed: once pushed, a
-decision, a journal entry and an expected value are no longer rewritten.
+still answers. A stopped subagent (a background check whose thread it
+did not pick up) is resumed from its isolated copy, by the orchestrating
+agent. A batch leaves only once its blocking findings are fixed: once pushed, a
+decision and a journal entry are no longer rewritten.
 
 ## Integrating, pushing, delivering
 
@@ -97,23 +96,24 @@ decision, a journal entry and an expected value are no longer rewritten.
 
 ## Consumption
 
-- One batch per session: the orchestrating conversation stays short.
+- **The session is the budget unit.** At the end of a batch, it chains
+  the next one if its estimated cost fits in what remains of the
+  five-hour window and of the week, the tidying-up margin included, and
+  if its conversation stays under 300,000 tokens of context, two batches
+  at most without a message from the human; otherwise, it changes
+  sessions.
 - Costs are measured: the use of each window, before each launch and at
   each report (skill `socle-resume`). The closure notes in the journal the cost of each
   subagent, of the reviewer, of each request and of the tidying up: a
   batch's cost is estimated on these measures.
-- Only one subagent beyond 75% of the week. A subagent is launched if
+- A subagent is launched if
   what remains of each window covers its measured cost and that of the
   tidying up; without a measure, none beyond 85% of the week or 60% of
   the five-hour window. The tidying up starts at the latest ten points
   from a limit: finish the step in progress, then change sessions.
-- The agent does not compact by itself: it writes the memory (active
-  work, journal), then asks the human to (`/compact`), at the end of a
-  batch if the human keeps the session, and before any wait
-  that may exceed an hour without changing sessions. Near a limit, the
-  threshold above prevails: change sessions. After the pause, it is too
-  late. Without the human to compact, the agent does not wait for them: it
-  changes sessions.
+- The agent does not compact by itself: if the human keeps the session
+  beyond that threshold, it writes the memory (active work, journal),
+  then asks them for `/compact`.
 - A nearby limit changes the order of tasks, never the depth of the work
   (a task that needs more thought is started anyway) nor the model: the one the quality of the work calls for, never a
   lesser one to stay within a limit: a limit delays a batch, it does not
@@ -127,16 +127,17 @@ decision, a journal entry and an expected value are no longer rewritten.
 
 ## Changing sessions
 
-At the end of the batch, near a limit or before a wait of more than an
-hour (the moment: the `socle-handoff` skill). Tidy up first:
+When the next batch does not fit, near a limit or before a wait of more
+than an hour (the `socle-handoff` skill). Tidy up first:
 
 1. the active work gives the batch and what is waiting, the journal the
    handoff;
 2. the isolated copies, their branches and, in a cloud session, the
    wake-ups removed;
-3. everything is pushed; a commit not reviewed leaves as a patch
+3. everything is committed; a commit not reviewed leaves as a patch
    (`git format-patch`) in a handover folder of the repository, removed
-   at its integration. Nothing is pushed afterwards.
+   at its integration.
 
-Then the `socle-handoff` skill: depending on the mode, it schedules the
-next session, or gives the prompt of the next one to copy.
+Then the `socle-handoff` skill: the handoff written, committed and
+pushed. Nothing is pushed afterwards. Depending on the mode, it
+schedules the next session, or says to ask for the resumption.

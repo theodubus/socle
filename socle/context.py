@@ -196,6 +196,105 @@ class Contexte:
     def validations(self) -> list[demandes.Demande]:
         return demandes.validations_ajoutees(self.racine, self.base, self.tete)
 
+    # Les validations d'avant la plage (D-0189, piste B). Un test, un fichier
+    # de cas, une clé des garde-fous ou un fichier protégé que nomme une
+    # validation poussée plus tôt se changent sous elle : `tests.attendus`,
+    # `cliquet.garde-fous` et `protege.fichiers` le demandent à `hors_plage`
+    # quand aucune validation de la plage ne les couvre. Les autres
+    # contrôles (`tests.regression`, `prive.termes`) ne comptent que celles
+    # de la plage.
+
+    @cached_property
+    def depart(self) -> str | None:
+        """Le point de départ du travail jugé : l'ancêtre commun de la tête
+        et de la branche par défaut, d'où part sa branche. Une tête déjà dans
+        la branche par défaut (la CI qui suit une fusion) part de la base de
+        sa plage : la branche par défaut d'avant la fusion, d'où la CI de la
+        pull request a jugé. `None` sans branche par défaut lisible ; seule
+        la plage compte alors."""
+        if not outils.a_des_commits(self.racine):
+            return None
+        defaut = outils.branche_par_defaut(self.racine)
+        tete = outils.git(self.racine, "rev-parse", "--verify", "-q", f"{self.rev_commit}^{{commit}}",
+                          check=False).strip()
+        if not defaut or not tete:
+            return None
+        depart = outils.git(self.racine, "merge-base", tete, defaut, check=False).strip()
+        if depart == tete and self.base and outils.rev_existe(self.racine, self.base):
+            depart = outils.git(self.racine, "merge-base", self.base, tete, check=False).strip()
+        return depart or None
+
+    @cached_property
+    def validations_de_branche(self) -> list[demandes.Demande]:
+        """Les validations de la plage, et celles ajoutées sur la branche
+        depuis son point de départ : la CI de la pull request les compte, la
+        CI d'un push et le hook avant push s'y alignent."""
+        res = list(self.validations)
+        if self.depart and self.depart != self.base:
+            vues = {demandes.identite(d) for d in res}
+            res += [d for d in demandes.validations_ajoutees(self.racine, self.depart, self.tete)
+                    if demandes.identite(d) not in vues]
+        return res
+
+    @cached_property
+    def validations_fusionnees(self) -> list["Fusionnee"]:
+        """Les validations déjà dans la branche par défaut au point de départ,
+        hors de celles de la branche, chacune avec ce qui la fait compter :
+        une tâche ouverte qui la cite, à ce point."""
+        if not self.depart:
+            return []
+        mem = self.memoire_base if self.base == self.depart else memoire.Memoire.charger(self.racine, self.depart)
+        citees: set[str] = set()
+        for e in mem.entrees("T"):
+            if not e.archivee and not e.basculee and e.statut not in memoire.BACKLOG_CLOS:
+                citees |= {m.group(0) for m in memoire.ID_RE.finditer(e.texte)}
+        vues = {demandes.identite(d) for d in self.validations_de_branche}
+        return [Fusionnee(d, bool(d.id) and d.id in citees, self.racine, self.depart)
+                for d in demandes.validations(self.racine, self.depart) if demandes.identite(d) not in vues]
+
+    def hors_plage(self, nomme, intact) -> tuple[demandes.Demande | None, str]:
+        """La validation d'avant la plage qui couvre un changement, et sinon
+        ce qu'un refus en dit. `nomme(texte)` : le texte d'une validation
+        nomme-t-il ce qui change ? `intact(parent)` : ce qu'elle nomme est-il,
+        au point de départ, tel qu'au parent du commit de sa demande ?
+
+        Couvre une validation ajoutée sur la branche depuis son point de
+        départ ; ou, déjà dans la branche par défaut, une validation qu'une
+        tâche ouverte cite, dont ce qu'elle nomme n'a pas bougé depuis que
+        l'humain l'a eu sous les yeux. Le lot qui fait le changement clôt la
+        tâche : fusionnée, la validation est épuisée. Sans réponse, le refus
+        nomme les validations qui le nomment sans le couvrir, et pourquoi ;
+        ou dit que la règle ne s'applique pas ici, faute de branche par
+        défaut ou d'historique."""
+        for d in self.validations_de_branche:
+            if nomme(d.texte):
+                return d, ""
+        if not self.depart:
+            vues = {demandes.identite(d) for d in self.validations}
+            ids = [d.id or d.chemin for d in demandes.validations(self.racine, self.tete)
+                   if demandes.identite(d) not in vues and nomme(d.texte)]
+            if not ids:
+                return None, ""
+            return None, trad(" ; hors de la plage, une validation qui le nomme ne compte pas ici, faute de branche "
+                              "par défaut lisible : {liste}", liste=_liste(ids))
+        raisons = []
+        for f in self.validations_fusionnees:
+            if not nomme(f.demande.texte):
+                continue
+            ident = f.demande.id or f.demande.chemin
+            if not f.citee:
+                raisons.append(trad("{id}, qu'aucune tâche ouverte ne cite", id=ident))
+            elif f.parent is None:
+                raisons.append(trad("{id}, dont la demande n'a pas son historique dans ce clone", id=ident))
+            elif not intact(f.parent):
+                raisons.append(trad("{id}, dont ce qu'elle nomme a changé depuis sa demande", id=ident))
+            else:
+                return f.demande, ""
+        if not raisons:
+            return None, ""
+        return None, trad(" ; déjà dans la branche par défaut, une validation qui le nomme ne le couvre pas : "
+                          "{liste}", liste=_liste(raisons))
+
     @cached_property
     def projet_base(self) -> config.Projet | None:
         if not self.base:
@@ -213,6 +312,29 @@ class Contexte:
     def documents(self) -> dict[str, str]:
         """Les documents markdown du projet, hors archives et exclusions."""
         return self.textes(["**/*.md"], self.projet.exclusions_docs())
+
+
+@dataclass
+class Fusionnee:
+    """Une validation déjà dans la branche par défaut au point de départ :
+    `citee`, une tâche ouverte l'y cite ; `parent`, le dépôt tel que
+    l'humain l'avait sous les yeux en répondant."""
+    demande: demandes.Demande
+    citee: bool
+    racine: Path
+    depart: str
+
+    @cached_property
+    def parent(self) -> str | None:
+        """Le parent du commit qui a ajouté la demande, et non celui de sa
+        réponse : la réponse peut suivre le changement qu'elle autorise
+        (D-0147), la demande le précède ou l'accompagne toujours. `None`
+        sans cet historique."""
+        return outils.parent_de_l_ajout(self.racine, self.depart, self.demande.chemin)
+
+
+def _liste(elements: list[str]) -> str:
+    return ", ".join(elements[:3]) + (" …" if len(elements) > 3 else "")
 
 
 def ne_touche_que_des_tiers(projet: config.Projet, racine: Path, commit: dict) -> bool:

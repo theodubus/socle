@@ -42,10 +42,10 @@ never choosing it.
      recommendation), `reject` and `insufficient-context`; a choice request
      adds its options, and no synonym (`accept`, `yes`…). Only `approve`
      authorises changing a test or a threshold key the request names.
-3. The lint refuses an incomplete request; the agent's hook refuses it as
-   soon as it is written.
-4. Have it read cold before pushing it: a subagent (the `Agent` tool),
-   whose only message is the brief of `python3 .socle/socle review
+3. A request beyond half its budget (`new request` gives it) is read
+   cold before being pushed; a shorter request, or one that only approves
+   protected files by their fingerprints, leaves without it. The reader:
+   a subagent (the `Agent` tool), whose only message is the brief of `python3 .socle/socle review
    --request D-NNNN`, as is. It receives explicitly at launch (`model`)
    the most capable model available up to Opus, whatever the session's,
    on the latest version of its family (an alias that designates an older
@@ -60,7 +60,7 @@ never choosing it.
    document already gives. The recap says so: `Cold reading (<model>): <n>
    points, <k> fixed; set aside: …`. An agent without subagents skips this step,
    and its recap says so.
-5. Commit and push the request as is, then give its link
+4. Commit and push the request as is, then give its link
    (`python3 .socle/socle url D-NNNN`) in the conversation. Work on
    something else while waiting for the answer (policy, point 8).
 
@@ -75,15 +75,12 @@ python3 .socle/socle answer D-NNNN <answer> --relayed --by <name> --quote-file <
 
 3. Copy the answer into the journal, with its exact text.
 
-The answer is recorded as soon as it is given, in the tree: the state
-reads it as answered before its commit, and the human no longer sees it
-pending. It is committed and pushed with the change it authorizes (an
-expected value, a guardrail key, a protected file), in the same push,
-never before: the CI of a push only counts the approvals of its range,
-and the push of the change, alone after it, would be refused. Only a
-protected file can precede it, pushed under the pending request where
-the socle's CI is required: the answer then leaves alone, harmlessly.
-`demandes.reponse-seule` warns before it leaves alone.
+The answer is recorded as soon as it is given, committed and pushed at
+once: the human no longer sees it pending. It covers the change it
+authorizes (an expected value, a guardrail key, a protected file) in its
+pull request, or later, merged, as long as an open task cites it and
+what it names has not moved since the request: the task that makes the
+change cites it, and is closed with it.
 
 An answer is only relayed to a request pushed as is: the human must have
 been able to read it. An answered request is frozen. The answer
@@ -95,11 +92,19 @@ A test whose expected value changes while waiting for a request that names
 it may stay changed in the tree at the end of the turn; it is only
 committed after the answer.
 
+## A design to settle
+
+A need whose design is not settled first asks its question of intent, in
+the conversation, in a few lines: the need as the agent understands it,
+the choice that remains, its recommendation; the answer is recorded in
+session (below). Then its specification and its code are done in the
+same batch, the specification first. What remains costly to undo then
+goes into a request, a short one; the rest, the agent decides and writes
+as a decision.
+
 ## Recording a decision taken in session
 
-A decision that needs context, approving a document included, is put as a
-request (above), never in the agent's question widget: the human reads raw
-text there, with no links to follow. What the human settles in the
+What the human settles in the
 conversation, of their own accord or on a short question asked in the text
 of the answer, is recorded at once, with their answer word for word;
 `--about <path>` designates what it approves:

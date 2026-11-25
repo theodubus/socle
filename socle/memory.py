@@ -1,4 +1,4 @@
-"""Lecture de la mémoire : six couches de markdown qu'un script sait lire.
+"""Lecture de la mémoire : sept couches de markdown qu'un script sait lire.
 
 Le format est décrit dans `engine/socle/FORMAT.md`. En bref :
 
@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 from socle import config, language as langue, utils as outils
@@ -36,7 +37,7 @@ TYPES = {
 # un besoin, une tâche, un lot, un jalon. La forme se lit sur l'identifiant.
 BACKLOG = ("B", "T", "L", "JA")
 FORMES = {"B": "besoin", "T": "tache", "L": "lot", "JA": "jalon"}
-COUCHES = ("canonique", "actif", "decisions", "journal", "backlog", "demandes")
+COUCHES = ("canonique", "actif", "decisions", "journal", "backlog", "demandes", "passation")
 ZONES = ("publique", "privee")
 
 # Un identifiant, où qu'il soit. La forme du numéro est vérifiée après coup :
@@ -235,6 +236,77 @@ def nettoyer(valeur: str) -> str:
     return valeur.strip().strip("`").strip()
 
 
+# La passation à une session neuve (`memory/handoff.md`) : ni entrée ni
+# identifiant, un en-tête, un titre, son estampille sur une ligne `>`, puis
+# ce qui attend. `socle handoff write` l'écrit, `socle handoff check` la lit
+# sur les branches distantes.
+FORMAT_HEURE = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def heure_utc(texte: str) -> datetime:
+    """Une heure ISO 8601 (`2026-11-24T10:05:00Z`), en UTC ; sans fuseau,
+    elle est en UTC. `ValueError` sinon."""
+    h = datetime.fromisoformat(texte.strip().replace("Z", "+00:00"))
+    return h.replace(tzinfo=timezone.utc) if h.tzinfo is None else h.astimezone(timezone.utc)
+
+
+@dataclass(frozen=True)
+class Passation:
+    """Une passation : son estampille, l'heure `écrite` et la `branche`, qui
+    l'identifie, quel que soit le commit qui la porte ; la chaîne des lots
+    menés sans message de l'humain ; ce qui attend, tel qu'écrit."""
+
+    ecrite: datetime
+    branche: str
+    chaine: int
+    attente: str = ""
+
+    @property
+    def estampille(self) -> tuple[datetime, str]:
+        return self.ecrite, self.branche
+
+    @property
+    def heure(self) -> str:
+        return self.ecrite.strftime(FORMAT_HEURE)
+
+
+def lire_passation(texte: str) -> tuple[Passation | None, list[str], int]:
+    """La passation d'un `handoff.md`, ses fautes de forme, et la ligne de
+    son estampille (sa première ligne `>`, 1 sans elle) : `None` quand
+    l'heure, la branche ou la chaîne ne se lit pas."""
+    lignes = texte.splitlines()
+    debut = next((k for k, l in enumerate(lignes) if l.lstrip().startswith(">")), len(lignes))
+    fin = debut
+    while fin < len(lignes) and lignes[fin].lstrip().startswith(">"):
+        fin += 1
+    meta = parser_meta(lignes[debut:fin])
+    fautes, ecrite = [], None
+    try:
+        ecrite = heure_utc(nettoyer(meta.get("ecrite", "")))
+    except ValueError:
+        fautes.append(trad("la passation n'a pas d'heure `écrite` lisible : une heure ISO 8601 en UTC "
+                           "(2026-11-25T03:10:00Z)"))
+    branche = nettoyer(meta.get("branche", ""))
+    if not branche or any(c.isspace() for c in branche):
+        fautes.append(trad("la passation ne nomme pas sa `branche` : un nom de branche, sans espace"))
+    chaine = nettoyer(meta.get("chaine", ""))
+    if not (chaine.isascii() and chaine.isdigit()):
+        fautes.append(trad("la passation n'a pas de `chaîne` lisible : un entier, 0 ou plus"))
+    ligne = debut + 1 if debut < len(lignes) else 1
+    if fautes or ecrite is None:
+        return None, fautes, ligne
+    return Passation(ecrite, branche, int(chaine), "\n".join(lignes[fin:]).strip()), [], ligne
+
+
+def texte_passation(p: Passation, lg: str) -> str:
+    """Le fichier `handoff.md` d'une passation, dans la langue de la mémoire ;
+    `p.attente` est le texte qui suit l'estampille."""
+    champs = " · ".join(f"{langue.mot(langue.CHAMPS, k, lg)} : {v}"
+                        for k, v in (("ecrite", p.heure), ("branche", p.branche), ("chaine", p.chaine)))
+    return (f"{langue.entete_fichier('passation', 'publique', lg)}\n"
+            f"# {langue.mot(langue.TEXTES, 'titre-passation', lg)}\n\n> {champs}\n\n{p.attente.strip()}\n")
+
+
 # Une référence dans une valeur de métadonnée : `commit:abc1234`,
 # `fichier:chemin[#ancre|:ligne]`, `cmd:outil` ou ``cmd:`commande, avec virgule` ``,
 # `url:…` (jamais suivie : aucun service externe). Les identifiants de mémoire
@@ -347,10 +419,15 @@ def couche_attendue(chemin: str) -> str | None:
     if not est_memoire(chemin) or not chemin.endswith(".md"):
         return None
     f = config.FORMAT_ACTUEL
-    if est_prive(chemin):  # la zone privée reprend la même arborescence
+    prive = est_prive(chemin)
+    if prive:  # la zone privée reprend la même arborescence
         chemin = f.memoire + "/" + hors_zone_privee(chemin)
     if chemin.startswith(f.archives + "/") or chemin == f.memoire + "/README.md":
         return None
+    # La passation se lit sur toutes les branches distantes, de tout clone :
+    # publique seule, jamais dans la zone privée.
+    if chemin == f.passation:
+        return "inconnue" if prive else "passation"
     for couche, lieu in (("canonique", f.canonique), ("actif", f.actif)):
         if chemin == lieu:
             return couche

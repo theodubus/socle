@@ -665,20 +665,27 @@ def _toml_str(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
 
 
+def identite(d: Demande) -> str:
+    """Ce qui reconnaît une demande d'une révision à l'autre : son
+    identifiant, qui ne change pas quand un déplacement renomme son fichier
+    et celui de sa réponse (relevé de la passe de recul, D)."""
+    return d.id or d.chemin_reponse or d.chemin
+
+
 def validations_ajoutees(racine: Path, base: str | None, tete: str | None) -> list[Demande]:
     """Les demandes validées par une réponse AJOUTÉE dans la plage : une vieille
-    validation ne couvre pas un assouplissement nouveau. Une demande se
-    reconnaît à son identifiant, qui ne change pas quand un déplacement
-    renomme son fichier et celui de sa réponse (relevé de la passe de
-    recul, D)."""
-    def cle(d: Demande) -> str:
-        return d.id or d.chemin_reponse or d.chemin
-
-    deja = {cle(d) for d in toutes(racine, base) if d.reponse is not None} if base else set()
+    validation ne couvre pas un assouplissement nouveau, sauf sous la règle
+    des validations d'avant la plage (`Contexte.hors_plage`, D-0189)."""
+    deja = {identite(d) for d in toutes(racine, base) if d.reponse is not None} if base else set()
     return [
         d for d in toutes(racine, tete)
-        if d.validee and cle(d) not in deja and not verifier_reponse(d)
+        if d.validee and identite(d) not in deja and not verifier_reponse(d)
     ]
+
+
+def validations(racine: Path, rev: str | None) -> list[Demande]:
+    """Toutes les demandes validées à une révision, leur réponse en règle."""
+    return [d for d in toutes(racine, rev) if d.validee and not verifier_reponse(d)]
 
 
 def illisible(projet: config.Projet, d: Demande) -> str | None:

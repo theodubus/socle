@@ -179,14 +179,50 @@ def _nomme(texte: str, nom: str) -> bool:
 def _justifie(ctx, nom: str) -> str | None:
     """Une validation humaine, ou une spécification que l'humain a changée et
     qui nomme le test (politique, point 2) : une spécification que l'agent écrit dans le même travail ne
-    l'autorise pas à changer le test."""
+    l'autorise pas à changer le test. La validation est de la plage, ou
+    d'avant elle sous la règle de `Contexte.hors_plage` (D-0189)."""
     for d in ctx.validations:
         if _nomme(d.texte, nom):
             return trad("validé par {id}", id=d.id)
+    d = _hors_plage(ctx, nom)[0]
+    if d:
+        return trad("validé par {id}", id=d.id)
     for c in _specs_nommant(ctx, nom):
         if _ecrite_par_l_humain(ctx, c, nom):
             return trad("spécification changée par l'humain : {chemin}", chemin=c)
     return None
+
+
+def _hors_plage(ctx, nom: str):
+    """La validation d'avant la plage qui couvre le test ou le fichier de
+    cas `nom`, et sinon ce qu'un refus en dit (`Contexte.hors_plage`)."""
+    return ctx.hors_plage(lambda texte: _nomme(texte, nom), lambda parent: _intact(ctx, parent, nom))
+
+
+def _intact(ctx, parent: str, nom: str) -> bool:
+    """Le test ou le fichier de cas `nom` est, au point de départ, tel
+    qu'au commit `parent` : un fichier de cas en entier ; un test par son
+    corps, son en-tête et ses attributs, dans les mêmes fichiers. Un test
+    déplacé dans un autre fichier a bougé. Seuls les fichiers de tests
+    changés entre les deux se relisent : les autres portent les mêmes
+    tests."""
+    motifs = ctx.projet.gf("tests", "case_paths", defaut=[]) or []
+    if motifs and outils.filtrer([nom], motifs):
+        return outils.lire_a(ctx.racine, parent, nom) == outils.lire_a(ctx.racine, ctx.depart, nom)
+    cfg = cfg_tests(ctx.projet)
+    if cfg is None:
+        return False
+
+    def formes(rev: str, chemins: list[str]) -> list[tuple[str, str]]:
+        res = []
+        for c in chemins:
+            for f in tests_lecture.extraire(outils.lire_a(ctx.racine, rev, c) or "", c, cfg):
+                if f.est_test and f.nom == nom:
+                    res.append((c, re.sub(r"\s+", " ", "\n".join([*f.attributs, f.entete, f.corps]))))
+        return sorted(res)
+
+    changes = fichiers_tests(ctx, ctx.projet.hors_tiers(outils.fichiers_changes(ctx.racine, parent, ctx.depart)))
+    return formes(parent, changes) == formes(ctx.depart, changes)
 
 
 def _en_attente(ctx, nom: str) -> str | None:
@@ -291,9 +327,10 @@ def _fichiers_de_cas(ctx, r):
         elif attente:
             _dire_en_attente(ctx, r, quoi, attente, c)
         else:
-            r.erreur("tests.attendus", trad("{quoi} — {n} ligne(s) d'un fichier de cas changée(s) ou retirée(s) : "
-                                            "un cas existant ne change qu'avec une demande validée qui cite ce "
-                                            "fichier (politique, point 2)", quoi=quoi, n=len(retires)), c)
+            r.erreur("tests.attendus", trad("{faute}{note}", faute=trad(
+                "{quoi} — {n} ligne(s) d'un fichier de cas changée(s) ou retirée(s) : un cas existant ne change "
+                "qu'avec une demande validée qui cite ce fichier (politique, point 2)", quoi=quoi, n=len(retires)),
+                note=_hors_plage(ctx, c)[1]), c)
 
 
 @controle("tests.attendus", base=True, par_adaptateur=True)
@@ -344,7 +381,8 @@ def attendus(ctx, r):
         elif attente:
             _dire_en_attente(ctx, r, quoi, attente, fichier, ligne)
         else:
-            r.erreur("tests.attendus", trad("{faute}{note}", faute=faute, note=_note_agent(ctx, nom)), fichier, ligne)
+            r.erreur("tests.attendus", trad("{faute}{note}", faute=faute,
+                                            note=_note_agent(ctx, nom) + _hors_plage(ctx, nom)[1]), fichier, ligne)
 
     hors: dict[str, list[tuple[str, str]]] = {}
 

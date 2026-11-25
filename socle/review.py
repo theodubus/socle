@@ -1,8 +1,10 @@
 """Le dossier de la revue adversariale d'un lot (ADR-0042).
 
-Avant le push qui livre un lot qui change du code, une spécification ou un
-test, l'agent le fait relire par un relecteur qui n'a pas son contexte, et
-qui cherche à le prendre en défaut. Le moteur ne connaît aucun agent : il
+Avant le push qui livre un lot qui la justifie (un garde-fou, un format lu
+ailleurs, ou plus de 150 lignes de code et de tests ; le skill
+`socle-review` dit quand), l'agent le fait relire par un relecteur qui n'a
+pas son contexte, et qui cherche à le prendre en défaut ; un autre lot, il
+le relit lui-même sur le dossier court. Le moteur ne connaît aucun agent : il
 ne lance pas le relecteur, il prépare ce que celui-ci reçoit, et rien
 d'autre. La procédure vit côté agent, dans le skill `socle-review`.
 

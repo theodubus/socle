@@ -394,6 +394,16 @@ def calculer(projet: config.Projet, contenus: bool = True, supplement: list[str]
                                       [humain.lignes(e) for e in faits], plafond))
     except Exception as e:
         ajouter(ACTION, [[trad("ce que l'humain a écrit lui-même : incalculable ({erreur})", erreur=erreur_(e))]])
+    # La passation qui attend une session neuve, d'après le clone tel qu'il
+    # est : l'état ne lance pas `git fetch`.
+    try:
+        from socle import handoff as passation
+
+        ligne = passation.ligne_etat(projet)
+        if ligne:
+            ajouter(ACTION, [[ligne]])
+    except Exception as e:
+        ajouter(ACTION, [[trad("passation : illisible ({erreur})", erreur=erreur_(e))]])
     # Les lignes du hook, chaque bloc insécable (un échec avec sa sortie).
     if supplement is not None:
         ajouter(ACTION, [str(b).strip("\n").splitlines() for b in supplement])

@@ -3394,12 +3394,10 @@ def _avertissements(rapport, controles) -> list[str]:
 
 
 def _dire_avertissements(rapport, aussi: tuple[str, ...] = ()) -> None:
-    """Le hook git qui laisse passer se tait, sauf pour ceci, qu'il dit sur
-    sa sortie d'erreur : une réponse `valider` qui part sans le changement
-    qu'elle autorise, et ne le couvrira pas au push suivant
-    (`demandes.reponse-seule`, B-0142) ; et `aussi`, au hook avant push,
-    le total des étapes rapides qu'il vient de lancer au-delà de leur seuil
-    (`verify.duree`, B-0258), que l'agent lit dans la sortie de son
-    `git push`. Le rapport d'un refus les montre déjà."""
-    for ligne in _avertissements(rapport, ("demandes.reponse-seule",) + aussi):
+    """Le hook git qui laisse passer se tait, sauf pour `aussi`, qu'il dit
+    sur sa sortie d'erreur : au hook avant push, le total des étapes rapides
+    qu'il vient de lancer au-delà de leur seuil (`verify.duree`, B-0258),
+    que l'agent lit dans la sortie de son `git push`. Le rapport d'un refus
+    les montre déjà."""
+    for ligne in _avertissements(rapport, aussi):
         print(ligne, file=sys.stderr)

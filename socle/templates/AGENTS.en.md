@@ -15,7 +15,8 @@ another agent, run it first. Nothing that is not in it is established.
 What the human wrote themselves since the agent's last commit (an approval,
 an answer in their terminal), the state lists: cite it to them in the next
 reply, by its identifier and its link, which the conversation did not give
-them.
+them. A first message that asks to resume or continue, whatever its form
+("resume"), first looks for the handoff: the `socle-handoff` skill.
 
 If the state was not injected when a Claude Code session started, its
 hooks are not loaded (the session started outside the project root;
@@ -72,10 +73,9 @@ request; never in the agent's question widget, where the human reads raw
 text with no links to follow (the hook refuses it). What the human settles
 in the conversation, of their own accord or on a short question asked in
 the text of the answer, is recorded at once in the same way, in session.
-How: the skill `socle-request`. A need whose specification depends on an
-intention the memory does not state is first framed by open questions
-(`socle new request --questions`); a specification is submitted before its
-code.
+How: the skill `socle-request`. A need whose design is not settled first
+asks its question of intent, in a few lines, in the conversation; its
+specification and its code are then done in the same batch.
 
 ### Reading the memory on demand
 
@@ -126,15 +126,16 @@ As long as nothing is up to the human, the agent chains the ready tasks
 without waiting for a message. It first announces the batch, not
 necessarily everything that is ready (the tasks, their size, the
 milestone they serve; a low-priority task if convenient), then gets
-going; it stops at the end of the batch, or as soon as a decision is up
-to the human. It does not change a priority the human gave. A need
+going; at the end of the batch, it chains the next one if the session
+allows it, and stops as soon as a decision is up to the human. It does not change a priority the human gave. A need
 without an open task is first split into tasks. The batch is formed by
 sweeping the whole open backlog; a task opened later joins the next
 batch whose rule applies to it, never the one in progress. It is kept in
 the backlog (`socle new batch`) and run following the `socle-batch`
-skill. Before the push of a batch that changes code, a specification or a
-test, it has it reviewed by a reviewer without context, against the “Done
-when” of its tasks (the `socle-review` skill). A need whose design is
+skill. Before the push of a batch that adds or changes a guardrail, a format
+other parts read, or more than 150 lines of code and tests, it has it
+reviewed by a reviewer without context, against the “Done when” of its
+tasks; another batch, it rereads itself (the `socle-review` skill). A need whose design is
 not settled writes its specification before its code; a need that adds
 or changes a guardrail, its threat model (its `## Threat model` section,
 or the decision it cites). Only blocking findings are fixed in the batch;
@@ -152,7 +153,7 @@ agent”), the agent merges its own itself, under the conditions of the
 `socle-batch` skill. One pull request per task, only if the human chose
 it (a fact of the memory says so). A new session that finds another
 session's pull request open asks the human to merge it first, or to let
-it continue on it; started from a handoff prompt that its guard accepts,
+it continue on it; started from a handoff that its guard accepts,
 it continues on it, and that pull request becomes its own. A prototype not meant to be merged is done on a
 disposable branch, named with a prefix of `[branches] disposable` in the
 guardrails (`proto/` by default): the CI does not judge it on push.

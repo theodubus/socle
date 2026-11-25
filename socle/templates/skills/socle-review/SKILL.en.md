@@ -1,6 +1,6 @@
 ---
 name: socle-review
-description: Have a batch reviewed by a reviewer without context before delivering it, the adversarial review, then handle its findings. Use before the push that delivers a batch that changes code, a specification or a test.
+description: Have a batch reviewed before delivering it, by a reviewer without context when the batch warrants it (the adversarial review), otherwise by the agent itself, then handle its findings. Use before the push that delivers a batch that changes code or a test.
 ---
 
 # The adversarial review of a batch
@@ -11,8 +11,14 @@ who tries to find fault with it.
 
 ## When
 
-Before the push that delivers a batch that changes code, a specification
-or a test; never for a batch that only touches the memory. One pass per
+An adversarial review, before the push, for a batch that warrants it: it
+adds or changes a guardrail (a check, a refusal, a hook), a format that
+other parts of the project read (the memory, an adapter's contract, the
+CI), or more than 150 lines of code and tests. Any other batch that
+changes code or a test, the agent rereads itself, on the short brief
+(below), against its tasks' criteria, and the recap says so. A
+specification, documentation or memory alone get no adversarial review:
+the human judges their intent. One pass per
 batch; a second one only if the fix of the blockers is heavy (it changes
 the design of a part, not a few lines), and on that fix alone.
 
@@ -54,7 +60,7 @@ python3 .socle/socle review
    judge without exploring beyond the files touched; any other batch,
    the full brief. `--short` refuses a batch that touches a path the
    policy protects or the guardrails declare.
-3. Hand it to a reviewer who does not have the conversation. The brief
+3. The adversarial review: hand it to a reviewer who does not have the conversation. The brief
    does not enter it, which would reread it at each step: the output of
    `socle review` is written to a file outside the repository, and the
    reviewer's only message (under Claude Code, a subagent, the `Agent`
@@ -72,7 +78,7 @@ python3 .socle/socle review
    the project's instructions and can read the repository; the brief
    tells it to change nothing outside a temporary directory (`mktemp
    -d`), which the agent's hook does not enforce. An agent without
-   subagents skips the review, and its recap says so.
+   subagents rereads the batch itself, and its recap says so.
 
 ## The findings
 

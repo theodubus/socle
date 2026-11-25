@@ -93,6 +93,17 @@ def _format_entrees(r, chemin, f, couche, prive):
             r.erreur("memoire.format", trad("`{id}` défini dans le chantier actif, qui est réécrit : un "
                                             "identifiant stable vit dans une couche durable", id=e.id), chemin, e.ligne)
         return
+    if couche == "passation":
+        # Un seul fichier, `memory/handoff.md`, que l'emplacement impose ; ni
+        # entrée ni identifiant ; son estampille lisible, que la session
+        # neuve compare sur toutes les branches distantes.
+        for e in f.entrees:
+            r.erreur("memoire.format", trad("`{id}` défini dans la passation, que la session neuve retire : un "
+                                            "identifiant stable vit dans une couche durable", id=e.id), chemin, e.ligne)
+        _, fautes, ligne = memoire.lire_passation(f.texte)
+        for faute in fautes:
+            r.erreur("memoire.format", faute, chemin, ligne)
+        return
     attendus = TYPES_DE_COUCHE[couche]
     # `AAAA-MM.md`, puis `AAAA-MM-2.md`… quand le mois dépasse son budget.
     if couche == "journal" and not re.match(r"^\d{4}-\d{2}(?:-[2-9]|-[1-9]\d+)?\.md$", nom):
@@ -1036,8 +1047,11 @@ def budgets(ctx, r):
     instructions = [config.INSTRUCTIONS]
     if (ctx.lire("CLAUDE.md") or "").strip() not in ("", "@AGENTS.md"):
         instructions.append("CLAUDE.md")
+    # La passation, que le moteur écrit d'une forme fixe et que la session
+    # neuve retire, ne s'injecte pas au démarrage : l'état n'en dit qu'une
+    # ligne. Aucun budget ne lui est exigé.
     for chemin in list(ctx.memoire.fichiers) + instructions:
-        if chemin in ctx.fichiers and chemin not in couverts:
+        if chemin in ctx.fichiers and chemin not in couverts and chemin != ch.passation:
             r.erreur("memoire.budgets", trad("aucun budget ne couvre ce fichier (`[budgets]` des garde-fous)"), chemin)
 
 
@@ -1254,182 +1268,6 @@ def reponses(ctx, r):
         if memoire.est_reponse(c):
             if memoire.demande_de_reponse(c) not in ctx.fichiers:
                 r.erreur("demandes.reponses", trad("réponse sans demande"), c)
-
-
-@controle("demandes.reponse-seule", etages=("agent", "git"), base=True)
-def reponse_seule(ctx, r):
-    """Une réponse `valider` pas encore poussée part avec le changement
-    qu'elle autorise : poussée seule, elle ne le couvrira pas — un
-    avertissement, pas un refus.
-
-    La CI d'un push et le hook avant push ne comptent que les validations
-    de leur plage (B-0043) : la réponse poussée avant le test ou le fichier
-    protégé qu'elle nomme ne les couvre plus au push suivant (B-0142,
-    ADR-0076). La plage est celle qui n'est pas encore poussée ; le
-    changement se mesure sur la branche, depuis la branche par défaut : un
-    fichier poussé sous une demande en attente (D-0071) précède sa réponse
-    sans dommage.
-
-    Une clé des garde-fous que la demande nomme se suit comme un test : le
-    cliquet ne compte lui aussi que les validations de sa plage. Un
-    avertissement ne refuse rien : le contrôle qui plante le dit en
-    avertissement, jamais en erreur (B-0215, ADR-0076)."""
-    try:
-        _reponse_seule(ctx, r)
-    except Exception as e:  # un avertissement en panne ne refuse ni commit, ni push, ni fin de tour
-        r.avertir("demandes.reponse-seule", trad("le contrôle a planté : {erreur}",
-                                                 erreur=f"{type(e).__name__}: {e}"))
-
-
-def _reponse_seule(ctx, r):
-    base = outils.base_non_poussee(ctx.racine, ctx.branches)
-    if not base:
-        return
-    # Le plus souvent, la plage n'ajoute aucune réponse : un diff suffit.
-    if not any(memoire.est_reponse(c) for c in outils.fichiers_changes(ctx.racine, base, ctx.tete)):
-        return
-    for d in demandes.validations_ajoutees(ctx.racine, base, ctx.tete):
-        # Un test ne précède jamais sa réponse (`tests.attendus` le refuse),
-        # ni une clé des garde-fous (`cliquet.garde-fous`) : ils se mesurent
-        # sur la plage pas encore poussée, et un test changé plus tôt sur la
-        # branche, sous une validation antérieure, ne compte pas (la revue de
-        # B-0142). Seul un fichier protégé se mesure sur la branche entière
-        # (D-0071).
-        nommes = _tests_nommes(ctx, d.texte, base) + _cles_nommees(ctx, d.texte, base) \
-            + _fichiers_nommes(ctx, d.texte)
-        if not nommes or any(change for _, change in nommes):
-            continue
-        noms = [n for n, _ in nommes]
-        r.avertir("demandes.reponse-seule", trad(
-            "réponse `valider` de {id}, pas encore poussée, sans le changement qu'elle autorise : la branche ne "
-            "change encore rien de ce qu'elle nomme ({liste}). Poussée seule, elle ne couvrira pas ce changement : "
-            "la CI d'un push, et le hook avant push, ne comptent que les validations de leur plage. La commiter et "
-            "la pousser avec lui, dans le même push", id=d.id or d.chemin,
-            liste=", ".join(f"`{n}`" for n in noms[:5]) + (" …" if len(noms) > 5 else "")),
-            d.chemin_reponse or d.chemin)
-
-
-def _tests_nommes(ctx, texte: str, depuis: str | None = None) -> list[tuple[str, bool]]:
-    """Les tests que le texte nomme en mot entier, comme `tests.attendus`
-    les reconnaît, et les fichiers de cas qu'il cite, chacun avec un
-    booléen : a-t-il changé depuis `depuis` (par défaut, la base de la
-    branche) ?"""
-    from collections import defaultdict
-
-    from socle import checks_tests as controles_tests, tests_reader as tests_lecture
-
-    if depuis:
-        changes = set(outils.fichiers_changes(ctx.racine, depuis, ctx.tete))
-        fichiers_avant = outils.fichiers_a(ctx.racine, depuis)
-
-        def lire_avant(vue, c):
-            return outils.lire_a(ctx.racine, depuis, c)
-    else:
-        changes = set(ctx.changes)
-        fichiers_avant = None
-
-        def lire_avant(vue, c):
-            return vue.lire_base(c)
-    res: dict[str, bool] = {}
-
-    def forme(f) -> str:
-        return re.sub(r"\s+", " ", "\n".join([*f.attributs, f.entete, f.corps]))
-
-    for a in ctx.projet.adaptateurs:
-        vue = ctx.pour(a)
-        cfg = controles_tests.cfg_tests(vue.projet)
-        if cfg is None:
-            continue
-
-        def nommes(texte_fichier: str | None, chemin: str) -> dict[str, list[str]]:
-            par_nom = defaultdict(list)
-            for f in tests_lecture.extraire(texte_fichier or "", chemin, cfg) if texte_fichier else []:
-                if f.est_test and controles_tests._nomme(texte, f.nom):
-                    par_nom[f.nom].append(forme(f))
-            return par_nom
-
-        apres = controles_tests.fichiers_tests(vue, vue.fichiers)
-        for c in apres:
-            maintenant = nommes(vue.lire(c), c)
-            avant = nommes(lire_avant(vue, c), c) if c in changes else maintenant
-            for nom in set(maintenant) | set(avant):
-                res[nom] = res.get(nom, False) or sorted(maintenant.get(nom, [])) != sorted(avant.get(nom, []))
-        base_vue = vue.fichiers_base if fichiers_avant is None else vue.projet.hors_tiers(fichiers_avant)
-        for c in controles_tests.fichiers_tests(vue, base_vue):
-            if c in changes and c not in apres:
-                for nom in nommes(lire_avant(vue, c), c):
-                    res[nom] = True  # le fichier de tests est parti, et le test avec lui
-    motifs = ctx.projet.gf("tests", "case_paths", defaut=[]) or []
-    avant = set(ctx.fichiers_base) if fichiers_avant is None else set(fichiers_avant)
-    for c in outils.filtrer(sorted(set(ctx.fichiers) | avant), motifs) if motifs else []:
-        if controles_tests._nomme(texte, c):
-            res[c] = c in changes
-    return sorted(res.items())
-
-
-def _cles_nommees(ctx, texte: str, depuis: str) -> list[tuple[str, bool]]:
-    """Les clés des garde-fous que le texte cite, comme `cliquet.garde-fous`
-    les reconnaît : la clé citable, en toutes lettres dans la demande
-    (D-0040) ; et pour chacune, a-t-elle changé depuis `depuis` ? Les
-    candidates : les clés des garde-fous avant et après, celles qui ont une
-    valeur par défaut, et celles que les règles du cliquet nomment sans
-    motif. Des garde-fous illisibles ne nomment rien : d'autres contrôles le
-    disent."""
-    import json
-    import tomllib
-
-    from socle import checks_ratchet as cliquet
-
-    chemin = ctx.projet.chemins.garde_fous
-    try:
-        avant = config.charger_toml(ctx.racine, chemin, depuis)
-        apres = config.lire_toml(ctx.lire(chemin))
-    except tomllib.TOMLDecodeError:
-        return []
-
-    def valeurs(gf: dict) -> dict[str, object]:
-        plats = cliquet.aplatir(gf)
-        for c, defaut in cliquet.DEFAUTS.items():
-            plats.setdefault(c, defaut)
-        res = {cliquet._cle(c): v for c, v in plats.items() if cliquet._regle(c) != "libre"}
-        for ligne in gf.get("docmap", []):
-            for g in ligne.get("code", []):
-                res.setdefault(f"docmap {json.dumps(g, ensure_ascii=False)}", []).append(sorted(ligne.get("docs", [])))
-        for v in gf.get("values", []):
-            res[f"values {json.dumps(v.get('name'), ensure_ascii=False)}"] = v
-        return res
-
-    va, vb = valeurs(avant), valeurs(apres)
-    sans_motif = {cliquet._cle(m) for m, sens in cliquet.REGLES
-                  if sens != "libre" and all(re.fullmatch(r"[A-Za-z0-9_-]+", c) for c in m)}
-    return sorted((k, va.get(k, cliquet.ABSENT) != vb.get(k, cliquet.ABSENT))
-                  for k in set(va) | set(vb) | sans_motif if k in texte)
-
-
-# Ce qu'un chemin de fichier ne porte pas : un motif, un lien Markdown.
-_PAS_UN_CHEMIN = re.compile(r"[*?\[\]()<>]")
-
-
-def _fichiers_nommes(ctx, texte: str) -> list[tuple[str, bool]]:
-    """Les fichiers protégés que le texte cite avec une empreinte sur la
-    même ligne, comme une demande qui approuve un changement les cite, et
-    pour chacun : la branche l'a-t-elle changé depuis sa base ? Les
-    réponses humaines, que `protege.fichiers` ne juge pas, n'en sont pas."""
-    motifs = sorted(set(ctx.projet.chemins_proteges())
-                    | set(ctx.projet_base.chemins_proteges() if ctx.projet_base else []))
-    changes = set(ctx.changes)
-    res: dict[str, bool] = {}
-    for ligne in texte.splitlines():
-        jetons = [re.sub(r"^[*(]+|[*.,;:)]+$", "", j) for j in ligne.replace("`", " ").split()]
-        empreintes = {j for j in jetons if demandes.EMPREINTE_DE_FICHIER.fullmatch(j)
-                      or j in demandes.FICHIER_SUPPRIME}
-        if not empreintes:
-            continue
-        for j in jetons:
-            if (j and j not in empreintes and not j.endswith("/") and not _PAS_UN_CHEMIN.search(j)
-                    and not memoire.est_reponse(j) and outils.correspond(j, motifs)):
-                res[j] = j in changes
-    return sorted(res.items())
 
 
 @controle("instructions.source-unique")

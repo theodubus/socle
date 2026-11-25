@@ -220,23 +220,26 @@ when convenient, and says so when announcing the batch.
 **Chaining.** As long as nothing is up to the human, the agent chains the
 ready tasks without waiting for a message. Before starting, it announces
 the batch it will work on: stopping or redirecting it takes one message.
-It stops at the end of the batch, or as soon as a decision is up to the
-human. An open batch that still waits for more tasks than one session
+At the end of the batch, it chains the next one if the session allows
+it (below, “Chaining sessions”), and stops as soon as a decision is up to
+the human. An open batch that still waits for more tasks than one session
 carries, `[batches] max_tasks` of the guardrails (9 by default), the state
 and the end-of-turn reminder say so, without refusing anything: cut it
 into batches, or make it a milestone with its batches under it. Lowering
 the threshold is free; raising it requires a validated request.
 
-**Having it reviewed.** Before delivering a batch that changes code, a
-specification or a test, the agent has it reviewed by a reviewer without
-context, who tries to find fault with it against the “Done when”
-criterion of the batch's tasks and, for a guardrail, its threat model,
-written before the code: what the guardrail stops, what it lets through.
-The reviewer of a small batch, which touches neither a guardrail nor a
-format other parts of the project read, judges only its diff and the
-files touched, against its tasks' criteria (`python3 .socle/socle review
---short`, which refuses a batch that touches a guardrail); the reviewer
-of any other batch gets the full brief (`python3 .socle/socle review`).
+**Having it reviewed.** Before delivering a batch that adds or changes a
+guardrail (a check, a refusal, a hook), a format other parts of the
+project read, or more than 150 lines of code and tests, the agent has it
+reviewed by a reviewer without context, who gets the full brief
+(`python3 .socle/socle review`) and tries to find fault with it against
+the “Done when” criterion of the batch's tasks and, for a guardrail, its
+threat model, written before the code: what the guardrail stops, what it
+lets through. Another batch that changes code or a test, the agent
+rereads itself, its diff and the files touched, against its tasks'
+criteria (`python3 .socle/socle review --short`, which refuses a batch
+that touches a guardrail), and its recap says so. A specification,
+documentation or memory alone get no review: you judge their intent.
 The agent fixes the blocking findings in the batch (a contradicted
 criterion, a regression, a data loss, a bypass within the threat model);
 it sends to the backlog, where you see them, those that matter and have
@@ -276,31 +279,38 @@ engine later adds to its own is not refused in the project until you have
 copied it into the line, which the release note that adds it will say.
 Removing the line gives the merge back to the human.
 
-**Chaining sessions.** The agent runs only one batch per session: a
-conversation that grows costs more at each exchange. At the end of a
-batch, near a usage limit or before a long wait, it tidies up, then hands
-over to a new session, in one of two modes. By default, in a Claude Code
+**Chaining sessions.** The session is the budget unit: at the end of a
+batch, the agent chains the next one if its estimated cost fits in what
+remains of the five-hour window and of the week, and if the conversation
+stays under 300,000 tokens of context, beyond which each exchange costs
+more and more; two batches at most without a message from you.
+Otherwise, as near a usage limit or before a long wait, it tidies up,
+then hands over to a new session, in one of two modes. By default, in a Claude Code
 cloud session, the **scheduled session**: it creates the next session
 itself, which appears at once in your list of sessions with its title and
-start time, and schedules its prompt; never on a five-hour window already
-at 15% nor on a week at 75%, where it waits for the reset. The chain
-stops without you, and the recap gives you the prompt to copy, when the
+start time, and schedules its prompt; never if its batch's cost does not
+fit in what remains of the five-hour window, nor on a week at 75%: it
+then waits for the reset. The chain
+stops without you, and the recap tells you to ask for the resumption, when the
 next batch has no ready task (a decision is up to you, for example),
 after two batches run without a message from you, or if Claude Code
-refuses to create the session. The **prompt to copy**: the recap gives
-the prompt of the next session, which you paste into a session you open
-whenever you want; it is the mode of whoever has several accounts or
-wants to keep control. To change the mode, tell the agent (“switch to the
+refuses to create the session. The **prompt to copy**: you open a new
+session whenever you want, from one account or another, and ask there
+for the resumption: "resume", "continue", or any other message that says
+so; it is the mode of whoever has several accounts or wants to keep
+control. To change the mode, tell the agent (“switch to the
 prompt to copy”, “go back to the scheduled session”): it writes it in the
 active work, and switching to the prompt to copy cancels what is
 scheduled, giving you the link of each cancelled session. To stop a
 scheduled session without changing the mode: write "stop" in the session
 that scheduled it, or delete its task from the list of scheduled tasks
-of your account and archive the session. In both modes, the prompt the
-agent writes (`python3 .socle/socle handoff prompt`) starts with a guard
-(`python3 .socle/socle handoff check`): the new session does not work if
-someone pushed to its branch since, or if another session wrote the
-project's memory on another branch, and says so. Accepted, it continues
+of your account and archive the session. In both modes, the agent
+writes its handoff in the memory (`python3 .socle/socle handoff write`),
+commits and pushes it; the new session finds it and judges its guard
+(`python3 .socle/socle handoff check`): it does not work if someone pushed
+to its branch since, if another session wrote the project's memory
+since, or if another one already resumed it, and says so; without a
+handoff, it says so too. Accepted, it continues
 the open pull request of its branch, which becomes its own: it merges it
 if the policy allows the agent to; otherwise, you merge it.
 
@@ -343,9 +353,10 @@ the installer, are protected.
 threshold, deleting a test, a decision costly to undo, an irreversible
 action), the agent writes a request and gives its link. It reads on its
 own, even after weeks away from the project: its context opens with the
-project, the work in progress and the question. An agent that has
-subagents has it read cold, by one of them that only has its text, before
-asking you, and its recap gives the outcome. It ends with the list of
+project, the work in progress and the question. A long request, beyond
+half its budget, an agent that has subagents has read cold, by one of
+them that only has its text, before asking you, and its recap gives the
+outcome. It ends with the list of
 possible answers. Answer in the conversation; the agent records the answer
 word for word.
 
@@ -374,12 +385,18 @@ test"), it records the same way, your exact text, with no question and no
 answer to choose (`socle decision --unprompted`): the decision counts as
 approved for what it names.
 
-**Framing questions.** When a need's specification depends on an
-intention the memory does not state, the agent asks open questions, each
-with its assumption, in a request whose link it gives. Answer them
-freely, in one or several messages (`answers`), or `approve` its
-assumptions: it records the text as is, then submits the specification
-that follows from it. Telling it "ask me your questions about this
+**The question of intent.** When a need's design is not settled, the
+agent first asks you, in the conversation, in a few lines, the need as it
+understands it, the choice that remains and its recommendation. It
+records your answer, then writes the specification and the code in the
+same batch, the specification first; what remains costly to undo then
+comes to you as a request, a short one.
+
+**Framing questions.** When your intention is missing on several points,
+the agent asks open questions, each with its assumption, in a request
+whose link it gives. Answer them freely, in one or several messages
+(`answers`), or `approve` its assumptions: it records the text as is,
+then writes the specification that follows from it. Telling it "ask me your questions about this
 need" is enough to request them.
 
 **A review before publication**, if the policy requires it: the agent

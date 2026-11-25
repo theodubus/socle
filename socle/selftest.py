@@ -585,6 +585,43 @@ def _pousser_la_reponse(a: "Atelier", c: Path, avec_le_test: bool, cle: bool = F
     return r.returncode, r.stdout + r.stderr
 
 
+def _changer_sous_une_validation_fusionnee(a: "Atelier", c: Path, tache: str | None, avec_le_test: bool = False,
+                                           bouge: bool = False) -> str:
+    """La demande qui nomme `test_double`, poussée, sa réponse `valider`,
+    et, si `tache` est un statut, la tâche T-0001 qui la cite ; avec
+    `avec_le_test`, la valeur attendue changée dans le même commit. Le
+    tout fusionné dans la branche par défaut de ce clone seul (l'origine
+    est partagée). Avec `bouge`, le test change ensuite dans la branche par
+    défaut, d'un commentaire. Puis une nouvelle valeur attendue sur la
+    branche : ce qu'en dit la CI (D-0189, piste B)."""
+    (c / "memory/requests/D-0001-refactor.md").write_text(_demande_nommant_le_test(a, c))
+    pousser(a, c, "La demande")
+    (c / "citation.txt").write_text("oui, compare à un flottant")
+    r = a.socle(c, "answer", "D-0001", "valider", "--relayed", "--by", "Théo", "--quote-file", "citation.txt")
+    (c / "citation.txt").unlink()
+    if r.returncode != 0:
+        return r.stdout + r.stderr
+    if tache:
+        statut = "fait · ref : D-0001" if tache == "fait" else tache
+        ajouter_sujet(c, tache_essai(a, c, statut=statut).replace("Pour l'essai.", "Change `test_double` sous "
+                                                                                     "D-0001."))
+    attendu = "4"
+    if avec_le_test:
+        attendu = "4.0"
+        remplacer(c, "tests/test_calc.py", "self.assertEqual(double(2), 4)", "self.assertEqual(double(2), 4.0)")
+    a.commit(c, "La réponse de Théo")
+    a.git(c, "update-ref", "refs/remotes/origin/main", "HEAD")
+    if bouge:
+        remplacer(c, "tests/test_calc.py", f"self.assertEqual(double(2), {attendu})",
+                  f"self.assertEqual(double(2), {attendu})  # deux fois deux")
+        a.commit(c, "Le test commenté")
+        a.git(c, "update-ref", "refs/remotes/origin/main", "HEAD")
+    remplacer(c, "tests/test_calc.py", f"self.assertEqual(double(2), {attendu})",
+              "self.assertEqual(double(2), 4.00)")
+    maj_memoire(c, "La valeur attendue suit la réponse.")
+    return etage_ci(a, c)
+
+
 def _test_change_sous_une_decision_donnee(a: "Atelier", c: Path, texte: str) -> str:
     """Une décision que l'humain donne de lui-même, `texte`, consignée par
     `socle decision --unprompted` (B-0185), puis la valeur attendue de
@@ -915,19 +952,31 @@ def _ranger(a: Atelier, c: Path, pousser: bool = True) -> Path:
     return nu
 
 
-def _passation(a: Atelier, c: Path) -> tuple[Path, list[str]]:
-    """Une passation : la session qui part, `c`, range et pousse sa branche
-    (`_ranger`), puis écrit le prompt (`socle handoff prompt`). Rend le
-    clone de la session neuve, et les arguments de la garde que le prompt
-    lui donne."""
-    nu = _ranger(a, c)
-    r = a.socle(c, "handoff", "prompt")
-    lignes = [l for l in r.stdout.splitlines() if l.startswith("python3 .socle/socle handoff check ")]
-    if r.returncode != 0 or not lignes:
+def _ecrire_la_passation(a: Atelier, c: Path, commiter: bool = True, pousser: bool = True):
+    """La session qui part, `c`, range (`_ranger`, sans pousser), écrit sa
+    passation (`socle handoff write`), la commite en dernier et pousse."""
+    _ranger(a, c, pousser=False)
+    r = a.socle(c, "handoff", "write")
+    if r.returncode != 0:
         raise RuntimeError(r.stdout + r.stderr)
+    if commiter:
+        a.commit(c, "la passation")
+    if commiter and pousser:
+        a.git(c, "push", "-q", "--no-verify", "-u", "origin", "travail")
+
+
+def _passation(a: Atelier, c: Path) -> tuple[Path, datetime]:
+    """Une passation écrite, commitée et poussée (`_ecrire_la_passation`).
+    Rend le clone de la session neuve, et l'heure `écrite` de la
+    passation."""
+    _ecrire_la_passation(a, c)
+    texte = (c / "memory/handoff.md").read_text(encoding="utf-8")
+    ecrite = re.search(r"écrite : (\S+)", texte)
+    if not ecrite:
+        raise RuntimeError(texte)
     neuve = c.parent / f"{c.name}-neuve"
-    a.git(a.dossier, "clone", "-q", "--no-local", str(nu), str(neuve))
-    return neuve, lignes[0].split()[2:]
+    a.git(a.dossier, "clone", "-q", "--no-local", str(c.parent / f"{c.name}-nu"), str(neuve))
+    return neuve, datetime.strptime(ecrite.group(1), "%Y-%m-%dT%H:%M:%SZ")
 
 
 def _fusion_par_squash(a: Atelier, c: Path):
@@ -940,17 +989,18 @@ def _fusion_par_squash(a: Atelier, c: Path):
     a.git(github, "push", "-q", "--no-verify", "origin", "main", ":travail")
 
 
-def _apres_la_passation(garde: list[str]) -> dict:
-    """L'environnement d'un commit daté d'une minute après la passation."""
-    depuis = datetime.strptime(garde[garde.index("--since") + 1], "%Y-%m-%dT%H:%M:%SZ")
-    return {"GIT_COMMITTER_DATE": (depuis + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S+0000")}
+def _apres_la_passation(ecrite: datetime) -> dict:
+    """L'environnement d'un commit écrit et daté d'une minute après la
+    passation."""
+    date = (ecrite + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S+0000")
+    return {"GIT_COMMITTER_DATE": date, "GIT_AUTHOR_DATE": date}
 
 
-def _session_neuve(a: Atelier, neuve: Path, garde: list[str]) -> subprocess.CompletedProcess:
-    """La session neuve fait ce que dit son prompt : `git fetch`, puis la
-    garde."""
+def _session_neuve(a: Atelier, neuve: Path) -> subprocess.CompletedProcess:
+    """La session neuve, sur une demande de reprendre : `git fetch`, puis
+    `socle handoff check` sans argument."""
     a.git(neuve, "fetch", "-q", "origin")
-    return a.socle(neuve, *garde)
+    return a.socle(neuve, "handoff", "check")
 
 
 # --------------------------------------------------------------------------
@@ -1689,72 +1739,94 @@ def _cas() -> list[Cas]:
         r = a.socle(c, "review", "--short")
         return r.stdout + r.stderr
 
-    # La garde de la passation (`socle handoff check`) : la session neuve ne
-    # travaille pas par-dessus une autre.
+    # La garde de la passation (`socle handoff check`, sans argument) : la
+    # session neuve, sur une demande de reprendre, ne travaille pas
+    # par-dessus une autre.
     @defaut("passation-poussee-depuis", "session neuve d'une passation alors que la session qui part a poussé après "
             "elle", "passation", "passation poussée depuis")
     def _(a, c):
-        neuve, garde = _passation(a, c)
+        neuve, _ = _passation(a, c)
         remplacer(c, "memory/active.md", "La passation de l'essai.", "Un commit poussé après la passation.")
         a.commit(c, "après la passation")
         a.git(c, "push", "-q", "--no-verify", "origin", "travail")
-        r = _session_neuve(a, neuve, garde)
+        r = _session_neuve(a, neuve)
         return r.stdout + r.stderr
 
     @defaut("passation-autre-session", "session neuve d'une passation alors qu'une autre session a écrit la mémoire "
             "sur une autre branche depuis", "passation", "passation d'une autre session")
     def _(a, c):
-        neuve, garde = _passation(a, c)
+        neuve, ecrite = _passation(a, c)
         autre = c.parent / f"{c.name}-autre"
         a.git(a.dossier, "clone", "-q", "--no-local", str(c.parent / f"{c.name}-nu"), str(autre))
         a.git(autre, "checkout", "-q", "-b", "autre", "origin/main")
         maj_memoire(autre, "Le travail d'une autre session.")
-        r = a.commit(autre, "une autre session", env=_apres_la_passation(garde))
+        r = a.commit(autre, "une autre session", env=_apres_la_passation(ecrite))
         if r.returncode != 0:
             raise RuntimeError(r.stderr)
         a.git(autre, "push", "-q", "--no-verify", "origin", "autre")
-        r = _session_neuve(a, neuve, garde)
+        r = _session_neuve(a, neuve)
         return r.stdout + r.stderr
 
-    # Fusionnée par squash pendant l'attente, sa branche supprimée, la pull
-    # request du lot fait refuser la garde (D-0174) : collé tard, le prompt
-    # nomme une tête que le clone n'a plus ; programmée, la session neuve
-    # dont le `git fetch` élague voit la branche disparue.
-    @defaut("passation-squash-collee-tard", "prompt de passation collé après la fusion par squash de la pull request "
-            "et la suppression de sa branche", "passation", "passation réécrite")
+    # Reprise par une session dont le retrait n'est pas encore dans la
+    # branche par défaut : une seconde demande de reprendre est refusée.
+    @defaut("passation-deja-reprise", "session neuve d'une passation qu'une autre session a déjà reprise, son retrait "
+            "poussé sur la branche de la passation", "passation", "passation déjà reprise")
     def _(a, c):
-        neuve, garde = _passation(a, c)
-        _fusion_par_squash(a, c)
-        tard = c.parent / f"{c.name}-tard"
-        a.git(a.dossier, "clone", "-q", "--no-local", str(c.parent / f"{c.name}-nu"), str(tard))
-        r = _session_neuve(a, tard, garde)
+        neuve, ecrite = _passation(a, c)
+        reprise = c.parent / f"{c.name}-reprise"
+        a.git(a.dossier, "clone", "-q", "--no-local", str(c.parent / f"{c.name}-nu"), str(reprise))
+        a.git(reprise, "checkout", "-q", "-B", "travail", "origin/travail")
+        a.git(reprise, "rm", "-q", "memory/handoff.md")
+        r = a.commit(reprise, "la passation reprise et retirée", env=_apres_la_passation(ecrite))
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr)
+        a.git(reprise, "push", "-q", "--no-verify", "origin", "travail")
+        r = _session_neuve(a, neuve)
         return r.stdout + r.stderr
 
-    @defaut("passation-squash-programmee", "session neuve d'une passation dont la pull request a été fusionnée par "
-            "squash et sa branche supprimée, son `git fetch` élaguant", "passation", "passation fusionnée par squash")
+    # Fusionnée par squash, sa branche supprimée, la pull request du lot
+    # porte la passation dans la branche par défaut, d'où la session repart ;
+    # la mémoire d'une autre session, fusionnée avant le squash, ancêtre de la
+    # tête, fait toujours refuser.
+    @defaut("passation-squash-autre-session", "session neuve d'une passation dont la pull request a été fusionnée par "
+            "squash, sa branche supprimée, après la mémoire d'une autre session écrite depuis l'heure de la passation",
+            "passation", "passation squash d'une autre session")
     def _(a, c):
-        neuve, garde = _passation(a, c)
-        _fusion_par_squash(a, c)
+        neuve, ecrite = _passation(a, c)
+        nu = c.parent / f"{c.name}-nu"
+        autre = c.parent / f"{c.name}-autre"
+        a.git(a.dossier, "clone", "-q", "--no-local", str(nu), str(autre))
+        a.git(autre, "checkout", "-q", "-b", "autre", "origin/main")
+        ajouter(autre, "memory/canonical.md", "<!-- le travail d'une autre session -->\n")
+        r = a.commit(autre, "une autre session", env=_apres_la_passation(ecrite))
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr)
+        a.git(autre, "push", "-q", "--no-verify", "origin", "autre")
+        github = c.parent / f"{c.name}-github"
+        a.git(a.dossier, "clone", "-q", "--no-local", str(nu), str(github))
+        a.git(github, "merge", "-q", "--no-ff", "-m", "Fusion de la pull request d'une autre session", "origin/autre")
+        a.git(github, "merge", "-q", "--squash", "origin/travail")
+        a.commit(github, "Le lot (#1)")
+        a.git(github, "push", "-q", "--no-verify", "origin", "main", ":travail", ":autre")
         a.git(neuve, "config", "fetch.prune", "true")
-        r = _session_neuve(a, neuve, garde)
+        r = _session_neuve(a, neuve)
         return r.stdout + r.stderr
 
-    # Le prompt de passation (`socle handoff prompt`) : refusé tant que la
-    # session neuve ne repartirait pas du dépôt seul ; programmé, aux bornes
-    # d'une chaîne sans l'humain (D-0174).
-    @defaut("passation-non-poussee", "prompt de passation alors que la tête locale n'est pas poussée", "passation",
-            "passation non poussée")
+    # La passation (`socle handoff write`) : programmée, aux bornes d'une
+    # chaîne sans l'humain (D-0174) ; puis la vérification de la session qui
+    # part, après son push, qui doit la retrouver en attente.
+    @defaut("passation-non-poussee", "passation commitée mais pas poussée, que la session qui part vérifie",
+            "passation", "passation non poussée")
     def _(a, c):
-        _ranger(a, c, pousser=False)
-        r = a.socle(c, "handoff", "prompt")
+        _ecrire_la_passation(a, c, pousser=False)
+        r = a.socle(c, "handoff", "check")
         return r.stdout + r.stderr
 
-    @defaut("passation-non-commitee", "prompt de passation alors qu'un fichier suivi a un changement non commité",
+    @defaut("passation-non-commitee", "passation écrite mais pas commitée, que la session qui part vérifie",
             "passation", "passation non commitée")
     def _(a, c):
-        _ranger(a, c)
-        remplacer(c, "calc.py", "return FACTEUR * x", "return x * FACTEUR")
-        r = a.socle(c, "handoff", "prompt")
+        _ecrire_la_passation(a, c, commiter=False)
+        r = a.socle(c, "handoff", "check")
         return r.stdout + r.stderr
 
     @defaut("passation-borne-de-la-chaine", "session programmée après deux lots menés sans message de l'humain",
@@ -1762,15 +1834,34 @@ def _cas() -> list[Cas]:
     def _(a, c):
         ajouter_sujet(c, tache_essai(a, c))
         _ranger(a, c)
-        r = a.socle(c, "handoff", "prompt", "--scheduled", "--chain", "2")
+        r = a.socle(c, "handoff", "write", "--scheduled", "--chain", "2")
         return r.stdout + r.stderr
 
     @defaut("passation-sans-tache-prete", "session programmée alors qu'aucune tâche n'est prête", "passation",
             "passation sans tâche prête")
     def _(a, c):
         _ranger(a, c)
-        r = a.socle(c, "handoff", "prompt", "--scheduled")
+        r = a.socle(c, "handoff", "write", "--scheduled")
         return r.stdout + r.stderr
+
+    # La couche `passation` du format : son estampille, et aucun
+    # identifiant.
+    @defaut("passation-sans-estampille", "passation sans son estampille : ni heure `écrite`, ni branche, ni chaîne",
+            "git", "memoire.format")
+    def _(a, c):
+        (c / "memory/handoff.md").write_text("<!-- socle: couche=passation zone=publique -->\n# Passation\n\n"
+                                             "Ce qui attend : rien.\n")
+        return etage_git(a, c)
+
+    @defaut("passation-avec-une-entree", "identifiant défini dans la passation, que la session neuve retire", "git",
+            "memoire.format")
+    def _(a, c):
+        r = a.socle(c, "handoff", "write")
+        if r.returncode != 0:
+            raise RuntimeError(r.stdout + r.stderr)
+        ajouter(c, "memory/handoff.md", "\n## F-0099 — Un fait dans la passation\n\n> statut : supposé · source : "
+                                        "l'essai\n")
+        return etage_git(a, c)
 
     # L'historique des revues d'un lot (ADR-0084, ADR-0100) : une ligne de
     # bloquant qu'il ne lit pas.
@@ -1826,17 +1917,22 @@ def _cas() -> list[Cas]:
         maj_memoire(c)
         return etage_stop(a, c, "J'ai changé le test en attendant la réponse." + RECAP)
 
-    @defaut("reponse-poussee-seule", "réponse « valider » poussée sans le test qu'elle autorise à changer", "git",
-            "demandes.reponse-seule")
+    # D-0189, piste B : une validation d'avant la plage ne couvre que tant
+    # qu'une tâche ouverte la cite et que ce qu'elle nomme n'a pas bougé.
+    @defaut("validation-epuisee", "valeur attendue changée une seconde fois sous une validation fusionnée avec "
+            "son test, sa tâche close", "ci", "tests.attendus")
     def _(a, c):
-        # B-0142 : un avertissement, que le hook avant push dit sans refuser.
-        return _pousser_la_reponse(a, c, avec_le_test=False)[1]
+        return _changer_sous_une_validation_fusionnee(a, c, tache="fait", avec_le_test=True)
 
-    @defaut("reponse-poussee-sans-sa-cle", "réponse « valider » poussée sans la clé des garde-fous qu'elle autorise "
-            "à relâcher", "git", "demandes.reponse-seule")
+    @defaut("validation-sans-tache", "valeur attendue changée sous une validation fusionnée qu'aucune tâche "
+            "ouverte ne cite", "ci", "tests.attendus")
     def _(a, c):
-        # B-0215 : le cliquet ne compte lui aussi que les validations de sa plage.
-        return _pousser_la_reponse(a, c, avec_le_test=False, cle=True)[1]
+        return _changer_sous_une_validation_fusionnee(a, c, tache=None)
+
+    @defaut("validation-test-bouge", "valeur attendue changée sous une validation fusionnée dont le test a bougé "
+            "depuis dans la branche par défaut", "ci", "tests.attendus")
+    def _(a, c):
+        return _changer_sous_une_validation_fusionnee(a, c, tache="ouvert", bouge=True)
 
     @defaut("valeur-attendue-decision-donnee-sans-le-test", "valeur attendue changée sous une décision que "
             "l'humain a donnée de lui-même sans nommer le test", "ci", "tests.attendus")
@@ -3119,27 +3215,51 @@ def _temoins() -> list[tuple[str, Callable]]:
             "ayant poussé sans toucher la mémoire, passe sa garde, qui place la session neuve sur la branche par "
             "défaut")
     def _(a, c):
-        neuve, garde = _passation(a, c)
+        neuve, ecrite = _passation(a, c)
         github = c.parent / f"{c.name}-github"
         a.git(a.dossier, "clone", "-q", "--no-local", str(c.parent / f"{c.name}-nu"), str(github))
         a.git(github, "checkout", "-q", "-b", "dependances", "origin/main")
         remplacer(github, "calc.py", '"""Calculs du projet d\'essai."""', '"""Calculs du projet d\'essai, à jour."""')
-        r = a.commit(github, "une dépendance à jour", env=_apres_la_passation(garde))
+        r = a.commit(github, "une dépendance à jour", env=_apres_la_passation(ecrite))
         if r.returncode != 0:
             return r.stdout + r.stderr
         a.git(github, "push", "-q", "--no-verify", "origin", "dependances")
         a.git(github, "checkout", "-q", "main")
         a.git(github, "merge", "-q", "--no-ff", "-m", "Fusion de la pull request du lot", "origin/travail")
         a.git(github, "push", "-q", "--no-verify", "origin", "main")
-        r = _session_neuve(a, neuve, garde)
+        r = _session_neuve(a, neuve)
         return "" if r.returncode == 0 and "se placer sur origin/main" in r.stdout else r.stdout + r.stderr
 
-    @temoin("une session programmée, une tâche prête et un lot mené sans message de l'humain, reçoit son prompt")
+    @temoin("une passation dont la pull request est fusionnée par squash pendant l'attente, sa branche supprimée et "
+            "le `git fetch` de la session neuve élaguant, passe sa garde, qui place la session neuve sur la branche "
+            "par défaut")
+    def _(a, c):
+        neuve, _ = _passation(a, c)
+        _fusion_par_squash(a, c)
+        a.git(neuve, "config", "fetch.prune", "true")
+        r = _session_neuve(a, neuve)
+        return "" if r.returncode == 0 and "se placer sur origin/main" in r.stdout else r.stdout + r.stderr
+
+    @temoin("la session qui part, sa passation commitée et poussée, la retrouve en attente après son push")
+    def _(a, c):
+        _ecrire_la_passation(a, c)
+        r = a.socle(c, "handoff", "check")
+        return "" if r.returncode == 0 and "se placer sur origin/travail" in r.stdout else r.stdout + r.stderr
+
+    @temoin("une session programmée, une tâche prête et un lot mené sans message de l'humain, écrit sa passation")
     def _(a, c):
         ajouter_sujet(c, tache_essai(a, c))
         _ranger(a, c)
-        r = a.socle(c, "handoff", "prompt", "--scheduled", "--chain", "1")
-        return "" if r.returncode == 0 and "1 lot(s) mené(s)" in r.stdout else r.stdout + r.stderr
+        r = a.socle(c, "handoff", "write", "--scheduled", "--chain", "1")
+        ecrite = (c / "memory/handoff.md").read_text() if (c / "memory/handoff.md").is_file() else ""
+        return "" if r.returncode == 0 and "· chaîne : 1\n" in ecrite else r.stdout + r.stderr + ecrite
+
+    @temoin("une passation écrite par `socle handoff write` passe le commit et la CI")
+    def _(a, c):
+        r = a.socle(c, "handoff", "write", "--waiting", "la CI du commit de tête")
+        if r.returncode != 0:
+            return r.stdout + r.stderr
+        return etage_git(a, c) or etage_ci(a, c)
 
     @temoin("un lot relu clos « fait », ses deux passes sans recul, passe le commit et la CI")
     def _(a, c):
@@ -3363,13 +3483,30 @@ def _temoins() -> list[tuple[str, Callable]]:
     @temoin("une réponse « valider » poussée avec le test qu'elle autorise à changer part sans avertissement")
     def _(a, c):
         code, sortie = _pousser_la_reponse(a, c, avec_le_test=True)
-        return (sortie or "push refusé") if code or RAISONS_AGENT["demandes.reponse-seule"] in sortie else ""
+        return (sortie or "push refusé") if code else ""
 
     @temoin("une réponse « valider » poussée avec la clé des garde-fous qu'elle autorise à relâcher part sans "
             "avertissement")
     def _(a, c):
         code, sortie = _pousser_la_reponse(a, c, avec_le_test=True, cle=True)
-        return (sortie or "push refusé") if code or RAISONS_AGENT["demandes.reponse-seule"] in sortie else ""
+        return (sortie or "push refusé") if code else ""
+
+    @temoin("une réponse « valider » poussée seule couvre le test qu'elle autorise à changer, poussé au push "
+            "suivant")
+    def _(a, c):
+        code, sortie = _pousser_la_reponse(a, c, avec_le_test=False)
+        if code:
+            return sortie or "push refusé"
+        remplacer(c, "tests/test_calc.py", "self.assertEqual(double(2), 4)", "self.assertEqual(double(2), 4.0)")
+        maj_memoire(c)
+        a.commit(c, "Le test que la réponse autorise")
+        r = a.run(c, "git", "push", "-q", "origin", f"travail:{c.name}")
+        return (r.stdout + r.stderr or "push refusé") if r.returncode else ""
+
+    @temoin("une valeur attendue changée sous une validation fusionnée qu'une tâche ouverte cite, son test "
+            "inchangé depuis, passe la CI")
+    def _(a, c):
+        return _changer_sous_une_validation_fusionnee(a, c, tache="ouvert")
 
     @temoin("un correctif dont le test passe sur le parent, admis par une demande validée qui nomme son commit, "
             "passe la CI")
@@ -3905,20 +4042,20 @@ RAISONS_AGENT = {
     "commit sans filtre": "commit d'agent sans aucun passage du filtre",
     "geste sans valider": "que seule une réponse `valider` autorise à changer",
     "question en widget": "widget de questions de l'agent",
-    "demandes.reponse-seule": "Poussée seule, elle ne couvrira pas ce changement",
     # `socle review` ne nomme pas de contrôle non plus : il refuse le dossier
     # court d'un lot qui touche un garde-fou (B-0288).
     "revue courte refusée": "le lot touche un garde-fou",
     # `socle handoff check` non plus : il refuse la passation, en disant
-    # pourquoi.
+    # pourquoi, dans la session neuve comme dans celle qui part, après son
+    # push.
     "passation poussée depuis": "quelqu'un a poussé sur origin/travail depuis la passation",
     "passation d'une autre session": "une autre session travaille sur le projet",
-    "passation réécrite": "est introuvable dans ce clone",
-    "passation fusionnée par squash": "la pull request a été fusionnée par squash",
-    # `socle handoff prompt` non plus : il refuse le prompt, en disant
-    # pourquoi.
-    "passation non poussée": "n'est pas poussée : pousser d'abord",
-    "passation non commitée": "des changements de fichiers suivis ne sont pas commités",
+    "passation déjà reprise": "est déjà reprise : origin/travail porte son retrait",
+    "passation squash d'une autre session": "porte parmi ses ancêtres 1 commit(s) écrit(s) après",
+    "passation non poussée": "n'est pas poussée : aucune branche de origin ne la porte",
+    "passation non commitée": "des changements ne sont pas commités (memory/handoff.md)",
+    # `socle handoff write` non plus : il refuse la passation programmée, en
+    # disant pourquoi.
     "borne de la chaîne": "lots menés sans message de l'humain, sa borne est",
     "passation sans tâche prête": "le prochain lot n'a aucune tâche prête",
 }

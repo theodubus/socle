@@ -1,21 +1,22 @@
 ---
 name: socle-handoff
-description: Hand over to a new session, at the end of a batch, near a usage limit or before a long wait — schedule it yourself or give the prompt to copy, depending on the mode, with the guard against duplicated work. Use it after the tidying up of socle-batch, when the human changes the mode, and when a session starts from a handoff prompt.
+description: Hand over to a new session, at the end of a batch, near a usage limit or before a long wait — write the handoff in the memory, then schedule the next session or tell the human to ask for the resumption, depending on the mode, with the guard against duplicated work. Use it after the tidying up of socle-batch, when the human changes the mode, and when the first message of a new session asks to resume.
 ---
 
 # Handing over to a new session
 
-A session runs only one batch. When it stops, the next one restarts from
-the repository alone, on a handoff prompt that `python3 .socle/socle
-handoff prompt` writes with its guard. The prompt's times are in UTC;
-those the human reads, in their own time.
+A session chains the batches its budget allows (the `socle-batch`
+skill). When it stops, it writes its handoff in the memory, commits and
+pushes it; the next session, from one account or another, finds it and
+judges its guard. The handoff's times are in UTC; those the human reads,
+in their own time.
 
 ## The two modes
 
 - **Scheduled session**, by default: the agent creates the next session
-  and schedules its prompt.
-- **Prompt to copy**: the agent gives the prompt in its recap, and the
-  human opens the session themselves; the mode of whoever has several
+  and schedules its wake-up.
+- **Prompt to copy**: the recap tells the human to open a new session
+  and ask there for the resumption; the mode of whoever has several
   accounts or wants to keep control.
 
 The mode is the one an instruction in the active work states; without
@@ -38,16 +39,15 @@ at a bound.
 | Tidying up ten points from a limit (`socle-batch`) | the reset of that window, plus five minutes |
 | Before a wait of more than an hour (a long CI, a given time) | the end of the wait |
 
-A session never starts on a window beyond its threshold, 15% of the
-five-hour window and 75% of the week: its time then moves back to the
-reset of that window, plus five minutes. A batch costs a good share of
-the window: started on a window already used, it would be cut off along
-the way. The use and the resets are read as for the wake-ups (the
-`socle-resume` skill).
+A session starts only if its batch's estimated cost fits in what
+remains of the five-hour window, the tidying-up margin included, and
+never on a week beyond 75%: otherwise, its time moves back to the reset
+of that window, plus five minutes. The use and the resets are read as
+for the wake-ups (the `socle-resume` skill).
 
 ## The bounds
 
-Nothing is scheduled, and the recap gives the prompt to copy:
+Nothing is scheduled, and the recap says to ask for the resumption:
 
 - when the next batch has no ready task in the state, because a
   decision is up to the human or nothing is ready; a pending request
@@ -57,71 +57,81 @@ Nothing is scheduled, and the recap gives the prompt to copy:
 - when the platform refuses to create the session.
 
 The chain (`--chain`) counts these batches: 0 if the human wrote in the
-session; otherwise, that of its handoff prompt, plus one. The prompt to
-copy carries 0. With `--scheduled`, the command refuses the prompt at
-the first two bounds, saying so.
+session; otherwise, that of its handoff, plus one. The prompt to copy
+carries 0. With `--scheduled`, the command refuses the handoff at the
+first two bounds, saying so.
+
+## Writing the handoff
+
+First the tidying up (the `socle-batch` skill, "Changing sessions"): the
+journal entry that states the handoff, without the links only the recap
+will give; the session's wake-ups removed. Then, with `--scheduled` for
+a scheduled session:
+
+```sh
+python3 .socle/socle handoff write --chain <n> --waiting "<what is waiting>"
+```
+
+The handoff is committed last and pushed. Then the guard, without
+arguments, must find it waiting (its "First commit" line is for the new
+session); otherwise, nothing is scheduled, and the recap says why:
+
+```sh
+python3 .socle/socle handoff check
+```
+
+Nothing is pushed afterwards; a commit needed later rewrites the handoff
+(`write`) in that same commit, and the guard runs again.
 
 ## Scheduling
 
-First the tidying up (the `socle-batch` skill, "Changing sessions"): the
-journal entry that tells the handoff, without the links only the recap
-will give; the session's wake-ups removed; everything pushed. Nothing is
-pushed afterwards: the guard names the remote head, and the scheduled
-prompt is no longer rewritten. A commit needed later cancels the handoff
-(the task deleted, the session archived), which is done again.
+The handoff written with `--scheduled` (above, `socle-batch` tidied up):
 
-1. The prompt, with the chain and what is waiting:
-
-```sh
-python3 .socle/socle handoff prompt --scheduled --chain <n> --waiting "<what is waiting>"
-```
-
-2. `create_session`, without `prompt`: `source_url` the repository's
-   address; `source_revision` the branch the guard names (`--ref`,
-   without `origin/`); `outcome_branch` the work branch, without which
-   the new session has nowhere to push; `model` this session's; `effort`
-   its own, which is not inherited (refused, the call is made again
-   without it); `title` "Handoff — <batch> — starts on <day> at <the
-   human's time>"; `tags` `["handoff"]`.
-3. `create_trigger`: `name` "Handoff — <repository>";
-   `persistent_session_id` the created session; `run_once_at` the time
-   of the moment; `prompt` the text of step 1; `initiation`
+1. `create_session`, without `prompt`: `source_url` the repository's
+   address; `source_revision` the work branch; `outcome_branch` the
+   same, without which the new session has nowhere to push; `model` this
+   session's; `effort` its own, which is not inherited (refused, the call
+   is made again without it); `title` "Handoff — <batch> — leaves on
+   <day> at <human's time>"; `tags` `["passation"]`.
+2. `create_trigger`: `name` "Handoff — <repository>";
+   `persistent_session_id` the created session; `run_once_at` the time of
+   the moment; `prompt` "resume — scheduled session"; `initiation`
    `own_followup`.
-4. The recap gives the link of the created session, its time and how to
+3. The recap gives the link of the created session, its time and how to
    stop it; `Next:` says so.
 
 If a call fails, the created session is archived, and the prompt to copy
-replaces the handoff, the recap saying why.
+replaces the scheduled handoff, the recap saying why.
 
 ## The prompt to copy
 
-In a block to copy in the recap, with the reason for changing sessions:
-
-```sh
-python3 .socle/socle handoff prompt --waiting "<what is waiting>"
-```
-
-Pasted late, its guard judges it all the same.
+The recap says it, with the reason for changing sessions: "In a new
+session, write "resume""; any message that asks to resume or continue
+will do.
 
 ## The new session
 
-Its prompt starts with `git fetch` and the guard (`socle handoff
-check`). Refused, it does nothing else but say so, with its reason, in
-its last message. Accepted, it moves to the reference the guard names:
-its clone dates from its creation, not from its prompt.
+On a first message that asks to resume or continue the work, whatever
+its form ("resume", "continue", "pick the work back up"), or on the
+scheduled task's, the agent runs `git fetch --prune origin`, then the
+guard without arguments. Refused, the session does nothing else but say
+so, with its reason, in its last message. Accepted, it places itself on
+the reference the guard names, and its first commit removes the
+handoff, pushed at once; its chain is the handoff's plus one, woken by
+the scheduled task, 0 if the human asked. Without a handoff, it does
+what a new session does, and says so in its first message.
 
 ## The open pull request
 
-A session started from a handoff prompt that the guard accepts,
-scheduled or pasted by the human, continues the open pull request of its
-branch without asking: it becomes its own. It merges it if the policy
-allows the agent to, under the conditions of `socle-batch`; otherwise
-the human merges it.
+A session whose guard accepts the handoff, scheduled or asked for by the
+human, continues the open pull request of its branch without asking: it
+becomes its own. It merges it if the policy allows the agent to, under
+the conditions of `socle-batch`; otherwise the human merges it.
 
 ## Seeing and stopping
 
 The created session appears at once in the human's list of sessions,
-under its title, ready for review while it waits for its prompt. Its
+under its title, ready for review while it waits for its wake-up. Its
 last message says what it did, why the chain stops or what the guard
 refused, and what is up to the human.
 

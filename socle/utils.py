@@ -447,25 +447,18 @@ def base_de_travail(racine: Path) -> str | None:
     return r.stdout.strip()
 
 
-def base_non_poussee(racine: Path, branches: list[str] | None = None) -> str | None:
-    """Ce qui est déjà poussé de la branche de travail, la base de ce qui ne
-    l'est pas encore : la tête de la branche distante où part le push
-    (`branches`, que le hook avant push connaît), ou, hors de lui, de la
-    branche que suit la branche courante, sinon de son homonyme distante ;
-    à défaut, le point de divergence avec la branche par défaut, la base
-    que le hook avant push prend pour une branche neuve (B-0142)."""
-    if not a_des_commits(racine):
+def parent_de_l_ajout(racine: Path, rev: str, chemin: str) -> str | None:
+    """Le premier parent du dernier commit qui a ajouté `chemin` dans
+    l'historique de `rev`, ses renommages suivis : le dépôt tel qu'il était
+    juste avant. Une fusion par squash ou par rebase garde ce parent avant
+    le changement, comme un commit de fusion. `None` si cet historique
+    manque : un clone partiel, dont le commit de bord paraît tout ajouter
+    sans parent lisible, ou un commit racine."""
+    sortie = git(racine, "log", "--follow", "--diff-filter=A", "--format=%H", rev, "--", chemin, check=False)
+    shas = sortie.split()
+    if not shas:
         return None
-    if branches:
-        refs = [f"refs/remotes/origin/{b}" for b in branches if not b.startswith("refs/")]
-    else:
-        courante = branche_courante(racine)
-        refs = ["@{upstream}"] + ([f"refs/remotes/origin/{courante}"] if courante else [])
-    for ref in refs:
-        sha = git(racine, "rev-parse", "--verify", "-q", f"{ref}^{{commit}}", check=False).strip()
-        if sha:
-            return sha
-    return base_de_travail(racine)
+    return git(racine, "rev-parse", "--verify", "-q", f"{shas[0]}^1", check=False).strip() or None
 
 
 def commits(racine: Path, base: str | None, tete: str = "HEAD") -> list[dict]:

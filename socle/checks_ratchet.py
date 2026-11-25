@@ -269,11 +269,52 @@ def _suivie(motif: str, docs: set[str], apres_docmap: list[tuple[set[str], set[s
                for f in couverts)
 
 
-def _valide_par(ctx, *citations: str):
+def _valide_par(ctx, *citations: str, intact=None):
+    """La validation de la plage qui cite tout ceci ; avec `intact`, à
+    défaut, une validation d'avant la plage sous la règle de
+    `Contexte.hors_plage` (D-0189), `intact(parent)` disant si ce qu'elle
+    nomme n'a pas bougé depuis sa demande."""
     for d in ctx.validations:
         if all(c in d.texte for c in citations):
             return d
-    return None
+    if intact is None:
+        return None
+    return ctx.hors_plage(lambda texte: all(c in texte for c in citations), intact)[0]
+
+
+def valeurs_citables(gf: dict) -> dict[str, object]:
+    """Chaque clé citable des garde-fous, telle qu'`assouplissements` la
+    nomme, et sa valeur : les clés aplaties, celles qui ont une valeur par
+    défaut comprises, chaque motif d'une correspondance code ↔ doc avec
+    les docs de ses lignes, chaque valeur liée avec sa déclaration."""
+    plats = aplatir(gf)
+    for c, defaut in DEFAUTS.items():
+        plats.setdefault(c, defaut)
+    res: dict[str, object] = {_cle(c): v for c, v in plats.items()}
+    for ligne in gf.get("docmap", []):
+        for g in ligne.get("code", []):
+            res.setdefault(f"docmap {json.dumps(g, ensure_ascii=False)}", []).append(sorted(ligne.get("docs", [])))
+    for v in gf.get("values", []):
+        res[f"values {json.dumps(v.get('name'), ensure_ascii=False)}"] = v
+    return res
+
+
+def cle_intacte(ctx, parent: str, cle: str) -> bool:
+    """La clé citable `cle` a, au point de départ, sa valeur du commit
+    `parent`. Un constat toléré ajouté (`<clé> "<constat>"`) se compare par
+    la liste de sa clé. Des garde-fous illisibles à l'un des deux ne
+    laissent rien d'intact."""
+    import tomllib
+
+    chemin = ctx.projet.chemins.garde_fous
+    try:
+        avant = valeurs_citables(config.charger_toml(ctx.racine, chemin, parent))
+        apres = valeurs_citables(config.charger_toml(ctx.racine, chemin, ctx.depart))
+    except tomllib.TOMLDecodeError:
+        return False
+    if cle not in avant and cle not in apres and " " in cle:
+        cle = max((k for k in set(avant) | set(apres) if cle.startswith(k + " ")), key=len, default=cle)
+    return avant.get(cle, ABSENT) == apres.get(cle, ABSENT)
 
 
 @controle("cliquet.garde-fous", base=True)
@@ -285,15 +326,20 @@ def cliquet(ctx, r):
         return  # installation : rien à comparer
     for cle, pourquoi in assouplissements(avant, ctx.projet.garde_fous, set(ctx.fichiers), ctx.renommes,
                                           ctx.fichiers_base, ctx.renommes_adoption):
-        d = _valide_par(ctx, cle)
+
+        def intacte(parent, cle=cle):
+            return cle_intacte(ctx, parent, cle)
+
+        d = _valide_par(ctx, cle, intact=intacte)
         if d:
             r.avertir("cliquet.garde-fous", trad("assouplissement validé par {id} : {cle} — {pourquoi}",
                                                  id=d.id, cle=cle, pourquoi=pourquoi),
                       ctx.projet.chemins.garde_fous)
         else:
-            r.erreur("cliquet.garde-fous", trad("assouplissement sans validation humaine : {cle} — {pourquoi}. "
-                                                "Émettre une demande qui cite `{cle}` ; elle couvrira ce "
-                                                "changement une fois validée", cle=cle, pourquoi=pourquoi),
+            faute = trad("assouplissement sans validation humaine : {cle} — {pourquoi}. Émettre une demande qui "
+                         "cite `{cle}` ; elle couvrira ce changement une fois validée", cle=cle, pourquoi=pourquoi)
+            note = ctx.hors_plage(lambda texte, cle=cle: cle in texte, intacte)[1]
+            r.erreur("cliquet.garde-fous", trad("{faute}{note}", faute=faute, note=note),
                      ctx.projet.chemins.garde_fous)
 
 
@@ -423,7 +469,11 @@ def proteges(ctx, r):
             premier = empreinte.supprime(langue.du_projet(ctx.projet))
             cites = [premier, *(m for m in empreinte.SUPPRIME.values() if m != premier)]
         cite = cites[0]
-        d = next((v for v in (_valide_par(ctx, c, x) for x in cites) if v), None)
+
+        def intact(parent, c=c):
+            return outils.lire_a(ctx.racine, parent, c) == outils.lire_a(ctx.racine, ctx.depart, c)
+
+        d = next((v for v in (_valide_par(ctx, c, x, intact=intact) for x in cites) if v), None)
         attente = None if d else next((a for a in (_en_attente(ctx, c, x, au_commit=True) for x in cites) if a), None)
         if d:
             r.avertir("protege.fichiers", trad("modification validée par {id}", id=d.id), c)
@@ -438,15 +488,16 @@ def proteges(ctx, r):
             de_la_mise_a_jour.append((c, cite))
         elif re.search(r"(^|/)\.claude/settings(\.local)?\.json$", c):
             # Les réglages de Claude Code restent à l'humain, remise comprise.
-            r.erreur("protege.fichiers", trad("fichier protégé modifié sans validation humaine. Une demande "
-                                              "validée doit citer `{fichier}` et `{cite}`", fichier=c, cite=cite), c)
+            r.erreur("protege.fichiers", trad("{faute}{note}", faute=trad(
+                "fichier protégé modifié sans validation humaine. Une demande validée doit citer `{fichier}` et "
+                "`{cite}`", fichier=c, cite=cite), note=_note_hors_plage(ctx, c, cites, intact)), c)
         else:
-            r.erreur("protege.fichiers", trad("fichier protégé modifié sans validation humaine. Une demande "
-                                              "validée doit citer `{fichier}` et `{cite}`. Changé par erreur dans "
-                                              "l'arbre de travail, l'agent le remet à son état du dernier commit : "
-                                              "`git restore --source=HEAD --staged --worktree -- {fichier}`, ou "
-                                              "`rm {fichier}` s'il est apparu sans être suivi par git (D-0098)",
-                                              fichier=c, cite=cite), c)
+            r.erreur("protege.fichiers", trad("{faute}{note}", faute=trad(
+                "fichier protégé modifié sans validation humaine. Une demande validée doit citer `{fichier}` et "
+                "`{cite}`. Changé par erreur dans l'arbre de travail, l'agent le remet à son état du dernier "
+                "commit : `git restore --source=HEAD --staged --worktree -- {fichier}`, ou `rm {fichier}` s'il est "
+                "apparu sans être suivi par git (D-0098)", fichier=c, cite=cite),
+                note=_note_hors_plage(ctx, c, cites, intact)), c)
     # Une cause pour tous : la demande de la mise à jour, pas encore posée.
     # Chaque fichier garde son erreur, que `socle check` liste ; la fin de
     # tour n'en imprime que la ligne commune (ADR-0077).
@@ -460,6 +511,12 @@ def proteges(ctx, r):
         r.erreur("protege.fichiers", trad("fichier protégé posé par la mise à jour du socle, sans validation "
                                           "humaine : une demande validée doit citer `{fichier}` et `{cite}`",
                                           fichier=c, cite=cite), c, regroupe=commune)
+
+
+def _note_hors_plage(ctx, chemin: str, cites: list[str], intact) -> str:
+    """Ce que le refus d'un fichier protégé dit des validations d'avant la
+    plage qui le citent sans le couvrir."""
+    return ctx.hors_plage(lambda texte: chemin in texte and any(x in texte for x in cites), intact)[1]
 
 
 @controle("moteur.empreinte")

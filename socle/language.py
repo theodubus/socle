@@ -43,6 +43,10 @@ CHAMPS = {
     "priorite": {"fr": "priorité", "en": "priority"},
     "besoin": {"fr": "besoin", "en": "need"},
     "ancien": {"fr": "ancien", "en": "former"},
+    # L'estampille de la passation (`memory/handoff.md`).
+    "ecrite": {"fr": "écrite", "en": "written"},
+    "branche": {"fr": "branche", "en": "branch"},
+    "chaine": {"fr": "chaîne", "en": "chain"},
 }
 
 # Statuts, par type d'entrée : « abandoned » est une entrée du backlog
@@ -90,6 +94,7 @@ COUCHES = {
     "canonique": {"fr": "canonique", "en": "canonical"}, "actif": {"fr": "actif", "en": "active"},
     "decisions": {"fr": "decisions", "en": "decisions"}, "journal": {"fr": "journal", "en": "journal"},
     "backlog": {"fr": "backlog", "en": "backlog"}, "demandes": {"fr": "demandes", "en": "requests"},
+    "passation": {"fr": "passation", "en": "handoff"},
 }
 ZONES = {"publique": {"fr": "publique", "en": "public"}, "privee": {"fr": "privee", "en": "private"}}
 
@@ -158,6 +163,10 @@ TEXTES = {
     "titre-basculee": {"fr": "Entrée basculée dans la mémoire privée", "en": "Entry moved to the private memory"},
     "texte-basculee": {"fr": "Son contenu est dans la mémoire privée.", "en": "Its content is in the private memory."},
     "titre-journal": {"fr": "Journal", "en": "Journal"},
+    # La passation (`socle handoff write`) : son titre, ce qui attend.
+    "titre-passation": {"fr": "Passation", "en": "Handoff"},
+    "attente-passation": {"fr": "Ce qui attend : {attente}.", "en": "What is waiting: {attente}."},
+    "rien": {"fr": "rien", "en": "nothing"},
 }
 
 # Les entrées que `socle new` pose, par langue.

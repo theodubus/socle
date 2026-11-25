@@ -75,6 +75,7 @@ class Chemins:
     prive_lock: str
     moteur: str  # le dossier du moteur installé
     adaptateurs: str = ".socle/adapters"  # les adaptateurs des autres langages
+    passation: str = "memory/handoff.md"  # la passation à une session neuve, publique seule
 
     def dans_prive(self, chemin: str) -> str:
         """Le miroir d'un chemin de la mémoire dans la zone privée."""

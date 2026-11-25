@@ -3608,28 +3608,36 @@ MESSAGES: dict[str, str] = {
         "with `--adapter`, or declare its language in it",
     "plafonds de mutation : {n} module(s) des adaptateurs ajoutés posé(s) à mesurer":
         "mutation caps: {n} module(s) of the added adapters set to measure",
-    "Une réponse `valider` pas encore poussée part avec le changement qu'elle autorise : poussée seule, elle ne le "
-    "couvrira pas — un avertissement, pas un refus.":
-        "An `approve` answer not yet pushed leaves with the change it authorizes: pushed alone, it will not cover "
-        "it — a warning, not a refusal.",
-    "réponse `valider` de {id}, pas encore poussée, sans le changement qu'elle autorise : la branche ne change "
-    "encore rien de ce qu'elle nomme ({liste}). Poussée seule, elle ne couvrira pas ce changement : la CI d'un "
-    "push, et le hook avant push, ne comptent que les validations de leur plage. La commiter et la pousser avec "
-    "lui, dans le même push":
-        "`approve` answer of {id}, not yet pushed, without the change it authorizes: the branch does not change "
-        "anything it names yet ({liste}). Pushed alone, it will not cover that change: the CI of a push, and the "
-        "pre-push hook, only count the approvals of their range. Commit it and push it with that change, in the "
-        "same push",
     "socle — avertissement ({controle}) : {constat}":
         "socle — warning ({controle}): {constat}",
-    "réponse « valider » poussée sans le test qu'elle autorise à changer":
-        "`approve` answer pushed without the test it authorizes to change",
     "une réponse « valider » poussée avec le test qu'elle autorise à changer part sans avertissement":
         "an `approve` answer pushed with the test it authorizes to change leaves without a warning",
-    "réponse « valider » poussée sans la clé des garde-fous qu'elle autorise à relâcher":
-        "`approve` answer pushed without the guardrail key it authorizes to relax",
     "une réponse « valider » poussée avec la clé des garde-fous qu'elle autorise à relâcher part sans avertissement":
         "an `approve` answer pushed with the guardrail key it authorizes to relax leaves without a warning",
+    " ; hors de la plage, une validation qui le nomme ne compte pas ici, faute de branche par défaut lisible : "
+    "{liste}":
+        "; outside the range, an approval that names it does not count here, for want of a readable default branch: "
+        "{liste}",
+    "{id}, qu'aucune tâche ouverte ne cite":
+        "{id}, which no open task cites",
+    "{id}, dont la demande n'a pas son historique dans ce clone":
+        "{id}, whose request does not have its history in this clone",
+    "{id}, dont ce qu'elle nomme a changé depuis sa demande":
+        "{id}, what it names having changed since its request",
+    " ; déjà dans la branche par défaut, une validation qui le nomme ne le couvre pas : {liste}":
+        "; already in the default branch, an approval that names it does not cover it: {liste}",
+    "valeur attendue changée une seconde fois sous une validation fusionnée avec son test, sa tâche close":
+        "expected value changed a second time under an approval merged with its test, its task closed",
+    "valeur attendue changée sous une validation fusionnée qu'aucune tâche ouverte ne cite":
+        "expected value changed under a merged approval that no open task cites",
+    "valeur attendue changée sous une validation fusionnée dont le test a bougé depuis dans la branche par défaut":
+        "expected value changed under a merged approval whose test has moved since in the default branch",
+    "une réponse « valider » poussée seule couvre le test qu'elle autorise à changer, poussé au push suivant":
+        "an `approve` answer pushed alone covers the test it authorizes to change, pushed in the next push",
+    "une valeur attendue changée sous une validation fusionnée qu'une tâche ouverte cite, son test inchangé depuis, "
+    "passe la CI":
+        "an expected value changed under a merged approval that an open task cites, its test unchanged since, passes "
+        "the CI",
     'Chaque entrée du backlog a une origine ; une entrée close a une référence, et elle est rangée avec les closes ; une entrée faite a coché tout ce que dit sa section, « Satisfait quand » pour un besoin, « Fait quand » pour les autres formes (ADR-0083).':
         'Each backlog entry has an origin; a closed entry has a reference, and it is filed with the closed ones; a done entry has checked everything its section says, “Satisfied when” for a need, “Done when” for the other forms (ADR-0083).',
     'Le backlog en quatre formes, chacune son préfixe (ADR-0083).':
@@ -4142,51 +4150,50 @@ MESSAGES: dict[str, str] = {
     # La passation à une session neuve (`socle handoff`).
     "aucun commit : rien à passer":
         "no commit: nothing to hand off",
-    "des changements de fichiers suivis ne sont pas commités : les commiter et les pousser d'abord, la session neuve "
-    "ne repart que du dépôt":
-        "changes to tracked files are not committed: commit and push them first, the new session restarts from the "
-        "repository alone",
-    "la tête locale {sha} n'est pas poussée : pousser d'abord ; la garde nomme la tête distante, et rien ne se pousse "
-    "plus après la passation":
-        "the local head {sha} is not pushed: push first; the guard names the remote head, and nothing is pushed any "
-        "more after the handoff",
     "`--chain` compte des lots : 0 ou plus":
         "`--chain` counts batches: 0 or more",
-    "le prompt à copier porte la chaîne 0, que l'humain remet à zéro en le collant : `--chain` va avec `--scheduled`":
-        "the prompt to copy carries chain 0, which the human resets by pasting it: `--chain` goes with "
-        "`--scheduled`",
-    "chaîne : {n} lots menés sans message de l'humain, sa borne est {borne} : ne rien programmer, donner le prompt à "
-    "copier (sans `--scheduled`)":
-        "chain: {n} batches run without a message from the human, its bound is {borne}: schedule nothing, give the "
-        "prompt to copy (without `--scheduled`)",
-    "le prochain lot n'a aucune tâche prête dans l'état (une décision revient à l'humain, ou rien n'est prêt) : ne "
-    "rien programmer, donner le prompt à copier (sans `--scheduled`)":
-        "the next batch has no ready task in the state (a decision is up to the human, or nothing is ready): "
-        "schedule nothing, give the prompt to copy (without `--scheduled`)",
-    "aucun dans l'état, à former":
-        "none in the state, to be formed",
     "rien":
         "nothing",
-    "Passation — {depot}, à {heure}.":
-        "Handoff — {depot}, at {heure}.",
-    "Avant tout : git fetch {distant}, puis":
-        "First: git fetch {distant}, then",
-    "S'il refuse, ne fais rien d'autre que le dire ; s'il accepte, place-toi où il le dit, et la pull request ouverte "
-    "de cette branche devient la tienne.":
-        "If it refuses, do nothing else but say so; if it accepts, move to where it says, and the open pull request "
-        "of this branch becomes yours.",
-    "Chaîne : {n} lot(s) mené(s) sans message de l'humain.":
-        "Chain: {n} batch(es) run without a message from the human.",
-    "Reprends le travail de ce dépôt, en session neuve.":
-        "Resume the work of this repository, in a new session.",
-    "Puis : lis l'état que le démarrage injecte, et ce qu'une ligne « !! coupé » y dit manquer ; puis le chantier "
-    "actif, et applique-les.":
-        "Then: read the state the startup injects, and what a \"!! cut\" line says is missing from it; then the "
-        "active work, and apply them.",
-    "Le lot : {lot}, selon le skill socle-batch.":
-        "The batch: {lot}, following the socle-batch skill.",
-    "Ce qui attend : {attente}.":
-        "What is waiting: {attente}.",
+    "la tête est détachée, sur aucune branche : se placer d'abord sur la branche de travail, que la passation nomme":
+        "the head is detached, on no branch: first move to the working branch, which the handoff names",
+    "la passation que l'humain fait reprendre porte la chaîne 0, que sa demande remet à zéro : `--chain` va avec "
+    "`--scheduled`":
+        "the handoff the human has resumed carries chain 0, which their request resets: `--chain` goes with "
+        "`--scheduled`",
+    "chaîne : {n} lots menés sans message de l'humain, sa borne est {borne} : ne rien programmer ; écrire la "
+    "passation sans `--scheduled`, et le récap dit à l'humain de demander la reprise dans une session neuve":
+        "chain: {n} batches run without a message from the human, its bound is {borne}: schedule nothing; write the "
+        "handoff without `--scheduled`, and the recap tells the human to ask for the resumption in a new session",
+    "le prochain lot n'a aucune tâche prête dans l'état (une décision revient à l'humain, ou rien n'est prêt) : ne "
+    "rien programmer ; écrire la passation sans `--scheduled`, et le récap dit à l'humain de demander la reprise "
+    "dans une session neuve":
+        "the next batch has no ready task in the state (a decision is up to the human, or nothing is ready): "
+        "schedule nothing; write the handoff without `--scheduled`, and the recap tells the human to ask for the "
+        "resumption in a new session",
+    "des changements ne sont pas commités ({chemins}) : les commiter, la passation en dernier, puis pousser ; la "
+    "session neuve ne repart que du dépôt":
+        "changes are not committed ({chemins}): commit them, the handoff last, then push; the new session restarts "
+        "from the repository alone",
+    "la passation de ce clone, écrite à {heure}, n'est pas poussée : aucune branche de {distant} ne la porte ; "
+    "pousser, puis relancer `socle handoff check`":
+        "this clone's handoff, written at {heure}, is not pushed: no branch of {distant} carries it; push, then run "
+        "`socle handoff check` again",
+    "la tête locale {sha} n'est pas poussée : {n} commit(s) après la passation de ce clone ne sont sur aucune "
+    "branche de {distant} ; un commit nécessaire après la passation la réécrit, puis se pousse":
+        "the local head {sha} is not pushed: {n} commit(s) after this clone's handoff are on no branch of "
+        "{distant}; a commit needed after the handoff rewrites it, then is pushed",
+    "la passation écrite à {heure} sur {ref} est déjà reprise : {branches} porte son retrait ({sha}, {quand}), qui "
+    "n'est pas encore dans {defaut} : une autre session y travaille":
+        "the handoff written at {heure} on {ref} is already resumed: {branches} carries its removal ({sha}, "
+        "{quand}), which is not yet in {defaut}: another session is working on it",
+    "la passation écrite à {heure} sur {ref} n'a été écrite par aucun commit de {ref} ni de {defaut} : `git fetch "
+    "{distant}` d'abord":
+        "the handoff written at {heure} on {ref} was written by no commit of {ref} or of {defaut}: `git fetch "
+        "{distant}` first",
+    "passation : en attente sur {ref}, écrite à {heure} — une demande de reprendre (« reprends ») la reprend":
+        "handoff: waiting on {ref}, written at {heure} — a request to resume (\"resume\") resumes it",
+    "passation : illisible ({erreur})":
+        "handoff: unreadable ({erreur})",
     "--head {tete} est introuvable dans ce clone : `git fetch {distant}` d'abord ; sinon, la branche a été réécrite "
     "depuis la passation":
         "--head {tete} is not found in this clone: `git fetch {distant}` first; otherwise, the branch was rewritten "
@@ -4203,56 +4210,104 @@ MESSAGES: dict[str, str] = {
     "dernier : {sha} {sujet}) : une autre session travaille sur le projet":
         "{branche} carries {n} commit(s) dated after {heure} that touch {memoire}/ without being in {tete} (the "
         "latest: {sha} {sujet}): another session is working on the project",
+    "{tete} porte parmi ses ancêtres {n} commit(s) écrit(s) après {heure} qui touche(nt) {memoire}/ (le dernier : "
+    "{sha} {sujet}) : une autre session a travaillé sur le projet depuis la passation":
+        "{tete} carries among its ancestors {n} commit(s) written after {heure} that touch {memoire}/ (the latest: "
+        "{sha} {sujet}): another session has worked on the project since the handoff",
+    "la passation n'a pas d'heure `écrite` lisible : une heure ISO 8601 en UTC (2026-11-25T03:10:00Z)":
+        "the handoff has no readable `written` time: an ISO 8601 time in UTC (2026-11-25T03:10:00Z)",
+    "la passation ne nomme pas sa `branche` : un nom de branche, sans espace":
+        "the handoff does not name its `branch`: a branch name, without spaces",
+    "la passation n'a pas de `chaîne` lisible : un entier, 0 ou plus":
+        "the handoff has no readable `chain`: an integer, 0 or more",
+    "`{id}` défini dans la passation, que la session neuve retire : un identifiant stable vit dans une couche "
+    "durable":
+        "`{id}` defined in the handoff, which the new session removes: a stable identifier lives in a durable layer",
     "pas de passation : {raison}":
         "no handoff: {raison}",
-    "`socle handoff check` : --ref et --head, que donne le prompt de passation":
-        "`socle handoff check`: --ref and --head, which the handoff prompt gives",
+    "`socle handoff write` : --ref, --head et --since vont avec `check`":
+        "`socle handoff write`: --ref, --head and --since go with `check`",
+    "passation écrite : {chemin} — écrite à {heure}, branche {branche}, chaîne {n}":
+        "handoff written: {chemin} — written at {heure}, branch {branche}, chain {n}",
+    "Ensuite : la commiter en dernier, pousser, puis `python3 .socle/socle handoff check` doit la trouver en "
+    "attente ; plus rien ne se pousse après":
+        "Next: commit it last, push, then `python3 .socle/socle handoff check` must find it waiting; nothing more "
+        "is pushed after",
+    "`socle handoff check` : --chain, --waiting et --scheduled vont avec `write`":
+        "`socle handoff check`: --chain, --waiting and --scheduled go with `write`",
+    "`socle handoff check` : --ref et --head vont ensemble, --since avec eux ; sans argument, la commande trouve la "
+    "passation":
+        "`socle handoff check`: --ref and --head go together, --since with them; without arguments, the command "
+        "finds the handoff",
     "--since {valeur} : une heure ISO 8601, en UTC (2026-11-24T10:05:00Z)":
         "--since {valeur}: an ISO 8601 time, in UTC (2026-11-24T10:05:00Z)",
+    "passation : écrite à {heure} sur {ref}, chaîne {n}":
+        "handoff: written at {heure} on {ref}, chain {n}",
+    "aucune passation n'attend : faire ce que fait une session neuve, et le dire dans le premier message":
+        "no handoff is waiting: do what a new session does, and say so in the first message",
+    "Premier commit : retirer {chemin}, puis le pousser aussitôt. Chaîne : {suite} si la session est réveillée par "
+    "la tâche programmée, 0 si l'humain a demandé la reprise.":
+        "First commit: remove {chemin}, then push it at once. Chain: {suite} if the session is woken by the "
+        "scheduled task, 0 if the human asked for the resumption.",
     "passation refusée — {raison}":
         "handoff refused — {raison}",
     "passation acceptée : se placer sur {ref} ({sha})":
         "handoff accepted: move to {ref} ({sha})",
-    "la passation à une session neuve : `prompt` écrit son prompt, avec sa garde ; `check`, dans la session neuve, "
-    "juge cette garde":
-        "the handoff to a new session: `prompt` writes its prompt, with its guard; `check`, in the new session, "
-        "judges that guard",
-    "avec `prompt` : les lots menés sans message de l'humain, le lot en cours compris (0 par défaut)":
-        "with `prompt`: the batches run without a message from the human, the current batch included (0 by "
+    "la passation à une session neuve : `write` l'écrit dans la mémoire ; `check`, sans argument, la trouve sur les "
+    "branches distantes et juge sa garde":
+        "the handoff to a new session: `write` writes it in the memory; `check`, without arguments, finds it on the "
+        "remote branches and judges its guard",
+    "avec `write` : les lots menés sans message de l'humain, le lot en cours compris (0 par défaut)":
+        "with `write`: the batches run without a message from the human, the current batch included (0 by "
         "default)",
-    "avec `prompt` : ce qui attend (un compte rendu, une CI, une demande) ; « rien » par défaut":
-        "with `prompt`: what is waiting (a report, a CI, a request); “nothing” by default",
-    "avec `prompt` : pour une session programmée, refusé à la borne de la chaîne ou sans tâche prête au prochain lot":
-        "with `prompt`: for a scheduled session, refused at the chain's bound or without a ready task in the next "
+    "avec `write` : ce qui attend (un compte rendu, une CI, une demande) ; « rien » par défaut":
+        "with `write`: what is waiting (a report, a CI, a request); “nothing” by default",
+    "avec `write` : pour une session programmée, refusé à la borne de la chaîne ou sans tâche prête au prochain lot":
+        "with `write`: for a scheduled session, refused at the chain's bound or without a ready task in the next "
         "batch",
-    "avec `check` : la branche distante de la passation":
-        "with `check`: the remote branch of the handoff",
-    "avec `check` : sa tête à la passation":
-        "with `check`: its head at the handoff",
-    "avec `check` : l'heure de la passation, en UTC (par défaut : la date de --head)":
-        "with `check`: the time of the handoff, in UTC (by default: the date of --head)",
+    "avec `check`, pour la garde seule : la branche distante de la passation":
+        "with `check`, for the guard alone: the remote branch of the handoff",
+    "avec `check`, pour la garde seule : sa tête à la passation":
+        "with `check`, for the guard alone: its head at the handoff",
+    "avec `check`, pour la garde seule : l'heure de la passation, en UTC (par défaut : la date de --head)":
+        "with `check`, for the guard alone: the time of the handoff, in UTC (by default: the date of --head)",
     "session neuve d'une passation alors que la session qui part a poussé après elle":
         "new session of a handoff while the leaving session pushed after it",
     "session neuve d'une passation alors qu'une autre session a écrit la mémoire sur une autre branche depuis":
         "new session of a handoff while another session has written the memory on another branch since",
-    "une passation dont la pull request est fusionnée par un commit de fusion pendant l'attente, un robot ayant "
-    "poussé sans toucher la mémoire, passe sa garde, qui place la session neuve sur la branche par défaut":
-        "a handoff whose pull request is merged by a merge commit during the wait, a robot having pushed without "
-        "touching the memory, passes its guard, which places the new session on the default branch",
-    "prompt de passation collé après la fusion par squash de la pull request et la suppression de sa branche":
-        "handoff prompt pasted after the pull request was squash-merged and its branch deleted",
-    "session neuve d'une passation dont la pull request a été fusionnée par squash et sa branche supprimée, son "
-    "`git fetch` élaguant":
-        "new session of a handoff whose pull request was squash-merged and its branch deleted, its `git fetch` "
-        "pruning",
-    "prompt de passation alors que la tête locale n'est pas poussée":
-        "handoff prompt while the local head is not pushed",
-    "prompt de passation alors qu'un fichier suivi a un changement non commité":
-        "handoff prompt while a tracked file has an uncommitted change",
+    "session neuve d'une passation qu'une autre session a déjà reprise, son retrait poussé sur la branche de la "
+    "passation":
+        "new session of a handoff that another session has already resumed, its removal pushed on the handoff's "
+        "branch",
+    "session neuve d'une passation dont la pull request a été fusionnée par squash, sa branche supprimée, après la "
+    "mémoire d'une autre session écrite depuis l'heure de la passation":
+        "new session of a handoff whose pull request was squash-merged, its branch deleted, after the memory of "
+        "another session written since the time of the handoff",
+    "passation commitée mais pas poussée, que la session qui part vérifie":
+        "handoff committed but not pushed, which the leaving session checks",
+    "passation écrite mais pas commitée, que la session qui part vérifie":
+        "handoff written but not committed, which the leaving session checks",
     "session programmée après deux lots menés sans message de l'humain":
         "scheduled session after two batches run without a message from the human",
     "session programmée alors qu'aucune tâche n'est prête":
         "scheduled session while no task is ready",
-    "une session programmée, une tâche prête et un lot mené sans message de l'humain, reçoit son prompt":
-        "a scheduled session, with a ready task and one batch run without a message from the human, gets its prompt",
+    "passation sans son estampille : ni heure `écrite`, ni branche, ni chaîne":
+        "handoff without its stamp: no `written` time, no branch, no chain",
+    "identifiant défini dans la passation, que la session neuve retire":
+        "identifier defined in the handoff, which the new session removes",
+    "une passation dont la pull request est fusionnée par un commit de fusion pendant l'attente, un robot ayant "
+    "poussé sans toucher la mémoire, passe sa garde, qui place la session neuve sur la branche par défaut":
+        "a handoff whose pull request is merged by a merge commit during the wait, a robot having pushed without "
+        "touching the memory, passes its guard, which places the new session on the default branch",
+    "une passation dont la pull request est fusionnée par squash pendant l'attente, sa branche supprimée et le `git "
+    "fetch` de la session neuve élaguant, passe sa garde, qui place la session neuve sur la branche par défaut":
+        "a handoff whose pull request is squash-merged during the wait, its branch deleted and the new session's "
+        "`git fetch` pruning, passes its guard, which places the new session on the default branch",
+    "la session qui part, sa passation commitée et poussée, la retrouve en attente après son push":
+        "the leaving session, its handoff committed and pushed, finds it waiting after its push",
+    "une session programmée, une tâche prête et un lot mené sans message de l'humain, écrit sa passation":
+        "a scheduled session, with a ready task and one batch run without a message from the human, writes its "
+        "handoff",
+    "une passation écrite par `socle handoff write` passe le commit et la CI":
+        "a handoff written by `socle handoff write` passes the commit and the CI",
 }

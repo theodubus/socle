@@ -15,6 +15,122 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-25-d — L'organisation du travail se proportionne à ce qu'elle protège : la session unité de budget, la question d'intention avant la spécification, la revue adversariale selon le risque, un sous-agent quand il paie
+
+Les skills `socle-batch`, `socle-review`, `socle-request` et
+`socle-handoff`, la section du socle d'`AGENTS.md` et le guide changent
+ensemble : chaque étape qui coûte (un sous-agent, une revue, une
+relecture à froid, une demande, une passation) se déclenche sur ce
+qu'elle protège, jamais sur la forme du travail.
+
+- **La session est l'unité de budget.** À la fin d'un lot, l'agent
+  enchaîne le suivant si son coût estimé tient dans ce qui reste de la
+  fenêtre de cinq heures et de la semaine, la marge du rangement
+  comprise, et si la conversation reste sous 300 000 jetons de contexte,
+  deux lots au plus sans message de l'humain ; sinon, il change de
+  session. « Un lot par session » disparaît, comme le seuil fixe de 15 %
+  de la fenêtre au départ d'une session programmée, que remplace le coût
+  estimé de son lot.
+- **Une conception à trancher** pose d'abord sa question d'intention,
+  dans la conversation, en quelques lignes, consignée en séance ; sa
+  spécification et son code se font ensuite dans le même lot, la
+  spécification d'abord. Ce qui reste coûteux à défaire va en demande,
+  courte.
+- **La revue adversariale**, par un relecteur sans contexte, pour un lot
+  qui pose ou change un garde-fou, un format que d'autres parties du
+  projet lisent, ou plus de 150 lignes de code et de tests ; un autre
+  lot, l'agent le relit lui-même sur le dossier court (`socle review
+  --short`). Une spécification, de la documentation ou de la mémoire
+  seules n'en ont pas : l'humain en juge l'intention.
+- **Un sous-agent implémente quand il paie** : des tâches indépendantes
+  en parallèle, ou plus de 400 lignes changées, ou des fichiers longs à
+  lire ; sinon, l'agent qui orchestre implémente. Sa consigne nomme ses
+  fichiers temporaires de l'identifiant de sa tâche ; un sous-agent
+  arrêté se reprend depuis sa copie isolée.
+- **La relecture à froid d'une demande**, seulement au-delà de la moitié
+  de son budget ; une demande courte, ou qui n'approuve que des fichiers
+  protégés par leurs empreintes, part sans elle.
+
+Se retirent aussi, faute d'avoir protégé quoi que ce soit en usage : le
+plafond d'un seul sous-agent au-delà de 75 % de la semaine, que le coût
+mesuré de chaque sous-agent couvre ; le compactage demandé à la fin de
+chaque lot et avant une longue attente, que le changement de session
+remplace ; deux rappels de `socle-request` que la section du socle
+d'`AGENTS.md` et les contrôles disent déjà.
+
+À faire : rien ; l'installeur pose les skills et la section changés, et
+le lot suivant se mène selon eux.
+
+## 2026-11-25-c — La passation s'écrit dans la mémoire, `memory/handoff.md`, et la session neuve la reprend sur une simple demande de reprendre, sans prompt à copier
+
+`socle handoff write` remplace `socle handoff prompt`, avec les mêmes
+options (`--waiting`, `--scheduled`, `--chain`) et les mêmes bornes d'une
+session programmée. Il écrit la passation dans `memory/handoff.md`, une
+couche nouvelle du format (`couche=passation`), publique, sans
+identifiant, dont l'estampille, l'heure `écrite` et la branche,
+l'identifie quel que soit le commit qui la porte, avec la chaîne et ce
+qui attend. L'agent la commite en dernier, pousse, puis lance
+`socle handoff check` sans argument, qui doit la trouver en attente : une
+passation non commitée, non poussée, ou suivie d'un commit absent de
+l'origine, y est refusée.
+
+Dans une session neuve, sur un premier message qui demande de reprendre
+ou de continuer, quelle qu'en soit la forme, l'agent lance
+`git fetch --prune origin` puis `socle handoff check` sans argument : la
+commande trouve la passation la plus récente sur les branches distantes
+et juge sa garde, ses arguments tirés du dépôt. En plus des refus
+d'avant, elle refuse une passation déjà reprise par une autre session
+dont le retrait n'est pas encore dans la branche par défaut. Une pull
+request fusionnée par squash ou par rebase, sa branche supprimée, ne la
+fait plus refuser : la session repart de la branche par défaut, sauf si
+la mémoire d'une autre session y est entrée depuis la passation. Sans
+passation, elle le dit ; acceptée, le premier commit de la session
+retire `memory/handoff.md`. Avec `--ref` et `--head`, `check` juge la
+garde seule, comme avant. L'état dit la passation qui attend ; aucun
+budget des garde-fous n'est exigé du fichier.
+
+À faire : passer la main selon les skills `socle-handoff` et `socle-batch` mis à jour, avec `socle handoff write` au lieu de `socle handoff prompt` ; le récap du mode « prompt à copier » dit à l'humain de demander la reprise dans une session neuve, au lieu de donner un prompt.
+
+## 2026-11-25-b — Une réponse `valider` poussée avant le changement qu'elle autorise le couvre, sur la branche, ou fusionnée tant que la tâche qui la cite est ouverte ; l'avertissement de la réponse seule se retire
+
+Changer la valeur qu'un test attend ou le supprimer, changer un fichier de
+cas, relâcher une clé des garde-fous ou changer un fichier protégé exige
+une validation de l'humain qui le nomme. La CI d'un push et le hook avant
+push ne la comptaient qu'ajoutée dans leur plage : la réponse devait
+partir avec son changement, dans le même push, et
+`demandes.reponse-seule` avertissait quand elle partait seule. Une
+réponse donnée avant le lot de son changement, dans une autre session,
+n'avait nulle part où attendre : poussée, elle partait dans la branche par
+défaut avec la pull request de sa session, et ne couvrait plus rien.
+
+Tout se juge désormais depuis le point de départ du travail : l'ancêtre
+commun de la tête et de la branche par défaut, ou, pour la CI qui suit une
+fusion, la base de sa plage. Une validation ajoutée sur la branche depuis
+ce point couvre comme une de la plage : la réponse poussée seule, puis son
+changement au push suivant, passent, comme la CI de la pull request les
+comptait déjà. Une validation déjà dans la branche par défaut couvre à
+deux conditions, lues à ce point : une tâche ouverte du backlog la cite
+par son identifiant, et ce qu'elle nomme y est tel qu'au parent du commit
+qui a ajouté sa demande (un test par son corps, dans le même fichier ; un
+fichier de cas ou un fichier protégé en entier ; une clé par sa valeur).
+Le lot qui fait le changement clôt la tâche : fusionnée, la validation est
+épuisée, et un second changement en demande une nouvelle. Une tâche écrite
+sur la branche ne la rend pas : elle se lit au point de départ. Le refus
+nomme les validations qui nomment le changement sans le couvrir, et
+pourquoi. Sans branche par défaut lisible, ou dans un clone partiel qui
+n'a pas l'historique de la demande, seule la plage compte, et le refus le
+dit ; la CI tire tout l'historique. Le correctif admis par le SHA que
+nomme une validation, et la liste des termes privés, ne comptent toujours
+que la plage.
+
+`demandes.reponse-seule` se retire : son avertissement dirait faux.
+
+À faire : une réponse que l'humain donne se consigne, se commite et se
+pousse dès qu'elle est donnée, sans attendre le changement qu'elle
+autorise, et la tâche qui fera ce changement cite sa demande par son
+identifiant. Le skill `socle-request` le dit ; sa copie est protégée,
+elle est dans la demande de l'installeur.
+
 ## 2026-11-25-a — L'installeur dit qu'un module Kotlin multiplateforme ou Android n'est pas servi par les commandes JVM de la copie `kotlin`, et la spécification des adaptateurs donne les siennes
 
 Les commandes de l'adaptateur `kotlin` supposent des modules JVM. Dans un

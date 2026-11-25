@@ -15,7 +15,9 @@ autre agent, le lancer d'abord. Rien de ce qui n'y figure pas n'est acquis.
 Ce que l'humain a écrit lui-même depuis le dernier commit de l'agent (une
 approbation, une réponse dans son terminal), l'état le liste : le lui citer
 dans la réponse suivante, par son identifiant et son lien, que la
-conversation ne lui a pas donnés.
+conversation ne lui a pas donnés. Un premier message qui demande de
+reprendre ou de continuer, quelle qu'en soit la forme (« reprends »),
+cherche d'abord la passation : le skill `socle-handoff`.
 
 Si l'état n'a pas été injecté au démarrage d'une session de Claude Code, ses
 hooks ne sont pas chargés (la session a démarré hors de la racine du
@@ -72,10 +74,10 @@ demande ; jamais dans le widget de questions de l'agent, où l'humain lit un
 texte brut sans liens à suivre (le hook le refuse). Ce que l'humain tranche
 dans la conversation, de lui-même ou sur une question courte posée dans le
 texte de la réponse, se consigne aussitôt de même, en séance. Comment : le
-skill `socle-request`. Un besoin dont la spécification dépend d'une intention
-que la mémoire ne dit pas se cadre d'abord par des questions ouvertes
-(`socle new request --questions`) ; une spécification se soumet avant son
-code.
+skill `socle-request`. Un besoin dont la conception n'est pas tranchée pose
+d'abord sa question d'intention, en quelques lignes, dans la
+conversation ; sa spécification et son code se font ensuite dans le même
+lot.
 
 ### Lire la mémoire à la demande
 
@@ -106,8 +108,8 @@ refusée ; il faut relire l'entrée. `socle new` pose l'empreinte de l'index.
 Une procédure rare se lit dans son skill, que l'agent charge sur sa
 description : `socle-request` (les demandes, une décision en séance),
 `socle-private-memory` (la mémoire privée), `socle-batch` (mener un lot),
-`socle-handoff` (passer la main à une session neuve, programmée ou par un
-prompt à copier), `socle-review` (la revue d'un lot, avant sa livraison) et `socle-resume`
+`socle-handoff` (passer la main à une session neuve, programmée ou
+demandée par l'humain), `socle-review` (la revue d'un lot, avant sa livraison) et `socle-resume`
 (en session cloud, à chaque tour qui agit : reprendre après une limite
 d'usage), dans `.claude/skills/`, posés par l'installeur et protégés ; un
 autre agent lit leur `SKILL.md` à ce chemin.
@@ -126,16 +128,18 @@ se cite dans le texte.
 Tant que rien ne revient à l'humain, l'agent enchaîne les tâches prêtes
 sans attendre de message. Il annonce d'abord le lot, pas forcément tout ce
 qui est prêt (les tâches, leur taille, le jalon qu'elles servent ; une
-tâche de priorité basse si elle est commode), puis s'y met ; il s'arrête à
-la fin du lot, ou dès qu'une décision revient à l'humain. Il ne change pas
+tâche de priorité basse si elle est commode), puis s'y met ; à la fin du
+lot, il enchaîne le suivant si la session le permet, et s'arrête dès
+qu'une décision revient à l'humain. Il ne change pas
 une priorité que l'humain a donnée. Un besoin sans tâche ouverte se
 découpe d'abord en tâches. Le lot se forme en balayant tout le backlog
 ouvert ; une tâche ouverte ensuite rejoint le prochain lot dont la règle
 s'applique à elle, jamais celui en cours. Il se garde au backlog
-(`socle new batch`) et se mène selon le skill `socle-batch`. Avant le push d'un lot qui change
-du code, une spécification ou un test, il le fait relire par un relecteur
-sans contexte, contre le « Fait quand » de ses tâches (le skill
-`socle-review`). Un besoin dont la conception n'est pas tranchée écrit sa
+(`socle new batch`) et se mène selon le skill `socle-batch`. Avant le push d'un lot qui pose ou
+change un garde-fou, un format que d'autres parties lisent, ou plus de
+150 lignes de code et de tests, il le fait relire par un relecteur sans
+contexte, contre le « Fait quand » de ses tâches ; un autre lot, il le
+relit lui-même (le skill `socle-review`). Un besoin dont la conception n'est pas tranchée écrit sa
 spécification avant son code ; un besoin qui pose ou change un garde-fou,
 son modèle de menace (sa section `## Modèle de menace`, ou la décision
 qu'il cite). Seuls les constats bloquants se corrigent dans le lot ; un
@@ -152,7 +156,7 @@ l'agent fusionne lui-même la sienne, aux conditions du skill
 `socle-batch`. Une pull request par tâche, seulement si l'humain l'a choisi (un
 fait de la mémoire le dit). Une session neuve qui trouve ouverte la pull
 request d'une autre demande à l'humain de la fusionner d'abord, ou de
-l'autoriser à y continuer ; partie d'un prompt de passation que sa garde
+l'autoriser à y continuer ; partie d'une passation que sa garde
 accepte, elle y continue, et cette pull request devient la sienne. Un prototype qu'on ne compte pas fusionner se
 fait sur une branche jetable, nommée d'un préfixe de `[branches] disposable`
 des garde-fous (`proto/` par défaut) : la CI ne la juge pas aux envois.

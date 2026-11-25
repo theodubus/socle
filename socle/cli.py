@@ -816,30 +816,66 @@ def cmd_archive(args) -> int:
 
 
 def cmd_handoff(args) -> int:
-    """La passation à une session neuve (skill `socle-handoff`) : `prompt`
-    écrit son prompt, avec sa garde ; `check`, dans la session neuve, juge
-    cette garde. Le moteur ne programme rien : la plateforme de l'agent le
-    fait, ou l'humain colle le prompt."""
+    """La passation à une session neuve (skill `socle-handoff`) : `write`
+    l'écrit dans la mémoire ; `check`, sans argument, la trouve sur les
+    branches distantes et juge sa garde, dans la session neuve comme dans
+    celle qui part, après son push ; avec `--ref` et `--head`, il juge la
+    garde seule. Le moteur ne programme rien : la plateforme de l'agent le
+    fait, ou l'humain demande la reprise."""
     from socle import handoff as passation
 
     projet = _projet(args)
-    if args.action == "prompt":
+    if args.action == "write":
+        if args.ref or args.head or args.since:
+            print(trad("`socle handoff write` : --ref, --head et --since vont avec `check`"), file=sys.stderr)
+            return 2
         try:
-            print(passation.prompt(projet, args.chain, args.waiting, args.scheduled))
+            p = passation.ecrire(projet, args.chain, args.waiting, args.scheduled)
         except passation.PassationRefusee as refus:
             print(trad("pas de passation : {raison}", raison=refus), file=sys.stderr)
             return 1
+        print(trad("passation écrite : {chemin} — écrite à {heure}, branche {branche}, chaîne {n}",
+                   chemin=projet.chemins.passation, heure=p.heure, branche=p.branche, n=p.chaine))
+        print(trad("Ensuite : la commiter en dernier, pousser, puis `python3 .socle/socle handoff check` doit la "
+                   "trouver en attente ; plus rien ne se pousse après"))
         return 0
-    if not args.ref or not args.head:
-        print(trad("`socle handoff check` : --ref et --head, que donne le prompt de passation"), file=sys.stderr)
+    if args.chain or args.waiting or args.scheduled:
+        print(trad("`socle handoff check` : --chain, --waiting et --scheduled vont avec `write`"), file=sys.stderr)
         return 2
-    try:
-        depuis = passation.heure(args.since) if args.since else None
-    except ValueError:
-        print(trad("--since {valeur} : une heure ISO 8601, en UTC (2026-11-24T10:05:00Z)", valeur=args.since),
-              file=sys.stderr)
-        return 2
-    verdict = passation.juger(projet, args.ref, args.head, depuis)
+    if args.ref or args.head or args.since:
+        if not args.ref or not args.head:
+            print(trad("`socle handoff check` : --ref et --head vont ensemble, --since avec eux ; sans argument, la "
+                       "commande trouve la passation"), file=sys.stderr)
+            return 2
+        try:
+            depuis = passation.heure(args.since) if args.since else None
+        except ValueError:
+            print(trad("--since {valeur} : une heure ISO 8601, en UTC (2026-11-24T10:05:00Z)", valeur=args.since),
+                  file=sys.stderr)
+            return 2
+        return _verdict_de_passation(passation.juger(projet, args.ref, args.head, depuis))
+    trouvee = passation.trouver(projet)
+    p = trouvee.passation
+    if p:
+        print(trad("passation : écrite à {heure} sur {ref}, chaîne {n}", heure=p.heure,
+                   ref=f"{passation.DISTANT}/{p.branche}", n=p.chaine))
+    elif not trouvee.verdict.refus:
+        print(trad("aucune passation n'attend : faire ce que fait une session neuve, et le dire dans le premier "
+                   "message"))
+        return 0
+    code = _verdict_de_passation(trouvee.verdict)
+    if code:
+        return code
+    if p.attente:
+        print(p.attente)
+    print(trad("Premier commit : retirer {chemin}, puis le pousser aussitôt. Chaîne : {suite} si la session est "
+               "réveillée par la tâche programmée, 0 si l'humain a demandé la reprise.",
+               chemin=projet.chemins.passation, suite=p.chaine + 1))
+    return 0
+
+
+def _verdict_de_passation(verdict) -> int:
+    """Le verdict de la garde : ses refus, ou où se placer."""
     for raison in verdict.refus:
         print(trad("passation refusée — {raison}", raison=raison), file=sys.stderr)
     if verdict.refus:
@@ -1162,20 +1198,21 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s = sp.add_parser("archive", help=trad("range les entrées closes du backlog à l'écart des ouvertes"))
     s.set_defaults(f=cmd_archive)
 
-    s = sp.add_parser("handoff", help=trad("la passation à une session neuve : `prompt` écrit son prompt, avec sa "
-                                           "garde ; `check`, dans la session neuve, juge cette garde"))
-    s.add_argument("action", choices=("prompt", "check"))
-    s.add_argument("--chain", type=int, default=0, help=trad("avec `prompt` : les lots menés sans message de "
+    s = sp.add_parser("handoff", help=trad("la passation à une session neuve : `write` l'écrit dans la mémoire ; "
+                                           "`check`, sans argument, la trouve sur les branches distantes et juge "
+                                           "sa garde"))
+    s.add_argument("action", choices=("write", "check"))
+    s.add_argument("--chain", type=int, default=0, help=trad("avec `write` : les lots menés sans message de "
                                                              "l'humain, le lot en cours compris (0 par défaut)"))
-    s.add_argument("--waiting", metavar="TEXTE", help=trad("avec `prompt` : ce qui attend (un compte rendu, une "
+    s.add_argument("--waiting", metavar="TEXTE", help=trad("avec `write` : ce qui attend (un compte rendu, une "
                                                            "CI, une demande) ; « rien » par défaut"))
-    s.add_argument("--scheduled", action="store_true", help=trad("avec `prompt` : pour une session programmée, "
+    s.add_argument("--scheduled", action="store_true", help=trad("avec `write` : pour une session programmée, "
                                                                  "refusé à la borne de la chaîne ou sans tâche "
                                                                  "prête au prochain lot"))
-    s.add_argument("--ref", help=trad("avec `check` : la branche distante de la passation"))
-    s.add_argument("--head", metavar="SHA", help=trad("avec `check` : sa tête à la passation"))
-    s.add_argument("--since", metavar="HEURE", help=trad("avec `check` : l'heure de la passation, en UTC (par "
-                                                         "défaut : la date de --head)"))
+    s.add_argument("--ref", help=trad("avec `check`, pour la garde seule : la branche distante de la passation"))
+    s.add_argument("--head", metavar="SHA", help=trad("avec `check`, pour la garde seule : sa tête à la passation"))
+    s.add_argument("--since", metavar="HEURE", help=trad("avec `check`, pour la garde seule : l'heure de la "
+                                                         "passation, en UTC (par défaut : la date de --head)"))
     s.set_defaults(f=cmd_handoff)
 
 

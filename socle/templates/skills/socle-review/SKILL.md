@@ -1,6 +1,6 @@
 ---
 name: socle-review
-description: Faire relire un lot par un relecteur sans contexte avant de le livrer, la revue adversariale, puis traiter ses constats. À utiliser avant le push qui livre un lot qui change du code, une spécification ou un test.
+description: Faire relire un lot avant de le livrer, par un relecteur sans contexte quand le lot le justifie (la revue adversariale), sinon par l'agent lui-même, puis traiter ses constats. À utiliser avant le push qui livre un lot qui change du code ou un test.
 ---
 
 # La revue adversariale d'un lot
@@ -11,8 +11,14 @@ prendre en défaut.
 
 ## Quand
 
-Avant le push qui livre un lot qui change du code, une spécification ou un
-test ; jamais pour un lot qui ne touche que la mémoire. Une passe par lot ;
+Une revue adversariale, avant le push, pour un lot qui la justifie : il
+pose ou change un garde-fou (un contrôle, un refus, un hook), un format
+que d'autres parties du projet lisent (la mémoire, le contrat d'un
+adaptateur, la CI), ou plus de 150 lignes de code et de tests. Tout autre
+lot qui change du code ou un test, l'agent le relit lui-même, sur le
+dossier court (plus bas), contre les critères de ses tâches, et le récap
+le dit. Une spécification, de la documentation ou de la mémoire seules
+n'ont pas de revue adversariale : l'humain en juge l'intention. Une passe par lot ;
 une seconde seulement si la correction des bloquants est lourde (elle
 change la conception d'une partie, pas quelques lignes), et sur elle
 seule.
@@ -55,7 +61,7 @@ python3 .socle/socle review
    tâches, à juger sans explorer au-delà des fichiers touchés ; tout
    autre lot, le dossier complet. `--short` refuse un lot qui touche un
    chemin que la politique protège ou que les garde-fous déclarent.
-3. Le confier à un relecteur qui n'a pas la conversation. Le dossier n'y
+3. La revue adversariale : la confier à un relecteur qui n'a pas la conversation. Le dossier n'y
    entre pas, qui la relirait à chaque pas : la sortie de `socle review`
    s'écrit dans un fichier hors du dépôt, et le seul message du relecteur
    (sous Claude Code, un sous-agent, outil `Agent`) donne son chemin, avec
@@ -73,7 +79,7 @@ python3 .socle/socle review
    aussi les instructions du projet et peut lire le dépôt ; le dossier
    lui dit de ne rien modifier hors d'un dossier temporaire
    (`mktemp -d`), ce que le hook de l'agent n'impose pas. Un agent sans
-   sous-agents saute la revue, et son récap le dit.
+   sous-agents relit lui-même le lot, et son récap le dit.
 
 ## Les constats
 

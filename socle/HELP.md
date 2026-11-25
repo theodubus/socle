@@ -226,23 +226,28 @@ lot.
 **Enchaîner.** Tant que rien ne revient à l'humain, l'agent enchaîne les
 tâches prêtes sans attendre de message. Avant de s'y lancer, il annonce le
 lot qu'il va traiter : l'arrêter ou le réorienter se fait d'un message.
-Il s'arrête à la fin du lot, ou dès qu'une décision revient à l'humain.
+À la fin du lot, il enchaîne le suivant si la session le permet (plus
+bas, « L'enchaînement des sessions »), et s'arrête dès qu'une décision
+revient à l'humain.
 Un lot ouvert qui attend encore plus de tâches qu'une session n'en mène,
 `[batches] max_tasks` des garde-fous (9 par défaut), l'état et le rappel
 de fin de tour le disent, sans rien refuser : le couper en lots, ou en
 faire un jalon, ses lots dessous. Baisser le seuil est libre ; le relever
 exige une demande validée.
 
-**Faire relire.** Avant de livrer un lot qui change du code, une
-spécification ou un test, l'agent le fait relire par un relecteur sans
-contexte, qui cherche à le prendre en défaut contre le critère « Fait
-quand » des tâches du lot et, pour un garde-fou, son modèle de menace,
-écrit avant le code : ce que le garde-fou arrête, ce qu'il laisse passer.
-Le relecteur d'un petit lot, qui ne touche ni un garde-fou ni un format
-que d'autres parties du projet lisent, ne juge que son diff et les
-fichiers touchés, contre les critères de ses tâches (`python3 .socle/socle
-review --short`, qui refuse un lot qui touche un garde-fou) ; celui de
-tout autre lot reçoit le dossier complet (`python3 .socle/socle review`).
+**Faire relire.** Avant de livrer un lot qui pose ou change un garde-fou
+(un contrôle, un refus, un hook), un format que d'autres parties du
+projet lisent, ou plus de 150 lignes de code et de tests, l'agent le fait
+relire par un relecteur sans contexte, qui reçoit le dossier complet
+(`python3 .socle/socle review`) et cherche à le prendre en défaut contre
+le critère « Fait quand » des tâches du lot et, pour un garde-fou, son
+modèle de menace, écrit avant le code : ce que le garde-fou arrête, ce
+qu'il laisse passer. Un autre lot qui change du code ou un test, l'agent
+le relit lui-même, son diff et les fichiers touchés, contre les critères
+de ses tâches (`python3 .socle/socle review --short`, qui refuse un lot
+qui touche un garde-fou), et son récap le dit. Une spécification, de la
+documentation ou de la mémoire seules n'ont pas de revue : c'est vous
+qui en jugez l'intention.
 L'agent corrige dans le lot les constats bloquants (un critère contredit,
 une régression, une perte de données, un contournement dans le modèle de
 menace) ; il envoie au backlog, où vous les voyez, ceux qui sont
@@ -285,33 +290,39 @@ projet tant que vous ne l'avez pas recopié dans la ligne, ce que dira la
 note de version qui l'ajoute. Retirer la ligne rend la fusion à
 l'humain.
 
-**L'enchaînement des sessions.** L'agent ne mène qu'un lot par session :
-une conversation qui s'allonge coûte plus cher à chaque échange. À la fin
-d'un lot, près d'une limite d'usage ou avant une longue attente, il range,
-puis passe la main à une session neuve, selon l'un de deux modes. Par
+**L'enchaînement des sessions.** La session est l'unité de budget : à la
+fin d'un lot, l'agent enchaîne le suivant si son coût estimé tient dans
+ce qui reste de la fenêtre de cinq heures et de la semaine, et si la
+conversation reste sous 300 000 jetons de contexte, au-delà desquels
+chaque échange coûte de plus en plus ; deux lots au plus sans message de
+votre part. Sinon, comme près d'une limite d'usage ou avant une longue
+attente, il range, puis passe la main à une session neuve, selon l'un de
+deux modes. Par
 défaut, en session cloud de Claude Code, la **session programmée** : il
 crée lui-même la session suivante, qui paraît aussitôt dans votre liste
 de sessions avec son titre et son heure de départ, et programme son
-prompt ; jamais sur une fenêtre de cinq heures déjà à 15 % ni sur une
-semaine à 75 %, où elle attend la remise à zéro. La chaîne s'arrête sans
-vous, et le récap vous donne le prompt à copier, quand le lot suivant
+prompt ; jamais si le coût de son lot ne tient pas dans ce qui reste de
+la fenêtre de cinq heures, ni sur une semaine à 75 % : elle attend alors
+la remise à zéro. La chaîne s'arrête sans
+vous, et le récap vous dit de demander la reprise, quand le lot suivant
 n'a aucune tâche prête (une décision vous revient, par exemple), après
 deux lots menés sans message de votre part, ou si Claude Code refuse de
-créer la session. Le **prompt à copier** : le récap donne le prompt de la
-session suivante, que vous collez dans une session que vous ouvrez quand
-vous voulez ; c'est le mode de qui a plusieurs comptes ou veut garder la
-main. Pour changer de mode, dites-le à l'agent (« passe au prompt à
+créer la session. Le **prompt à copier** : vous ouvrez une session neuve
+quand vous voulez, d'un compte comme d'un autre, et y demandez la
+reprise : « reprends », « continue », ou tout autre message qui le dise ;
+c'est le mode de qui a plusieurs comptes ou veut garder la main. Pour changer de mode, dites-le à l'agent (« passe au prompt à
 copier », « reprends la session programmée ») : il l'écrit au chantier
 actif, et passer au prompt à copier annule ce qui est programmé, en vous
 donnant le lien de chaque session annulée. Pour arrêter une session
 programmée sans changer de mode : écrire « arrête » dans la session qui
 l'a programmée, ou supprimer sa tâche de la liste des tâches programmées
-de votre compte et archiver la session. Dans les deux modes, le prompt
-que l'agent écrit (`python3 .socle/socle handoff prompt`) commence par
-une garde (`python3 .socle/socle handoff check`) : la session neuve ne
-travaille pas si quelqu'un a poussé sur sa branche depuis, ou si une
-autre session a écrit la mémoire du projet sur une autre branche, et le
-dit. Acceptée, elle continue la pull request ouverte de sa branche, qui
+de votre compte et archiver la session. Dans les deux modes, l'agent
+écrit sa passation dans la mémoire (`python3 .socle/socle handoff write`),
+la commite et la pousse ; la session neuve la trouve et juge sa garde
+(`python3 .socle/socle handoff check`) : elle ne travaille pas si
+quelqu'un a poussé sur sa branche depuis, si une autre session a écrit la
+mémoire du projet depuis, ou si une autre l'a déjà reprise, et le dit ;
+sans passation, elle le dit aussi. Acceptée, elle continue la pull request ouverte de sa branche, qui
 devient la sienne : elle la fusionne si la politique le permet à
 l'agent ; sinon, vous la fusionnez.
 
@@ -353,9 +364,10 @@ reste ; ceux du socle, posés par l'installeur, sont protégés.
 supprimer un test, une décision coûteuse à défaire, une action
 irréversible), l'agent écrit une demande et en donne le lien. Elle se lit
 seule, même après des semaines loin du projet : son contexte commence par
-le projet, le chantier en cours et la question. L'agent qui a des
-sous-agents la fait relire à froid, par l'un d'eux qui n'a que son texte,
-avant de vous la poser, et son récap en donne le bilan. Elle se termine par
+le projet, le chantier en cours et la question. Une demande longue, au-delà
+de la moitié de son budget, l'agent qui a des sous-agents la fait relire
+à froid, par l'un d'eux qui n'a que son texte, avant de vous la poser, et
+son récap en donne le bilan. Elle se termine par
 la liste des réponses possibles. Répondre dans la
 conversation ; l'agent consigne la réponse mot pour mot.
 
@@ -383,12 +395,18 @@ interdiction, « supprime ce test »), il le consigne de même, votre texte
 exact, sans question ni réponse à choisir (`socle decision --unprompted`) :
 la décision vaut validée pour ce qu'elle nomme.
 
-**Des questions de cadrage.** Quand la spécification d'un besoin dépend
-d'une intention que la mémoire ne dit pas, l'agent pose des questions
-ouvertes, chacune avec son hypothèse, dans une demande dont il donne le
-lien. Y répondre librement, en un ou plusieurs messages (`reponses`), ou
-`valider` ses hypothèses : il consigne le texte tel quel, puis soumet la
-spécification qui en découle. Lui dire « pose-moi tes questions sur ce
+**La question d'intention.** Quand la conception d'un besoin n'est pas
+tranchée, l'agent vous pose d'abord, dans la conversation, en quelques
+lignes, le besoin tel qu'il le comprend, le choix qui reste et sa
+recommandation. Il consigne votre réponse, puis écrit la spécification et
+le code dans le même lot, la spécification d'abord ; ce qui reste coûteux
+à défaire vous arrive ensuite en demande, courte.
+
+**Des questions de cadrage.** Quand votre intention manque sur plusieurs
+points, l'agent pose des questions ouvertes, chacune avec son hypothèse,
+dans une demande dont il donne le lien. Y répondre librement, en un ou
+plusieurs messages (`reponses`), ou `valider` ses hypothèses : il
+consigne le texte tel quel, puis écrit la spécification qui en découle. Lui dire « pose-moi tes questions sur ce
 besoin » suffit à en demander.
 
 **Une relecture avant publication**, si la politique l'exige : l'agent
