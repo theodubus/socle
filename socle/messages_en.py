@@ -637,6 +637,19 @@ MESSAGES: dict[str, str] = {
     "dixième, arrondie au millier supérieur (il ne pourra que baisser)":
         "budget of {motif} set at the current level with its margin: {nouveau} bytes for {octets}, the size plus a "
         "tenth, rounded up to the next thousand (it can only go down)",
+    "!! kotlin : {fichiers} déclare un module multiplateforme ou Android, que les commandes JVM de {copies} ne "
+    "servent pas : `./gradlew -q test` ne lance pas les tests d'un module multiplateforme, sautés sans erreur à côté "
+    "d'un module JVM, et `testClasses` n'existe pas sous Android. Mettre dans la copie, par une demande à l'humain, "
+    "les commandes que la section « Kotlin » de {specification} donne pour ces modules : les tests d'un module "
+    "multiplateforme par `allTests`, `test` gardé tant qu'un module JVM ou Android reste ; la compilation par "
+    "`jvmTestClasses`, ou par celle d'une variante sous Android ; la mutation déclarée absente hors JVM":
+        "!! kotlin: {fichiers} declares a multiplatform or Android module, which the JVM commands of {copies} do not "
+        "serve: `./gradlew -q test` does not run the tests of a multiplatform module, skipped without an error next "
+        "to a JVM module, and `testClasses` does not exist under Android. Put in the copy, through a request to the "
+        "human, the commands that the \"Kotlin\" section of {specification} gives for these modules: the tests of a "
+        "multiplatform module through `allTests`, `test` kept while a JVM or Android module remains; compilation "
+        "through `jvmTestClasses`, or through that of a variant under Android; mutation declared absent outside the "
+        "JVM",
     "Deux issues : lui donner un adaptateur propre au projet, dont les commandes entrent dans {dossiers}, en "
     "relançant l'installeur avec `--adapter <principal> --adapter <fichier.toml>` ; ou déclarer le sous-dossier "
     "tiers, qu'aucun contrôle ne juge alors, par `[thirdparty] paths = [{motifs}]` des garde-fous, une décision de "

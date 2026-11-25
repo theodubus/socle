@@ -15,6 +15,23 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-25-a — L'installeur dit qu'un module Kotlin multiplateforme ou Android n'est pas servi par les commandes JVM de la copie `kotlin`, et la spécification des adaptateurs donne les siennes
+
+Les commandes de l'adaptateur `kotlin` supposent des modules JVM. Dans un
+projet qui a aussi un module multiplateforme, `./gradlew -q test`
+réussissait sans lancer les tests de ce module, que le socle disait verts ;
+un module Android n'a pas `testClasses`. À l'installation comme à chaque
+mise à jour, tant que la copie garde des commandes qui ne servent pas ces
+modules (des tests sans `allTests` ni `jvmTest`, une compilation par
+`testClasses` sous Android), l'installeur nomme les fichiers de Gradle qui
+déclarent un tel module, en clair ou dans
+le catalogue des versions, et renvoie à la section « Kotlin » de la
+spécification des adaptateurs, qui donne les commandes selon les modules
+du projet. Il avertit sans bloquer ; une copie déjà adaptée ne déclenche
+rien.
+
+À faire : rien ; l'avertissement de l'installeur, s'il paraît, dit lui-même quoi faire.
+
 ## 2026-11-24-o — Une ligne `Corrige:` ou `Fixes:` écrite hors du dernier paragraphe du message fait du commit un correctif, dont le test de régression se vérifie
 
 Un commit est un correctif par son sujet (`fix:` par défaut) ou par un

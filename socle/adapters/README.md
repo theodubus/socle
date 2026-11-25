@@ -315,7 +315,42 @@ rejeu filtre par classe à la racine. Le rejeu nomme la classe d'après le
 fichier du test : une classe de test nommée autrement que son fichier ne s'y
 trouve pas, et le correctif est refusé, Gradle ne trouvant aucun test ; et
 le filtre `*CalcTest` lance aussi `BigCalcTest`, sans fausser le verdict,
-qui exige encore le succès sur le correctif. Un projet multiplateforme ou Android,
-dont les tâches de Gradle ont d'autres noms (`testDebugUnitTest`) et dont la
-mutation passe par un autre greffon, adapte les commandes dans sa copie,
-qu'une mise à jour garde.
+qui exige encore le succès sur le correctif.
+
+### Un projet multiplateforme ou Android
+
+L'adaptateur `kotlin` suppose des modules JVM, ceux du greffon
+`kotlin("jvm")`. Un module multiplateforme (`kotlin("multiplatform")`) n'a
+pas de tâche `test` : ses tests se lancent par `allTests`, et sa cible JVM
+se compile par `jvmTestClasses`. Dans un projet qui a aussi un module JVM,
+`./gradlew -q test` et `./gradlew -q testClasses` réussissent sans toucher
+au module multiplateforme : ses tests sont sautés sans erreur, et le socle
+les dirait verts. Seul, un module multiplateforme fait échouer les deux
+commandes, qui disent la tâche absente. Un module Android
+(`com.android.application`, `com.android.library`) n'a pas `testClasses` ;
+`test` y lance les tests unitaires de ses variantes. Le greffon de PIT ne
+gère que les modules JVM.
+
+Les commandes de la copie, selon les modules du projet :
+
+| Les modules | `build` | `tests` |
+| --- | --- | --- |
+| JVM et multiplateformes | `./gradlew -q testClasses jvmTestClasses` | `./gradlew -q test allTests` |
+| Multiplateformes seuls | `./gradlew -q jvmTestClasses` | `./gradlew -q allTests` |
+| Android, avec ou sans multiplateformes | la compilation des tests d'une variante, `./gradlew -q compileDebugUnitTestKotlin` | `./gradlew -q test`, avec `allTests` s'il y a un module multiplateforme |
+
+Les deux premières lignes sont éprouvées sur des projets d'essai (Kotlin
+2.0.21, Gradle 8.14.3) ; la ligne Android ne l'est pas, faute du kit
+Android. La mutation se déclare absente (`absent` et `replacement`), ou se
+borne aux modules JVM, les seuls où le greffon de PIT s'applique ; le rejeu
+d'un correctif lance `jvmTest` dans un module multiplateforme, qui n'a pas
+`test`.
+
+À l'installation comme à chaque mise à jour, tant que la copie garde des
+commandes qui ne servent pas ces modules (des tests qui ne nomment ni
+`allTests` ni `jvmTest` pour un module multiplateforme, la compilation par
+`testClasses` sous Android), l'installeur nomme les fichiers de Gradle qui
+déclarent un tel module, par son greffon écrit en clair dans un build ou
+par son identifiant dans le catalogue des versions
+(`gradle/libs.versions.toml`), et renvoie ici. Il avertit sans bloquer. La
+copie se change par une demande à l'humain, et une mise à jour la garde.
