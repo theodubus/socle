@@ -373,8 +373,34 @@ def attendus(ctx, r):
         else:
             paires += [(a, min(nouveaux, key=lambda b: sum((valeurs(a) - valeurs(b)).values()), default=None))
                        for a in anciens]
-    def signaler(nom, fichier, ligne, quoi, faute):
+    juge = juge_des_skills(ctx)
+
+    def suit(f, enonces_perdus, reste=None) -> str | None:
+        """Le gabarit de skill que suit ce que le test `f`, lu à la base,
+        perd (ADR-0110, ADR-0111) : il lit un skill, chaque assertion perdue
+        a ses phrases, que le juge accepte une à une, et le reste du test
+        supprimé les siennes, ensemble ; `None` sinon."""
+        if ctx.projet.mode != config.MODE_AMONT:
+            return None
+        if not lit_un_skill(ctx.lire_base(f.fichier) or "", f.fichier, f, cfg):
+            return None
+        gabarit = None
+        for e in enonces_perdus:
+            g = juge(phrases([e], cfg))
+            if g is None:
+                return None
+            gabarit = gabarit or g
+        if reste is not None:
+            g = juge(phrases(reste, cfg))
+            if g is None:
+                return None
+            gabarit = gabarit or g
+        return gabarit
+
+    def signaler(nom, fichier, ligne, quoi, faute, suivi=None):
         pourquoi = _justifie(ctx, nom)
+        if not pourquoi and suivi:
+            pourquoi = trad("il suit le gabarit `{gabarit}`, en mode amont", gabarit=suivi)
         attente = None if pourquoi else _en_attente(ctx, nom)
         if pourquoi:
             r.avertir("tests.attendus", f"{quoi} ({pourquoi})", fichier, ligne)
@@ -395,22 +421,26 @@ def attendus(ctx, r):
                 continue  # déplacé tel quel
             signaler(a.nom, a.fichier, a.ligne, trad("test `{nom}` supprimé", nom=a.nom),
                      trad("test `{nom}` supprimé sans validation humaine ni changement de spécification qui le "
-                          "nomme", nom=a.nom))
+                          "nomme", nom=a.nom),
+                     suit(a, list(tests_lecture.enonces(sans_documentation(a.corps).splitlines(), assertion, cfg)),
+                          [*a.attributs, sans_documentation(a.corps)]))
             continue
         disparues = valeurs(a) - valeurs(b)
         if disparues:
             exemple = tests_lecture.enonces(a.lignes_corps, assertion, cfg)[next(iter(disparues))][0]
             signaler(a.nom, b.fichier, b.ligne, trad("assertion changée dans `{nom}`", nom=a.nom),
                      trad("assertion changée ou retirée dans `{nom}` : « {exemple} » — valeur attendue "
-                          "modifiée sans spécification ni validation humaine", nom=a.nom, exemple=exemple))
+                          "modifiée sans spécification ni validation humaine", nom=a.nom, exemple=exemple),
+                     suit(a, list(disparues)))
             continue
         # Une valeur attendue vit aussi hors de la ligne d'assertion : une
         # variable, une table, un paramètre. Rien ne la distingue d'une
         # donnée de test : elle est dite, pas refusée.
         valeurs_parties = lits(a) - lits(b)
-        if valeurs_parties and not _justifie(ctx, a.nom):
+        if valeurs_parties and not _justifie(ctx, a.nom) and not (
+                valeurs_de_phrase(valeurs_parties) and suit(a, [], list(valeurs_parties))):
             hors.setdefault(b.fichier, []).append((b.nom, next(iter(valeurs_parties))))
-    _attendus_hors_tests(ctx, cfg, avant_fichiers, [b for _, b in paires if b is not None], hors)
+    _attendus_hors_tests(ctx, cfg, avant_fichiers, [b for _, b in paires if b is not None], hors, suit)
     for fichier, liste in sorted(hors.items()):
         noms = sorted({n for n, _ in liste})
         r.avertir("tests.attendus", trad(
@@ -421,12 +451,13 @@ def attendus(ctx, r):
             fichier)
 
 
-def _attendus_hors_tests(ctx, cfg, chemins, apres, hors):
+def _attendus_hors_tests(ctx, cfg, chemins, apres, hors, suit=None):
     """Une valeur des fichiers de test hors de tout test (une constante, une
     aide qui affirme) : retirée ou changée, elle compte pour chaque test qui
     nomme sa constante ou son aide. Dans un fichier de code, seules ses
     lignes de test comptent : le module de tests de Rust, jamais le code de
-    production."""
+    production. Une phrase qui suit le gabarit d'un skill, en mode amont,
+    ne compte pas (`juge_des_skills`)."""
     chemins_code, exclus_code, _ = config_code(ctx.projet)
 
     def reste(texte, chemin) -> list[str]:
@@ -459,8 +490,135 @@ def _attendus_hors_tests(ctx, cfg, chemins, apres, hors):
             if not touches:
                 continue  # une valeur qu'aucun test ne nomme n'en est pas une valeur attendue
             for b in touches:
+                if suit is not None and valeurs_de_phrase([valeur]) and suit(b, [], [valeur]):
+                    continue
                 if not _justifie(ctx, b.nom):
                     hors.setdefault(b.fichier, []).append((b.nom, valeur))
+
+
+# Une phrase d'un test : une chaîne littérale d'au moins ce nombre de
+# caractères, préfixe et guillemets ôtés, blancs réduits (ADR-0110).
+PHRASE_MIN = 12
+_GUILLEMETS = re.compile(r'[A-Za-z]*("""|\'\'\'|"|\'|`)([\s\S]*)\1')
+_DOCUMENTATION = re.compile(r'\A\s*[A-Za-z]*("""|\'\'\'|"|\'|`)(?:\\.|(?!\1)[\s\S])*?\1[ \t]*(?:\n|\Z)')
+
+
+def phrases(textes, cfg: dict) -> list[str]:
+    """Les phrases de textes de test : leurs chaînes littérales d'au moins
+    douze caractères, sans préfixe ni guillemets, blancs réduits. Un nombre,
+    une clé courte n'en sont pas."""
+    res = []
+    for texte in textes:
+        for lit in tests_lecture.litteraux(texte, cfg):
+            m = _GUILLEMETS.fullmatch(lit)
+            p = " ".join(m.group(2).split()) if m else ""
+            if len(p) >= PHRASE_MIN and p not in res:
+                res.append(p)
+    return res
+
+
+def sans_documentation(corps: str) -> str:
+    """Le corps d'un test sans la chaîne qui l'ouvre, seule sur sa ligne (la
+    docstring de Python) : elle documente le test, elle n'affirme rien."""
+    return _DOCUMENTATION.sub("", corps, count=1)
+
+
+def juge_des_skills(ctx):
+    """En mode amont, le juge des phrases qu'un test perd (ADR-0110) : il
+    rend le gabarit de skill du produit qu'elles suivent, sinon `None`. Les
+    phrases le suivent quand chacune était, à la base, dans le texte d'un
+    gabarit de skill que la plage change, qu'aucune n'était dans un module
+    Python du moteur (une phrase qu'il imprime est un comportement), et que
+    l'une au moins n'est plus dans aucun gabarit de skill. Hors du mode
+    amont, ou sans gabarit de skill changé, il rend toujours `None`."""
+    def rien(perdues):
+        return None
+
+    if ctx.projet.mode != config.MODE_AMONT:
+        return rien
+    paquet = ctx.projet.dossier_moteur.rstrip("/") + "/socle/"
+    motif = [paquet + "templates/skills/*/SKILL*.md"]
+    changes = sorted(outils.filtrer(ctx.changes, motif))
+    if not changes:
+        return rien
+
+    def reduit(texte: str | None) -> str:
+        return " ".join((texte or "").split())
+
+    avant = {c: reduit(ctx.lire_base(c)) for c in changes}
+    maintenant = [reduit(ctx.lire(c)) for c in outils.filtrer(ctx.fichiers, motif)]
+    modules: list[str] = []
+
+    def juge(perdues: list[str]) -> str | None:
+        if not perdues:
+            return None
+        sources = {}
+        for p in perdues:
+            source = next((c for c, texte in avant.items() if p in texte), None)
+            if source is None:
+                return None
+            sources[p] = source
+        quittee = next((p for p in perdues if not any(p in texte for texte in maintenant)), None)
+        if quittee is None:
+            return None
+        if not modules:
+            for c in outils.filtrer(ctx.fichiers_base, [paquet + "**/*.py"]):
+                modules.extend(chaines_du_moteur(ctx.lire_base(c) or ""))
+        if any(p in m or m in p for p in perdues for m in modules):
+            return None
+        return sources[quittee]
+
+    return juge
+
+
+def chaines_du_moteur(texte: str) -> list[str]:
+    """Ce qu'un module Python du moteur peut imprimer : ses chaînes, les
+    concaténations assemblées, coupées à leurs paramètres (`{x}`), blancs
+    réduits, d'au moins douze caractères ; le texte entier si le module ne
+    se lit pas. Le moteur est écrit en Python : le lire ainsi ne fait
+    connaître au moteur aucun langage d'un projet."""
+    import ast
+
+    try:
+        arbre = ast.parse(texte)
+    except (SyntaxError, ValueError):
+        return [" ".join(texte.split())]
+    res = []
+    for n in ast.walk(arbre):
+        if isinstance(n, ast.Constant) and isinstance(n.value, str):
+            for morceau in re.split(r"\{[^{}]*\}", n.value):
+                m = " ".join(morceau.split())
+                if len(m) >= PHRASE_MIN:
+                    res.append(m)
+    return res
+
+
+# Un test lit le texte d'un skill quand son corps, ou une aide de son
+# fichier qu'il nomme, nomme un skill.
+_LIT_UN_SKILL = re.compile(r"SKILL|skills")
+
+
+def lit_un_skill(texte: str, chemin: str, test, cfg: dict) -> bool:
+    """Le test `test` du fichier `chemin` (son texte : `texte`) lit le texte
+    d'un skill : son corps, ou le corps d'une aide de son fichier qu'il
+    nomme, nomme un skill (`SKILL`, `skills`). Un test de comportement qui
+    ne lit aucun skill n'est jamais jugé sur leur texte (ADR-0111)."""
+    corps = "\n".join([*test.attributs, test.corps])
+    if _LIT_UN_SKILL.search(corps):
+        return True
+    return any(_nomme(corps, a.nom) and _LIT_UN_SKILL.search(a.corps)
+               for a in tests_lecture.extraire(texte, chemin, cfg) if not a.est_test)
+
+
+def valeurs_de_phrase(valeurs) -> bool:
+    """Toutes les valeurs données (des littéraux) sont des phrases, hors des
+    chaînes vides : un nombre, une clé courte n'en sont pas."""
+    for v in valeurs:
+        m = _GUILLEMETS.fullmatch(v)
+        p = " ".join(m.group(2).split()) if m else v
+        if p and len(p) < PHRASE_MIN or not m:
+            return False
+    return True
 
 
 def _note_agent(ctx, nom: str) -> str:

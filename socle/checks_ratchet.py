@@ -428,6 +428,37 @@ def poses_par_la_mise_a_jour(ctx) -> set[str]:
     return res
 
 
+def gabarit_de_la_copie(ctx, chemin: str) -> str | None:
+    """En mode amont, le gabarit qu'une copie d'un skill du socle
+    (`.claude/skills/socle-<nom>/SKILL.md`) reproduit, tel que l'installeur
+    le pose : dans la langue de la mémoire s'il y en a une version à la
+    révision jugée, en français sinon (ADR-0110) ; `None` hors du mode
+    amont et pour tout autre fichier."""
+    from socle import installer as installeur
+
+    if ctx.projet.mode != config.MODE_AMONT:
+        return None
+    m = re.fullmatch(re.escape(installeur.SKILLS) + r"/(socle-[^/]+)/SKILL\.md", chemin)
+    if not m:
+        return None
+    dossier = f"{ctx.projet.dossier_moteur.rstrip('/')}/socle/templates/skills/{m.group(1)}/"
+    lg = langue.du_projet(ctx.projet)
+    if lg != "fr" and ctx.lire(dossier + f"SKILL.{lg}.md") is not None:
+        return dossier + f"SKILL.{lg}.md"
+    return dossier + "SKILL.md"
+
+
+def suit_son_gabarit(ctx, chemin: str) -> str | None:
+    """Le gabarit que la copie d'un skill du socle reproduit à l'octet près
+    à la révision jugée, ou dont elle suit le retrait ; `None` sinon. En
+    mode amont, l'agent écrit les gabarits : la copie qui les suit n'attend
+    pas de demande (ADR-0110)."""
+    gabarit = gabarit_de_la_copie(ctx, chemin)
+    if gabarit is None or ctx.lire(chemin) != ctx.lire(gabarit):
+        return None
+    return gabarit
+
+
 @controle("protege.fichiers", base=True)
 def proteges(ctx, r):
     """Un fichier protégé ne change qu'avec une demande validée qui cite son
@@ -457,6 +488,10 @@ def proteges(ctx, r):
         if memoire.est_reponse(c):
             continue  # les réponses sont le mécanisme de validation lui-même
         if ctx.projet.mode == config.MODE_AMONT and c.startswith(ctx.projet.dossier_moteur + "/socle/"):
+            continue
+        if (gabarit := suit_son_gabarit(ctx, c)) is not None:
+            r.avertir("protege.fichiers", trad("copie identique à son gabarit `{gabarit}`, en mode amont : elle le "
+                                               "suit sans demande", gabarit=gabarit), c)
             continue
         present = existe(c)
         if present and ctx.tete is None:

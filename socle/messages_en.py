@@ -1201,6 +1201,8 @@ MESSAGES: dict[str, str] = {
         "reads it in the pull request",
     "modification validée par {id}":
         "change approved by {id}",
+    "copie identique à son gabarit `{gabarit}`, en mode amont : elle le suit sans demande":
+        "copy identical to its template `{gabarit}`, in upstream mode: it follows it without a request",
     "une mise à jour du socle attend sa demande : la poser. {n} fichier(s) protégé(s) qu'elle a posé(s), sans "
     "validation ni demande en attente ; `python3 .socle/socle check --stage agent --only protege.fichiers` les "
     "liste avec leurs empreintes, et les étapes « Et maintenant » de l'installeur disent comment poser la "
@@ -1270,6 +1272,8 @@ MESSAGES: dict[str, str] = {
         "group of tests disabled without a written reason: “{ligne}”",
     "validé par {id}":
         "approved by {id}",
+    "il suit le gabarit `{gabarit}`, en mode amont":
+        "it follows the template `{gabarit}`, in upstream mode",
     "spécification changée par l'humain : {chemin}":
         "specification changed by the human: {chemin}",
     "adaptateur sans `[tests]`":
