@@ -72,24 +72,29 @@ pour une session programmée :
 python3 .socle/socle handoff write --chain <n> --waiting "<ce qui attend>"
 ```
 
-La passation se commite en dernier et se pousse. Puis la garde, sans
-argument, doit la trouver en attente (sa ligne « Premier commit » vaut
-pour la session neuve) ; sinon, rien ne se programme, et le récap dit
-pourquoi :
+La passation se commite en dernier et se pousse, avant toute fusion de
+la pull request : quand l'agent la fusionne lui-même, elle en est le
+dernier commit, `--waiting` disant la fusion à venir. La fusion la porte
+sur la branche par défaut, et la branche, que l'hébergeur supprime, ne se
+repousse plus. Puis la garde, sans argument, doit la trouver en attente
+(sa ligne « Premier commit » vaut pour la session neuve) ; sinon, rien ne
+se programme, et le récap dit pourquoi :
 
 ```sh
 python3 .socle/socle handoff check
 ```
 
-Plus rien ne se pousse ensuite ; un commit nécessaire après réécrit la
-passation (`write`) dans ce même commit, et la garde se relance.
+Plus rien ne se pousse ensuite ; un commit nécessaire après, avant la
+fusion, réécrit la passation (`write`) dans ce même commit, et la garde se
+relance.
 
 ## Programmer
 
 La passation écrite avec `--scheduled` (plus haut, `socle-batch` rangé) :
 
 1. `create_session`, sans `prompt` : `source_url` l'adresse du dépôt ;
-   `source_revision` la branche de travail ; `outcome_branch` la même,
+   `source_revision` la branche de travail, ou la branche par défaut
+   quand la fusion l'a supprimée ; `outcome_branch` la branche de travail,
    sans quoi la session neuve n'a pas où pousser ; `model` celui de
    cette session ; `effort` le sien, qui ne s'hérite pas (refusé, l'appel
    se refait sans lui) ; `title` « Passation — <lot> — part le <jour> à

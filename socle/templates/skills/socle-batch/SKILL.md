@@ -99,7 +99,7 @@ entrée de journal ne se réécrivent plus.
 - **La session est l'unité de budget.** À la fin d'un lot, elle enchaîne
   le suivant si son coût estimé tient dans ce qui reste de la fenêtre de
   cinq heures et de la semaine, la marge du rangement comprise, et si sa
-  conversation reste sous 300 000 jetons de contexte, deux lots au plus
+  conversation reste sous 150 000 jetons de contexte, deux lots au plus
   sans message de l'humain ; sinon, elle change de session.
 - Les coûts se mesurent : l'utilisation de chaque fenêtre, avant chaque
   lancement et à chaque compte rendu (skill `socle-resume`). La clôture note au journal le coût de chaque
@@ -127,7 +127,7 @@ entrée de journal ne se réécrivent plus.
 ## Changer de session
 
 Quand le lot suivant ne tient pas, près d'une limite ou avant une
-attente de plus d'une heure (skill `socle-handoff`). Ranger d'abord :
+attente de plus d'une heure. Ranger d'abord :
 
 1. le chantier actif dit le lot et ce qui attend, le journal la passation ;
 2. les copies isolées, leurs branches et, en session cloud, les réveils
@@ -136,6 +136,6 @@ attente de plus d'une heure (skill `socle-handoff`). Ranger d'abord :
    (`git format-patch`) dans un dossier de passation, retiré à son
    intégration.
 
-Puis le skill `socle-handoff` : la passation écrite, commitée et poussée.
-Plus rien ne se pousse ensuite. Selon le mode, il programme la session
-suivante, ou dit de demander la reprise.
+Puis le skill `socle-handoff` : la passation écrite, commitée et poussée,
+avant toute fusion. Plus rien ne se pousse ensuite. Selon le mode, il
+programme la session suivante, ou dit de demander la reprise.

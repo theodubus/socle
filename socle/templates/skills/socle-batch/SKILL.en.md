@@ -99,7 +99,7 @@ decision and a journal entry are no longer rewritten.
 - **The session is the budget unit.** At the end of a batch, it chains
   the next one if its estimated cost fits in what remains of the
   five-hour window and of the week, the tidying-up margin included, and
-  if its conversation stays under 300,000 tokens of context, two batches
+  if its conversation stays under 150,000 tokens of context, two batches
   at most without a message from the human; otherwise, it changes
   sessions.
 - Costs are measured: the use of each window, before each launch and at
@@ -128,7 +128,7 @@ decision and a journal entry are no longer rewritten.
 ## Changing sessions
 
 When the next batch does not fit, near a limit or before a wait of more
-than an hour (the `socle-handoff` skill). Tidy up first:
+than an hour. Tidy up first:
 
 1. the active work gives the batch and what is waiting, the journal the
    handoff;
@@ -139,5 +139,5 @@ than an hour (the `socle-handoff` skill). Tidy up first:
    at its integration.
 
 Then the `socle-handoff` skill: the handoff written, committed and
-pushed. Nothing is pushed afterwards. Depending on the mode, it
-schedules the next session, or says to ask for the resumption.
+pushed, before any merge. Nothing is pushed afterwards. Depending on the
+mode, it schedules the next session, or says to ask for the resumption.
