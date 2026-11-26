@@ -19,10 +19,11 @@ in their own time.
   and ask there for the resumption; the mode of whoever has several
   accounts or wants to keep control.
 
-The mode is the one an instruction in the active work states; without
-one, the scheduled session. The human changes it by saying so: the agent
-writes the instruction in the active work, and its exact text in the
-journal. Switching to the prompt to copy cancels what is scheduled, the
+The mode is the one a directive in force states; without one, the
+scheduled session. The human changes it by saying so: the agent records
+their words in session, lifts the previous directive and writes the new
+one (`socle new directive`), with its exact text (skill `socle-request`).
+Switching to the prompt to copy cancels what is scheduled, the
 task deleted (`delete_trigger`) and the created session archived
 (`archive_session`), and says so, with the link of each cancelled
 session.

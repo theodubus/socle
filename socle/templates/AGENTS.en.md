@@ -12,10 +12,8 @@ This file says **how** to work;
 backlog, pending human requests —, then the essentials of the
 memory. Under Claude Code, the `SessionStart` hook does it on its own; under
 another agent, run it first. Nothing that is not in it is established.
-What the human wrote themselves since the agent's last commit (an approval,
-an answer in their terminal), the state lists: cite it to them in the next
-reply, by its identifier and its link, which the conversation did not give
-them. A first message that asks to resume or continue, whatever its form
+What the human wrote themselves since the agent's last commit, the state
+lists: cite it to them in the next reply, by its identifier and its link. A first message that asks to resume or continue, whatever its form
 ("resume"), first looks for the handoff: the `socle-handoff` skill.
 
 If the state was not injected when a Claude Code session started, its
@@ -26,9 +24,9 @@ Claude Code setting yourself to restore them.
 
 An instruction from the human given in the conversation, that holds beyond
 the turn (a rule, a preference, a prohibition), is written into the memory
-before going on: in the active work if it concerns the work in progress,
-otherwise in the journal, with its exact text: a compaction may lose it,
-and a new session only has the memory.
+before going on, in the directives (`socle new directive`), with its exact
+text, and in the journal: a compaction may lose it. Before relying on a
+directive, its exact text is read.
 
 ### The memory, in `memory/`
 
@@ -36,15 +34,16 @@ and a new session only has the memory.
 | --- | --- | --- |
 | Canonical | `memory/canonical.md` | facts with status and proof; only changes with a new proof |
 | Active | `memory/active.md` | work in progress, next steps; rewritten, kept short |
+| Directives | `memory/directives.md` | the human's directives, exact text unchanged; lifted by an approved request |
 | Decisions | `memory/decisions/` | one ADR per file, the project's only decision register; only its status changes afterwards |
 | Journal | `memory/journal/` | one dated entry per event; append only; no future step for the human |
 | Backlog | `@@BACKLOG@@` | four forms, each with its prefix: need `B-` (“Satisfied when”), task `T-` that names its need (“Done when”), batch `L-` of tasks, milestone `JA-` of needs; ordered by `after`, with their priority (the state computes the ready tasks); closed with a reference, then filed by `socle archive` |
 | Requests | `memory/requests/` | human decisions in a queue, under the contract of the skill `socle-request` |
 
 An entry: `## F-NNNN — title`, then a line `> status : measured · proof : commit:<sha>`.
-Statuses of a fact: `measured` (with `proof`), `assumed`, `refuted` (title struck
-through, with `refutation`), `validated` (with `validation : D-NNNN`, written
-after the human's answer). Full format: `@@MOTEUR@@/socle/FORMAT.md`.
+Statuses of a fact: `measured` (with `proof`), `assumed`, `refuted` (struck
+through, with `refutation`), `validated` (with `validation : D-NNNN`, after
+the human's answer). Full format: `@@MOTEUR@@/socle/FORMAT.md`.
 An identifier is computed (`python3 .socle/socle new <type> "title"`), it is
 never guessed. In case of conflict, the order of authority is: the code and
 the tests, then the canonical memory, then the journal.
@@ -79,12 +78,12 @@ specification and its code are then done in the same batch.
 
 ### Reading the memory on demand
 
-Startup only injects the state, the active work, the titles of the facts
-and the last ten decisions, under a cap; what a `!! cut` line says is
+Startup only injects the state, the active work, the directives in force,
+the titles of the facts and the last ten decisions, under a cap; what a `!! cut` line says is
 missing is read at once. The rest is read when it is needed, without
 waiting to be asked:
 
-- a cited identifier (`F-`, `B-`, `T-`, `L-`, `JA-`, `ADR-`, `D-`, `J-`) is read before relying
+- a cited identifier (`F-`, `C-`, `B-`, `T-`, `L-`, `JA-`, `ADR-`, `D-`, `J-`) is read before relying
   on it: `python3 .socle/socle show <ID>`, which also gives its fingerprint;
 - before a design decision, `socle show --index decisions` says whether it
   has already been made: it is not reopened without a new fact;
@@ -97,7 +96,7 @@ waiting to be asked:
 
 Reading is proven: a new decision, request or backlog entry cites what it
 read with its fingerprint (`ADR-NNNN@xxxxxxxx`, `read : decisions@…`,
-`read : backlog@…`). A stale or invented fingerprint is refused; the entry
+`read : backlog@…`); a directive, everywhere. A stale or invented fingerprint is refused; the entry
 must be read again. `socle new` puts in the index fingerprint.
 
 ### Skills
@@ -111,7 +110,7 @@ prompt to copy), `socle-review` (the review of a batch, before its delivery) and
 after a usage limit), in `.claude/skills/`, laid by the installer and
 protected; another agent reads their `SKILL.md` at that path.
 
-A project procedure that comes back (the journal shows the first time) is
+A project procedure that comes back is
 written as a skill the second time, in `.claude/skills/<name>/SKILL.md`: a
 name without the `socle-` prefix, a header with `name` (the
 folder's name) and `description` (what it does, and when to use it), and a
@@ -167,7 +166,7 @@ guardrails (`proto/` by default): the CI does not judge it on push.
 - A public function added or changed is named by at least one test, or a commit waives it by name with its reason (`Waive-test: f, g — <reason>`). Existing code found without tests: the test is written right away if it is within the scope of the work, otherwise a need goes to the backlog.
 - An action only the human can take (refused by the hook, a service setting, a file they hold) goes to the backlog with `for : human`.
 - **Every intervention that acted ends with a recap, then two lines**: `For you:` — what is up to the human, pending decisions and actions to take, or "nothing" —, each item understandable without the agent's reasoning (what it is, why, what their answer changes), and `Next:` — the proposed next step (next milestone, what remains before it), and what the agent is waiting for if it is waiting for something (a CI run, a match: what, and until when). The state computes what is up to the human; the `Stop` hook refuses to conclude without the two lines.
-- **A file to read, or a pull request, is given by its link**: the human reads in the conversation or on GitHub, not in the agent's container. `python3 .socle/socle url <path|ID>` gives the permalink, once the file is pushed; a pending request cited without its link, a relative link, or a path between backticks that does not exist in the repository make the end of turn refused. A path in another repository is written `repo:path`, the repository linked somewhere in the project by its address (failing that, declared in `[references] repos` of the guardrails); an unknown repository is reported.
+- **A file to read, or a pull request, is given by its link**: the human reads in the conversation or on GitHub, not in the agent's container. `python3 .socle/socle url <path|ID>` gives the permalink, once the file is pushed; a pending request cited without its link, a relative link, or a path between backticks that does not exist in the repository make the end of turn refused. A path in another repository is written `repo:path`, the repository linked in the project by its address, or declared in `[references] repos` of the guardrails.
 
 ### Never
 

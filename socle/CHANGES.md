@@ -15,6 +15,49 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-25-e — Les consignes durables de l'humain ont leur couche, `memory/directives.md` : chacune son identifiant, sa ligne de résumé au démarrage, son texte exact, levée par sa seule parole
+
+Une consigne de l'humain qui vaut au-delà du tour (une règle, une
+préférence, une interdiction) ne s'écrit plus au chantier actif : elle a sa
+couche, `memory/directives.md`, et dans la zone privée son miroir, quand
+`[private] layers` la nomme.
+
+- **Une entrée par consigne** : `## C-NNNN — ligne de résumé` (120 octets
+  au plus), puis `> statut : en vigueur · source : <J-… ou D-…> · date :
+  <date>`, puis son texte exact, cité sur des lignes `>`, qui ne change
+  jamais ; la ligne de résumé peut se récrire. `socle new directive
+  "<résumé>"` pose le squelette ; `socle show C-NNNN` imprime le texte
+  exact et son empreinte.
+- **Levée par la seule parole de l'humain** : `levée`, avec
+  `levée-par : D-NNNN`, une demande à laquelle il a répondu `valider`, en
+  séance comme en file. `socle archive` range les consignes levées dans le
+  journal, où leur identifiant reste résolu.
+- **Au démarrage**, l'état donne la ligne de résumé de chaque consigne en
+  vigueur, juste après le chantier actif, et dit de lire le texte exact
+  avant de s'appuyer sur une. Les parts de la borne deviennent : état
+  25 %, chantier actif 18 %, consignes 25 %, faits 20 %, décisions 12 %.
+- **La lecture se prouve** : une consigne citée dans la mémoire, le
+  journal et le chantier actif compris, porte l'empreinte de la version lue
+  (`C-NNNN@xxxxxxxx`) ; une mention nue ajoutée est refusée.
+- Le gabarit des garde-fous gagne le budget des consignes
+  (`"memory/directives.md" = { max_bytes = 16000 }`), et celui du chantier
+  actif baisse de 3 700 à 1 600 octets, sa part nouvelle. La section du
+  socle d'`AGENTS.md`, le guide et les skills `socle-request` et
+  `socle-handoff` le disent. L'installeur pose `memory/directives.md` vide
+  sous son en-tête, à la mise à jour comme à l'installation, et note le
+  format 4 de la mémoire dans `.socle/engine.lock`.
+
+À faire : migrer les consignes du chantier actif dans la couche, une par
+une : pour chacune, relire son texte exact dans l'entrée du journal ou la
+demande où l'humain l'a donnée, la poser par `socle new directive
+"<ligne de résumé>"`, y écrire sa `source` et ce texte mot pour mot, puis la
+retirer du chantier actif ; une consigne dont le texte exact ne se retrouve
+nulle part se redemande à l'humain. Déclarer dans les garde-fous le budget
+`"memory/directives.md" = { max_bytes = 16000 }`, sans lequel
+`memoire.budgets` refuse le fichier, et baisser celui de `memory/active.md`
+à la part que l'état donne, 1 600 octets avec la borne du gabarit : les
+deux durcissent, et restent libres.
+
 ## 2026-11-25-d — L'organisation du travail se proportionne à ce qu'elle protège : la session unité de budget, la question d'intention avant la spécification, la revue adversariale selon le risque, un sous-agent quand il paie
 
 Les skills `socle-batch`, `socle-review`, `socle-request` et

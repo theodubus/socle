@@ -31,6 +31,8 @@ CHAMPS = {
     "date": {"fr": "date", "en": "date"},
     "type": {"fr": "type", "en": "type"},
     "remplacee-par": {"fr": "remplacée-par", "en": "superseded-by"},
+    # La demande validée qui lève une consigne de l'humain.
+    "levee-par": {"fr": "levée-par", "en": "lifted-by"},
     "bloque": {"fr": "bloque", "en": "blocks"},
     "retiree": {"fr": "retirée", "en": "withdrawn"},
     "reformulee": {"fr": "reformulée", "en": "reworded"},
@@ -62,6 +64,8 @@ STATUTS = {
     "ADR": {"proposee": {"fr": "proposée", "en": "proposed"}, "acceptee": {"fr": "acceptée", "en": "accepted"},
             "remplacee": {"fr": "remplacée", "en": "superseded"}, "rejetee": {"fr": "rejetée", "en": "rejected"},
             "abandonnee": {"fr": "abandonnée", "en": "abandoned"}},
+    # Une consigne de l'humain : en vigueur, ou levée par sa parole.
+    "C": {"en-vigueur": {"fr": "en vigueur", "en": "in force"}, "levee": {"fr": "levée", "en": "lifted"}},
 }
 
 # Valeurs d'un champ qui se comparent : `pour : humain`.
@@ -95,6 +99,7 @@ COUCHES = {
     "decisions": {"fr": "decisions", "en": "decisions"}, "journal": {"fr": "journal", "en": "journal"},
     "backlog": {"fr": "backlog", "en": "backlog"}, "demandes": {"fr": "demandes", "en": "requests"},
     "passation": {"fr": "passation", "en": "handoff"},
+    "consignes": {"fr": "consignes", "en": "directives"},
 }
 ZONES = {"publique": {"fr": "publique", "en": "public"}, "privee": {"fr": "privee", "en": "private"}}
 
@@ -167,6 +172,13 @@ TEXTES = {
     "titre-passation": {"fr": "Passation", "en": "Handoff"},
     "attente-passation": {"fr": "Ce qui attend : {attente}.", "en": "What is waiting: {attente}."},
     "rien": {"fr": "rien", "en": "nothing"},
+    # L'entrée du journal où `socle archive` range les consignes levées.
+    "titre-consignes-rangees": {"fr": "Consignes levées rangées dans le journal",
+                                "en": "Lifted directives moved to the journal"},
+    "texte-consignes-rangees": {"fr": "Rangées par `socle archive` : chacune levée par la parole de l'humain que "
+                                      "cite sa ligne de métadonnées. Leur identifiant reste résolu.",
+                                "en": "Moved by `socle archive`: each one lifted by the human's word that its "
+                                      "metadata line cites. Their identifiers still resolve."},
 }
 
 # Les entrées que `socle new` pose, par langue.
@@ -185,6 +197,8 @@ SQUELETTES = {
         "JA": "> statut : ouvert · origine : <J-… ou commit:… où le jalon est posé> · lu : backlog@{lu}\n\n"
               "<le but que servent ses besoins ; son `après` nomme le jalon d'avant, puis ses besoins>",
         "J": "<ce qui s'est passé, avec ses références>",
+        "C": "> statut : en vigueur · source : <J-… ou D-… où la parole de l'humain est consignée> · "
+             "date : {date}\n\n> « <le texte exact de l'humain, mot pour mot> »",
         "ADR": "> statut : proposée · date : {date} · lu : decisions@{lu}\n\n## Contexte\n\n<ce qui oblige à décider>\n\n"
                "## Décision\n\n<ce qui est décidé>\n\n## Conséquences\n\n<ce que ça change, et comment le défaire>",
     },
@@ -202,6 +216,8 @@ SQUELETTES = {
         "JA": "> status : open · origin : <J-… or commit:… where the milestone is set> · read : backlog@{lu}\n\n"
               "<the goal its needs serve; its `after` names the previous milestone, then its needs>",
         "J": "<what happened, with its references>",
+        "C": "> status : in force · source : <J-… or D-… where the human's words are recorded> · "
+             "date : {date}\n\n> “<the human's exact text, word for word>”",
         "ADR": "> status : proposed · date : {date} · read : decisions@{lu}\n\n## Context\n\n<what forces a decision>\n\n"
                "## Decision\n\n<what is decided>\n\n## Consequences\n\n<what it changes, and how to undo it>",
     },

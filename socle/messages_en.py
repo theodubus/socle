@@ -3824,8 +3824,8 @@ MESSAGES: dict[str, str] = {
         '{n} entry(ies) filed: the closed ones in `{dossier}/`, the open ones outside it',
     '… et {n} autre(s) tâche(s) prête(s)':
         '… and {n} more ready task(s)',
-    "range les entrées closes du backlog à l'écart des ouvertes":
-        'files the closed backlog entries apart from the open ones',
+    "range les entrées closes du backlog à l'écart des ouvertes, et les consignes levées dans le journal":
+        "files the closed backlog entries apart from the open ones, and the lifted directives in the journal",
     # L'historique des revues d'un lot (ADR-0084, ADR-0100).
     "`{id}` : « {ligne} », dans sa section « Revues », se donne pour un bloquant sans la forme que lit "
     "l'historique du lot, une ligne `- Bloquant : <sa cause>` par bloquant, ni gras, ni numéro, ni pluriel":
@@ -4314,4 +4314,77 @@ MESSAGES: dict[str, str] = {
         "handoff",
     "une passation écrite par `socle handoff write` passe le commit et la CI":
         "a handoff written by `socle handoff write` passes the commit and the CI",
+    # La couche des consignes de l'humain (B-0161).
+    "{n} consigne(s) levée(s) rangée(s) dans le journal : leur identifiant reste résolu":
+        "{n} lifted directive(s) moved to the journal: their identifiers still resolve",
+    "`{id}` : sa ligne de résumé fait {octets} octets, {borne} au plus : le démarrage la donne à chaque session ; la "
+    "resserrer, le texte exact reste dans le corps":
+        "`{id}`: its summary line is {octets} bytes, {borne} at most: startup gives it at every session; tighten it, "
+        "the exact text stays in the body",
+    "`{id}` sans `source` qui nomme l'entrée du journal (`J-…`) ou la demande (`D-…`) où la parole de l'humain est "
+    "consignée":
+        "`{id}` without a `source` naming the journal entry (`J-…`) or the request (`D-…`) where the human's words "
+        "are recorded",
+    "`{id}` sans le texte exact de l'humain : le corps le cite mot pour mot, sur une ligne `>` séparée de la ligne de "
+    "métadonnées par une ligne vide":
+        "`{id}` without the human's exact text: the body quotes it word for word, on a `>` line separated from the "
+        "metadata line by a blank line",
+    "`{ident}`, une consigne de l'humain, cité sans son empreinte : son texte exact se lit avant de s'appuyer sur "
+    "elle, `python3 .socle/socle show {ident}`, et se cite `{ident}@<empreinte>`, l'empreinte affichée":
+        "`{ident}`, a directive of the human, cited without its fingerprint: its exact text is read before relying "
+        "on it, `python3 .socle/socle show {ident}`, and it is cited `{ident}@<fingerprint>`, the fingerprint shown",
+    "`{id}` levée sans `levée-par : D-NNNN` — une consigne ne se lève que par la parole de l'humain : une demande "
+    "qu'il a validée, en séance comme en file":
+        "`{id}` lifted without `lifted-by : D-NNNN` — a directive is only lifted by the human's word: a request they "
+        "approved, in session as in the queue",
+    "consigne `{ident}` effacée : une consigne ne disparaît pas ; levée par la parole de l'humain, elle se range dans "
+    "le journal par `socle archive`":
+        "directive `{ident}` erased: a directive does not disappear; lifted by the human's word, it is moved to the "
+        "journal by `socle archive`",
+    "consigne `{ident}` rangée dans le journal sans être levée : seule une consigne levée quitte les consignes":
+        "directive `{ident}` moved to the journal without being lifted: only a lifted directive leaves the directives",
+    "consigne `{ident}` : son texte exact a changé ; il ne change jamais. Une consigne que l'humain modifie est une "
+    "consigne nouvelle, et sa parole lève l'ancienne":
+        "directive `{ident}`: its exact text changed; it never changes. A directive the human modifies is a new "
+        "directive, and their word lifts the old one",
+    "les consignes": "the directives",
+    "{n} consigne(s) sur {total} : lire {chemin}": "{n} directive(s) out of {total}: read {chemin}",
+    "--- {chemin} : {n} consigne(s) en vigueur, par leur ligne de résumé ; avant de s'appuyer sur une, de "
+    "l'appliquer à un cas que sa ligne ne tranche pas ou de la citer, son texte exact : `python3 .socle/socle show "
+    "C-NNNN` ---":
+        "--- {chemin}: {n} directive(s) in force, by their summary line; before relying on one, applying it to a "
+        "case its line does not settle or citing it, its exact text: `python3 .socle/socle show C-NNNN` ---",
+    "--- {chemin} : {n} consigne(s) en vigueur sur {total}, par leur ligne de résumé ; avant de s'appuyer sur une, "
+    "de l'appliquer à un cas que sa ligne ne tranche pas ou de la citer, son texte exact : `python3 .socle/socle "
+    "show C-NNNN` ---":
+        "--- {chemin}: {n} directive(s) in force out of {total}, by their summary line; before relying on one, "
+        "applying it to a case its line does not settle or citing it, its exact text: `python3 .socle/socle show "
+        "C-NNNN` ---",
+    # L'auto-test de la couche des consignes (B-0161).
+    "consigne de l'humain citée dans le journal sans son empreinte":
+        "human's directive cited in the journal without its fingerprint",
+    "consigne de l'humain citée dans le journal sous une empreinte périmée":
+        "human's directive cited in the journal under a stale fingerprint",
+    "consigne dont la ligne de résumé dépasse 120 octets": "directive whose summary line exceeds 120 bytes",
+    "consigne sans la source où la parole de l'humain est consignée":
+        "directive without the source where the human's words are recorded",
+    "consigne sans le texte exact de l'humain cité dans son corps":
+        "directive without the human's exact text quoted in its body",
+    "consigne levée sans la demande validée qui la lève": "directive lifted without the approved request that lifts it",
+    "consigne levée par une demande à laquelle l'humain n'a pas répondu":
+        "directive lifted by a request the human has not answered",
+    "texte exact d'une consigne de l'humain réécrit": "exact text of a human's directive rewritten",
+    "consigne de l'humain effacée": "human's directive erased",
+    "consigne en vigueur rangée dans le journal, sans la parole de l'humain qui la lève":
+        "directive in force moved to the journal, without the human's word that lifts it",
+    "une consigne citée dans le journal sous l'empreinte de sa version actuelle, sa ligne de résumé récrite, passe "
+    "le commit":
+        "a directive cited in the journal under the fingerprint of its current version, its summary line rewritten, "
+        "passes the commit",
+    "une consigne levée par la parole de l'humain, consignée en séance, puis rangée par `socle archive`, passe la CI":
+        "a directive lifted by the human's word, recorded in session, then moved by `socle archive`, passes the CI",
+    "une consigne nouvelle posée par `socle new directive`, sa source et le texte exact écrits, passe le commit, et "
+    "l'état donne sa ligne de résumé":
+        "a new directive set by `socle new directive`, its source and exact text written, passes the commit, and the "
+        "state gives its summary line",
 }

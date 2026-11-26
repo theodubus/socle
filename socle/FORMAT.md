@@ -1,6 +1,6 @@
 # Format de la mémoire
 
-La mémoire est un ensemble de fichiers markdown en cinq couches, plus la file
+La mémoire est un ensemble de fichiers markdown en six couches, plus la file
 des demandes humaines et la passation à une session neuve. Un script sait la lire : sans cela, aucun contrôle
 automatique ne serait possible. Ce document fait foi pour le format ; le code
 qui le lit est `socle/memory.py`, les contrôles sont listés par
@@ -12,6 +12,7 @@ qui le lit est `socle/memory.py`, les contrôles sont listés par
 memory/
   canonical.md            faits vérifiés, avec statut et preuve
   active.md               chantier en cours, prochaines étapes
+  directives.md           consignes durables de l'humain, avec leur texte exact
   backlog/B-0001-*.md     une entrée par fichier : besoin, tâche (T-), lot (L-), jalon (JA-)
   decisions/ADR-0001-*.md une décision par fichier
   journal/2026-10.md      un fichier par mois, une entrée par événement
@@ -71,10 +72,11 @@ Les métadonnées sont des paires `clé : valeur` séparées par un point média
 | Backlog, jalon | `JA-` et quatre chiffres | `JA-0002` |
 | Décisions | `ADR-` et quatre chiffres | `ADR-0003` |
 | Demandes | `D-` et quatre chiffres | `D-0004` |
+| Consignes | `C-` et quatre chiffres | `C-0003` |
 | Journal | `J-` date et lettre | `J-2026-10-10-A` |
 
 Dans la zone privée, l'identifiant prend un `P` devant (`PF-0001`,
-`PJ-2026-10-10-A`) : un fichier public qui en cite un est une fuite, et le
+`PC-0001`, `PJ-2026-10-10-A`) : un fichier public qui en cite un est une fuite, et le
 contrôle la voit même sans accès à la zone privée. Un identifiant se calcule
 (`socle next-id`, `socle new`), il ne se devine pas ; `socle new` saute
 ceux que prennent les branches distantes et les correctifs suivis du dépôt
@@ -138,6 +140,43 @@ Réécrit librement, borné par son budget. Il ne définit aucun identifiant :
 un identifiant est stable, l'actif ne l'est pas. Il renvoie aux entrées du
 backlog et du journal. L'ordre du travail ne s'y recopie pas : il se tient
 au backlog, d'où l'état le calcule.
+
+### Consignes — `C-`
+
+Un fichier, `directives.md`, où chaque consigne durable de l'humain (une
+règle, une préférence, une interdiction qui vaut au-delà du tour) a son
+entrée :
+
+```markdown
+## C-0003 — La roadmap demandée se donne au format court
+
+> statut : en vigueur · source : J-2026-11-25-T · date : 2026-11-25
+
+> « … le texte exact de l'humain, mot pour mot … »
+```
+
+- **La ligne de résumé** est le titre, que le démarrage injecte à chaque
+  session : 120 octets UTF-8 au plus, sinon le contrôle de format la refuse.
+- **Le texte exact** est le corps : au moins une citation, une ligne qui
+  commence par `>`, séparée de la ligne de métadonnées par une ligne vide,
+  mot pour mot. Une consigne qui en réunit plusieurs les cite toutes ; une
+  ligne de contexte peut suivre.
+- **`source`**, obligatoire : l'entrée du journal (`J-`) ou la demande
+  (`D-`) où la parole de l'humain est consignée.
+- **Le statut** : `en vigueur` ou `levée`. `levée` exige
+  `levée-par : D-NNNN`, une demande à laquelle l'humain a répondu
+  `valider`, en séance comme en file.
+
+`socle new directive "résumé"` pose le squelette. Ajout seul : une consigne
+publiée ne change que par sa ligne de métadonnées et par sa ligne de
+résumé, que l'agent peut récrire si elle trahit le texte ; le texte exact
+ne change jamais. Une consigne que l'humain modifie est une consigne
+nouvelle, et la parole qui la modifie lève l'ancienne. Une consigne ne
+disparaît pas : levée, `socle archive` la range dans le journal, sous une
+entrée du jour, comme un fait archivé, et son identifiant reste résolu.
+Le démarrage donne la ligne de résumé de chaque consigne en vigueur ; le
+texte exact se lit par `socle show C-NNNN`, et toute citation d'une
+consigne dans la mémoire prouve qu'il a été lu (voir « Lecture prouvée »).
 
 ### Passation
 
@@ -406,7 +445,7 @@ Commits : 8719a8f..1a2b3c4
 ```
 
 Un fait archivé dans le journal reste défini, donc toute référence vers lui
-reste vivante.
+reste vivante ; une consigne levée que `socle archive` y range, de même.
 
 ### Demandes — `D-`
 
@@ -562,8 +601,9 @@ privée n'y montre ni son texte ni son chemin.
 **Le contenu nouveau est privé par défaut** quand une mémoire privée existe,
 couche par couche : `[private] layers` nomme les couches dont `socle new`
 écrit les entrées sous `memory/private/` (`canonique`, `backlog`,
-`decisions`, `journal`, `demandes`). Sans ce réglage, toutes le sont sauf
-les demandes, qui ne sont privées, réponses comprises, que si l'humain l'a
+`decisions`, `journal`, `consignes`, `demandes`). Sans ce réglage, toutes le
+sont sauf les consignes de l'humain, qui ne le sont que si la politique les
+nomme, et les demandes, qui ne sont privées, réponses comprises, que si l'humain l'a
 choisi (`[private] requests = true`), car il doit pouvoir les lire là où il
 lit ; en mode chiffré, GitHub n'en montre que le chiffré, et l'agent les
 donne en entier dans la conversation. Entrée par entrée, `--private` ou
@@ -663,6 +703,7 @@ interne, que `socle show` dit dans la langue du projet.
 | champ `date` | date | date |
 | champ `type` | type | type |
 | champ `remplacee-par` | remplacée-par | superseded-by |
+| champ `levee-par` | levée-par | lifted-by |
 | champ `bloque` | bloque | blocks |
 | champ `retiree` | retirée | withdrawn |
 | champ `reformulee` | reformulée | reworded |
@@ -705,11 +746,14 @@ interne, que `socle show` dit dans la langue du projet.
 | statut ADR `remplacee` | remplacée | superseded |
 | statut ADR `rejetee` | rejetée | rejected |
 | statut ADR `abandonnee` | abandonnée | abandoned |
+| statut C `en-vigueur` | en vigueur | in force |
+| statut C `levee` | levée | lifted |
 | valeur `humain` | humain | human |
 | en-tête `couche` | couche | layer |
 | en-tête `zone` | zone | zone |
 | couche `canonique` | canonique | canonical |
 | couche `actif` | actif | active |
+| couche `consignes` | consignes | directives |
 | couche `decisions` | decisions | decisions |
 | couche `journal` | journal | journal |
 | couche `backlog` | backlog | backlog |
@@ -762,6 +806,15 @@ comme une lecture neuve. Elle est obligatoire :
 - dans une entrée nouvelle du backlog : `lu : backlog@…`, qui vaut aussi
   pour l'index sans les entrées que le même travail ajoute dans d'autres
   formes (un besoin, sa tâche et leur lot s'écrivent ensemble).
+
+Une consigne de l'humain se cite toujours avec son empreinte, celle que
+`socle show C-NNNN` imprime avec son texte exact : une mention de `C-NNNN`
+ajoutée dans n'importe quel fichier de la mémoire, le journal et le
+chantier actif compris, sans empreinte, est refusée, comme une empreinte
+périmée ou inventée. Ce qu'une entrée citait déjà à la base ne se rejuge
+pas, ni la question d'une décision prise en séance, recopiée de la
+conversation. Hors de la mémoire, et pour les autres entrées, la règle
+ne change pas.
 
 `socle new adr` et `socle new need|task|batch|milestone` affichent l'index
 concerné et posent son empreinte dans le squelette. Une citation ancienne n'est pas revérifiée

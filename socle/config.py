@@ -76,6 +76,7 @@ class Chemins:
     moteur: str  # le dossier du moteur installé
     adaptateurs: str = ".socle/adapters"  # les adaptateurs des autres langages
     passation: str = "memory/handoff.md"  # la passation à une session neuve, publique seule
+    consignes: str = "memory/directives.md"  # les consignes durables de l'humain, une par entrée
 
     def dans_prive(self, chemin: str) -> str:
         """Le miroir d'un chemin de la mémoire dans la zone privée."""
@@ -87,7 +88,7 @@ FORMAT_ACTUEL = Chemins("memory", "memory/canonical.md", "memory/active.md", "me
                         "memory/private/terms.txt", ".answer.toml", ".socle/engine.lock", ".socle/policy.toml",
                         ".socle/guardrails.toml", ".socle/adapter.toml", ".socle/private.lock", ".socle/engine")
 # Le format de la mémoire, que le verrou note.
-FORMAT = 3
+FORMAT = 4
 
 MODE_AMONT = "amont"   # le dépôt qui fabrique le moteur : il le modifie
 MODE_PROJET = "projet"  # un projet qui l'utilise : le moteur y est immuable

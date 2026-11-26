@@ -19,9 +19,10 @@ sont en UTC ; celles que lit l'humain, à son heure.
   neuve et d'y demander la reprise ; le mode de qui a plusieurs comptes
   ou veut garder la main.
 
-Le mode est celui que dit une consigne du chantier actif ; sans elle, la
-session programmée. L'humain en change en le disant : l'agent écrit la
-consigne au chantier actif, et son texte exact au journal. Passer au
+Le mode est celui que dit une consigne en vigueur ; sans elle, la
+session programmée. L'humain en change en le disant : l'agent consigne sa
+parole en séance, lève la consigne d'avant et écrit la nouvelle
+(`socle new directive`), avec son texte exact (skill `socle-request`). Passer au
 prompt à copier annule ce qui est programmé, la tâche supprimée
 (`delete_trigger`) et la session créée archivée (`archive_session`), et
 le dit, avec le lien de chaque session annulée.

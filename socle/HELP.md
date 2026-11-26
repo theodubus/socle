@@ -395,6 +395,18 @@ interdiction, « supprime ce test »), il le consigne de même, votre texte
 exact, sans question ni réponse à choisir (`socle decision --unprompted`) :
 la décision vaut validée pour ce qu'elle nomme.
 
+**Une consigne durable.** Une règle, une préférence ou une interdiction qui
+vaut au-delà du tour, l'agent l'écrit aussitôt dans les consignes
+(`memory/directives.md`, par `socle new directive`) : une ligne de résumé,
+que chaque session reçoit au démarrage, votre texte exact, qui ne change
+jamais, et sa source au journal. Avant de s'appuyer sur une consigne, il en
+relit le texte exact (`socle show C-NNNN`), et toute citation d'une
+consigne dans la mémoire le prouve par son empreinte. Pour en lever une,
+dites-le : l'agent consigne votre parole en séance, puis note la consigne
+« levée », avec la décision qui la lève (`levée-par`) ; seule votre parole
+la lève, et `socle archive` la range ensuite dans le journal. Une consigne
+que vous changez en devient une nouvelle, et votre parole lève l'ancienne.
+
 **La question d'intention.** Quand la conception d'un besoin n'est pas
 tranchée, l'agent vous pose d'abord, dans la conversation, en quelques
 lignes, le besoin tel qu'il le comprend, le choix qui reste et sa

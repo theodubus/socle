@@ -121,7 +121,7 @@ def _format_entrees(r, chemin, f, couche, prive):
             r.erreur("memoire.format", trad("`{id}` : un identifiant privé commence par P", id=e.id) if prive
                      else trad("`{id}` : un identifiant public ne commence pas par P", id=e.id), chemin, e.ligne)
         if e.parent is not None:
-            if couche != "journal" or e.type not in ("F", *memoire.BACKLOG):
+            if couche != "journal" or e.type not in ("F", "C", *memoire.BACKLOG):
                 r.erreur("memoire.format", trad("`{id}` imbriqué hors d'une archive de journal", id=e.id), chemin, e.ligne)
             continue
         if e.type not in attendus:
@@ -152,6 +152,27 @@ def _format_entrees(r, chemin, f, couche, prive):
                                                 id=e.id, statut=e.statut, liste=', '.join(sorted(statuts))), chemin, e.ligne)
         if e.barre and e.type == "F" and e.statut != "refute":
             r.erreur("memoire.format", trad("`{id}` est barré sans être « réfuté »", id=e.id), chemin, e.ligne)
+        if e.type == "C":
+            _format_consigne(r, chemin, e)
+
+
+def _format_consigne(r, chemin: str, e: memoire.Entree):
+    """Une consigne de l'humain : sa ligne de résumé, que le démarrage
+    injecte, dans sa borne ; sa source, l'entrée du journal ou la demande où
+    sa parole est consignée ; son texte exact, cité dans le corps."""
+    octets = len(e.titre.encode("utf-8"))
+    if octets > memoire.RESUME_DE_CONSIGNE:
+        r.erreur("memoire.format", trad("`{id}` : sa ligne de résumé fait {octets} octets, {borne} au plus : le "
+                                        "démarrage la donne à chaque session ; la resserrer, le texte exact reste "
+                                        "dans le corps", id=e.id, octets=octets, borne=memoire.RESUME_DE_CONSIGNE),
+                 chemin, e.ligne)
+    if not [c for t, c in e.refs("source") if t == "id" and memoire.type_d_id(c) in ("J", "D")]:
+        r.erreur("memoire.format", trad("`{id}` sans `source` qui nomme l'entrée du journal (`J-…`) ou la demande "
+                                        "(`D-…`) où la parole de l'humain est consignée", id=e.id), chemin, e.ligne)
+    if not any(l.lstrip().startswith(">") for l in e.corps.splitlines()):
+        r.erreur("memoire.format", trad("`{id}` sans le texte exact de l'humain : le corps le cite mot pour mot, sur "
+                                        "une ligne `>` séparée de la ligne de métadonnées par une ligne vide",
+                                        id=e.id), chemin, e.ligne)
 
 
 # --------------------------------------------------------------------------
@@ -656,7 +677,8 @@ def lectures(ctx, r):
     """Une citation `ID@empreinte` ou `index@empreinte` ajoutée désigne une
     version que l'agent a pu lire (`socle.readings`) ; une
     décision, une demande ou une entrée du backlog nouvelles prouvent ce
-    qu'elles ont lu avant d'être écrites."""
+    qu'elles ont lu avant d'être écrites. Une consigne de l'humain citée
+    dans la mémoire porte toujours son empreinte."""
     from socle import readings as lp
 
     mem, base = ctx.memoire, ctx.memoire_base
@@ -688,6 +710,8 @@ def lectures(ctx, r):
                                                   "{index}`, et citer l'empreinte affichée", index=index, h=h),
                          chemin, ligne)
 
+    _consignes_citees(ctx, r, mem, base, defs)
+
     # Ce que les entrées nouvelles doivent prouver avoir lu.
     for ident in sorted(nouveaux):
         e = defs[ident][0]
@@ -715,6 +739,64 @@ def lectures(ctx, r):
                                                   "show {cite}`", ident=ident, cite=cite), e.fichier, e.ligne)
 
 
+def _consignes_citees(ctx, r, mem: memoire.Memoire, base: memoire.Memoire, defs: dict):
+    """Une consigne de l'humain citée dans un fichier de la mémoire, journal
+    et chantier actif compris, porte l'empreinte de la version lue
+    (`C-0003@1a2b3c4d`), que seul `socle show` imprime avec son texte exact :
+    une mention nue ajoutée est refusée ; l'empreinte, elle, se juge comme
+    toute citation, plus haut. Ce qui était là à la base, dans la même entrée
+    (hors de toute entrée, dans le même fichier), ne se rejuge pas ; la
+    question d'une décision prise en séance, recopiée de la conversation,
+    non plus."""
+    from socle import readings as lp
+
+    defs_base = base.definitions()
+
+    def nues_a_la_base(i: str) -> set[str]:
+        return {x for x, _ in memoire.mentions_nues(defs_base[i][0].texte, ("C",))} if i in defs_base else set()
+
+    for chemin, f in sorted(mem.fichiers.items()):
+        nues = memoire.mentions_nues(f.texte, ("C",))
+        if not nues:
+            continue
+        exemptes = _mentions_de_seance(f)
+        avant = None
+        for ident, ligne in nues:
+            if ident not in defs or (ident, ligne) in exemptes:
+                continue  # inventée : `memoire.references` le dit
+            soi = lp.entree_englobante(mem, chemin, ligne)
+            if soi is not None and soi.id == ident and soi.ligne == ligne:
+                continue  # sa définition
+            if soi is None:
+                if avant is None:
+                    avant = {i for i, _ in memoire.mentions_nues(ctx.lire_base(chemin) or "", ("C",))}
+                if ident in avant:
+                    continue
+            elif any(ident in nues_a_la_base(i) for i in (soi.id, *soi.depuis, *soi.anciens)):
+                continue
+            r.erreur("memoire.lectures", trad("`{ident}`, une consigne de l'humain, cité sans son empreinte : son "
+                                              "texte exact se lit avant de s'appuyer sur elle, `python3 "
+                                              ".socle/socle show {ident}`, et se cite `{ident}@<empreinte>`, "
+                                              "l'empreinte affichée", ident=ident), chemin, ligne)
+
+
+def _mentions_de_seance(f: memoire.FichierMemoire) -> set[tuple[str, int]]:
+    """Dans une décision prise en séance, les mentions que porte sa question,
+    recopiée de la conversation, et celles du titre qu'elle cite aussi
+    (comme `sans_question_de_seance`)."""
+    if memoire.couche_attendue(f.chemin) != "demandes" or not SEANCE.search(f.texte):
+        return set()
+    res: set[tuple[str, int]] = set()
+    for m in QUESTION_SEANCE.finditer(f.texte):
+        debut = f.texte.count("\n", 0, m.start())
+        res |= {(i, debut + ligne) for i, ligne in memoire.mentions(m.group(0))}
+    cites = {i for i, _ in res}
+    for e in f.entrees:
+        if e.parent is None:
+            res |= {(i, e.ligne) for i in cites}
+    return res
+
+
 # --------------------------------------------------------------------------
 # Preuves, backlog
 # --------------------------------------------------------------------------
@@ -725,8 +807,22 @@ TYPES_PREUVE = {"commit", "fichier", "cmd", "id"}
 @controle("memoire.preuves")
 def preuves(ctx, r):
     """Un fait mesuré pointe vers sa preuve ; un fait réfuté garde sa trace ; un
-    fait validé cite la demande que l'humain a validée."""
+    fait validé cite la demande que l'humain a validée. Une consigne levée
+    cite celle qui la lève."""
     par_id = {d.id: d for d in ctx.demandes if d.id}
+    for e in ctx.memoire.entrees("C"):
+        if e.statut != "levee":
+            continue
+        cites = [c for t, c in e.refs("levee-par") if t == "id" and memoire.type_d_id(c) == "D"]
+        if not cites:
+            r.erreur("memoire.preuves", trad("`{id}` levée sans `levée-par : D-NNNN` — une consigne ne se lève que "
+                                             "par la parole de l'humain : une demande qu'il a validée, en séance "
+                                             "comme en file", id=e.id), e.fichier, e.ligne)
+        for c in cites:
+            d = par_id.get(c)
+            if d is None or not d.validee:
+                r.erreur("memoire.preuves", trad("`{id}` cite `{demande}`, qui n'a pas de réponse « valider »",
+                                                 id=e.id, demande=c), e.fichier, e.ligne)
     for e in ctx.memoire.entrees("F"):
         if e.statut == "mesure":
             if not {t for t, _ in e.refs("preuve")} & TYPES_PREUVE:
@@ -1122,6 +1218,12 @@ def _norm(t: str) -> str:
     return "\n".join(l.rstrip() for l in t.strip().splitlines())
 
 
+def _titres_a_plat(t: str) -> str:
+    """Les titres d'un texte, tous au même niveau : une entrée rangée dans
+    le journal descend d'un niveau, son texte ne change pas pour autant."""
+    return re.sub(r"(?m)^#{1,6}(?=\s)", "#", t)
+
+
 @controle("memoire.ajout-seul", base=True)
 def ajout_seul(ctx, r):
     """Journal et décisions en ajout seul ; un fait ne disparaît pas, ne change
@@ -1211,6 +1313,21 @@ def _comparer(ctx, r, avant: dict, apres: dict):
             if b is None:
                 r.erreur("memoire.ajout-seul", trad("demande `{ident}` supprimée (la retirer : `retirée : "
                                                     "<raison>` dans ses métadonnées)", ident=ident), a.fichier, a.ligne)
+        elif a.type == "C":
+            if b is None:
+                r.erreur("memoire.ajout-seul", trad("consigne `{ident}` effacée : une consigne ne disparaît pas ; "
+                                                    "levée par la parole de l'humain, elle se range dans le journal "
+                                                    "par `socle archive`", ident=ident), a.fichier, a.ligne)
+                continue
+            if b.archivee and not a.archivee and b.statut != "levee":
+                r.erreur("memoire.ajout-seul", trad("consigne `{ident}` rangée dans le journal sans être levée : "
+                                                    "seule une consigne levée quitte les consignes", ident=ident),
+                         b.fichier, b.ligne)
+            if _norm(_titres_a_plat(_corps_sans_meta(a))) != _norm(_titres_a_plat(_corps_sans_meta(b))):
+                r.erreur("memoire.ajout-seul", trad("consigne `{ident}` : son texte exact a changé ; il ne change "
+                                                    "jamais. Une consigne que l'humain modifie est une consigne "
+                                                    "nouvelle, et sa parole lève l'ancienne", ident=ident),
+                         b.fichier, b.ligne)
 
 
 def _bascule(ctx, r, a: memoire.Entree, b: memoire.Entree):

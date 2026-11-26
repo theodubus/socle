@@ -163,7 +163,7 @@ def cmd_next_id(args) -> int:
 # Les quatre formes du backlog ont chacune leur commande (ADR-0083) ;
 # `backlog` n'en est plus une.
 TYPES_CLI = {"fact": "F", "need": "B", "task": "T", "batch": "L", "milestone": "JA", "adr": "ADR", "journal": "J",
-             "request": "D"}
+             "request": "D", "directive": "C"}
 
 
 def cmd_new(args) -> int:
@@ -229,6 +229,12 @@ def cmd_new(args) -> int:
     if type_ == "F":
         chemin = lieu(ch.canonique)
         _ajouter(chemin, f"\n## {ident} — {titre}\n\n{squelette}\n", langue.entete_fichier("canonique", zone, lg))
+    elif type_ == "C":
+        # Une consigne de l'humain : sa ligne de résumé en titre, sa source et
+        # son texte exact, mot pour mot, à remplir.
+        chemin = lieu(ch.consignes)
+        _ajouter(chemin, f"\n## {ident} — {titre}\n\n{squelette.format(date=jour)}\n",
+                 langue.entete_fichier("consignes", zone, lg))
     elif type_ in memoire.BACKLOG:
         # Le backlog s'affiche avec l'entrée ajoutée : un doublon se voit ici.
         index = _texte_index(mem, "backlog")
@@ -1195,7 +1201,8 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("id")
     s.set_defaults(f=cmd_renumber)
 
-    s = sp.add_parser("archive", help=trad("range les entrées closes du backlog à l'écart des ouvertes"))
+    s = sp.add_parser("archive", help=trad("range les entrées closes du backlog à l'écart des ouvertes, et les "
+                                           "consignes levées dans le journal"))
     s.set_defaults(f=cmd_archive)
 
     s = sp.add_parser("handoff", help=trad("la passation à une session neuve : `write` l'écrit dans la mémoire ; "

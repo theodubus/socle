@@ -1133,10 +1133,12 @@ def _poser_autres_adaptateurs(cible: Path, autres: list[tuple[str, str]], ch: co
 
 
 def _poser_memoire(cible: Path, lg: str, nom_adaptateur: str, adoption: bool, ch: config.Chemins) -> list[str]:
-    """La mémoire initiale : chaque couche absente, et le journal ouvert."""
+    """La mémoire initiale : chaque couche absente, et le journal ouvert. À la
+    mise à jour aussi : une couche que le moteur nouveau apporte (les
+    consignes de l'humain) se pose vide sous son en-tête."""
     journal = []
     jour = date.today().isoformat()
-    for nom, lieu in (("canonical.md", ch.canonique), ("active.md", ch.actif)):
+    for nom, lieu in (("canonical.md", ch.canonique), ("active.md", ch.actif), ("directives.md", ch.consignes)):
         p = cible / lieu
         if not p.is_file():
             outils.ecrire(p, gabarit(f"memory/{nom}", lg))

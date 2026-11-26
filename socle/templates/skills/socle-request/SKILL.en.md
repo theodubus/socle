@@ -53,8 +53,7 @@ never choosing it.
    only if the human asks for it. It reads the
    request as the human who has not opened the project for three weeks,
    and returns in a single message, launching no tool, what it understood
-   and what it lacks to decide: it then costs only the fixed price of a
-   subagent, its brief and its answer. A report that counts a tool
+   and what it lacks to decide. A report that counts a tool
    launched means a reading that was not cold: the recap says so. Rewrite what the human would not understand either;
    set aside, with a reason, what does not help to decide or what a linked
    document already gives. The recap says so: `Cold reading (<model>): <n>
@@ -122,6 +121,10 @@ approved, and authorizes what it names as an approved request does:
 ```sh
 python3 .socle/socle decision "<the decision in one sentence>" --unprompted --relayed --by <name> --quote-file <file>
 ```
+
+A directive of the human is only lifted by their word: it is recorded
+this way, in session, then the directive becomes `lifted`, with
+`lifted-by : D-NNNN`, that decision.
 
 Content shown in the conversation that the human approves (a format, an
 example, a text) is first written as is in the repository, then the

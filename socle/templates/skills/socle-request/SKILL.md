@@ -54,8 +54,7 @@ réponse mot pour mot, sans jamais la choisir.
    hérite de la session) ; Fable, s'il est disponible, seulement si
    l'humain le demande. Il lit la demande dans le rôle de l'humain qui n'a pas ouvert le projet depuis
    trois semaines, et rend en un seul message, sans lancer d'outil, ce
-   qu'il en a compris et ce qui lui manque pour décider : il ne coûte
-   alors que le prix fixe d'un sous-agent, son dossier et sa réponse. Un
+   qu'il en a compris et ce qui lui manque pour décider. Un
    compte rendu qui compte un outil lancé dit une lecture qui n'était pas
    à froid : le récap le dit. Réécrire ce que l'humain ne
    comprendrait pas davantage ; écarter, d'une raison, ce qui n'aide pas à
@@ -123,6 +122,10 @@ validée, et autorise ce qu'elle nomme comme une demande validée :
 ```sh
 python3 .socle/socle decision "<la décision en une phrase>" --unprompted --relayed --by <nom> --quote-file <fichier>
 ```
+
+Une consigne de l'humain ne se lève que par sa parole : elle se consigne
+ainsi, en séance, puis la consigne passe `levée`, avec
+`levée-par : D-NNNN`, cette décision.
 
 Un contenu montré dans la conversation que l'humain valide (un format, un
 exemple, un texte) s'écrit d'abord tel quel dans le dépôt, puis la

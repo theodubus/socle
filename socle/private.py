@@ -50,7 +50,11 @@ ENTETE_TERMES = memoire.ENTETE_TERMES
 RELECTURES = ("aucune", "chaque-push", "lots")
 # Les couches dont le contenu nouveau peut être privé par défaut ; le
 # chantier actif, réécrit à la main, n'a pas d'entrée à placer.
-COUCHES_PRIVABLES = ("canonique", "backlog", "decisions", "journal", "demandes")
+COUCHES_PRIVABLES = ("canonique", "backlog", "decisions", "journal", "consignes", "demandes")
+# Celles qui ne le sont que si la politique les nomme : une demande se lit là
+# où l'humain lit (`[private] requests` la rend privée), et une consigne est
+# la parole de l'humain sur le travail de l'agent.
+COUCHES_PUBLIQUES_PAR_DEFAUT = ("consignes", "demandes")
 
 
 def mode(projet: config.Projet) -> str | None:
@@ -564,13 +568,14 @@ def controle_termes(ctx, r):
 def couches_privees(projet: config.Projet) -> set[str]:
     """Les couches dont le contenu nouveau est privé par défaut : celles que
     la politique nomme (`[private] layers`) ; à défaut, toutes sauf les
-    demandes, que `[private] requests` rend privées. Aucune sans mémoire
-    privée."""
+    consignes et les demandes, que `[private] requests` rend privées. Aucune
+    sans mémoire privée."""
     if mode(projet) is None:
         return set()
     choix = projet.pol("private", "layers")
     if choix is None:
-        return set(COUCHES_PRIVABLES[:-1]) | ({"demandes"} if projet.pol("private", "requests", defaut=False) else set())
+        return set(COUCHES_PRIVABLES) - set(COUCHES_PUBLIQUES_PAR_DEFAUT) | (
+            {"demandes"} if projet.pol("private", "requests", defaut=False) else set())
     return {outils.cle(c) for c in choix} & set(COUCHES_PRIVABLES)
 
 

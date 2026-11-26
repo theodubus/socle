@@ -128,6 +128,15 @@ Demandé pour l'essai.
 """
 # La section d'un besoin nouveau (ADR-0083).
 SATISFAIT_ESSAI = "\n## Satisfait quand\n\n- [ ] le module le fait\n"
+# Une consigne de l'humain (B-0161) : sa ligne de résumé, sa source, son
+# texte exact.
+CONSIGNE_ESSAI = """
+## {ident} — Le module de calcul reste sans dépendance
+
+> statut : {statut} · source : {journal} · date : 2026-10-10
+
+> « Pas de dépendance externe dans le module de calcul. »
+"""
 
 
 def tache_essai(a, c: Path, statut: str = "ouvert", criteres: str = "- [x] le test passe") -> str:
@@ -818,6 +827,18 @@ def _clore(c: Path, ident: str):
                         lambda m: "> statut : fait" + (m[1] or "") + " · ref : fichier:calc.py", p.read_text(), count=1))
 
 
+def _consigne(a: Atelier, ident: str = "C-0001", statut: str = "en vigueur") -> str:
+    return CONSIGNE_ESSAI.format(ident=ident, statut=statut, journal=a.journal)
+
+
+def _consigne_en_base(a: Atelier, c: Path):
+    """La consigne C-0001, en vigueur, dans la base : commitée, et la branche
+    par défaut avancée jusqu'à elle, dans ce clone seulement."""
+    ajouter(c, "memory/directives.md", _consigne(a))
+    a.commit(c, "une consigne de l'humain")
+    a.git(c, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+
 def _renumeroter_en_lot(c: Path, ident: str) -> str:
     """Le besoin `ident`, écrit lot comme avant ADR-0083 (`forme : lot`),
     renuméroté par la migration de la mise à jour : il prend le préfixe `L-`
@@ -1200,7 +1221,7 @@ def _cas() -> list[Cas]:
 
     @defaut("budget-releve", "budget de mémoire relevé", "ci", "cliquet.garde-fous")
     def _(a, c):
-        remplacer(c, ".socle/guardrails.toml", '"memory/active.md" = { max_bytes = 3700 }', '"memory/active.md" = { max_bytes = 60000 }')
+        remplacer(c, ".socle/guardrails.toml", '"memory/active.md" = { max_bytes = 1600 }', '"memory/active.md" = { max_bytes = 60000 }')
         return etage_ci(a, c)
 
     @defaut("seuil-rapide-releve", "seuil de durée des étapes rapides relevé", "ci", "cliquet.garde-fous")
@@ -2730,6 +2751,79 @@ def _cas() -> list[Cas]:
         r = a.socle(c, "check", "--stage", "ci", "--base", _collision(a, c))
         return "" if r.returncode == 0 else r.stdout + r.stderr
 
+    @defaut("consigne-citee-sans-empreinte", "consigne de l'humain citée dans le journal sans son empreinte", "git",
+            "memoire.lectures")
+    def _(a, c):
+        _consigne_en_base(a, c)
+        ajouter(c, "memory/journal/" + a.journal[2:9] + ".md",
+                f"\n## {a.journal[:-1]}B — Constat\n\nSelon C-0001, rien à ajouter au module.\n")
+        return etage_git(a, c)
+
+    @defaut("consigne-citee-perimee", "consigne de l'humain citée dans le journal sous une empreinte périmée", "git",
+            "memoire.lectures")
+    def _(a, c):
+        _consigne_en_base(a, c)
+        perimee = empreinte(a, c, "C-0001")
+        remplacer(c, "memory/directives.md", "reste sans dépendance", "reste sans aucune dépendance")
+        ajouter(c, "memory/journal/" + a.journal[2:9] + ".md",
+                f"\n## {a.journal[:-1]}B — Constat\n\nSelon C-0001@{perimee}, rien à ajouter au module.\n")
+        return etage_git(a, c)
+
+    @defaut("consigne-resume-trop-long", "consigne dont la ligne de résumé dépasse 120 octets", "git", "memoire.format")
+    def _(a, c):
+        ajouter(c, "memory/directives.md", _consigne(a).replace(
+            "reste sans dépendance", "reste sans dépendance, ni bibliothèque externe, ni module tiers, ni outil "
+                                     "de construction, ni rien que la bibliothèque standard"))
+        return etage_git(a, c)
+
+    @defaut("consigne-sans-source", "consigne sans la source où la parole de l'humain est consignée", "git",
+            "memoire.format")
+    def _(a, c):
+        ajouter(c, "memory/directives.md", _consigne(a).replace(f" · source : {a.journal}", ""))
+        return etage_git(a, c)
+
+    @defaut("consigne-sans-texte-exact", "consigne sans le texte exact de l'humain cité dans son corps", "git",
+            "memoire.format")
+    def _(a, c):
+        ajouter(c, "memory/directives.md", _consigne(a).replace(
+            "> « Pas de dépendance externe dans le module de calcul. »", "Pas de dépendance externe."))
+        return etage_git(a, c)
+
+    @defaut("consigne-levee-sans-demande", "consigne levée sans la demande validée qui la lève", "git",
+            "memoire.preuves")
+    def _(a, c):
+        ajouter(c, "memory/directives.md", _consigne(a, statut="levée"))
+        return etage_git(a, c)
+
+    @defaut("consigne-levee-demande-sans-reponse", "consigne levée par une demande à laquelle l'humain n'a pas "
+            "répondu", "git", "memoire.preuves")
+    def _(a, c):
+        ajouter(c, "memory/requests/D-0001-refondre-le-module.md", DEMANDE_BONNE)
+        ajouter(c, "memory/directives.md", _consigne(a, statut="levée · levée-par : D-0001"))
+        return etage_git(a, c)
+
+    @defaut("consigne-texte-change", "texte exact d'une consigne de l'humain réécrit", "git", "memoire.ajout-seul")
+    def _(a, c):
+        _consigne_en_base(a, c)
+        remplacer(c, "memory/directives.md", "Pas de dépendance externe", "Peu de dépendances externes")
+        return etage_git(a, c)
+
+    @defaut("consigne-effacee", "consigne de l'humain effacée", "git", "memoire.ajout-seul")
+    def _(a, c):
+        _consigne_en_base(a, c)
+        remplacer(c, "memory/directives.md", _consigne(a).strip(), "")
+        return etage_git(a, c)
+
+    @defaut("consigne-rangee-en-vigueur", "consigne en vigueur rangée dans le journal, sans la parole de l'humain "
+            "qui la lève", "git", "memoire.ajout-seul")
+    def _(a, c):
+        _consigne_en_base(a, c)
+        remplacer(c, "memory/directives.md", _consigne(a).strip(), "")
+        ajouter(c, "memory/journal/" + a.journal[2:9] + ".md",
+                f"\n## {a.journal[:-1]}B — Consigne rangée\n\nRangée.\n"
+                + _consigne(a).replace("## C-0001", "### C-0001"))
+        return etage_git(a, c)
+
     @defaut("backlog-sans-lecture", "besoin ajouté au backlog sans l'avoir consulté", "git", "memoire.lectures")
     def _(a, c):
         ajouter_sujet(c, "\n## B-0002 — Ajouter une fonction quadruple\n\n"
@@ -3295,7 +3389,7 @@ def _temoins() -> list[tuple[str, Callable]]:
 
     @temoin("durcir un garde-fou est libre")
     def _(a, c):
-        remplacer(c, ".socle/guardrails.toml", '"memory/active.md" = { max_bytes = 3700 }', '"memory/active.md" = { max_bytes = 3000 }')
+        remplacer(c, ".socle/guardrails.toml", '"memory/active.md" = { max_bytes = 1600 }', '"memory/active.md" = { max_bytes = 1500 }')
         return etage_ci(a, c)
 
     @temoin("un lot ouvert qui attend autant de tâches que `[batches] max_tasks` : ni l'état ni le rappel de fin "
@@ -3407,7 +3501,7 @@ def _temoins() -> list[tuple[str, Callable]]:
 
     @temoin("un garde-fou assoupli par l'humain, qui l'approuve, passe la CI")
     def _(a, c):
-        remplacer(c, ".socle/guardrails.toml", '"memory/active.md" = { max_bytes = 3700 }',
+        remplacer(c, ".socle/guardrails.toml", '"memory/active.md" = { max_bytes = 1600 }',
                   '"memory/active.md" = { max_bytes = 9000 }')
         r = a.socle(c, "approve", "--keys", 'budgets."memory/active.md".max_bytes', "--text", "Plus de place")
         return (r.stdout + r.stderr) if r.returncode != 0 else etage_ci(a, c)
@@ -3854,6 +3948,53 @@ def _temoins() -> list[tuple[str, Callable]]:
         ajouter_sujet(c, "\n## B-0002 — Ajouter une fonction quadruple\n\n"
                 f"> statut : ouvert · origine : {a.journal} · lu : backlog@{empreinte(a, c, 'backlog')}\n\nPour l'essai.\n"
                 f"{SATISFAIT_ESSAI}")
+        return etage_git(a, c)
+
+    @temoin("une consigne citée dans le journal sous l'empreinte de sa version actuelle, sa ligne de résumé "
+            "récrite, passe le commit")
+    def _(a, c):
+        _consigne_en_base(a, c)
+        remplacer(c, "memory/directives.md", "reste sans dépendance", "reste sans aucune dépendance")
+        ajouter(c, "memory/journal/" + a.journal[2:9] + ".md",
+                f"\n## {a.journal[:-1]}B — Constat\n\nSelon C-0001@{empreinte(a, c, 'C-0001')}, rien à ajouter "
+                "au module.\n")
+        return etage_git(a, c)
+
+    @temoin("une consigne levée par la parole de l'humain, consignée en séance, puis rangée par `socle archive`, "
+            "passe la CI")
+    def _(a, c):
+        _consigne_en_base(a, c)
+        (c / "citation.txt").write_text("La consigne C-0001 ne vaut plus : le module peut avoir des dépendances.")
+        r = a.socle(c, "decision", "Lever la consigne C-0001 sur les dépendances", "--unprompted", "--relayed",
+                    "--by", "Théo", "--quote-file", "citation.txt")
+        (c / "citation.txt").unlink()
+        # Son identifiant, que les branches poussées par d'autres cas peuvent
+        # avoir fait avancer.
+        demande = re.search(r"\bD-\d{4}\b", r.stdout)
+        if r.returncode != 0 or not demande:
+            return r.stdout + r.stderr
+        remplacer(c, "memory/directives.md", "> statut : en vigueur", f"> statut : levée · levée-par : {demande.group(0)}")
+        r = a.socle(c, "archive")
+        if r.returncode != 0 or "C-0001" in (c / "memory/directives.md").read_text():
+            return r.stdout + r.stderr or "C-0001 n'est pas rangée"
+        sortie = a.socle(c, "show", "C-0001").stdout
+        if "archivée dans" not in sortie:
+            return f"C-0001 rangée ne se résout pas : {sortie}"
+        return etage_ci(a, c)
+
+    @temoin("une consigne nouvelle posée par `socle new directive`, sa source et le texte exact écrits, passe le "
+            "commit, et l'état donne sa ligne de résumé")
+    def _(a, c):
+        r = a.socle(c, "new", "directive", "Le module de calcul reste sans dépendance")
+        ident = re.match(r"C-\d{4}\tmemory/directives\.md$", r.stdout.strip())
+        if r.returncode != 0 or not ident:
+            return r.stdout + r.stderr
+        remplacer(c, "memory/directives.md", "<J-… ou D-… où la parole de l'humain est consignée>", a.journal)
+        remplacer(c, "memory/directives.md", "<le texte exact de l'humain, mot pour mot>",
+                  "Pas de dépendance externe dans le module de calcul.")
+        etat = a.socle(c, "state").stdout
+        if f"{ident.group(0)[:6]} — Le module de calcul reste sans dépendance" not in etat:
+            return f"l'état ne donne pas la consigne : {etat[-2000:]}"
         return etage_git(a, c)
 
     @temoin("un commit d'agent fait dans un autre worktree porte la trace des hooks et passe la CI")

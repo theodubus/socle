@@ -1,4 +1,4 @@
-"""Lecture de la mémoire : sept couches de markdown qu'un script sait lire.
+"""Lecture de la mémoire : huit couches de markdown qu'un script sait lire.
 
 Le format est décrit dans `engine/socle/FORMAT.md`. En bref :
 
@@ -7,8 +7,9 @@ Le format est décrit dans `engine/socle/FORMAT.md`. En bref :
   métadonnées `> clé : valeur · clé : valeur` ;
 - un identifiant est stable : `F-0001` (fait), `B-0001` (besoin),
   `T-0001` (tâche), `L-0001` (lot), `JA-0001` (jalon), `ADR-0001`
-  (décision), `D-0001` (demande), `J-2026-10-10-A` (journal) ; préfixé de
-  `P` dans la zone privée (`PF-0001`, `PJ-…`).
+  (décision), `D-0001` (demande), `J-2026-10-10-A` (journal), `C-0001`
+  (consigne de l'humain) ; préfixé de `P` dans la zone privée (`PF-0001`,
+  `PJ-…`).
 
 Ce module ne juge rien : il lit. Les contrôles vivent dans `controles_memoire`.
 """
@@ -32,18 +33,19 @@ TYPES = {
     "ADR": "decisions",
     "J": "journal",
     "D": "demandes",
+    "C": "consignes",
 }
 # Les quatre formes d'une entrée du backlog, chacune son préfixe (ADR-0083) :
 # un besoin, une tâche, un lot, un jalon. La forme se lit sur l'identifiant.
 BACKLOG = ("B", "T", "L", "JA")
 FORMES = {"B": "besoin", "T": "tache", "L": "lot", "JA": "jalon"}
-COUCHES = ("canonique", "actif", "decisions", "journal", "backlog", "demandes", "passation")
+COUCHES = ("canonique", "actif", "consignes", "decisions", "journal", "backlog", "demandes", "passation")
 ZONES = ("publique", "privee")
 
 # Un identifiant, où qu'il soit. La forme du numéro est vérifiée après coup :
 # `J-` exige une date et une lettre, les autres quatre chiffres.
 ID_RE = re.compile(
-    r"(?<![\w-])(?P<prive>P?)(?P<type>ADR|JA|F|B|T|L|D|J)-"
+    r"(?<![\w-])(?P<prive>P?)(?P<type>ADR|JA|F|B|T|L|D|J|C)-"
     r"(?P<num>\d{4}(?:-\d{2}-\d{2}-[A-Z]{1,2})?)(?![\w-])"
 )
 NUM_JOURNAL = re.compile(r"^\d{4}-\d{2}-\d{2}-[A-Z]{1,2}$")
@@ -53,10 +55,10 @@ NUM_SIMPLE = re.compile(r"^\d{4}$")
 # comme en CommonMark : « C# » garde le sien (B-0203).
 TITRE_RE = re.compile(r"^(?P<niveau>#{1,6})\s+(?P<reste>.*?)(?:\s+#+)?\s*$")
 ENTETE_ENTREE = re.compile(
-    r"^(?P<id>P?(?:ADR|JA|F|B|T|L|D|J)-[\d-]+[A-Z]{0,2})\s*[—–-]\s*(?P<titre>.+)$"
+    r"^(?P<id>P?(?:ADR|JA|F|B|T|L|D|J|C)-[\d-]+[A-Z]{0,2})\s*[—–-]\s*(?P<titre>.+)$"
 )
 # Un titre qui commence comme une entrée, lisible ou non.
-TITRE_D_ENTREE = re.compile(r"^P?(?:ADR|JA|F|B|T|L|D|J)-\d")
+TITRE_D_ENTREE = re.compile(r"^P?(?:ADR|JA|F|B|T|L|D|J|C)-\d")
 ENTETE_FICHIER = re.compile(r"<!--\s*socle\s*:(?P<corps>.*?)-->")
 # La liste des termes privés n'est pas un fichier de mémoire : son en-tête est
 # celui d'un texte brut, et la dit lisible comme l'autre.
@@ -68,8 +70,12 @@ STATUTS = {
     "F": {"mesure", "suppose", "refute", "valide"},
     **{t: {"ouvert", "en-cours", "bloque", "fait", "abandonne"} for t in BACKLOG},
     "ADR": {"proposee", "acceptee", "remplacee", "rejetee", "abandonnee"},
+    "C": {"en-vigueur", "levee"},
 }
 BACKLOG_CLOS = {"fait", "abandonne"}
+# La ligne de résumé d'une consigne de l'humain, son titre, que le démarrage
+# injecte : en octets UTF-8 au plus.
+RESUME_DE_CONSIGNE = 120
 # Le sous-dossier du backlog en dossier où `socle archive` range les sujets
 # clos, à l'écart des ouverts.
 DOSSIER_CLOS = "closed"
@@ -428,7 +434,7 @@ def couche_attendue(chemin: str) -> str | None:
     # publique seule, jamais dans la zone privée.
     if chemin == f.passation:
         return "inconnue" if prive else "passation"
-    for couche, lieu in (("canonique", f.canonique), ("actif", f.actif)):
+    for couche, lieu in (("canonique", f.canonique), ("actif", f.actif), ("consignes", f.consignes)):
         if chemin == lieu:
             return couche
     for couche, lieu in (("backlog", f.backlog), ("decisions", f.decisions),
@@ -639,7 +645,7 @@ def _lettres():
 # Ça ne prouve pas qu'on a compris ; ça prouve qu'on a lu, et quelle version.
 
 CITATION_RE = re.compile(
-    r"(?<![\w-])(?P<id>P?(?:ADR|JA|F|B|T|L|D|J)-\d{4}(?:-\d{2}-\d{2}-[A-Z]{1,2})?)@(?P<empreinte>[0-9a-f]{8})(?![\w-])"
+    r"(?<![\w-])(?P<id>P?(?:ADR|JA|F|B|T|L|D|J|C)-\d{4}(?:-\d{2}-\d{2}-[A-Z]{1,2})?)@(?P<empreinte>[0-9a-f]{8})(?![\w-])"
 )
 INDEX_RE = re.compile(r"(?<![\w-])(?P<index>decisions|backlog)@(?P<empreinte>[0-9a-f]{8})(?![\w-])")
 INDEX_TYPES = {"decisions": ("ADR",), "backlog": BACKLOG}
@@ -1187,4 +1193,19 @@ def citations_index(texte: str) -> list[tuple[str, str, int]]:
     for i, ligne, code in lignes_hors_code(texte):
         if not code:
             res += [(m["index"], m["empreinte"], i) for m in INDEX_RE.finditer(ligne)]
+    return res
+
+
+def mentions_nues(texte: str, types: tuple[str, ...]) -> list[tuple[str, int]]:
+    """Les identifiants de ces types mentionnés hors des blocs de code
+    clôturés sans leur empreinte (`C-0003`, pas `C-0003@1a2b3c4d`), avec
+    leur ligne."""
+    res = []
+    for i, ligne, code in lignes_hors_code(texte):
+        if code:
+            continue
+        cites = {m.start() for m in CITATION_RE.finditer(ligne)}
+        for m in ID_RE.finditer(ligne):
+            if m["type"] in types and id_valide(m["type"], m["num"]) and m.start() not in cites:
+                res.append((m.group(0), i))
     return res

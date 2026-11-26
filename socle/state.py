@@ -191,12 +191,13 @@ def page_protection(projet: config.Projet) -> str | None:
 
 # La sortie du démarrage (ADR-0071) : chaque groupe a sa part de la borne
 # `[startup] max_bytes`, en fraction. 9 500 octets donnent 2 375 à l'état
-# dérivé, 3 800 au chantier actif, 2 090 aux faits, 1 235 aux décisions. Le
-# budget du chantier actif des garde-fous (3 700 dans le gabarit), que le
-# chantier actif public et privé tiennent ensemble (`memoire.budgets`), tient
-# dans sa part, leurs en-têtes déduits (`budget_actif_permis`) : un chantier
-# actif dans son budget n'est pas coupé.
-PARTS = {"etat": 0.25, "actif": 0.40, "faits": 0.22, "decisions": 0.13}
+# dérivé, 1 710 au chantier actif, 2 375 aux consignes de l'humain, 1 900
+# aux faits, 1 140 aux décisions. Le budget du chantier actif des garde-fous
+# (1 600 dans le gabarit), que le chantier actif public et privé tiennent
+# ensemble (`memoire.budgets`), tient dans sa part, leurs en-têtes déduits
+# (`budget_actif_permis`) : un chantier actif dans son budget n'est pas
+# coupé. Les consignes y sont par leur ligne de résumé, 120 octets au plus.
+PARTS = {"etat": 0.25, "actif": 0.18, "consignes": 0.25, "faits": 0.20, "decisions": 0.12}
 # Une ligne de l'état dérivé, en octets au plus (l'alerte des hooks non
 # chargés, la plus longue des lignes fixes, en fait 953) ; une ligne de
 # titre (un commit, un fait, une décision), bien moins ; le titre d'un sujet
@@ -205,6 +206,10 @@ PARTS = {"etat": 0.25, "actif": 0.40, "faits": 0.22, "decisions": 0.13}
 LIGNE = 1000
 TITRE = 80
 TITRE_DE_SUJET = 70
+# La ligne d'une consigne : son identifiant et sa ligne de résumé, que le
+# contrôle de format borne à 120 octets ; une ligne plus longue, que le
+# contrôle refuse, se raccourcit ici.
+TITRE_DE_CONSIGNE = 140
 # Les éléments montrés de chaque liste de l'état dérivé : `socle state
 # --short` donne le reste, et la ligne qui compte les autres le dit.
 COMMITS_MONTRES = 5
@@ -298,7 +303,8 @@ def _retenu(projet: config.Projet) -> tuple[str, list[str]] | None:
 
 def calculer(projet: config.Projet, contenus: bool = True, supplement: list[str] | None = None) -> str:
     """L'état du démarrage : l'état dérivé, puis, avec `contenus`, le
-    chantier actif, les faits par leur titre et les dix dernières décisions,
+    chantier actif, les consignes en vigueur par leur ligne de résumé, les
+    faits par leur titre et les dix dernières décisions,
     chaque groupe dans sa part de la borne des garde-fous (`[startup]
     max_bytes`, ADR-0071), que Claude Code remet entière à l'agent ; l'état
     dérivé y a ses lignes bornées et ses listes plafonnées. En tête, ce qui
@@ -504,20 +510,31 @@ class Partie:
 DERNIERES_DECISIONS = 10
 # Ce que dit la ligne de coupe de chaque groupe.
 GROUPES = {"etat": a_traduire("l'état dérivé"), "actif": a_traduire("le chantier actif"),
-           "faits": a_traduire("les faits"), "decisions": a_traduire("les décisions")}
+           "consignes": a_traduire("les consignes"), "faits": a_traduire("les faits"),
+           "decisions": a_traduire("les décisions")}
 
 
-def ligne_de_titre(ident: str, titre: str, suffixe: str = "") -> str:
-    """`ID — titre (suffixe)`, en `TITRE` octets au plus : le titre se
-    raccourcit, l'identifiant et le suffixe restent."""
+def ligne_de_titre(ident: str, titre: str, suffixe: str = "", taille: int = TITRE) -> str:
+    """`ID — titre (suffixe)`, en `taille` octets au plus (`TITRE` à
+    défaut) : le titre se raccourcit, l'identifiant et le suffixe restent."""
     debut = f"{ident} — "
-    place = TITRE - len(debut.encode("utf-8")) - len(suffixe.encode("utf-8"))
+    place = taille - len(debut.encode("utf-8")) - len(suffixe.encode("utf-8"))
     return debut + outils.raccourcir(titre, max(place, 3)) + suffixe
 
 
+def consignes_en_vigueur(mem: memoire.Memoire, chemin: str) -> list[memoire.Entree]:
+    """Les consignes d'un fichier qui ne sont pas levées, dans l'ordre du
+    fichier : une consigne au statut illisible reste en vigueur, que le
+    contrôle de format refuse."""
+    f = mem.fichiers.get(chemin)
+    return [e for e in (f.entrees if f else []) if e.type == "C" and not e.archivee and e.statut != "levee"]
+
+
 def parties_injectees(projet: config.Projet, mem: memoire.Memoire | None) -> list[Partie]:
-    """Le chantier actif, public puis privé, entier ; les faits par leur
-    titre, publics puis privés, le statut dit quand il n'est pas « mesuré » ;
+    """Le chantier actif, public puis privé, entier ; les consignes de
+    l'humain en vigueur par leur ligne de résumé, publiques puis privées,
+    les levées absentes ; les faits par leur titre, publics puis privés, le
+    statut dit quand il n'est pas « mesuré » ;
     les dix dernières décisions, la plus récente d'abord, le statut dit
     quand elle n'est pas acceptée ; les titres raccourcis, les statuts dans
     la langue du projet. Une mémoire privée illisible ici n'en donne rien :
@@ -545,6 +562,21 @@ def parties_injectees(projet: config.Projet, mem: memoire.Memoire | None) -> lis
         libelle = langue.mot(table, e.statut, lg) if e.statut in table else memoire.nettoyer(e.meta.get("statut", ""))
         return f" ({libelle})"
 
+    for chemin in (ch.consignes, ch.dans_prive(ch.consignes)):
+        consignes = consignes_en_vigueur(mem, chemin)
+        if not consignes:
+            continue
+        res.append(Partie(
+            "consignes", [ligne_de_titre(e.id, e.titre, taille=TITRE_DE_CONSIGNE) for e in consignes],
+            lambda n, total, c=chemin: trad("{n} consigne(s) sur {total} : lire {chemin}", n=n, total=total,
+                                            chemin=c),
+            lambda montrees, total, c=chemin: ["", trad(
+                "--- {chemin} : {n} consigne(s) en vigueur, par leur ligne de résumé ; avant de s'appuyer sur une, "
+                "de l'appliquer à un cas que sa ligne ne tranche pas ou de la citer, son texte exact : `python3 "
+                ".socle/socle show C-NNNN` ---", chemin=c, n=montrees) if montrees == total else trad(
+                "--- {chemin} : {n} consigne(s) en vigueur sur {total}, par leur ligne de résumé ; avant de "
+                "s'appuyer sur une, de l'appliquer à un cas que sa ligne ne tranche pas ou de la citer, son texte "
+                "exact : `python3 .socle/socle show C-NNNN` ---", chemin=c, n=montrees, total=total)]))
     for chemin in (ch.canonique, ch.dans_prive(ch.canonique)):
         f = mem.fichiers.get(chemin)
         faits = [e for e in (f.entrees if f else []) if e.type == "F" and not e.archivee and not e.basculee]

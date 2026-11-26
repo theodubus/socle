@@ -17,7 +17,8 @@ code = []
 [budgets]
 "AGENTS.md" = { max_bytes = 16000 }
 "memory/canonical.md" = { max_bytes = 16000 }
-"memory/active.md" = { max_bytes = 3700 }
+"memory/active.md" = { max_bytes = 1600 }
+"memory/directives.md" = { max_bytes = 16000 }
 "memory/backlog/*.md" = { max_bytes = 8000 }
 "memory/journal/*.md" = { max_bytes = 80000 }
 "memory/decisions/*.md" = { max_bytes = 10000 }
@@ -29,16 +30,17 @@ code = []
 active_days = 7
 
 [startup]
-# Ce qu'imprime le hook de démarrage (l'état, le chantier actif, les faits par
-# leur titre, les dix dernières décisions), en octets UTF-8 au plus. Claude
-# Code remet entière à l'agent la sortie d'un hook jusqu'à 10 000 caractères,
-# et au-delà un aperçu de 2 000 seulement : 500 octets de marge. Chaque partie
-# en a sa part : un quart pour l'état, 40 % pour le chantier actif (son budget
-# ci-dessus, public et privé ensemble, y tient), 22 % pour les faits, 13 % pour
-# les décisions. Une partie au-delà de ce qui lui revient perd des lignes
-# entières (l'état, d'abord ce qui se relit ailleurs, jamais ce qui demande
-# d'agir avant ; les autres, depuis leur fin), et une dernière ligne dit ce
-# qui manque et où le lire.
+# Ce qu'imprime le hook de démarrage (l'état, le chantier actif, les consignes
+# de l'humain par leur ligne de résumé, les faits par leur titre, les dix
+# dernières décisions), en octets UTF-8 au plus. Claude Code remet entière à
+# l'agent la sortie d'un hook jusqu'à 10 000 caractères, et au-delà un aperçu
+# de 2 000 seulement : 500 octets de marge. Chaque partie en a sa part : un
+# quart pour l'état, 18 % pour le chantier actif (son budget ci-dessus, public
+# et privé ensemble, y tient), un quart pour les consignes, 20 % pour les
+# faits, 12 % pour les décisions. Une partie au-delà de ce qui lui revient
+# perd des lignes entières (l'état, d'abord ce qui se relit ailleurs, jamais
+# ce qui demande d'agir avant ; les autres, depuis leur fin), et une dernière
+# ligne dit ce qui manque et où le lire.
 max_bytes = 9500
 
 [verify]

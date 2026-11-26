@@ -12,10 +12,9 @@ Ce fichier dit **comment** travailler ;
 backlog, demandes humaines en attente —, puis l'essentiel de la
 mémoire. Sous Claude Code, le hook `SessionStart` le fait seul ; sous un
 autre agent, le lancer d'abord. Rien de ce qui n'y figure pas n'est acquis.
-Ce que l'humain a écrit lui-même depuis le dernier commit de l'agent (une
-approbation, une réponse dans son terminal), l'état le liste : le lui citer
-dans la réponse suivante, par son identifiant et son lien, que la
-conversation ne lui a pas donnés. Un premier message qui demande de
+Ce que l'humain a écrit lui-même depuis le dernier commit de l'agent, l'état
+le liste : le lui citer dans la réponse suivante, par son identifiant et son
+lien. Un premier message qui demande de
 reprendre ou de continuer, quelle qu'en soit la forme (« reprends »),
 cherche d'abord la passation : le skill `socle-handoff`.
 
@@ -27,9 +26,9 @@ jamais écrire soi-même un réglage de Claude Code pour les rétablir.
 
 Une consigne de l'humain donnée dans la conversation, qui vaut au-delà du tour
 (une règle, une préférence, une interdiction), s'écrit dans la mémoire avant de
-continuer : au chantier actif si elle touche le travail en cours, sinon au
-journal, avec son texte exact : un compactage peut la perdre, et une
-session neuve n'a que la mémoire.
+continuer, dans les consignes (`socle new directive`), avec son texte exact, et
+au journal : un compactage peut la perdre. Avant de s'appuyer sur une
+consigne, son texte exact se lit.
 
 ### La mémoire, dans `memory/`
 
@@ -37,15 +36,16 @@ session neuve n'a que la mémoire.
 | --- | --- | --- |
 | Canonique | `memory/canonical.md` | faits avec statut et preuve ; ne change qu'avec une preuve nouvelle |
 | Actif | `memory/active.md` | chantier en cours, prochaines étapes ; réécrit, borné |
+| Consignes | `memory/directives.md` | consignes de l'humain, texte exact inchangé ; levées par une demande validée |
 | Décisions | `memory/decisions/` | une ADR par fichier, le seul registre des décisions du projet ; seul son statut change ensuite |
 | Journal | `memory/journal/` | une entrée datée par événement ; ajout seul ; aucun geste futur de l'humain |
 | Backlog | `@@BACKLOG@@` | quatre formes, chacune son préfixe : besoin `B-` (« Satisfait quand »), tâche `T-` qui nomme son besoin (« Fait quand »), lot `L-` de tâches, jalon `JA-` de besoins ; ordonnées par `après`, avec leur priorité (l'état en calcule les tâches prêtes) ; closes avec une référence, puis rangées par `socle archive` |
 | Demandes | `memory/requests/` | décisions humaines en file, au contrat du skill `socle-request` |
 
 Une entrée : `## F-NNNN — titre`, puis une ligne `> statut : mesuré · preuve : commit:<sha>`.
-Statuts d'un fait : `mesuré` (avec `preuve`), `supposé`, `réfuté` (titre barré,
-avec `refutation`), `validé` (avec `validation : D-NNNN`, écrit après la
-réponse de l'humain). Format complet : `@@MOTEUR@@/socle/FORMAT.md`.
+Statuts d'un fait : `mesuré` (avec `preuve`), `supposé`, `réfuté` (barré,
+avec `refutation`), `validé` (avec `validation : D-NNNN`, après la réponse
+de l'humain). Format complet : `@@MOTEUR@@/socle/FORMAT.md`.
 Un identifiant se calcule (`python3 .socle/socle new <type> "titre"`), il ne
 se devine pas. En cas de conflit, l'ordre d'autorité est : le code et les
 tests, puis la mémoire canonique, puis le journal.
@@ -81,12 +81,12 @@ lot.
 
 ### Lire la mémoire à la demande
 
-Le démarrage n'injecte que l'état, le chantier actif, les titres des faits
-et les dix dernières décisions, sous une borne ; ce qu'une ligne `!! coupé`
+Le démarrage n'injecte que l'état, le chantier actif, les consignes en
+vigueur, les titres des faits et les dix dernières décisions, sous une borne ; ce qu'une ligne `!! coupé`
 dit manquer se lit aussitôt. Le reste se lit quand il sert, sans attendre
 qu'on le demande :
 
-- un identifiant cité (`F-`, `B-`, `T-`, `L-`, `JA-`, `ADR-`, `D-`, `J-`) se lit avant de
+- un identifiant cité (`F-`, `C-`, `B-`, `T-`, `L-`, `JA-`, `ADR-`, `D-`, `J-`) se lit avant de
   s'appuyer dessus : `python3 .socle/socle show <ID>`, qui donne aussi son
   empreinte ;
 - avant une décision de conception, `socle show --index decisions` dit si
@@ -100,7 +100,7 @@ qu'on le demande :
 
 La lecture se prouve : une décision, une demande ou une entrée du backlog
 nouvelles citent ce qu'elles ont lu avec son empreinte (`ADR-NNNN@xxxxxxxx`,
-`lu : decisions@…`, `lu : backlog@…`). Une empreinte périmée ou inventée est
+`lu : decisions@…`, `lu : backlog@…`) ; une consigne, partout. Une empreinte périmée ou inventée est
 refusée ; il faut relire l'entrée. `socle new` pose l'empreinte de l'index.
 
 ### Les skills
@@ -114,8 +114,7 @@ demandée par l'humain), `socle-review` (la revue d'un lot, avant sa livraison) 
 d'usage), dans `.claude/skills/`, posés par l'installeur et protégés ; un
 autre agent lit leur `SKILL.md` à ce chemin.
 
-Une procédure du projet qui se refait (le journal montre la première fois)
-s'écrit en skill à la deuxième, dans `.claude/skills/<nom>/SKILL.md` : un
+Une procédure du projet qui se refait s'écrit en skill à la deuxième fois, dans `.claude/skills/<nom>/SKILL.md` : un
 nom sans le préfixe `socle-`, un en-tête `name` (le nom du
 dossier) et `description` (ce qu'il fait, et quand s'en servir), et une
 entrée au journal qui le dit. Un skill dit comment faire, la mémoire ce qui
@@ -170,7 +169,7 @@ des garde-fous (`proto/` par défaut) : la CI ne la juge pas aux envois.
 - Une fonction publique ajoutée ou modifiée est nommée par au moins un test, ou un commit la dispense nommément avec sa raison (`Dispense-test: f, g — <raison>`). Du code existant découvert sans test : le test s'écrit tout de suite s'il est dans le périmètre du travail, sinon un besoin va au backlog.
 - Une action que seul l'humain peut faire (refusée par le hook, réglage d'un service, fichier qu'il détient) va au backlog avec `pour : humain`.
 - **Toute intervention qui a agi se termine par un récap, puis deux lignes** : `Pour toi :` — ce qui revient à l'humain, décisions en attente et actions à faire, ou « rien » —, chaque point compréhensible sans le raisonnement de l'agent (ce que c'est, pourquoi, ce que change sa réponse), et `Ensuite :` — la suite proposée (prochain jalon, ce qu'il reste à faire avant), et ce que l'agent attend s'il attend quelque chose (une CI, un match : quoi, et jusqu'à quand). L'état calcule ce qui revient à l'humain ; le hook `Stop` refuse de conclure sans les deux lignes.
-- **Un fichier à lire, ou une pull request, se donne par son lien** : l'humain lit dans la conversation ou sur GitHub, pas dans le conteneur de l'agent. `python3 .socle/socle url <chemin|ID>` donne le permalien, une fois le fichier poussé ; une demande en attente citée sans son lien, un lien relatif, ou un chemin entre accents graves qui n'existe pas dans le dépôt font refuser la fin du tour. Un chemin d'un autre dépôt s'écrit `depot:chemin`, le dépôt lié quelque part dans le projet par son adresse (à défaut, déclaré dans `[references] repos` des garde-fous) ; un dépôt inconnu est signalé.
+- **Un fichier à lire, ou une pull request, se donne par son lien** : l'humain lit dans la conversation ou sur GitHub, pas dans le conteneur de l'agent. `python3 .socle/socle url <chemin|ID>` donne le permalien, une fois le fichier poussé ; une demande en attente citée sans son lien, un lien relatif, ou un chemin entre accents graves qui n'existe pas dans le dépôt font refuser la fin du tour. Un chemin d'un autre dépôt s'écrit `depot:chemin`, le dépôt lié dans le projet par son adresse, ou déclaré dans `[references] repos` des garde-fous.
 
 ### Ne jamais
 

@@ -14,6 +14,49 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-25-e — The human's lasting directives have their layer, `memory/directives.md`: each with its identifier, its summary line at startup, its exact text, lifted by their word alone
+
+A directive of the human that holds beyond the turn (a rule, a
+preference, a prohibition) is no longer written in the active work: it has
+its layer, `memory/directives.md`, and in the private zone its mirror, when
+`[private] layers` names it.
+
+- **One entry per directive**: `## C-NNNN — summary line` (120 bytes at
+  most), then `> status : in force · source : <J-… or D-…> · date :
+  <date>`, then its exact text, quoted on `>` lines, which never changes;
+  the summary line may be rewritten. `socle new directive "<summary>"` lays
+  the skeleton; `socle show C-NNNN` prints the exact text and its
+  fingerprint.
+- **Lifted by the human's word alone**: `lifted`, with
+  `lifted-by : D-NNNN`, a request the human answered `approve`, in session
+  as in the queue. `socle archive` moves the lifted directives to the
+  journal, where their identifiers still resolve.
+- **At startup**, the state gives the summary line of each directive in
+  force, right after the active work, and says to read the exact text
+  before relying on one. The shares of the cap become: state 25%, active
+  work 18%, directives 25%, facts 20%, decisions 12%.
+- **Reading is proven**: a directive cited in the memory, the journal and
+  the active work included, carries the fingerprint of the version read
+  (`C-NNNN@xxxxxxxx`); an added bare mention is refused.
+- The guardrails template gains the directives' budget
+  (`"memory/directives.md" = { max_bytes = 16000 }`), and the active work's
+  drops from 3,700 to 1,600 bytes, its new share. The socle section of
+  `AGENTS.md`, the guide and the `socle-request` and `socle-handoff`
+  skills say so. The installer lays `memory/directives.md` empty under its
+  header, on an update as on an installation, and records the memory's
+  format 4 in `.socle/engine.lock`.
+
+To do: migrate the directives of the active work into the layer, one by
+one: for each, read again its exact text in the journal entry or the
+request where the human gave it, lay it with `socle new directive
+"<summary line>"`, write in it its `source` and that text word for word,
+then remove it from the active work; a directive whose exact text is found
+nowhere is asked of the human again. Declare in the guardrails the budget
+`"memory/directives.md" = { max_bytes = 16000 }`, without which
+`memoire.budgets` refuses the file, and lower that of `memory/active.md` to
+the share the state gives, 1,600 bytes with the template's cap: both
+tighten, and stay free.
+
 ## 2026-11-25-d — The organisation of the work is proportioned to what it protects: the session as the budget unit, the question of intent before the specification, the adversarial review by risk, a subagent when it pays
 
 The `socle-batch`, `socle-review`, `socle-request` and `socle-handoff`
