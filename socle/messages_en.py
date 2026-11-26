@@ -895,6 +895,10 @@ MESSAGES: dict[str, str] = {
     "au besoin :":
         "{n} entry(ies) ask nothing (“To do: nothing”): their title only, and their text in `{fichier}`, to read "
         "when needed:",
+    "{n} entrée(s) datées d'avant le {jour}, jour du dernier commit de la copie remplacée, décrivent ce que le projet "
+    "a déjà : leur titre seul, et leur texte dans `{fichier}`, à lire au besoin :":
+        "{n} entry(ies) dated before {jour}, the day of the last commit of the replaced copy, describe what the "
+        "project already has: their title only, and their text in `{fichier}`, to read when needed:",
     "ouvrir l'agent dans le projet : il lit l'état au démarrage, et te donne le lien des questions de départ, une "
     "demande à laquelle tu réponds dans la conversation":
         "open the agent in the project: it reads the state at startup, and gives you the link of the starting "
@@ -3643,6 +3647,8 @@ MESSAGES: dict[str, str] = {
         "{faute} — disposable branch, a file it adds: warned, its pull request will judge it",
     "{sha} « {sujet} » : correctif qui ne touche que des fichiers tiers : non jugé":
         "{sha} “{sujet}”: fix that touches only third-party files: not judged",
+    "{sha} « {sujet} » : correctif qui ne touche que la mémoire : non jugé":
+        "{sha} “{sujet}”: fix that touches only the memory: not judged",
     "{sha} « {sujet} » : correctif hors de tout adaptateur, admis sans test par {id}, une demande validée qui nomme "
     "ce commit":
         "{sha} “{sujet}”: fix outside every adapter, admitted without a test by {id}, an approved request that "

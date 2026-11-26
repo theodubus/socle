@@ -15,6 +15,56 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-26-g — Une mise à jour d'une copie sans notes de version n'imprime en entier que celles d'après le dernier commit de cette copie
+
+Quand la copie du moteur remplacée n'avait pas de notes de version, d'avant
+leur arrivée, l'installeur les imprimait toutes en entier : 122 entrées,
+environ 100 Ko, chez un projet mis à jour pour la dernière fois le
+13 novembre. Il lit désormais le jour du dernier commit qui a changé cette
+copie : une note datée d'avant ce jour décrit ce que le projet a déjà, et
+ne paraît que par son titre, sous une ligne qui les compte et nomme le
+fichier où les lire ; les autres s'impriment comme avant. Sans ce jour
+(une copie jamais commitée, ou un clone superficiel qui ne porte pas son
+commit), toutes s'impriment comme avant. Le message de
+commit proposé les nomme encore toutes.
+
+À faire : rien.
+
+## 2026-11-26-f — La fin de tour ne prend plus le nom d'une commande du socle, cité dans « Pour toi », pour une branche à supprimer
+
+Sur une ligne de « Pour toi » qui dit supprimer une branche, la fin de tour
+lisait chaque nom entre accents graves comme une branche, et cherchait à
+l'origine celle de `prune-branches` quand la ligne disait qui la
+supprime. Le nom d'une commande du socle n'y est plus lu comme une
+branche.
+
+À faire : rien.
+
+## 2026-11-26-e — Un correctif qui ne touche que la mémoire n'est plus jugé par `tests.regression`, et le dit d'un avertissement
+
+Un commit dont le sujet suit le motif d'un correctif (« Correction : … »,
+`[regression] fix_subject`) et qui ne change que des fichiers de la
+mémoire était refusé comme un correctif hors de tout adaptateur : seule
+une demande validée l'admettait. Aucun test ne peut prouver la
+correction d'une entrée de la mémoire : `tests.regression` l'avertit
+désormais, « correctif qui ne touche que la mémoire : non jugé », comme
+un correctif qui ne touche que des fichiers tiers. Un correctif qui
+touche aussi du code reste jugé comme avant.
+
+À faire : rien.
+
+## 2026-11-26-d — Sans `--owner`, la mise à jour garde le propriétaire du CODEOWNERS en place
+
+Relancé sans `--owner`, l'installeur disait « !! aucun propriétaire
+(--owner) : CODEOWNERS non posé » même quand le fichier CODEOWNERS du
+projet existait déjà. Il lit désormais le propriétaire sur la ligne qui
+protège la politique (`/.socle/`), celle que son gabarit pose, complète
+le fichier avec les lignes que le gabarit a en plus, et le dit
+(« CODEOWNERS : <propriétaire> … »). La ligne « !! » ne reste que sans
+fichier, ou sans cette ligne.
+
+À faire : rien.
+
 ## 2026-11-26-c — La passation s'écrit avant toute fusion : quand l'agent fusionne lui-même sa pull request, elle en est le dernier commit, et aucune branche de session ne reste à supprimer
 
 Une session qui passe la main écrit sa passation avant toute fusion de sa

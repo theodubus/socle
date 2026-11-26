@@ -14,6 +14,51 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-26-g — Updating a copy without release notes prints in full only those after that copy's last commit
+
+When the replaced engine copy had no release notes, from before they
+existed, the installer printed them all in full: 122 entries, about
+100 KB, for a project last updated on November 13. It now reads the day
+of the last commit that changed that copy: a note dated before that day
+describes what the project already has, and appears by its title only,
+under a line that counts them and names the file to read them in; the
+others print as before. Without that day (a copy never committed, or a shallow clone that does
+not hold its commit), all print as before. The proposed commit message still names them all.
+
+To do: nothing.
+
+## 2026-11-26-f — The end of turn no longer takes the name of a socle command, cited in "For you", for a branch to delete
+
+On a "For you" line that says to delete a branch, the end of turn read
+every name between backticks as a branch, and looked up
+`prune-branches` at the origin when the line said who deletes it. The
+name of a socle command is no longer read there as a branch.
+
+To do: nothing.
+
+## 2026-11-26-e — A fix that touches only the memory is no longer judged by `tests.regression`, and says so with a warning
+
+A commit whose subject follows the fix pattern ("Correction: …",
+`[regression] fix_subject`) and that changes only memory files was
+refused as a fix outside every adapter: only a validated request
+admitted it. No test can prove the correction of a memory entry:
+`tests.regression` now warns, "fix that touches only the memory: not
+judged", as for a fix that touches only third-party files. A fix that
+also touches code is judged as before.
+
+To do: nothing.
+
+## 2026-11-26-d — Without `--owner`, the update keeps the owner of the CODEOWNERS in place
+
+Rerun without `--owner`, the installer said "!! no owner (--owner):
+CODEOWNERS not installed" even when the project's CODEOWNERS file already
+existed. It now reads the owner on the line that protects the policy
+(`/.socle/`), the one its template sets, completes the file with the
+lines the template has in addition, and says so ("CODEOWNERS: <owner>
+…"). The "!!" line remains only without the file, or without that line.
+
+To do: nothing.
+
 ## 2026-11-26-c — The handoff is written before any merge: when the agent merges its pull request itself, the handoff is its last commit, and no session branch is left to delete
 
 A session that hands over writes its handoff before any merge of its pull

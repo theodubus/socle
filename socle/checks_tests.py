@@ -781,6 +781,13 @@ def regression(ctx, r):
             r.avertir("tests.regression", trad("{sha} « {sujet} » : correctif qui ne touche que des fichiers "
                                                "tiers : non jugé", sha=sha[:10], sujet=sujet))
             continue
+        memoire = ctx.projet.chemins.memoire.rstrip("/") + "/"
+        if touches and all(f.startswith(memoire) for f in touches):
+            # Une entrée de la mémoire corrigée : aucun code, rien qu'un test
+            # puisse prouver (B-0359).
+            r.avertir("tests.regression", trad("{sha} « {sujet} » : correctif qui ne touche que la mémoire : "
+                                               "non jugé", sha=sha[:10], sujet=sujet))
+            continue
         hors = hors_de_tout_adaptateur(ctx.projet, touches)
         if hors:
             # Aucun adaptateur ne juge ses fichiers : aucun test ne peut le

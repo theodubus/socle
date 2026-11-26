@@ -828,13 +828,31 @@ def ne_demande_rien(entree: str) -> bool:
     return bool(RIEN_A_FAIRE.match(paragraphe))
 
 
-def texte_des_notes(notes: list[tuple[str, str]], fichier: str, toutes: bool) -> str:
+def date_de_la_copie(cible: Path, dossier_moteur: str) -> str | None:
+    """Le jour (`AAAA-MM-JJ`) du dernier commit qui a changé la copie du
+    moteur que le projet a ; None sans commit qui la porte, ou quand ce
+    commit est la limite d'un clone superficiel, que git voit ajouter tous
+    ses fichiers : sa date suivrait celle de la copie (B-0361)."""
+    ligne = outils.git(cible, "log", "-1", "--format=%H %cs", "HEAD", "--", f"{dossier_moteur}/socle",
+                       check=False).strip()
+    m = re.fullmatch(r"(?P<sha>[0-9a-f]{40,64}) (?P<jour>\d{4}-\d{2}-\d{2})", ligne)
+    if not m:
+        return None
+    limites = cible / outils.git(cible, "rev-parse", "--git-path", "shallow", check=False).strip()
+    if limites.is_file() and m["sha"] in limites.read_text(encoding="utf-8").split():
+        return None
+    return m["jour"]
+
+
+def texte_des_notes(notes: list[tuple[str, str]], fichier: str, toutes: bool, depuis: str | None = None) -> str:
     """Les notes de version qu'une mise à jour apporte, telles que
     l'installeur les imprime : une ligne qui dit quoi en faire, puis entière
     chaque entrée qui demande quelque chose ; de celles qui ne demandent rien
     (`ne_demande_rien`), le titre seul, sous une ligne qui dit combien elles
     sont et le fichier où les lire. `toutes` : la copie remplacée n'avait pas
-    de notes."""
+    de notes ; `depuis`, alors, le jour de son dernier commit : une entrée
+    datée d'avant décrit ce que le projet a déjà, et n'a que son titre, sous
+    une ligne qui les compte (B-0361)."""
     if toutes:
         tete = trad("Notes de version : la copie du moteur remplacée n'en avait pas ; voici toutes leurs entrées "
                     "({n}), dans `{fichier}`, dont certaines décrivent ce que le projet a déjà : leur date le dit, à "
@@ -844,12 +862,19 @@ def texte_des_notes(notes: list[tuple[str, str]], fichier: str, toutes: bool) ->
         tete = trad("Notes de version : ce que cette mise à jour change pour le projet, {n} entrée(s) que la copie "
                     "du moteur remplacée n'avait pas, dans `{fichier}`. Les lire, et faire ce que chacune demande :",
                     n=len(notes), fichier=fichier)
-    blocs = [tete, *(texte for _, texte in notes if not ne_demande_rien(texte))]
-    titres = [texte.splitlines()[0] for _, texte in notes if ne_demande_rien(texte)]
+    anciennes = [texte.splitlines()[0] for ident, texte in notes if toutes and depuis and ident[:10] < depuis]
+    recentes = [texte for ident, texte in notes if not (toutes and depuis and ident[:10] < depuis)]
+    blocs = [tete, *(texte for texte in recentes if not ne_demande_rien(texte))]
+    titres = [texte.splitlines()[0] for texte in recentes if ne_demande_rien(texte)]
     if titres:
         blocs.append("\n".join([trad("{n} entrée(s) ne demandent rien (« À faire : rien ») : leur titre seul, et "
                                      "leur texte dans `{fichier}`, à lire au besoin :", n=len(titres),
                                      fichier=fichier), *titres]))
+    if anciennes:
+        blocs.append("\n".join([trad("{n} entrée(s) datées d'avant le {jour}, jour du dernier commit de la copie "
+                                     "remplacée, décrivent ce que le projet a déjà : leur titre seul, et leur texte "
+                                     "dans `{fichier}`, à lire au besoin :", n=len(anciennes), jour=depuis,
+                                     fichier=fichier), *anciennes]))
     return "\n\n".join(blocs)
 
 
@@ -1504,6 +1529,9 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
     # avant son commit comme au premier passage (B-0225).
     lues = (notes_deja_lues(cible, str(ancien.get("engine_dir") or ch.moteur))
             if ancien and mode != config.MODE_AMONT else None)
+    # Une copie sans notes : le jour de son dernier commit date ce qu'elle a
+    # déjà (B-0361).
+    depuis = date_de_la_copie(cible, str(ancien.get("engine_dir") or ch.moteur)) if lues == set() else None
 
     # 1. Le moteur, remplacé en bloc, et son verrou.
     dossier_moteur, poses, copie = _poser_moteur(cible, mode, source, ch, ancien)
@@ -1566,7 +1594,8 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
     for l in journal:
         print(f"  - {l}")
     if notes:
-        print("\n" + texte_des_notes(notes, fichier_des_notes(paquet, lg).relative_to(cible).as_posix(), not lues))
+        print("\n" + texte_des_notes(notes, fichier_des_notes(paquet, lg).relative_to(cible).as_posix(), not lues,
+                                      depuis))
     print(trad("\nAudit :"))
     code, echecs = _audit(cible)
     print(note_d_audit())
@@ -1795,8 +1824,23 @@ def fins_de_tour_du_projet(conf: dict) -> list[str]:
     return _commandes_du_projet(conf, "Stop")
 
 
+def proprietaire_en_place(p: Path) -> str:
+    """Le propriétaire que nomme la ligne du CODEOWNERS en place qui protège
+    la politique, celle que pose le gabarit ; vide sans fichier ou sans
+    cette ligne (B-0358)."""
+    if not p.is_file():
+        return ""
+    for ligne in p.read_text(encoding="utf-8").splitlines():
+        champs = ligne.split("#", 1)[0].split()
+        if len(champs) > 1 and champs[0] == "/.socle/":
+            return " ".join(champs[1:])
+    return ""
+
+
 def _codeowners(cible: Path, proprietaire: str) -> list[str]:
     p = cible / ".github/CODEOWNERS"
+    # Une mise à jour sans --owner garde le propriétaire déjà posé (B-0358).
+    proprietaire = proprietaire or proprietaire_en_place(p)
     if not proprietaire:
         return [trad("!! aucun propriétaire (--owner) : CODEOWNERS non posé — la politique n'est protégée que "
                      "par la CI")]

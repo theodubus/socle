@@ -12,6 +12,7 @@ Les URL ont la forme de GitHub : `<dépôt>/blob/<commit>/<chemin>`.
 
 from __future__ import annotations
 
+import functools
 import os
 import re
 import unicodedata
@@ -260,11 +261,21 @@ BRANCHE = re.compile(r"(?i)\bbranch")
 LOCALE = re.compile(r"(?i)\blocal(?:e|es)?\b")
 
 
+@functools.cache
+def commandes_du_socle() -> frozenset[str]:
+    """Les noms des commandes du socle, lus sur son analyseur de ligne de
+    commande."""
+    from socle import cli
+
+    return frozenset(cli.analyseur()[1])
+
+
 def branches_a_supprimer_citees(projet: config.Projet, message: str) -> list[str]:
     """Les branches que la partie « Pour toi » du message donne à supprimer :
     sur chaque ligne qui dit supprimer et branche, hors d'une branche
     locale, les noms entre accents graves que git accepte pour une branche,
-    `origin/` retiré."""
+    `origin/` retiré, hors des noms des commandes du socle, qu'une telle
+    ligne cite pour dire qui supprime (B-0360)."""
     from socle import human as humain
 
     res: list[str] = []
@@ -273,8 +284,8 @@ def branches_a_supprimer_citees(projet: config.Projet, message: str) -> list[str
             continue
         for m in CODE.finditer(ligne):
             nom = m["code"].strip().removeprefix("origin/")
-            if nom and nom not in res and outils.git(projet.racine, "check-ref-format", "--branch", nom,
-                                                     check=False).strip() == nom:
+            if nom and nom not in res and nom not in commandes_du_socle() and outils.git(
+                    projet.racine, "check-ref-format", "--branch", nom, check=False).strip() == nom:
                 res.append(nom)
     return res
 
