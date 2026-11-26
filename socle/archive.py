@@ -74,14 +74,16 @@ def ranger_consignes(projet: config.Projet, jour: str) -> list[tuple[str, str]]:
     return res
 
 
-def ranger_backlog(racine: Path) -> list[tuple[str, str]]:
+def ranger_backlog(racine: Path, indexer: bool = True) -> list[tuple[str, str]]:
     """Range chaque entrée du backlog selon son statut : une entrée
     close dans le sous-dossier des clos, une ouverte hors de lui, dans la
     zone publique comme dans la privée. Un déplacement suivi par
-    le dépôt est indexé ; dans le dépôt compagnon, il reste à y commiter.
-    Rend les déplacements, (avant, après) ; idempotent."""
+    le dépôt est indexé, sauf `indexer` faux, à la mise à jour, dont la
+    demande seule se commite avant ses fichiers (T-0200) ; dans le dépôt
+    compagnon, il reste à y commiter. Rend les déplacements, (avant,
+    après) ; idempotent."""
     suivis = set(outils.git(racine, "ls-files", "-z", check=False).split("\0")) - {""} \
-        if outils.est_depot(racine) else set()
+        if indexer and outils.est_depot(racine) else set()
     res = []
     for e in memoire.Memoire.charger(racine).entrees(memoire.BACKLOG):
         if e.basculee or memoire.couche_attendue(e.fichier) != "backlog":

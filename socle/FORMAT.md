@@ -288,9 +288,11 @@ Son corps, libre, avec ses sous-titres (`## Les commandes`…).
 Chaque entrée a son plafond (`"memory/backlog/*.md"` dans `[budgets]`).
 Une entrée close garde son fichier, rangé à l'écart des ouvertes dans le
 sous-dossier `closed` du backlog : `socle archive` y range
-chaque entrée close, et remet parmi les ouvertes une entrée rouverte ; le
-contrôle du backlog refuse une entrée mal rangée, et la mise à jour range un
-projet existant. Une entrée rangée garde son identifiant et le plafond
+chaque entrée close, et remet parmi les ouvertes une entrée rouverte, et
+met ses déplacements dans l'index ; le contrôle du backlog refuse une
+entrée mal rangée, et la mise à jour range un projet existant, dans
+l'arbre de travail seul, pour que sa demande se commite sans eux. Une
+entrée rangée garde son identifiant et le plafond
 d'une entrée. Une bascule en privé copie le fichier sous `private/backlog/`
 (ou son sous-dossier des clos), et un fichier public garde l'identifiant,
 comme pour une décision.

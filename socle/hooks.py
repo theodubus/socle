@@ -2914,6 +2914,15 @@ def git_pre_commit(projet: config.Projet) -> int:
     index = outils.arbre_de_l_index(projet.racine)
     ctx = contexte.Contexte(projet, etage="git", base=base, tete=index, rapide=True)
     rapport = contexte.executer(ctx)
+    if not rapport.reussi and mise_a_jour_en_cours(projet):
+        # Une mise à jour pas encore commitée : le moteur neuf de l'arbre
+        # juge aussi le dernier commit, et ce qu'il y trouve déjà est laissé
+        # à la CI (ADR-0115).
+        depart = outils.git(projet.racine, "rev-parse", "--verify", "-q", "HEAD", check=False).strip()
+        if depart:
+            reference = contexte.executer(contexte.Contexte(projet, etage="git", base=base, tete=depart,
+                                                            rapide=True))
+            _dire_mise_a_jour(ecarter_deja_commites(rapport, reference))
     if not rapport.reussi:
         tracer_refus(projet.racine, "git-pre-commit", ",".join(rapport.controles_en_echec()))
         rapport.afficher(trad("socle — contrôles avant commit"), flux=sys.stderr, court=True)
@@ -2925,6 +2934,49 @@ def git_pre_commit(projet: config.Projet) -> int:
         return 1
     _dire_avertissements(rapport)
     return 0
+
+
+def mise_a_jour_en_cours(projet: config.Projet) -> bool:
+    """Une mise à jour du socle pas encore commitée (ADR-0115) : dans un
+    projet installé, hors du mode amont, la copie du moteur diffère, dans
+    l'arbre de travail, de celle du dernier commit, fichiers non suivis
+    compris."""
+    if projet.mode == config.MODE_AMONT or not projet.installe or not outils.a_des_commits(projet.racine):
+        return False
+    return bool(outils.git(projet.racine, "status", "--porcelain", "--untracked-files=all", "--",
+                           projet.dossier_moteur, check=False).strip())
+
+
+def ecarter_deja_commites(rapport, reference) -> int:
+    """Retire du `rapport` chaque erreur que `reference`, le même moteur sur
+    l'arbre d'où part le commit ou le push, trouve aussi : même contrôle,
+    même chemin, même message, autant de fois (ADR-0115). Rend le nombre
+    d'erreurs écartées."""
+    from collections import Counter
+    from socle.report import ERREUR
+
+    def cle(c) -> tuple:
+        return c.controle, c.chemin, c.message
+
+    deja = Counter(cle(c) for c in reference.erreurs())
+    gardes, ecartes = [], 0
+    for c in rapport.constats:
+        if c.gravite == ERREUR and deja[cle(c)] > 0:
+            deja[cle(c)] -= 1
+            ecartes += 1
+        else:
+            gardes.append(c)
+    rapport.constats[:] = gardes
+    return ecartes
+
+
+def _dire_mise_a_jour(ecartes: int) -> None:
+    """La ligne d'un hook git qui, pendant une mise à jour, a écarté des
+    constats déjà commités (ADR-0115)."""
+    if ecartes:
+        print(trad("socle — mise à jour du moteur en cours, pas encore commitée : {n} constat(s) déjà présent(s) "
+                   "dans l'arbre d'où part ce commit ou ce push, écarté(s) ici et laissé(s) à la CI ; seuls ceux "
+                   "qu'il apporte sont refusés", n=ecartes), file=sys.stderr)
 
 
 def compter_session(racine: Path, session: str | None = None) -> str:
@@ -3384,6 +3436,13 @@ def git_pre_push(projet: config.Projet) -> int:
     ctx = contexte.Contexte(projet, etage="git", base=base, tete=tete, rapide=True,
                             branches=branches_envoyees(lignes))
     rapport = contexte.executer(ctx)
+    if not rapport.reussi and base and tete and mise_a_jour_en_cours(projet):
+        # Une mise à jour pas encore commitée : le moteur neuf de l'arbre
+        # juge aussi la base, et ce qu'il y trouve déjà est laissé à la CI
+        # (ADR-0115).
+        reference = contexte.executer(contexte.Contexte(projet, etage="git", base=base, tete=base, rapide=True,
+                                                        branches=branches_envoyees(lignes)))
+        _dire_mise_a_jour(ecarter_deja_commites(rapport, reference))
     for constat in plage_poussee(projet, lignes).constats:
         if constat not in rapport.constats:
             rapport.constats.append(constat)

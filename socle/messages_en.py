@@ -4454,4 +4454,8 @@ MESSAGES: dict[str, str] = {
     "l'état donne sa ligne de résumé":
         "a new directive set by `socle new directive`, its source and exact text written, passes the commit, and the "
         "state gives its summary line",
+    "socle — mise à jour du moteur en cours, pas encore commitée : {n} constat(s) déjà présent(s) dans l'arbre "
+    "d'où part ce commit ou ce push, écarté(s) ici et laissé(s) à la CI ; seuls ceux qu'il apporte sont refusés":
+        "socle — engine update in progress, not yet committed: {n} finding(s) already present in the tree this "
+        "commit or push starts from, set aside here and left to CI; only those it brings are refused",
 }

@@ -14,6 +14,25 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-26-h — During an update not yet committed, the git hooks refuse only what the commit or the push brings, and the migration no longer touches the index
+
+After an update that migrates the backlog, the commit of the request
+alone was refused: the pre-commit hook judges the index with the new
+engine of the working tree, which refused the old backlog, still
+committed, and the old active worksite; the pre-push hook likewise.
+During an update not yet committed (the engine copy changed in the
+tree), both hooks also judge the tree the commit starts from, or the
+push's base, with the same engine, and refuse only the findings that the
+commit or the push brings; a line says how many they leave to CI. The
+backlog migration and the tidying of closed entries that the update
+performs now write the working tree only: the request's commit no longer
+carries their renames, and `git add -A`, when the update's files are
+committed, takes them. `socle archive` indexes its moves as before.
+
+To do: nothing; the request alone of an update is committed with
+`git add` on its file, `git commit` and `git push`, without stash or
+`--only`.
+
 ## 2026-11-26-g — Updating a copy without release notes prints in full only those after that copy's last commit
 
 When the replaced engine copy had no release notes, from before they

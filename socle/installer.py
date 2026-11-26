@@ -1488,6 +1488,8 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
                             version=VERSION))
         # Le backlog en quatre formes (ADR-0083), puis les entrées closes
         # hors des ouvertes : à la mise à jour, puis par `socle archive`.
+        # L'index n'est pas touché : la demande seule se commite avant les
+        # fichiers de la mise à jour (T-0200).
         from socle import archive as archivage, memory as memoire, migration
 
         bilan = migration.migrer_backlog(cible)
@@ -1506,7 +1508,7 @@ def _installer(cible: Path, adaptateur: str | list[str], proprietaire: str, adop
         if bilan.sections:
             journal.append(trad("backlog : « Fait quand » devient « Satisfait quand » dans {n} besoin(s)",
                                 n=bilan.sections))
-        ranges = archivage.ranger_backlog(cible)
+        ranges = archivage.ranger_backlog(cible, indexer=False)
         if ranges:
             journal.append(trad("backlog : {n} entrée(s) close(s) rangée(s) dans `{dossier}/`", n=len(ranges),
                                 dossier=memoire.DOSSIER_CLOS))

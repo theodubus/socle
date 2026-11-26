@@ -15,6 +15,26 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-26-h — Pendant une mise à jour pas encore commitée, les hooks git ne refusent que ce que le commit ou le push apporte, et la migration ne touche plus l'index
+
+Après une mise à jour qui migre le backlog, le commit de la demande seule
+était refusé : le hook avant commit juge l'index avec le moteur neuf de
+l'arbre de travail, qui refusait le backlog d'avant, encore commité, et
+l'ancien chantier actif ; le hook avant push de même. Pendant une mise à
+jour pas encore commitée (la copie du moteur changée dans l'arbre), les
+deux hooks jugent aussi l'arbre d'où part le commit, ou la base du push,
+avec le même moteur, et n'en refusent que les constats que le commit ou
+le push apporte ; une ligne dit combien ils en laissent à la CI. La
+migration du backlog et le rangement des entrées closes que fait la mise
+à jour n'écrivent plus que l'arbre de travail : le commit de la demande
+n'emporte plus leurs renommages, et `git add -A`, au commit des fichiers
+de la mise à jour, les prend. `socle archive` indexe ses déplacements
+comme avant.
+
+À faire : rien ; la demande seule d'une mise à jour se commite par
+`git add` sur son fichier, `git commit` et `git push`, sans stash ni
+`--only`.
+
 ## 2026-11-26-g — Une mise à jour d'une copie sans notes de version n'imprime en entier que celles d'après le dernier commit de cette copie
 
 Quand la copie du moteur remplacée n'avait pas de notes de version, d'avant

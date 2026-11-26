@@ -19,6 +19,11 @@ socle : mécanique, et idempotente sur le contenu.
   chantier actif, une citation `B-NNNN@…` en simple mention (l'empreinte
   d'une version qui n'existe plus sous ce numéro) ; ailleurs, le journal,
   les décisions et les demandes gardent l'ancien numéro, qui se résout.
+
+Elle n'écrit que l'arbre de travail, jamais l'index (T-0200) : le commit
+de la demande seule qui suit une mise à jour n'emporte aucun renommage, et
+`git add -A`, au commit des fichiers de la mise à jour, les prend avec le
+reste ; git reconnaît les renommages à la lecture du diff.
 """
 
 from __future__ import annotations
@@ -282,14 +287,10 @@ def migrer_backlog(racine: Path, lg: str | None = None) -> Bilan:
 
     if not bilan:
         return bilan
-    suivis = set(outils.git(racine, "ls-files", "-z", check=False).split("\0")) - {""} \
-        if outils.est_depot(racine) else set()
     for c, texte in textes.items():
         outils.ecrire(racine / c, texte if texte.endswith("\n") else texte + "\n")
     for avant, apres in renommes.items():
         (racine / avant).rename(racine / apres)
-        if avant in suivis:
-            outils.git(racine, "add", "-A", "--", avant, apres)
     poser_lectures(racine, bilan.taches)
     return bilan
 
