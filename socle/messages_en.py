@@ -1943,6 +1943,10 @@ MESSAGES: dict[str, str] = {
         "reviewed: {sha} can leave for the public repository",
     "--- index {index}@{empreinte} — à citer `lu : {index}@…` ---":
         "--- index {index}@{empreinte} — to cite `read : {index}@…` ---",
+    "--- index {index}@{empreinte}, celui du dernier commit — à citer `lu : {index}@…` ; "
+    "les lignes sont celles de l'arbre ---":
+        "--- index {index}@{empreinte}, that of the last commit — to cite `read : {index}@…`; "
+        "the lines are those of the working tree ---",
     "(vide)":
         "(empty)",
     "demande introuvable : {demande}":

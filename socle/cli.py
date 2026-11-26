@@ -237,16 +237,19 @@ def cmd_new(args) -> int:
                  langue.entete_fichier("consignes", zone, lg))
     elif type_ in memoire.BACKLOG:
         # Le backlog s'affiche avec l'entrée ajoutée : un doublon se voit ici.
-        index = _texte_index(mem, "backlog")
-        chemin = _poser_backlog(lieu(ch.backlog), zone, lg, ident, titre, squelette,
-                                memoire.empreinte_index(mem, "backlog"), besoin)
+        # L'empreinte citée est celle du dernier commit (ADR-0116), qu'un
+        # statut changé avant le commit ne périme pas.
+        citable = memoire_citable(mem)
+        index = _texte_index(mem, "backlog", citable)
+        lu = memoire.empreinte_index(citable, "backlog")
+        chemin = _poser_backlog(lieu(ch.backlog), zone, lg, ident, titre, squelette, lu, besoin)
         if tache is not None:
-            # Le besoin et sa tâche quand la correction est évidente : la
-            # tâche a lu l'index où son besoin figure déjà.
+            # Le besoin et sa tâche quand la correction est évidente : tous
+            # deux citent le même index.
             apres = memoire.Memoire.charger(racine)
             ident_t = apres.prochain_id("T", prive=prive, pris_ailleurs=identifiants.pris_ailleurs(racine, "T"))
             chemin_t = _poser_backlog(lieu(ch.backlog), zone, lg, ident_t, tache, langue.SQUELETTES[lg]["T"],
-                                      memoire.empreinte_index(apres, "backlog"), ident)
+                                      lu, ident)
             ensuite = f"{ident_t}\t{chemin_t.relative_to(racine)}"
     elif type_ == "J":
         bloc = f"\n## {ident} — {titre}\n\n{squelette}\n"
@@ -262,10 +265,11 @@ def cmd_new(args) -> int:
     elif type_ == "ADR":
         # Les décisions s'affichent avec celle qu'on ajoute : on ne rouvre pas
         # une décision prise sans fait nouveau.
-        index = _texte_index(mem, "decisions")
+        citable = memoire_citable(mem)
+        index = _texte_index(mem, "decisions", citable)
         chemin = lieu(ch.decisions) / f"{ident}-{memoire.nom_de_fichier(titre)}.md"
         chemin.parent.mkdir(parents=True, exist_ok=True)
-        bloc = squelette.format(date=jour, lu=memoire.empreinte_index(mem, "decisions"))
+        bloc = squelette.format(date=jour, lu=memoire.empreinte_index(citable, "decisions"))
         chemin.write_text(f"{langue.entete_fichier('decisions', zone, lg)}\n# {ident} — {titre}\n\n{bloc}\n",
                           encoding="utf-8")
     else:
@@ -495,13 +499,32 @@ def cmd_review(args) -> int:
     return 0
 
 
-def _texte_index(mem, index: str) -> str:
+def memoire_citable(mem):
+    """La mémoire dont l'index se cite (ADR-0116) : celle du dernier commit,
+    la base du travail ou un commit de sa plage, que `memoire.lectures`
+    accepte quoi que l'arbre change avant le commit suivant ; sans base de
+    travail (sans commit, ou sans branche par défaut), l'arbre, la seule
+    version que le hook de l'agent juge alors."""
+    from socle import memory as memoire
+
+    if mem.rev is not None or outils.base_de_travail(mem.racine) is None:
+        return mem
+    return memoire.Memoire.charger(mem.racine, "HEAD")
+
+
+def _texte_index(mem, index: str, citable=None) -> str:
+    """L'index de l'arbre, où un doublon du tour se voit, sous l'empreinte à
+    citer, celle du dernier commit (ADR-0116)."""
     from socle import memory as memoire
 
     lignes = memoire.lignes_index(mem, index)
-    return "\n".join([trad("--- index {index}@{empreinte} — à citer `lu : {index}@…` ---", index=index,
-                            empreinte=memoire.empreinte_index(mem, index)),
-                      "\n".join(lignes) if lignes else trad("(vide)")])
+    h = memoire.empreinte_index(citable if citable is not None else memoire_citable(mem), index)
+    if h == memoire.empreinte_index(mem, index):
+        entete = trad("--- index {index}@{empreinte} — à citer `lu : {index}@…` ---", index=index, empreinte=h)
+    else:
+        entete = trad("--- index {index}@{empreinte}, celui du dernier commit — à citer `lu : {index}@…` ; "
+                      "les lignes sont celles de l'arbre ---", index=index, empreinte=h)
+    return "\n".join([entete, "\n".join(lignes) if lignes else trad("(vide)")])
 
 
 def _afficher_index(mem, index: str):

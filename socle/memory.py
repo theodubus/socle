@@ -1065,7 +1065,9 @@ def ordre_de(g: Graphe) -> Ordre:
     basses = [i for i in prets if priorite_effective(entrees[i], entrees) == "basse"]
     prets = [i for i in prets if i not in basses]
     # Les besoins : ceux qui n'ont plus de tâche ouverte sont à fermer, si
-    # l'une est faite, ou à découper, s'ils n'attendent plus rien.
+    # l'une est faite, ou à découper, s'ils n'attendent plus rien. Un besoin
+    # pour l'humain ne se découpe pas : l'humain le mène, l'agent le ferme
+    # sur sa parole (B-0363).
     taches: dict[str, list[Entree]] = {}
     for e in entrees.values():
         if est_tache(e) and besoin_de(e):
@@ -1081,7 +1083,7 @@ def ordre_de(g: Graphe) -> Ordre:
             a_fermer.append(i)
         elif g.attend(i):
             attendent.append(i)
-        elif entrees[i].statut == "ouvert":
+        elif entrees[i].statut == "ouvert" and not pour_l_humain(entrees[i]):
             a_decouper.append(i)
     # Ce qu'attendent celles qui ne sont pas prêtes : une entrée du backlog,
     # une demande, ou les deux (B-0153).

@@ -234,7 +234,9 @@ Une entrée du backlog a l'une de quatre formes, que son préfixe dit
 - un **besoin**, `B-` : un défaut à corriger ou une fonction à ajouter ;
   ses constats ou sa motivation, sa spécification s'il n'est pas tranché,
   et sa section `## Satisfait quand`, un résultat, jamais une
-  implémentation ;
+  implémentation ; un besoin `pour : humain` ne se découpe pas en
+  tâches : l'humain le mène, l'agent le ferme sur sa parole, et une part
+  que l'agent peut mener est un autre besoin ;
 - une **tâche**, `T-` : un livrable, en principe un commit, qui nomme le
   besoin qu'elle sert (`besoin : B-0012`) ; sa section `## Fait quand` se
   vérifie par des tests, ou, pour une action que seul l'humain peut faire,
@@ -320,7 +322,7 @@ ce qu'elles attendent est clos ou répondu, celles des besoins du prochain
 jalon d'abord, puis par priorité ; à part, les prêtes de priorité basse,
 que l'agent prend quand c'est commode ; les besoins à fermer, dont les
 tâches sont closes, l'une au moins faite ; les besoins à découper, sans
-tâche ouverte ni rien d'ouvert qu'ils attendent ; et le nombre d'entrées
+tâche ouverte ni rien d'ouvert qu'ils attendent, hors ceux `pour : humain` ; et le nombre d'entrées
 qui attendent encore, selon ce qu'elles attendent : une entrée du backlog,
 une demande sans réponse, ou les deux. Le rappel de fin de tour le redonne.
 Un lot ouvert qui attend encore plus de tâches ouvertes, en cours ou
@@ -794,6 +796,9 @@ qu'elle correspond. Chaque index a aussi une empreinte (`decisions@…`
 pour toutes les décisions, `backlog@…` pour le backlog ouvert).
 `socle show <ID>` et
 `socle show --index decisions|backlog` les impriment avec le texte.
+L'empreinte d'index que `socle new` et `socle show --index` font citer
+est celle du dernier commit, sous les lignes de l'arbre : un changement
+pas encore commité, un statut passé à « en cours », ne la périme pas.
 
 Citer `ADR-NNNN@xxxxxxxx`, c'est montrer qu'on a lu cette version-là. Une
 citation ajoutée doit désigner la version actuelle de l'entrée, ou celle du

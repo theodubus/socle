@@ -15,6 +15,35 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-26-j — Un besoin pour l'humain n'est plus listé parmi les besoins à découper en tâches
+
+`socle state` (« besoins à découper en tâches ») et `socle roadmap`
+(« Besoins à découper en tâches ») listaient un besoin `pour : humain`
+sans tâche, qui paraît aussi sous « Pour l'humain » : ils invitaient
+l'agent à créer une tâche pour un geste qu'il ne peut pas faire. Un tel
+besoin ne se découpe plus : il ne paraît que parmi ce qui revient à
+l'humain, qui le mène ; l'agent le ferme sur sa parole, et une part qu'il
+peut mener est un autre besoin. `FORMAT.md` le dit à la forme du besoin.
+
+À faire : rien.
+
+## 2026-11-26-i — socle new et socle show --index font citer l'empreinte de l'index du dernier commit
+
+`socle new` écrivait dans une entrée du backlog ou une décision
+l'empreinte de l'index de l'arbre, les entrées du tour comprises ; dès
+qu'une ligne de l'index changeait avant le commit, un statut passé à
+« en cours », une décision « proposée » devenue « acceptée »,
+`memoire.lectures` refusait les entrées écrites avant ce changement.
+Former un lot le déclenchait à chaque fois. L'empreinte citée, celle
+qu'écrit `socle new` et celle qu'imprime `socle show --index` en tête de
+l'index, est désormais celle du dernier commit, que le contrôle accepte
+toujours ; les lignes imprimées restent celles de l'arbre, où un doublon
+du tour se voit, et l'en-tête le dit quand les deux diffèrent. Le besoin
+et la tâche de `socle new need … --task …` citent la même. Le contrôle ne
+change pas.
+
+À faire : rien.
+
 ## 2026-11-26-h — Pendant une mise à jour pas encore commitée, les hooks git ne refusent que ce que le commit ou le push apporte, et la migration ne touche plus l'index
 
 Après une mise à jour qui migre le backlog, le commit de la demande seule
