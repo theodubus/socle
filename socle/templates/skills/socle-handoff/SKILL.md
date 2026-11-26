@@ -118,7 +118,9 @@ travail, quelle qu'en soit la forme (« reprends », « continue »,
 lance `git fetch --prune origin`, puis la garde sans argument. Refusée,
 la session ne fait rien d'autre que le dire, avec sa raison, dans son
 dernier message. Acceptée, elle se place sur la référence que la garde
-nomme, et son premier commit retire la passation, poussé aussitôt ; sa
+nomme, et son premier commit retire la passation, poussé aussitôt, puis
+`python3 .socle/socle prune-branches` supprime la branche de la session
+d'avant, que la sienne contient désormais, si elle en a une autre ; sa
 chaîne est celle de la passation plus un, réveillée par la tâche
 programmée, 0 si l'humain a demandé. Sans passation, elle fait ce que
 fait une session neuve, et le dit dans son premier message.

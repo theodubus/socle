@@ -1017,6 +1017,40 @@ def _apres_la_passation(ecrite: datetime) -> dict:
     return {"GIT_COMMITTER_DATE": date, "GIT_AUTHOR_DATE": date}
 
 
+# La marque d'un commit d'agent, telle que la politique d'essai la reconnaît.
+MARQUE_AGENT = "\n\nCo-Authored-By: Claude <noreply@anthropic.com>"
+BRANCHE_ELAGUEE = "travail-fini"
+
+
+def _branche_a_elaguer(a: Atelier, c: Path, agent: bool, fusionner: bool = True) -> Path:
+    """Un clone d'une origine à soi, nue : la commande y supprime sans
+    toucher aux branches que les autres cas poussent sur l'origine commune.
+    La branche `travail-fini` y est poussée, d'un commit de l'agent ou de
+    l'humain, et fusionnée dans `main` si `fusionner`."""
+    # `main` seule : les branches que les autres cas poussent en même temps
+    # sur l'origine commune n'y entrent pas.
+    origine = a.dossier / f"origine-elagage-{c.name}"
+    a.git(a.dossier, "clone", "-q", "--bare", "--no-local", "--single-branch", "--branch", "main", str(a.origine),
+          str(origine))
+    clone = a.clone(origine)
+    a.git(clone, "switch", "-q", "-c", BRANCHE_ELAGUEE, "origin/main")
+    ajouter(clone, "calc.py", "\n# fini\n")
+    a.commit(clone, "Le travail fini" + (MARQUE_AGENT if agent else ""))
+    a.git(clone, "push", "-q", "--no-verify", "origin", BRANCHE_ELAGUEE)
+    a.git(clone, "switch", "-q", "travail")
+    if fusionner:
+        a.git(clone, "push", "-q", "--no-verify", "origin", f"{BRANCHE_ELAGUEE}:main")
+    a.git(clone, "fetch", "-q", "origin")
+    return clone
+
+
+def _elagage_vu(a: Atelier, clone: Path, r: subprocess.CompletedProcess) -> str:
+    """La sortie de la commande si la branche est restée sur l'origine ;
+    rien si elle l'a supprimée : le défaut passe alors inaperçu."""
+    restee = a.git(clone, "ls-remote", "--heads", "origin", f"refs/heads/{BRANCHE_ELAGUEE}").strip()
+    return r.stdout + r.stderr if restee else ""
+
+
 def _session_neuve(a: Atelier, neuve: Path) -> subprocess.CompletedProcess:
     """La session neuve, sur une demande de reprendre : `git fetch`, puis
     `socle handoff check` sans argument."""
@@ -1864,6 +1898,33 @@ def _cas() -> list[Cas]:
         _ranger(a, c)
         r = a.socle(c, "handoff", "write", "--scheduled")
         return r.stdout + r.stderr
+
+    # La suppression des branches de l'agent (`socle prune-branches`,
+    # ADR-0114) : une branche de l'humain, une branche qui n'est contenue
+    # nulle part, ou la suppression que la politique coupe, restent ; la
+    # commande le dit.
+    @defaut("elagage-branche-de-l-humain", "branche de l'humain contenue dans la branche par défaut, que la commande "
+            "de l'agent supprimerait", "elagage", "branche de l'humain")
+    def _(a, c):
+        clone = _branche_a_elaguer(a, c, agent=False)
+        r = a.socle(clone, "prune-branches")
+        return _elagage_vu(a, clone, r)
+
+    @defaut("elagage-branche-non-contenue", "branche de l'agent qu'aucune branche poussée ne contient, que la "
+            "commande supprimerait", "elagage", "branche non contenue")
+    def _(a, c):
+        clone = _branche_a_elaguer(a, c, agent=True, fusionner=False)
+        r = a.socle(clone, "prune-branches")
+        return _elagage_vu(a, clone, r)
+
+    @defaut("elagage-coupe", "branche de l'agent supprimée alors que la politique coupe la suppression", "elagage",
+            "suppression coupée")
+    def _(a, c):
+        clone = _branche_a_elaguer(a, c, agent=True)
+        pol = clone / ".socle/policy.toml"
+        pol.write_text(pol.read_text().replace("[irreversible]\n", "[irreversible]\nprune_branches = false\n", 1))
+        r = a.socle(clone, "prune-branches")
+        return _elagage_vu(a, clone, r)
 
     # La couche `passation` du format : son estampille, et aucun
     # identifiant.
@@ -3334,6 +3395,14 @@ def _temoins() -> list[tuple[str, Callable]]:
         r = _session_neuve(a, neuve)
         return "" if r.returncode == 0 and "se placer sur origin/main" in r.stdout else r.stdout + r.stderr
 
+    @temoin("une branche de l'agent contenue dans la branche par défaut se supprime par sa commande, le hook avant "
+            "push laissant passer la suppression")
+    def _(a, c):
+        clone = _branche_a_elaguer(a, c, agent=True)
+        r = a.socle(clone, "prune-branches")
+        restee = a.git(clone, "ls-remote", "--heads", "origin", f"refs/heads/{BRANCHE_ELAGUEE}").strip()
+        return r.stdout + r.stderr if r.returncode or restee or "supprimée : " not in r.stdout else ""
+
     @temoin("la session qui part, sa passation commitée et poussée, la retrouve en attente après son push")
     def _(a, c):
         _ecrire_la_passation(a, c)
@@ -4199,6 +4268,10 @@ RAISONS_AGENT = {
     # disant pourquoi.
     "borne de la chaîne": "lots menés sans message de l'humain, sa borne est",
     "passation sans tâche prête": "le prochain lot n'a aucune tâche prête",
+    # `socle prune-branches` laisse la branche, en disant pourquoi.
+    "branche de l'humain": "son dernier commit ne porte pas la marque d'un agent",
+    "branche non contenue": "aucune branche de l'agent à supprimer",
+    "suppression coupée": "`prune_branches = false`",
 }
 
 

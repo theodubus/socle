@@ -6,7 +6,7 @@ description: Mener un lot de tâches du backlog, de son annonce à sa livraison.
 # Mener un lot
 
 Un lot réunit ce qui se relit ensemble : les tâches prêtes qui touchent
-les mêmes fichiers, le même garde-fou ou les mêmes tests.
+les mêmes fichiers, garde-fous ou tests.
 
 ## Former et annoncer
 
@@ -69,7 +69,7 @@ entrée de journal ne se réécrivent plus.
 
 1. Sur la branche de travail : `git merge --ff-only` de la branche du
    sous-agent si son commit suit la tête, sinon `git merge --squash`, puis
-   un commit qui reprend son message. Un identifiant pris deux fois :
+   un commit avec son message. Un identifiant pris deux fois :
    `python3 .socle/socle renumber <ID>` sur le second.
 2. Retirer la copie isolée et sa branche ;
    `python3 .socle/socle verify --fast`.
@@ -89,9 +89,10 @@ entrée de journal ne se réécrivent plus.
    que sa revue ouvre rejoint le prochain lot dont la règle s'applique,
    sinon un lot neuf dans le jalon de son besoin ; le récap
    de la clôture colle la sortie de `python3 .socle/socle roadmap` dans un
-   bloc de code. Après la fusion, la branche locale repart de la branche
-   par défaut et ne se pousse qu'avec le premier commit du lot suivant :
-   seule, elle recréerait la branche distante.
+   bloc de code. Après la fusion, `python3 .socle/socle prune-branches`
+   supprime les branches de l'agent contenues ; la branche locale repart
+   de la branche par défaut et ne se pousse qu'avec le premier commit du
+   lot suivant.
 
 ## La consommation
 
@@ -132,7 +133,7 @@ attente de plus d'une heure (skill `socle-handoff`). Ranger d'abord :
 2. les copies isolées, leurs branches et, en session cloud, les réveils
    retirés ;
 3. tout est commité ; un commit non relu part en correctif
-   (`git format-patch`) dans un dossier de passation du dépôt, retiré à son
+   (`git format-patch`) dans un dossier de passation, retiré à son
    intégration.
 
 Puis le skill `socle-handoff` : la passation écrite, commitée et poussée.

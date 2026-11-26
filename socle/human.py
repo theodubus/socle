@@ -8,7 +8,8 @@ Trois sources, toutes dérivées, rien de recopié :
   l'agent) ;
 - ce qui se calcule : les branches distantes que la branche par défaut,
   ou la branche de travail poussée, contient en entier, donc supprimables
-  sans rien perdre — une action distante que le hook refuse à l'agent.
+  sans rien perdre — une action distante que le hook refuse à l'agent ;
+  celles de l'agent, il les supprime lui-même (`socle prune-branches`).
 
 La liste sert deux fois : dans l'état dérivé au démarrage, et dans le récap
 que le hook de fin de tour exige quand l'agent a agi.
@@ -123,15 +124,28 @@ def branches_de_l_origine(projet: config.Projet) -> set[str] | None:
     alors celles du dernier fetch, et le disent. Aucune invite d'identifiants
     HTTPS ; une origine SSH qui demande une phrase de passe peut l'afficher
     sur le terminal, jusqu'au délai."""
+    tetes = tetes_de_l_origine(projet, DELAI_ORIGINE)
+    return None if tetes is None else set(tetes)
+
+
+def tetes_de_l_origine(projet: config.Projet, delai: float) -> dict[str, str] | None:
+    """Les branches que l'origine a vraiment, chacune avec sa tête, par `git
+    ls-remote --heads origin` ; `None` quand elle ne répond pas dans le
+    délai, ou en erreur. Aucune invite d'identifiants HTTPS."""
     try:
         r = subprocess.run(["git", "ls-remote", "--heads", "origin"], cwd=projet.racine, capture_output=True,
                            text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
-                           timeout=DELAI_ORIGINE, env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
+                           timeout=delai, env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
     except (subprocess.TimeoutExpired, OSError):
         return None
     if r.returncode != 0:
         return None
-    return {ligne.split("\trefs/heads/", 1)[1] for ligne in r.stdout.splitlines() if "\trefs/heads/" in ligne}
+    res = {}
+    for ligne in r.stdout.splitlines():
+        sha, _, ref = ligne.partition("\t")
+        if ref.startswith("refs/heads/"):
+            res[ref.removeprefix("refs/heads/")] = sha.strip()
+    return res
 
 
 # Au-delà, une branche non fusionnée qui ne bouge plus se signale (B-0112).
@@ -224,7 +238,12 @@ def specifications_non_soumises(projet: config.Projet, toutes: list | None = Non
             if not any(c in t for t in textes)]
 
 
-def a_faire(projet: config.Projet) -> list[Element]:
+def a_faire(projet: config.Projet, pour_l_agent: list[str] | None = None) -> list[Element]:
+    """Ce qui revient à l'humain. Les branches de l'agent déjà contenues
+    ailleurs ne lui reviennent pas : l'agent les supprime (`socle
+    prune-branches`, ADR-0114) ; `pour_l_agent`, s'il est donné, les reçoit."""
+    from socle import branches
+
     res = []
     toutes = demandes.toutes(projet.racine)
     for d in toutes:
@@ -268,17 +287,29 @@ def a_faire(projet: config.Projet) -> list[Element]:
     # branche de travail disparue ne garde plus peut l'être.
     dites = {b for b, _ in contenues}
     inactives = [i for i in inactives if i[0] not in dites]
+    # Celles de l'agent, il les supprime lui-même ; un refus de l'origine
+    # les redonne à l'humain.
+    agent = set(branches.pour_l_agent(projet, a_supprimer + [b for b, _ in contenues]))
+    a_supprimer = [b for b in a_supprimer if b not in agent]
+    contenues = [(b, p) for b, p in contenues if b not in agent]
+    if pour_l_agent is not None:
+        pour_l_agent.extend(sorted(agent))
+
+    def refusee(b: str) -> str:
+        r = branches.refus_actuel(projet, b)
+        return trad(" ; l'origine a refusé à l'agent de la supprimer ({raison})", raison=r.get("raison", "")) \
+            if r else ""
     if vivantes is not None:
         disparues = [i for i in inactives if i[0] not in vivantes]
         inactives = [i for i in inactives if i[0] in vivantes]
     for b in a_supprimer:
         res.append(Element("action", trad("supprimer la branche distante `{branche}`, déjà contenue dans la branche "
-                                          "par défaut", branche=b) + note, page))
+                                          "par défaut", branche=b) + refusee(b) + note, page))
     for b, poussee in contenues:
         res.append(Element("action", trad("supprimer la branche distante `{branche}`, déjà contenue dans `{travail}`, "
                                           "la branche de travail poussée : son contenu ne se perd pas ; une pull "
                                           "request ouverte qui en part se fermerait avec elle", branche=b,
-                                          travail=poussee) + note, page))
+                                          travail=poussee) + refusee(b) + note, page))
     cites = commits_cites(projet) if inactives or disparues else set()
     # Une branche que l'origine n'a plus ne se propose plus ; mais si sa
     # référence, dans ce clone, garde seule un commit que la mémoire cite, un

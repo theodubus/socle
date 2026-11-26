@@ -340,8 +340,11 @@ def calculer(projet: config.Projet, contenus: bool = True, supplement: list[str]
     # Ce qui revient à l'humain : chaque calcul a son repli, et les demandes
     # en attente se disent quoi qu'il arrive aux autres.
     elements, erreur = None, ""
+    # Les branches de l'agent déjà contenues ailleurs : il les supprime
+    # lui-même, et l'état le lui dit, hors de ce qui revient à l'humain.
+    pour_l_agent: list[str] = []
     try:
-        elements = humain.a_faire(projet)
+        elements = humain.a_faire(projet, pour_l_agent)
     except Exception as e:  # l'état ne bloque jamais le démarrage
         erreur = erreur_(e)
     autres, branche, mutation = [], [], []
@@ -388,6 +391,12 @@ def calculer(projet: config.Projet, contenus: bool = True, supplement: list[str]
     else:
         ajouter(ACTION, _elements([trad("ce qui revient à l'humain : incalculable ({erreur})", erreur=erreur)],
                                   [humain.lignes(e) for e in autres], plafond))
+    if pour_l_agent:
+        from socle import branches
+
+        ajouter(ACTION, [[trad("branches de l'agent à supprimer : {liste} — déjà contenues ailleurs, l'agent les "
+                               "supprime : `{commande}`", liste=", ".join(f"`{b}`" for b in pour_l_agent),
+                               commande=branches.COMMANDE)]])
     try:
         ajouter(ACTION, _demandes(projet, plafond, dites=elements is not None))
     except Exception as e:

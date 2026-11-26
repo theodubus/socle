@@ -53,6 +53,13 @@ paths = [
 # agent merge its own pull request (the guide, “Merging by the agent”);
 # without it, the merge stays refused. Only the human enables it.
 # tools = ['mcp__github__(delete_file|create_repository|fork_repository|create_release|push_files|create_or_update_file|enable_pr_auto_merge)']
+#
+# The agent deletes its own remote working branches already contained in the
+# default branch or in its pushed working branch, checked on the origin at
+# that very moment (`socle prune-branches`); the others stay the human's.
+# Uncommented, the line below takes this from it: the state then gives every
+# branch to delete to the human.
+# prune_branches = false
 
 [agents]
 # Claude Code is the agent equipped with hooks; the other agents stay covered

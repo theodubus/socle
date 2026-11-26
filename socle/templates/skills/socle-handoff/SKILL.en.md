@@ -118,7 +118,9 @@ scheduled task's, the agent runs `git fetch --prune origin`, then the
 guard without arguments. Refused, the session does nothing else but say
 so, with its reason, in its last message. Accepted, it places itself on
 the reference the guard names, and its first commit removes the
-handoff, pushed at once; its chain is the handoff's plus one, woken by
+handoff, pushed at once, then `python3 .socle/socle prune-branches`
+deletes the previous session's branch, which its own now contains, if
+it had another one; its chain is the handoff's plus one, woken by
 the scheduled task, 0 if the human asked. Without a handoff, it does
 what a new session does, and says so in its first message.
 

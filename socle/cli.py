@@ -880,6 +880,24 @@ def cmd_handoff(args) -> int:
     return 0
 
 
+def cmd_prune_branches(args) -> int:
+    """Supprime sur l'origine les branches de l'agent déjà contenues dans la
+    branche par défaut ou dans la branche de travail poussée, vérifiées sur
+    l'origine au moment même (ADR-0114) ; `--dry-run` dit ce qu'elle
+    supprimerait."""
+    from socle import branches
+
+    projet = _projet(args)
+    try:
+        bilan = branches.elaguer(projet, essai=args.dry_run)
+    except branches.SuppressionRefusee as refus:
+        print(trad("rien n'est supprimé : {raison}", raison=refus), file=sys.stderr)
+        return 1
+    for ligne in branches.lignes(bilan, essai=args.dry_run):
+        print(ligne)
+    return 1 if bilan.refusees else 0
+
+
 def _verdict_de_passation(verdict) -> int:
     """Le verdict de la garde : ses refus, ou où se placer."""
     for raison in verdict.refus:
@@ -905,7 +923,8 @@ GROUPES = {
     a_traduire("pour l'humain"): ["help", "install", "init", "state", "roadmap", "consumption", "answer", "decision",
                                   "approve", "reviewed", "private install"],
     a_traduire("pour l'agent"): ["new", "show", "url", "review", "verify", "check", "next-id", "private",
-                                 "mutation-verdict", "mutation-run", "renumber", "archive", "handoff", "checks"],
+                                 "mutation-verdict", "mutation-run", "renumber", "archive", "handoff",
+                                 "prune-branches", "checks"],
     a_traduire("internes (hooks, CI, moteur)"): ["hook", "ci", "selftest", "fingerprint"],
 }
 
@@ -1222,6 +1241,12 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
                                                          "passation, en UTC (par défaut : la date de --head)"))
     s.set_defaults(f=cmd_handoff)
 
+    s = sp.add_parser("prune-branches", help=trad("supprime sur l'origine les branches de l'agent déjà contenues "
+                                                  "dans la branche par défaut ou la branche de travail poussée, "
+                                                  "vérifiées au moment même"))
+    s.add_argument("--dry-run", action="store_true", dest="dry_run",
+                   help=trad("dire ce qu'elle supprimerait, sans rien supprimer"))
+    s.set_defaults(f=cmd_prune_branches)
 
     s = sp.add_parser("checks", help=trad("liste des contrôles"))
     s.set_defaults(f=cmd_checks)

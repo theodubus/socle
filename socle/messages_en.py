@@ -51,8 +51,59 @@ MESSAGES: dict[str, str] = {
         "{chemin}/ (including {touche})",
     "push forcé":
         "force push",
-    "suppression d'une branche distante":
-        "deletion of a remote branch",
+    "suppression d'une branche distante ; une branche de l'agent déjà contenue ailleurs se supprime par `python3 "
+    ".socle/socle prune-branches`":
+        "deletion of a remote branch; an agent branch already contained elsewhere is deleted by `python3 "
+        ".socle/socle prune-branches`",
+    "`git fetch origin` n'a pas abouti ({erreur}) : rien n'est supprimé":
+        "`git fetch origin` did not complete ({erreur}): nothing is deleted",
+    "`git fetch origin` a échoué ({erreur}) : rien n'est supprimé":
+        "`git fetch origin` failed ({erreur}): nothing is deleted",
+    "la politique coupe la suppression des branches par l'agent (`prune_branches = false`, section "
+    "`[irreversible]`) : les branches à supprimer reviennent à l'humain, que l'état les lui donne":
+        "the policy turns off the deletion of branches by the agent (`prune_branches = false`, section "
+        "`[irreversible]`): the branches to delete are the human's, and the state gives them to them",
+    "ce clone ne connaît pas la branche par défaut de l'origine : rien n'est supprimé":
+        "this clone does not know the origin's default branch: nothing is deleted",
+    "l'origine ne dit pas ses branches (`git ls-remote --heads origin`) : rien n'est supprimé":
+        "the origin does not list its branches (`git ls-remote --heads origin`): nothing is deleted",
+    "l'origine ne l'a plus à la tête que le fetch connaît":
+        "the origin no longer has it at the head the fetch knows",
+    "son dernier commit ne porte pas la marque d'un agent : elle revient à l'humain":
+        "its last commit does not carry an agent's mark: it is the human's",
+    "l'origine a refusé de la supprimer ({raison}) : elle revient à l'humain, tant qu'un fetch ne la montre pas "
+    "changée":
+        "the origin refused to delete it ({raison}): it is the human's, until a fetch shows it changed",
+    "`{garde}` ne la contient plus sur l'origine":
+        "`{garde}` no longer contains it on the origin",
+    "elle a bougé sur l'origine depuis la vérification : laissée":
+        "it moved on the origin since the check: left alone",
+    "sans raison dite":
+        "no reason given",
+    "à supprimer : `{branche}` ({sha})":
+        "to delete: `{branche}` ({sha})",
+    "supprimée : `{branche}` ({sha}) — la recréer : `git push origin {tete}:refs/heads/{branche}`":
+        "deleted: `{branche}` ({sha}) — to recreate it: `git push origin {tete}:refs/heads/{branche}`",
+    "refusée par l'origine : `{branche}` — {raison} ; elle revient à l'humain":
+        "refused by the origin: `{branche}` — {raison}; it is the human's",
+    "laissée : `{branche}` — {raison}":
+        "left alone: `{branche}` — {raison}",
+    "aucune branche de l'agent à supprimer":
+        "no agent branch to delete",
+    "(--dry-run : rien n'est supprimé)":
+        "(--dry-run: nothing is deleted)",
+    " ; l'origine a refusé à l'agent de la supprimer ({raison})":
+        "; the origin refused to let the agent delete it ({raison})",
+    "branches de l'agent à supprimer : {liste} — déjà contenues ailleurs, l'agent les supprime : `{commande}`":
+        "agent branches to delete: {liste} — already contained elsewhere, the agent deletes them: `{commande}`",
+    "rien n'est supprimé : {raison}":
+        "nothing is deleted: {raison}",
+    "supprime sur l'origine les branches de l'agent déjà contenues dans la branche par défaut ou la branche de "
+    "travail poussée, vérifiées au moment même":
+        "deletes on the origin the agent's branches already contained in the default branch or the pushed working "
+        "branch, checked at that very moment",
+    "dire ce qu'elle supprimerait, sans rien supprimer":
+        "say what it would delete, without deleting anything",
     "push de toutes les références":
         "push of all references",
     "push forcé (+)":
@@ -4309,6 +4360,16 @@ MESSAGES: dict[str, str] = {
         "`git fetch` pruning, passes its guard, which places the new session on the default branch",
     "la session qui part, sa passation commitée et poussée, la retrouve en attente après son push":
         "the leaving session, its handoff committed and pushed, finds it waiting after its push",
+    "une branche de l'agent contenue dans la branche par défaut se supprime par sa commande, le hook avant push "
+    "laissant passer la suppression":
+        "an agent branch contained in the default branch is deleted by its command, the pre-push hook letting the "
+        "deletion through",
+    "branche de l'humain contenue dans la branche par défaut, que la commande de l'agent supprimerait":
+        "human branch contained in the default branch, which the agent's command would delete",
+    "branche de l'agent qu'aucune branche poussée ne contient, que la commande supprimerait":
+        "agent branch that no pushed branch contains, which the command would delete",
+    "branche de l'agent supprimée alors que la politique coupe la suppression":
+        "agent branch deleted while the policy turns the deletion off",
     "une session programmée, une tâche prête et un lot mené sans message de l'humain, écrit sa passation":
         "a scheduled session, with a ready task and one batch run without a message from the human, writes its "
         "handoff",

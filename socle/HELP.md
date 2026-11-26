@@ -88,9 +88,14 @@ Juste après l'installation :
    relit : l'auteur d'une pull request ne peut pas l'approuver, et l'agent
    ouvre les siennes au nom de l'humain. Dans les réglages généraux, cocher
    « Automatically delete head branches » : une branche fusionnée s'efface
-   alors seule. L'état signale les autres : celles que la branche par
-   défaut ou la branche de travail poussée contiennent déjà, à supprimer,
-   et celles qui ne bougent plus depuis
+   alors seule. Les branches de l'agent que la branche par défaut ou sa
+   branche de travail poussée contiennent déjà, l'agent les supprime
+   lui-même (`socle prune-branches`), après avoir vérifié sur l'origine,
+   au moment même, qu'elles n'ont pas bougé ; une ligne de la politique
+   le lui retire (`prune_branches = false`, section `[irreversible]`).
+   L'état vous signale les autres : les vôtres que ces branches contiennent
+   déjà, et celles que l'origine a refusé à l'agent de supprimer, à
+   supprimer, et celles qui ne bougent plus depuis
    une semaine sans avoir été fusionnées, à livrer ou à supprimer. Si une
    telle branche garde seule un commit que la mémoire cite, l'état donne
    d'abord la commande qui l'étiquette : sans elle, la CI ne le

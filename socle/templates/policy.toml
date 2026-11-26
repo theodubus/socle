@@ -53,6 +53,13 @@ paths = [
 # laisse l'agent fusionner sa pull request (le guide, « La fusion par
 # l'agent ») ; sans elle, la fusion reste refusée. L'humain seul l'active.
 # tools = ['mcp__github__(delete_file|create_repository|fork_repository|create_release|push_files|create_or_update_file|enable_pr_auto_merge)']
+#
+# L'agent supprime lui-même ses branches de travail distantes déjà contenues
+# dans la branche par défaut ou dans sa branche de travail poussée, vérifiées
+# sur l'origine au moment même (`socle prune-branches`) ; les autres restent
+# à l'humain. Décommentée, la ligne ci-dessous le lui retire : l'état donne
+# alors toutes les branches à supprimer à l'humain.
+# prune_branches = false
 
 [agents]
 # Claude Code est l'agent outillé de hooks ; les autres agents restent

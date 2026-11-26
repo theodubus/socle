@@ -55,7 +55,7 @@ the tests, then the canonical memory, then the journal.
 1. **Loosening a guardrail** (`.socle/guardrails.toml`) requires an approved request; tightening is free. Declaring third-party files, which no check judges (`[thirdparty] paths`), loosens.
 2. **Deleting a test or changing an expected value**, in a test or a declared case file, requires an approved request, or a specification the human changed themselves and that names the test; an ADR written by the agent is not enough.
 3. **Design decision**: reversible and measurable, the agent decides and writes an ADR; costly to undo, ask.
-4. **Irreversible or external action** (force-push, push to the default branch, publication, remote deletion, spending): always a request. The hook refuses it.
+4. **Irreversible or external action** (force-push, push to the default branch, publication, remote deletion except `socle prune-branches`, spending): always a request. The hook refuses it.
 5. **Memory**: append only; "refuted" requires a measurement reference; "validated" is only written after the human's answer.
 6. **Scope creep**: a neighbouring bug goes to the backlog, it is not fixed, unless it blocks.
 7. **Repeated failure**: checks red after three attempts, stop and escalate with a request that sums up.
@@ -184,6 +184,6 @@ guardrails (`proto/` by default): the CI does not judge it on push.
 | `.socle/git-hooks/` | git hooks: `pre-commit` (fast checks), `prepare-commit-msg` (`Socle-Hooks`, `Socle-Hooks-Since-Commit` trailers), `commit-msg` (private memory leaks; as warnings, a function with neither test nor waiver, a fix without a test, an agent commit without its hooks), `pre-push` (`verify --fast` on the last commit, the pushed range judged as in CI, review before publication) |
 | `.github/workflows/socle.yml` | CI: adapter capabilities, all checks against the base, socle self-test, the project's roadmap as summary |
 @@LIGNE_MUTATION@@
-| `.git/socle/hooks.log` | local trace of every hook that fires, not versioned, shared by all worktrees of the repository |
+| `.git/socle/hooks.log` | local trace of every hook that fires, not versioned, shared by all worktrees |
 
 List of checks: `python3 .socle/socle checks`.

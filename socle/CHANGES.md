@@ -15,6 +15,41 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-26-a — L'agent supprime lui-même ses branches distantes déjà contenues ailleurs (`socle prune-branches`) ; l'état ne donne plus à l'humain que les siennes
+
+Une branche distante dont tout le contenu est déjà dans la branche par
+défaut, ou dans la branche de travail poussée, ne revient plus à l'humain
+quand son dernier commit porte la marque d'un agent (`[agents] markers` de
+la politique) : l'agent la supprime.
+
+- **La commande** : `python3 .socle/socle prune-branches` fait `git fetch
+  origin`, sans `--prune`, qui perdrait le commit que seule garde la
+  référence d'une branche disparue ; elle vérifie par `git ls-remote` que chaque
+  branche est encore sur l'origine à la tête que le fetch connaît, et que
+  la branche qui la garde l'y contient, puis la supprime sous bail
+  (`--force-with-lease`) : une branche qui a bougé entre-temps reste. Elle
+  imprime la commande qui recrée chaque branche supprimée, et la raison de
+  chaque branche laissée. `--dry-run` dit ce qu'elle supprimerait.
+- **L'état** ne donne plus à l'humain que ses branches, et celles que
+  l'origine a refusé de supprimer (un proxy, des droits, une règle de
+  protection), avec la raison ; le refus se garde dans
+  `.git/socle/prune-refused.json`, jusqu'à ce qu'un fetch montre la branche
+  changée. Une ligne pour l'agent nomme les siennes et la commande.
+- **Les hooks** : le hook avant push de git laisse passer sans rien lancer
+  un push qui ne fait que supprimer ; le hook de l'agent refuse toujours
+  `git push --delete` et `git push origin :<branche>`, et son message
+  nomme la commande.
+- **La politique** : la suppression vaut par défaut ;
+  `prune_branches = false`, dans `[irreversible]`, la coupe, et l'état
+  redonne alors tout à l'humain. Les gabarits de la politique portent la
+  ligne en commentaire ; le point 4 du gabarit d'`AGENTS.md`, les skills
+  `socle-batch` (après la fusion) et `socle-handoff` (après le retrait de
+  la passation), et le guide le disent.
+
+À faire : rien ; l'installeur pose les skills et la section changés, et
+l'agent lance `python3 .socle/socle prune-branches` quand l'état, le skill
+`socle-batch` ou le skill `socle-handoff` le lui disent.
+
 ## 2026-11-25-e — Les consignes durables de l'humain ont leur couche, `memory/directives.md` : chacune son identifiant, sa ligne de résumé au démarrage, son texte exact, levée par sa seule parole
 
 Une consigne de l'humain qui vaut au-delà du tour (une règle, une

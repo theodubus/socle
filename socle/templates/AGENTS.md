@@ -57,7 +57,7 @@ tests, puis la mémoire canonique, puis le journal.
 1. **Assouplir un garde-fou** (`.socle/guardrails.toml`) exige une demande validée ; durcir est libre. Déclarer des fichiers tiers, qu'aucun contrôle ne juge (`[thirdparty] paths`), assouplit.
 2. **Supprimer un test ou changer une valeur attendue**, dans un test ou un fichier de cas déclaré, exige une demande validée, ou une spécification que l'humain a lui-même changée et qui nomme le test ; une ADR écrite par l'agent ne suffit pas.
 3. **Décision de conception** : réversible et mesurable, l'agent décide et écrit une ADR ; coûteuse à défaire, demande.
-4. **Action irréversible ou externe** (force-push, push sur la branche par défaut, publication, suppression distante, dépense) : toujours une demande. Le hook la refuse.
+4. **Action irréversible ou externe** (force-push, push sur la branche par défaut, publication, suppression distante hors `socle prune-branches`, dépense) : toujours une demande. Le hook la refuse.
 5. **Mémoire** : ajout seul ; « réfuté » exige une référence de mesure ; « validé » ne s'écrit qu'après la réponse de l'humain.
 6. **Débordement de périmètre** : un bug voisin va au backlog, il ne se corrige pas, sauf s'il bloque.
 7. **Échec répété** : contrôles rouges après trois tentatives, arrêt et escalade par une demande qui résume.
@@ -187,6 +187,6 @@ des garde-fous (`proto/` par défaut) : la CI ne la juge pas aux envois.
 | `.socle/git-hooks/` | hooks git : `pre-commit` (contrôles rapides), `prepare-commit-msg` (trailers `Socle-Hooks`, `Socle-Hooks-Since-Commit`), `commit-msg` (fuites de la mémoire privée ; en avertissement, une fonction sans test ni dispense, un correctif sans test, un commit d'agent sans ses hooks), `pre-push` (`verify --fast` sur le dernier commit, la plage qui part jugée comme en CI, relecture avant publication) |
 | `.github/workflows/socle.yml` | CI : capacités de l'adaptateur, tous les contrôles contre la base, auto-test du socle, la suite du projet en résumé |
 @@LIGNE_MUTATION@@
-| `.git/socle/hooks.log` | trace locale de chaque hook qui tire, non versionnée, commune à tous les worktrees du dépôt |
+| `.git/socle/hooks.log` | trace locale de chaque hook qui tire, non versionnée, commune aux worktrees |
 
 Liste des contrôles : `python3 .socle/socle checks`.

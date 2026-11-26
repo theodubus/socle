@@ -40,7 +40,7 @@ from pathlib import Path
 
 from socle import (commands as commandes, config, requests as demandes, memory as memoire, utils as outils,
                    private as prive)
-from socle.messages import trad
+from socle.messages import a_traduire, trad
 
 OUTILS_ECRITURE = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 # Ce que le moteur refuse se juge sur chaque commande simple, découpée
@@ -2025,6 +2025,13 @@ def push_illisible(racine: Path, c: commandes.Commande, environnement: dict | No
                 " ".join(c.argv[1:]))
 
 
+# La suppression d'une branche distante reste refusée ; celles de l'agent
+# déjà contenues ailleurs, la commande du socle les supprime, vérifiées sur
+# l'origine au moment même (ADR-0114).
+SUPPRESSION_DISTANTE = a_traduire("suppression d'une branche distante ; une branche de l'agent déjà contenue "
+                                  "ailleurs se supprime par `python3 .socle/socle prune-branches`")
+
+
 def _git_irreversible(racine: Path, argv: list[str]) -> str | None:
     """L'action irréversible ou externe d'un `git`, sur son argv développé."""
     sous, reste = commandes.git_sous_commande(argv)
@@ -2033,14 +2040,14 @@ def _git_irreversible(racine: Path, argv: list[str]) -> str | None:
         if commandes.drapeau(options, "f", ("--force", "--force-with-lease", "--force-if-includes")):
             return trad("push forcé")
         if commandes.drapeau(options, "d", ("--delete", "--prune")):
-            return trad("suppression d'une branche distante")
+            return trad(SUPPRESSION_DISTANTE)
         if commandes.drapeau(options, "", ("--mirror", "--all", "--tags")):
             return trad("push de toutes les références")
         refs = args[1:]
         if any(r.startswith("+") for r in refs):
             return trad("push forcé (+)")
         if any(r.startswith(":") for r in refs):
-            return trad("suppression d'une branche distante")
+            return trad(SUPPRESSION_DISTANTE)
         cibles = [r.split(":", 1)[-1].removeprefix("refs/heads/") for r in refs] or \
             [outils.git(racine, "rev-parse", "--abbrev-ref", "HEAD", check=False).strip()]
         protegee = next((x for x in cibles if x in _branches_protegees(racine)), None)
@@ -3332,12 +3339,25 @@ def branches_envoyees(lignes: list[str]) -> list[str]:
     return res
 
 
+def suppressions_seules(lignes: list[str]) -> bool:
+    """Le push ne fait-il que supprimer des références distantes ? Git
+    donne alors, pour chacune, un commit local fait de zéros. Une ligne
+    illisible ne compte pas pour une suppression."""
+    morceaux = [l.split() for l in lignes if l.strip()]
+    return bool(morceaux) and all(len(m) >= 4 and set(m[1]) == {"0"} for m in morceaux)
+
+
 def git_pre_push(projet: config.Projet) -> int:
     from socle import context as contexte, verification
 
     tracer(projet.racine, "git-pre-push")
     # Les commits qui partent : `<réf locale> <sha local> <réf distante> <sha distant>` par ligne.
     lignes = [] if sys.stdin is None or sys.stdin.isatty() else sys.stdin.read().splitlines()
+    if suppressions_seules(lignes):
+        # Rien ne part : rien à juger, et les étapes rapides prendraient
+        # des minutes par branche que `socle prune-branches` supprime
+        # (ADR-0114).
+        return 0
     if prive.mode(projet):
         # Le nom de la branche distante est publié lui aussi.
         noms = [l.split()[2].removeprefix("refs/heads/") for l in lignes if len(l.split()) >= 4]

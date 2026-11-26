@@ -89,10 +89,10 @@ decision and a journal entry are no longer rewritten.
    closed, it becomes `done`, then `python3 .socle/socle archive`; a task
    its review opens joins the next batch whose rule applies, otherwise a
    new batch in its need's milestone; the closing recap pastes the output of `python3
-   .socle/socle roadmap` in a code block. After the merge, the local
-   branch restarts from the default branch and is pushed only with the
-   first commit of the next batch: pushed alone, it would recreate the
-   deleted remote branch.
+   .socle/socle roadmap` in a code block. After the merge,
+   `python3 .socle/socle prune-branches` deletes the agent's contained
+   branches; the local branch restarts from the default branch and is
+   pushed only with the first commit of the next batch.
 
 ## Consumption
 

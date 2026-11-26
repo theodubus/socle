@@ -83,9 +83,14 @@ Right after the installation:
    is added only if another human reviews: the author of a pull request
    cannot approve it, and the agent opens its own under the human's name.
    In the general settings, tick "Automatically delete head branches": a
-   merged branch then deletes itself. The state reports the others: those
-   the default branch or the pushed working branch already contains, to
-   delete, and those that have not
+   merged branch then deletes itself. The agent's branches that the
+   default branch or its pushed working branch already contains, the agent
+   deletes itself (`socle prune-branches`), after checking on the origin,
+   at that very moment, that they have not moved; a line of the policy
+   takes this from it (`prune_branches = false`, section
+   `[irreversible]`). The state reports the others to you: yours those
+   branches already contain, and those the origin refused to let the agent
+   delete, to delete, and those that have not
    moved for a week without being merged, to deliver or to delete. If such a
    branch alone keeps a commit the memory cites, the state first gives the
    command that tags it: without it, CI would no longer find it. It only

@@ -14,6 +14,41 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-26-a — The agent deletes its own remote branches already contained elsewhere (`socle prune-branches`); the state only gives the human their own
+
+A remote branch whose whole content is already in the default branch, or
+in the pushed working branch, is no longer the human's when its last
+commit carries an agent's mark (`[agents] markers` of the policy): the
+agent deletes it.
+
+- **The command**: `python3 .socle/socle prune-branches` runs `git fetch
+  origin`, without `--prune`, which would lose the commit only the
+  reference of a vanished branch keeps; it checks with `git ls-remote` that each branch
+  is still on the origin at the head the fetch knows, and that the branch
+  keeping it contains it there, then deletes it under a lease
+  (`--force-with-lease`): a branch that moved in between stays. It prints
+  the command that recreates each deleted branch, and the reason for each
+  branch left alone. `--dry-run` says what it would delete.
+- **The state** only gives the human their own branches, and those the
+  origin refused to delete (a proxy, permissions, a protection rule), with
+  the reason; the refusal is kept in `.git/socle/prune-refused.json`,
+  until a fetch shows the branch changed. A line for the agent names its
+  own and the command.
+- **The hooks**: git's pre-push hook lets a push that only deletes go
+  through without running anything; the agent's hook still refuses
+  `git push --delete` and `git push origin :<branch>`, and its message
+  names the command.
+- **The policy**: the deletion holds by default; `prune_branches = false`,
+  in `[irreversible]`, turns it off, and the state then gives everything
+  back to the human. The policy templates carry the line as a comment;
+  rule 4 of the `AGENTS.md` template, the `socle-batch` (after the merge)
+  and `socle-handoff` (after removing the handoff) skills, and the guide
+  say so.
+
+To do: nothing; the installer lays the changed skills and section, and
+the agent runs `python3 .socle/socle prune-branches` when the state, the
+`socle-batch` skill or the `socle-handoff` skill tells it to.
+
 ## 2026-11-25-e — The human's lasting directives have their layer, `memory/directives.md`: each with its identifier, its summary line at startup, its exact text, lifted by their word alone
 
 A directive of the human that holds beyond the turn (a rule, a
