@@ -149,68 +149,54 @@ Il soumet chaque document en demande. Il suffit de le lui demander ;
 l'état donne ensuite le prochain jalon, le prochain lot et l'avancement
 de ses tâches, les tâches prêtes, et les besoins à découper en tâches ou
 à fermer. La suite entière, d'un coup d'œil, se lit dans un terminal par
-`python3 .socle/socle roadmap` (une ligne par jalon et par lot ;
-`--format markdown` détaille le lot en cours et les deux suivants,
-`--by need` lit par besoin, `--by batch`, le défaut, par lot), sur la page de chaque exécution de la CI, et
+`python3 .socle/socle roadmap`, sur la page de chaque exécution de la CI, et
 dans la conversation : demandez « la suite » à l'agent.
 
-Le format compact aligne en colonnes les lots, strictement dans leur
-ordre d'exécution, chacun avec ses tâches closes sur le total, le lot en
-cours marqué ▶. L'en-tête d'un jalon, avec ses besoins clos sur le
-total, s'écrit chaque fois que le jalon change d'un lot au suivant : un
-jalon dont les lots alternent avec ceux d'un autre revient, et les lots
-qui ne servent aucun jalon ont l'en-tête « Hors des jalons » à leur
-place. Le lot en cours et les deux suivants, quel que soit leur jalon,
-ont chacun leur ligne ; hors de cette fenêtre, une suite de lots d'un
-même jalon tient en une ligne, et un lot seul garde la sienne (`--all`
-les montre tous). Il finit par ce qui est hors des lots, compté, et par
-ce qui vient ensuite : les jalons sans lot, avec leurs premiers besoins
-ouverts, puis les besoins d'aucun jalon. Il ne nomme aucune demande. Par
-exemple, les identifiants écrits ici `X-NNNN` :
+Elle a une seule forme, en quatre parties. **Maintenant** : chaque lot en
+cours, marqué ▶, puis chaque besoin qu'il mène, avec ses premières tâches
+ouvertes ; sans lot en cours, la première tâche prête. **Ensuite** : les jalons ouverts, dans leur
+ordre d'exécution, numérotés, chacun avec ses besoins clos sur leur
+total, entre des crochets de même largeur qui alignent les titres ; seul
+le premier, l'étape suivante, est déplié en ses besoins : les clos
+comptés sur une ligne ✓, puis ▶ servi par un lot en cours, · autre (`--all` les déplie tous). **Pour toi** : ce
+qui vous revient, les gestes à faire et les demandes en attente. **En
+réserve** : les besoins d'aucun jalon, comptés. Une ligne « Attention : »
+dit une entrée bloquée, ou deux lots dont l'ordre n'est pas déduit. Un titre se lit jusqu'à son premier deux-points. Dans le
+terminal, chaque titre est suivi de son identifiant, une ligne passe à
+la suivante sous sa colonne, à la largeur d'un téléphone, et aucune
+demande n'est désignée par le sien. Par exemple, les identifiants écrits
+ici `X-NNNN` :
 
 ```text
-JA-NNNN  Fini avant les nouvelles fonctions        1/11 besoins clos
- ▶ L-NNNN  Structure du backlog, chantier en rond  2/3   en cours
-   L-NNNN  Durée de la vérification                0/2
-   L-NNNN  Suite de la structure du backlog        1/5
-   …  L-NNNN à L-NNNN                              0/10
-Hors lot : 4 besoins sans tâche · 1 bloqué (B-NNNN)
-Ensuite : JA-NNNN Le pilote équipé (B-NNNN) · puis B-NNNN, B-NNNN
+La suite de Fou — 27 novembre
+
+Maintenant
+ ▶ Finir l'adoption du socle (L-NNNN)
+   besoin : L'adoption du socle (B-NNNN)
+     reste : Passer CLAUDE.md dans
+             AGENTS.md (T-NNNN)
+
+Ensuite
+1. [1/4] Embarquer le réseau N10 (JA-NNNN)
+         ✓ 1 besoin clos
+         · Mesurer N10 contre N8 (B-NNNN)
+         · Embarquer N10 dans le
+           binaire (B-NNNN)
+         · Situer le moteur sur la liste
+           CCRL (B-NNNN)
+2. [0/3] Régler la recherche par SPSA (JA-NNNN)
+3. [0/2] Accélérer la recherche (JA-NNNN)
+4. [0/3] Nouvelle architecture de
+         réseau (JA-NNNN)
+
+Pour toi : Copier les données d'entraînement sur
+           un disque dur (B-NNNN)
+En réserve : 12 besoins, dont 2 prioritaires
 ```
 
-Le format détaillé, en Markdown, suit le même ordre sous les mêmes
-en-têtes, et donne le lot en cours et les deux suivants, chacun avec le
-tableau de ses tâches : leur état en symbole, que sa légende explique,
-leur identifiant, leur besoin suivi de leur priorité, leur titre jusqu'à
-son premier deux-points, et ce qu'attend une tâche qui attend ; les
-autres lots, une ligne chacun, numérotés dans l'ordre d'exécution. Lu
-par besoin, chaque besoin, dans l'ordre de ses lots, a le tableau de ses
-tâches, avec le lot de chacune. Ce qui est hors des lots
-suit, en tableaux de même forme, chaque demande en attente avec son lien.
-Le début du même backlog :
-
-```markdown
-Légende : ✓ faite · ▶ en cours · ○ prête · ⏳ attend · ✗ bloquée · ⊘ abandonnée · ↑ priorité haute · ↓ priorité basse
-
-### JA-NNNN — Fini avant les nouvelles fonctions · 1/11 besoins clos
-
-**1. L-NNNN — Structure du backlog, chantier en rond** · en cours · 2/3
-
-| | Tâche | Besoin | |
-| --- | --- | --- | --- |
-| ✓ | T-NNNN | B-NNNN | La structure en quatre formes |
-| ✓ | T-NNNN | B-NNNN | Le format de la mémoire |
-| ○ | T-NNNN | B-NNNN | La forme exotique dans la liste du guide |
-
-**2. L-NNNN — Durée de la vérification** · 0/2
-
-| | Tâche | Besoin | |
-| --- | --- | --- | --- |
-| ○ | T-NNNN | B-NNNN ↑ | Mesurer la durée de chaque étape |
-| ⏳ | T-NNNN | B-NNNN ↑ | La suite sur plusieurs cœurs · attend T-NNNN |
-
-…
-```
+Avec `--format markdown`, le même texte vient dans un bloc de code :
+c'est ainsi que la conversation et le résumé de chaque exécution de la CI
+le donnent, alignés, sur un téléphone comme ailleurs.
 
 **Spécifications et cas d'essai.** Le projet déclare où vivent ses
 spécifications (`[specs] paths` des garde-fous) : l'état vous signale
@@ -354,7 +340,7 @@ Chaque intervention de l'agent qui a agi se termine par deux lignes :
 Chaque point de « Pour toi » se comprend seul : ce que c'est, pourquoi,
 et ce que change votre réponse. L'agent écrit ses deux lignes en texte :
 une ligne dans un bloc de code ne compte pas, et une sortie qu'il y
-colle, comme le compact de la suite et sa propre ligne « Ensuite : », ne
+colle, comme la suite du projet et sa propre ligne « Pour toi : », ne
 tient pas lieu de récap.
 
 À tout moment, `python3 .socle/socle state` donne l'état du projet : le
@@ -648,7 +634,7 @@ Chaque refus dit ce qu'il a vu et comment en sortir. La plupart s'adressent
 | `install` | installer ou mettre à jour le socle |
 | `init` | décrire le projet |
 | `state` | l'état du projet |
-| `roadmap` | la suite du projet : jalons, lots, tâches et besoins |
+| `roadmap` | la suite du projet : maintenant, les étapes qui suivent, ce qui vous revient |
 | `consumption` | ce qu'une session de Claude Code a coûté, et ce qui l'a fait coûter |
 | `answer`, `decision`, `reviewed` | répondre à une demande, consigner une décision en séance, une relecture |
 | `approve` | approuver ses propres changements protégés |

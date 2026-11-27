@@ -14,6 +14,29 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-27-b — The roadmap in a single form: what is being done now, the steps that follow, what is up to the human
+
+`socle roadmap` now has a single form, made for the human to steer the
+project, read on a phone: “Now”, each batch in progress, the needs it
+carries and their first open tasks, or the first ready task; “Next”, the open milestones,
+numbered, each as `[K/N]`, its needs closed out of their total, only the
+first unfolded into its needs; “For you”, what is up to the human; “In
+reserve”, the needs in no milestone, counted. It is an aligned text, each
+title followed by its identifier, a request named by its title alone;
+`--format markdown` puts it in a code block, for the conversation and the
+CI summary, where it keeps its alignment. The compact and detailed formats, their tables and
+their key are gone; the `--by` option no longer exists, and is refused
+as an unknown option; `--all` unfolds every step. The needs to split and
+to close stay in `socle state`, whose roadmap line no longer says
+“(detailed: `--format markdown`)”. The socle section of `AGENTS.md` still
+says to paste the output of `python3 .socle/socle roadmap --format markdown` when the human asks for the roadmap:
+it is now the only form.
+
+To do: remove `--by` from any call of `socle roadmap` written in the
+project, outside what the installer lays down; a directive of the project
+that chooses the short or the detailed format of the roadmap no longer
+has an object: tell the human, who keeps it or lifts it.
+
 ## 2026-11-27-a — The skills cap goes from 8,000 to 10,000 bytes in the guardrails template
 
 A skill is loaded whole at every use. With what justified their rules

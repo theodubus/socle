@@ -547,13 +547,20 @@ def _adr_test_double(a: "Atelier", c: Path) -> str:
 
 DEPOT_ESSAI = "https://github.com/essai/calc"
 RECAP = "\n\nPour toi : rien.\nEnsuite : rien."
-# Le compact de `socle roadmap`, qui finit par sa propre ligne « Ensuite : »,
-# collé dans un bloc de code au récap de la clôture d'un lot : il ne tient
-# pas lieu de récap (ADR-0089).
+# Une sortie collée dans un bloc de code au récap, qui finit par sa propre
+# ligne « Ensuite : », comme le format compact que `socle roadmap` rendait
+# avant sa forme unique : elle ne tient pas lieu de récap (ADR-0089).
 COMPACT_COLLE = ("JA-0001  Le premier jalon      0/1 besoins clos\n"
                  " ▶ L-0001  Le premier lot  0/1  en cours\n"
                  "Hors lot : rien\n"
                  "Ensuite : JA-0002 Le second jalon (B-0002)")
+# La forme unique de `socle roadmap`, dans son rendu du terminal, collée de
+# même au récap de la clôture d'un lot : sa ligne « Pour toi : » ne tient pas
+# lieu de celle du récap.
+FORME_COLLEE = ("La suite de calc — 27 novembre\n\n"
+                "Maintenant\n ▶ Le premier lot (L-0001)\n   reste : Écrire triple (T-0001)\n\n"
+                "Ensuite\n1. [0/1] Le premier jalon (JA-0001)\n\n"
+                "Pour toi : copier les données (B-0002)")
 
 
 def _demande_nommant_le_test(a: "Atelier", c: Path) -> str:
@@ -2713,6 +2720,12 @@ def _cas() -> list[Cas]:
         maj_memoire(c, "Travail du tour.")
         return etage_stop(a, c, "Lot clos.\n\n```text\n" + COMPACT_COLLE + "\n```\n\nPour toi : rien.")
 
+    @defaut("recap-dans-un-bloc-de-code", "fin d'intervention dont la seule ligne « Pour toi : » est celle de la "
+            "suite du projet collée dans un bloc de code", "agent", "récap")
+    def _(a, c):
+        maj_memoire(c, "Travail du tour.")
+        return etage_stop(a, c, "Lot clos.\n\n```text\n" + FORME_COLLEE + "\n```\n\nEnsuite : le lot suivant.")
+
     @defaut("chemin-inexistant", "chemin donné à l'humain qui n'existe pas dans le dépôt", "agent", "liens")
     def _(a, c):
         maj_memoire(c, "Travail du tour.")
@@ -3742,11 +3755,11 @@ def _temoins() -> list[tuple[str, Callable]]:
         return etage_stop(a, c, "J'ai mis à jour le chantier actif. Tout passe.\n\nPour toi : rien.\n"
                           "Ensuite : le sujet suivant du backlog.")
 
-    @temoin("une fin d'intervention avec ses deux lignes en texte et un compact collé dans un bloc de code passe "
-            "le hook de fin de tour")
+    @temoin("une fin d'intervention avec ses deux lignes en texte et la suite du projet collée dans un bloc de code "
+            "passe le hook de fin de tour")
     def _(a, c):
         maj_memoire(c, "Travail du tour.")
-        return etage_stop(a, c, "Lot clos.\n\n```text\n" + COMPACT_COLLE + "\n```\n\nPour toi : rien.\n"
+        return etage_stop(a, c, "Lot clos.\n\n```text\n" + FORME_COLLEE + "\n```\n\nPour toi : rien.\n"
                           "Ensuite : le lot suivant.")
 
     @temoin("des liens que l'humain peut suivre passent le hook de fin de tour")

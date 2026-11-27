@@ -15,6 +15,32 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-27-b — La feuille de route en une seule forme : ce qui se fait maintenant, les étapes qui suivent, ce qui revient à l'humain
+
+`socle roadmap` n'a plus qu'une forme, faite pour que l'humain pilote le
+projet, lue sur un téléphone : « Maintenant », chaque lot en cours, les
+besoins qu'il mène et leurs premières tâches ouvertes, ou la première
+tâche prête ; « Ensuite », les
+jalons ouverts numérotés, chacun en `[K/N]`, ses besoins clos sur leur
+total, seul le premier déplié en ses besoins ; « Pour toi », ce qui
+revient à l'humain ; « En réserve », les besoins d'aucun jalon, comptés.
+C'est un texte aligné, chaque titre suivi de son identifiant, une
+demande dite par son titre seul ; `--format markdown` le met dans un bloc
+de code, pour la conversation et le résumé de la CI, où il garde son
+alignement. Les formats compact
+et détaillé, leurs tableaux et leur légende disparaissent ; l'option
+`--by` n'existe plus, et se refuse comme une option inconnue ; `--all`
+déplie chaque étape. Les besoins à découper et à fermer restent à
+`socle state`, dont la ligne de la suite ne dit plus « (détaillée :
+`--format markdown`) ». La section du socle d'`AGENTS.md` dit toujours
+de coller la sortie de `python3 .socle/socle roadmap --format markdown` quand l'humain demande la suite : c'est
+désormais la seule forme.
+
+À faire : retirer `--by` de tout appel de `socle roadmap` écrit dans le
+projet, hors de ce que pose l'installeur ; une consigne du projet qui
+choisit le format court ou le format détaillé de la feuille de route n'a
+plus d'objet : le dire à l'humain, qui la garde ou la lève.
+
 ## 2026-11-27-a — Le plafond des skills passe de 8 000 à 10 000 octets dans le gabarit des garde-fous
 
 Un skill se charge en entier à chaque usage. Ce qui justifiait leurs

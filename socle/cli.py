@@ -47,7 +47,7 @@ def cmd_state(args) -> int:
 def cmd_roadmap(args) -> int:
     from socle import roadmap as suite
 
-    print(suite.rendre(_projet(args), format_=args.format, par=args.by, tout=args.all).rstrip("\n"))
+    print(suite.rendre(_projet(args), format_=args.format, tout=args.all).rstrip("\n"))
     return 0
 
 
@@ -1009,16 +1009,14 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
 
     from socle import roadmap as suite
 
-    s = sp.add_parser("roadmap", help=trad("la suite du projet d'un coup d'œil : jalons, lots, tâches et besoins, "
-                                           "calculés depuis le backlog"))
+    s = sp.add_parser("roadmap", help=trad("la suite du projet, pour la piloter : ce qui se fait maintenant, les "
+                                           "étapes qui suivent, ce qui revient à l'humain, calculés depuis le "
+                                           "backlog"))
     s.add_argument("--format", choices=suite.FORMATS, default="text",
-                   help=trad("text : une ligne par jalon et par lot (défaut) ; markdown : le lot en cours et les deux "
-                             "suivants tâche par tâche"))
-    s.add_argument("--by", choices=suite.LECTURES, default="batch",
-                   help=trad("batch : lire par lot (défaut) ; need : par besoin, chacun avec ses tâches et le lot "
-                             "de chacune"))
-    s.add_argument("--all", action="store_true", help=trad("en markdown, détailler tous les lots, ou tous les besoins ; "
-                                                           "en text, montrer chaque lot en sa ligne"))
+                   help=trad("text : pour le terminal (défaut) ; markdown : le même texte dans un bloc de code, pour "
+                             "la conversation et la CI"))
+    s.add_argument("--all", action="store_true", help=trad("déplier chaque étape en ses besoins, pas seulement la "
+                                                           "prochaine"))
     s.set_defaults(f=cmd_roadmap)
 
     from socle import consumption as consommation

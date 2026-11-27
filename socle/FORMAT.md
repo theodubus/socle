@@ -148,7 +148,7 @@ règle, une préférence, une interdiction qui vaut au-delà du tour) a son
 entrée :
 
 ```markdown
-## C-0003 — La roadmap demandée se donne au format court
+## C-0003 — Les messages de commit s'écrivent en anglais
 
 > statut : en vigueur · source : J-2026-11-25-T · date : 2026-11-25
 
@@ -330,16 +330,18 @@ bloquées que `[batches] max_tasks` des garde-fous (9 par défaut), l'état
 et le rappel le signalent, sans rien refuser : il ne se mène pas en une
 session.
 
-`socle roadmap` en tire la suite entière, par les mêmes règles : chaque
-jalon et ses besoins clos sur le total ; les lots ouverts dans leur ordre
+`socle roadmap` en tire la suite entière, par les mêmes règles, en une
+seule forme pour l'humain : les lots en cours, dans leur ordre
 d'exécution, chacun après les lots qu'il attend de proche en proche, l'en
-cours d'abord à choix égal, et où en est chacune de leurs tâches (faite,
-en cours, prête, ce qu'elle attend encore, bloquée) ; hors des lots, les
-tâches ouvertes qu'aucun lot n'attend, les besoins à découper et à
-fermer, les entrées bloquées, celles `pour : humain`, les demandes en
-attente, et les besoins ouverts qu'aucun jalon n'attend. Deux lots qui
-attendent un même lot sans que l'un attende l'autre y sont signalés : leur
-ordre n'est pas déduit, il est choisi par leur identifiant.
+cours d'abord à choix égal, avec les besoins que mène chacun et leurs
+premières tâches ouvertes, ou à défaut la première tâche prête ; les jalons ouverts dans leur ordre,
+chacun avec ses besoins clos sur le total, seul le premier déplié en ses
+besoins (clos, servi par un lot en cours, autre) ; les entrées `pour :
+humain` et les demandes en attente ; les besoins ouverts qu'aucun jalon
+n'attend, comptés. Une entrée bloquée y est signalée, et deux lots qui
+attendent un même lot sans que l'un attende l'autre : leur ordre n'est
+pas déduit, il est choisi par leur identifiant. Les besoins à découper et
+à fermer restent à l'état.
 
 Une tâche est faite quand sa section `## Fait quand` est cochée ; un
 besoin, quand ses tâches sont closes, l'une au moins faite, et sa section

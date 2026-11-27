@@ -3136,6 +3136,9 @@ MESSAGES: dict[str, str] = {
         "end of intervention that does not say what comes next",
     "fin d'intervention dont la seule ligne « Ensuite : » est celle d'une sortie collée dans un bloc de code":
         "end of intervention whose only “Next:” line is that of an output pasted in a code block",
+    "fin d'intervention dont la seule ligne « Pour toi : » est celle de la suite du projet collée dans un bloc de "
+    "code":
+        "end of intervention whose only “For you:” line is that of the project's roadmap pasted in a code block",
     "chemin cité présent sur le disque seulement, qu'une règle locale de git ignore":
         "cited path present on disk only, ignored by a local git rule",
     "un fichier neuf cité par la mémoire, ajouté par le même commit, passe la fin de tour, le commit et la CI":
@@ -3341,10 +3344,10 @@ MESSAGES: dict[str, str] = {
         "an answer given in the conversation, relayed with its quote, passes the hook and the CI",
     "une fin d'intervention avec « Pour toi : » et « Ensuite : » passe le hook de fin de tour":
         "an end of intervention with “For you:” and “Next:” passes the end-of-turn hook",
-    "une fin d'intervention avec ses deux lignes en texte et un compact collé dans un bloc de code passe le hook "
-    "de fin de tour":
-        "an end of intervention with its two lines as text and a compact output pasted in a code block passes the "
-        "end-of-turn hook",
+    "une fin d'intervention avec ses deux lignes en texte et la suite du projet collée dans un bloc de code passe le "
+    "hook de fin de tour":
+        "an end of intervention with its two lines as text and the project's roadmap pasted in a code block passes "
+        "the end-of-turn hook",
     "des liens que l'humain peut suivre passent le hook de fin de tour":
         "links the human can follow pass the end-of-turn hook",
     "une branche donnée à supprimer que l'origine a encore passe le hook de fin de tour":
@@ -3933,116 +3936,87 @@ MESSAGES: dict[str, str] = {
     "un petit lot qui ne touche aucun garde-fou, `socle review --short` en donne le dossier court":
         "a small batch that touches no guardrail, `socle review --short` gives its short dossier",
     # La suite du projet, `socle roadmap`.
-    '{n} tâche dans aucun lot':
-        '{n} task in no batch',
-    '{n} tâches dans aucun lot':
-        '{n} tasks in no batch',
-    '{n} besoin sans tâche':
-        '{n} need with no task',
-    '{n} besoins sans tâche':
-        '{n} needs with no task',
-    '{n} besoin à fermer':
-        '{n} need to close',
-    '{n} besoins à fermer':
-        '{n} needs to close',
-    '{n} bloqué ({ids})':
-        '{n} blocked ({ids})',
-    '{n} bloqués ({ids})':
-        '{n} blocked ({ids})',
-    "{n} pour l'humain":
-        '{n} for the human',
-    '{n} demande en attente':
-        '{n} pending request',
-    '{n} demandes en attente':
-        '{n} pending requests',
-    'attend {n} demande':
-        'waits on {n} request',
-    'attend {n} demandes':
-        'waits on {n} requests',
-    '{ids} et {n} autre':
-        '{ids} and {n} more',
-    '{ids} et {n} autres':
-        '{ids} and {n} more',
-    '{clos}/{total} besoins clos':
-        '{clos}/{total} needs closed',
-    'Hors lot : {comptes}':
-        'Outside the batches: {comptes}',
-    'rien':
-        'nothing',
-    'puis {ids}':
-        'then {ids}',
-    'Ensuite : {suite}':
-        'Next: {suite}',
-    "ordre ambigu : {a} et {b} attendent tous deux {p}, sans ordre entre eux — que l'un attende l'autre":
-        "ambiguous order: {a} and {b} both wait on {p}, with no order between them — make one wait on the other",
-    'Hors des jalons':
-        'Outside the milestones',
-    '…  {premier} à {dernier}':
-        '…  {premier} to {dernier}',
-    'Tâche':
-        'Task',
-    'Lot':
-        'Batch',
-    'Besoin':
-        'Need',
-    'Entrée':
-        'Entry',
-    'Demande':
-        'Request',
-    "Calculée depuis le backlog par `{commande} --format markdown` : rien n'y est écrit à la main.":
-        'Computed from the backlog by `{commande} --format markdown`: nothing in it is written by hand.',
-    'Légende : ✓ faite · ▶ en cours · ○ prête · ⏳ attend · ✗ bloquée · ⊘ abandonnée · ↑ priorité haute · ↓ '
-    'priorité basse':
-        'Key: ✓ done · ▶ in progress · ○ ready · ⏳ waiting · ✗ blocked · ⊘ abandoned · ↑ high priority · ↓ '
-        'low priority',
-    '(`--all` pour tout le détail)':
-        '(`--all` for the full detail)',
+    'La suite de {nom} — {date}':
+        'The roadmap of {nom} — {date}',
+    "La suite d'{nom} — {date}":
+        'The roadmap of {nom} — {date}',
+    'La suite — {date}':
+        'The roadmap — {date}',
+    'janvier':
+        'January',
+    'février':
+        'February',
+    'mars':
+        'March',
+    'avril':
+        'April',
+    'mai':
+        'May',
+    'juin':
+        'June',
+    'juillet':
+        'July',
+    'août':
+        'August',
+    'septembre':
+        'September',
+    'octobre':
+        'October',
+    'novembre':
+        'November',
+    'décembre':
+        'December',
+    'Maintenant':
+        'Now',
+    '{maintenant} : rien en cours':
+        '{maintenant}: nothing in progress',
+    'reste :':
+        'left:',
+    'besoin :':
+        'need:',
+    'prête :':
+        'ready:',
+    'et {n} autre':
+        'and {n} more',
+    'et {n} autres':
+        'and {n} more',
+    '{n} besoin clos':
+        '{n} need closed',
+    '{n} besoins clos':
+        '{n} needs closed',
     'Ensuite':
         'Next',
-    'ni jalon ni lot au backlog':
-        'no milestone and no batch in the backlog',
-    'La suite du projet':
-        "The project's roadmap",
-    'Ni jalon ni lot au backlog.':
-        'No milestone and no batch in the backlog.',
-    'Demandes en attente':
-        'Pending requests',
-    ' … et {n} autre(s) : `--all`':
-        ' … and {n} more: `--all`',
-    '- **Après les jalons**, dans aucun jalon : {ids}{suite}':
-        '- **After the milestones**, in no milestone: {ids}{suite}',
-    'attend {ids}':
-        'waits on {ids}',
-    'dans aucun lot':
-        'in no batch',
-    "Pour l'humain":
-        'For the human',
-    'Hors des lots':
-        'Outside the batches',
-    "Besoins, dans l'ordre des lots":
-        'Needs, in the order of the batches',
-    "Lots, dans leur ordre d'exécution":
-        'Batches, in their order of execution',
-    'Bloqués':
-        'Blocked',
-    'Besoins à fermer, leurs tâches closes':
-        'Needs to close, their tasks closed',
-    'Tâches dans aucun lot':
-        'Tasks in no batch',
-    'Besoins à découper en tâches':
-        'Needs to split into tasks',
-    "la suite du projet d'un coup d'œil : jalons, lots, tâches et besoins, calculés depuis le backlog":
-        "the project's roadmap at a glance: milestones, batches, tasks and needs, computed from the backlog",
-    'text : une ligne par jalon et par lot (défaut) ; markdown : le lot en cours et les deux suivants tâche par '
-    'tâche':
-        'text: one line per milestone and per batch (default); markdown: the batch in progress and the next two '
-        'task by task',
-    'batch : lire par lot (défaut) ; need : par besoin, chacun avec ses tâches et le lot de chacune':
-        'batch: read by batch (default); need: by need, each with its tasks and the batch of each',
-    'en markdown, détailler tous les lots, ou tous les besoins ; en text, montrer chaque lot en sa ligne':
-        'in markdown, detail every batch, or every need; in text, show every batch on its own line',
-    "  la suite : `python3 .socle/socle roadmap` (détaillée : `--format markdown`)":
-        "  the roadmap: `python3 .socle/socle roadmap` (detailed: `--format markdown`)",
+    'Pour toi :':
+        'For you:',
+    'En réserve : {compte}':
+        'In reserve: {compte}',
+    '{n} besoin':
+        '{n} need',
+    '{n} besoins':
+        '{n} needs',
+    'dont {n} prioritaire':
+        '{n} of them high priority',
+    'dont {n} prioritaires':
+        '{n} of them high priority',
+    '{attention} : {alerte}':
+        '{attention}: {alerte}',
+    'Attention':
+        'Warning',
+    'bloqué : {entree}':
+        'blocked: {entree}',
+    "ordre ambigu : {a} et {b} attendent tous deux {p}, sans ordre entre eux — que l'un attende l'autre":
+        "ambiguous order: {a} and {b} both wait on {p}, with no order between them — make one wait on the other",
+    "la suite du projet, pour la piloter : ce qui se fait maintenant, les étapes qui suivent, ce qui revient à "
+    "l'humain, calculés depuis le backlog":
+        "the project's roadmap, to steer it: what is being done now, the steps that follow, what falls to the "
+        "human, computed from the backlog",
+    'text : pour le terminal (défaut) ; markdown : le même texte dans un bloc de code, pour la conversation et la '
+    'CI':
+        'text: for the terminal (default); markdown: the same text in a code block, for the conversation and the CI',
+    'déplier chaque étape en ses besoins, pas seulement la prochaine':
+        'unfold every step into its needs, not only the next one',
+    "  la suite : `python3 .socle/socle roadmap`":
+        "  the roadmap: `python3 .socle/socle roadmap`",
     # La consommation d'une session de Claude Code (`socle consumption`).
     "ce qu'une session de Claude Code a coûté, et ce qui l'a fait coûter, lu dans ses transcriptions":
         "what a Claude Code session cost, and what made it cost, read in its transcripts",
@@ -4217,8 +4191,6 @@ MESSAGES: dict[str, str] = {
         "no commit: nothing to hand off",
     "`--chain` compte des lots : 0 ou plus":
         "`--chain` counts batches: 0 or more",
-    "rien":
-        "nothing",
     "la tête est détachée, sur aucune branche : se placer d'abord sur la branche de travail, que la passation nomme":
         "the head is detached, on no branch: first move to the working branch, which the handoff names",
     "la passation que l'humain fait reprendre porte la chaîne 0, que sa demande remet à zéro : `--chain` va avec "
