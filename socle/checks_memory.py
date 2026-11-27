@@ -1092,6 +1092,75 @@ def formes(ctx, r):
                                                 id=e.id), e.fichier, e.ligne)
 
 
+# Ce qu'est un besoin que le contrôle de la réserve refuse sans place.
+SANS_PLACE = {"nouveau": a_traduire("un besoin nouveau"), "sorti": a_traduire("un besoin sorti d'un jalon ouvert")}
+
+
+@controle("memoire.reserve", base=True)
+def reserve(ctx, r):
+    """Un besoin de la réserve a sa raison quand il y entre, et la réserve
+    est triée quand un jalon se clôt. Quand un jalon est ouvert, un besoin
+    ouvert nouveau dans la plage, ou sorti d'un jalon ouvert à la base,
+    qu'aucun jalon ouvert n'attend, porte sa raison de réserve : il naît
+    rangé (ADR-0118), et le contrôle ne fait que rattraper l'oubli. Un
+    jalon ouvert à la base et clos à la tête exige chaque besoin de la
+    réserve avec sa raison et un `trié` au moins égal au plus haut lot de
+    la base, que des lots clos ensuite sur la branche ne dépassent pas. Un
+    besoin d'avant sans raison ne se refuse pas ; un besoin pour l'humain
+    ne se trie pas."""
+    from socle import private as prive
+
+    mem, base = ctx.memoire, ctx.memoire_base
+    g, gb = memoire.Graphe(mem), memoire.Graphe(base)
+    a_trier = [e for e in memoire.reserve(g) if not memoire.pour_l_humain(e)]
+    seuils = {p: memoire.plus_haut_lot(base, p) for p in (False, True)}
+    # La base publique ne lit pas la zone privée à une révision : un besoin
+    # privé se juge contre la base privée ; illisible, il n'est jamais
+    # nouveau (comme `memoire.lectures`, revue de L-0052).
+    privee_base = prive.memoire_privee_a(ctx.projet, ctx.base) \
+        if ctx.base and any(e.prive for e in a_trier) else None
+    if privee_base is not None:
+        seuils[True] = max(seuils[True], memoire.plus_haut_lot(privee_base, True))
+    non_tries = [e for e in a_trier
+                 if not memoire.raison_de_reserve(e) or (memoire.tri_de(e) or 0) < seuils[e.prive]]
+    dits: set[str] = set()
+    for i, j in sorted(g.entrees.items()):
+        if not non_tries or not memoire.est_jalon(j) or j.statut not in memoire.BACKLOG_CLOS or not gb.ouvert(i):
+            continue
+        # Un jalon public ne nomme pas un besoin privé : il le compte.
+        nommes = [e.id for e in non_tries if j.prive or not e.prive]
+        caches = len(non_tries) - len(nommes)
+        ids = ", ".join(nommes) + (trad(" et {n} de la mémoire privée", n=caches) if caches and nommes else "")
+        dits |= {e.id for e in non_tries}
+        r.erreur("memoire.reserve", trad("`{jalon}` se clôt sur une réserve non triée : {ids} ; avant de clore un "
+                                         "jalon, chaque besoin de la réserve rejoint un jalon à venir, reste en "
+                                         "réserve, sa raison et son tri récrits ({champs}), ou se propose à "
+                                         "l'humain pour abandon, par une demande que sa raison nomme",
+                                         jalon=i, ids=ids or trad("{n} de la mémoire privée", n=caches),
+                                         champs=memoire.champs_de_reserve(mem, j.prive)), j.fichier, j.ligne)
+    if not memoire.jalons_ouverts(g):
+        return
+    defs, defs_base = mem.definitions(), base.definitions()
+    sortis = memoire.attendus_des_jalons(gb)
+    defs_privees = None
+    if privee_base is not None:
+        defs_privees = {**defs_base, **privee_base.definitions()}
+        sortis |= memoire.attendus_des_jalons(memoire.Graphe(privee_base))
+    for e in a_trier:
+        if e.id in dits or memoire.raison_de_reserve(e):
+            continue
+        connus = defs_privees if e.prive else defs_base
+        # Une entrée renumérotée (ADR-0083), ou la copie privée d'une entrée
+        # basculée, n'est pas nouvelle : son autre numéro était à la base.
+        nouveau = connus is not None and e.id not in connus and not any(a in connus for a in e.anciens) \
+            and not (e.depuis and all(d in defs and defs[d][0].basculee for d in e.depuis))
+        if nouveau or e.id in sortis or any(d in sortis for d in e.depuis):
+            r.erreur("memoire.reserve", trad("`{id}`, {quoi}, n'a pas de place : {ranger} ; à sa création, `socle new "
+                                             "need \"…\" --milestone JA-NNNN` ou `--reserve \"<raison>\"`", id=e.id,
+                                             quoi=trad(SANS_PLACE["nouveau" if nouveau else "sorti"]),
+                                             ranger=memoire.comment_ranger(g, e.prive)), e.fichier, e.ligne)
+
+
 # --------------------------------------------------------------------------
 # Budgets, péremption, retard
 # --------------------------------------------------------------------------

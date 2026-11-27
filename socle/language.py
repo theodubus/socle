@@ -45,6 +45,10 @@ CHAMPS = {
     "priorite": {"fr": "priorité", "en": "priority"},
     "besoin": {"fr": "besoin", "en": "need"},
     "ancien": {"fr": "ancien", "en": "former"},
+    # Un besoin en réserve, d'aucun jalon ouvert (ADR-0118) : pourquoi il
+    # attend, et le plus haut lot du backlog à son dernier tri.
+    "reserve": {"fr": "réserve", "en": "reserve"},
+    "trie": {"fr": "trié", "en": "sorted"},
     # L'estampille de la passation (`memory/handoff.md`).
     "ecrite": {"fr": "écrite", "en": "written"},
     "branche": {"fr": "branche", "en": "branch"},

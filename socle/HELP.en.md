@@ -141,7 +141,14 @@ the needs that serve one goal. Each says what it waits on (`after`:
 another entry, or a request until it is answered), and its boxes are all
 checked before closing it; the agent then closes it in one step, `socle
 close`, which sets its status, its reference (by default, the commit that
-closes it) and its filing. It submits each document as a request. Just
+closes it) and its filing. A need is born placed, in a milestone (`socle
+new need "…" --milestone JA-NNNN`) or in the reserve, outside the
+milestones, with its reason and the batch of its sorting (`--reserve
+"<reason>"`): at the closing of a batch, the agent sorts those the state
+calls to place, without a reason or unsorted for fifteen closed batches,
+and sorts the whole reserve again before closing a milestone, each need
+joining a milestone to come, kept with its reason, or proposed for
+abandonment in a request. It submits each document as a request. Just
 ask it to; the state then gives the next milestone, the next batch and
 the progress of its tasks, the ready tasks, and the needs to split into
 tasks or to close. The whole roadmap, at a glance, reads in a terminal with
@@ -156,7 +163,7 @@ brackets of equal width that align the titles; only the first, the next
 step, is unfolded into its needs: the closed ones counted on one ✓
 line, then ▶ served by a batch in progress, · other (`--all` unfolds them all). **For you**: what is up to
 you, the actions to take and the pending requests. **In
-reserve**: the needs in no milestone, counted. A “Warning:” line tells of
+reserve**: the needs in no milestone, counted, and how many are to place. A “Warning:” line tells of
 a blocked entry, or of two batches whose order is not deduced. A title
 reads up to its first colon. In the terminal, each title is followed by
 its identifier, a line wraps under its own column, at the width of a

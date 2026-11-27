@@ -192,6 +192,27 @@ def cmd_new(args) -> int:
             print(trad("`--need {besoin}` : aucun besoin ouvert de ce nom ; une tâche nomme le besoin ouvert "
                        "qu'elle sert", besoin=besoin), file=sys.stderr)
             return 2
+    # Un besoin naît rangé (ADR-0118) : dans un jalon ouvert, ou en réserve
+    # avec sa raison. Tout refus vient avant la moindre écriture.
+    jalon, raison = getattr(args, "milestone", None), getattr(args, "reserve", None)
+    if (jalon is not None or raison is not None) and type_ != "B":
+        print(trad("`--milestone` et `--reserve` ne valent que pour un besoin (`need`) : ils le rangent"),
+              file=sys.stderr)
+        return 2
+    cible_jalon = mem.entree(jalon) if jalon is not None else None
+    if jalon is not None and (cible_jalon is None or not memoire.est_jalon(cible_jalon) or cible_jalon.archivee
+                              or cible_jalon.basculee or not cible_jalon.meta
+                              or memoire.couche_attendue(cible_jalon.fichier) != "backlog"
+                              or cible_jalon.statut in memoire.BACKLOG_CLOS):
+        print(trad("`--milestone {jalon}` : aucun jalon ouvert de ce nom ; un besoin rejoint un jalon ouvert",
+                   jalon=jalon), file=sys.stderr)
+        return 2
+    if raison is not None:
+        raison = " ".join(raison.split())
+        if not raison or "·" in raison:
+            print(trad("`--reserve` : une raison, non vide et sans « · », qui dit pourquoi le besoin attend hors "
+                       "des jalons"), file=sys.stderr)
+            return 2
     # Avec une mémoire privée, le contenu nouveau est privé par défaut
     # (cadrage, règles de classement, point 3), couche par couche selon la
     # politique (`[private] layers`). Une demande ne devient privée que
@@ -211,6 +232,10 @@ def cmd_new(args) -> int:
                    "l'aveugle. `--public` si elle peut être publique, sinon attendre l'accès.",
                    raison=acces.raison), file=sys.stderr)
         return 2
+    if cible_jalon is not None and prive and not cible_jalon.prive:
+        print(trad("`--milestone {jalon}` : un jalon public ne nomme pas un besoin privé ; `--public` si le besoin "
+                   "peut l'être", jalon=jalon), file=sys.stderr)
+        return 2
     from socle import identifiers as identifiants
 
     # Ceux que les branches distantes ont déjà pris aussi.
@@ -225,7 +250,7 @@ def cmd_new(args) -> int:
     squelette = langue.SQUELETTES[lg].get(type_, "")
     # Ce qui s'affiche avant l'identifiant, imprimé une fois l'entrée
     # écrite : une sortie coupée (`| head -1`) ne l'empêche plus.
-    index, ensuite = "", ""
+    index, ensuite, rangement = "", "", ""
     if type_ == "F":
         chemin = lieu(ch.canonique)
         _ajouter(chemin, f"\n## {ident} — {titre}\n\n{squelette}\n", langue.entete_fichier("canonique", zone, lg))
@@ -243,6 +268,8 @@ def cmd_new(args) -> int:
         index = _texte_index(mem, "backlog", citable)
         lu = memoire.empreinte_index(citable, "backlog")
         chemin = _poser_backlog(lieu(ch.backlog), zone, lg, ident, titre, squelette, lu, besoin)
+        if type_ == "B":
+            rangement = _ranger_besoin(mem, lg, ident, chemin, cible_jalon, raison, prive)
         if tache is not None:
             # Le besoin et sa tâche quand la correction est évidente : tous
             # deux citent le même index.
@@ -287,6 +314,8 @@ def cmd_new(args) -> int:
     print(f"{ident}\t{chemin.relative_to(racine)}")
     if ensuite:
         print(ensuite)
+    if rangement:
+        print(rangement)
     if type_ == "D":
         # Le contrat, avant qu'elle soit écrite et non au refus du lint ;
         # après l'identifiant, que la première ligne garde (ADR-0058).
@@ -305,6 +334,38 @@ def _poser_backlog(dossier: Path, zone: str, lg: str, ident: str, titre: str, sq
     bloc = squelette.format(lu=lu, besoin=besoin or "")
     outils.ecrire(chemin, f"{langue.entete_fichier('backlog', zone, lg)}\n# {ident} — {titre}\n\n{bloc}\n")
     return chemin
+
+
+def _ranger_besoin(mem, lg: str, ident: str, chemin: Path, jalon, raison: str | None, prive: bool) -> str:
+    """Range le besoin neuf `ident` (ADR-0118) : à la fin de l'`après` du
+    jalon ouvert `jalon`, ou en réserve, sa raison et son tri (le plus haut
+    lot de sa zone) sur sa ligne de métadonnées. Rend la ligne à imprimer :
+    ce qui est fait ; sans l'un ni l'autre, quand un jalon est ouvert,
+    comment le ranger ; sinon, rien."""
+    from socle import memory as memoire, migration
+
+    if jalon is not None:
+        source = mem.racine / jalon.fichier
+        texte = source.read_text(encoding="utf-8")
+        deja = jalon.meta.get("apres", "").strip()
+        if "apres" in jalon.meta:
+            texte = migration._remeta(texte, remplacer={"apres": f"{deja}, {ident}" if deja else ident})
+        else:
+            texte = migration._remeta(texte, ajouter=[f"{langue.mot(langue.CHAMPS, 'apres', lg)} : {ident}"])
+        source.write_text(texte, encoding="utf-8")
+        return trad("`{id}` rangé dans le jalon `{jalon}`, à la fin de son `après`", id=ident, jalon=jalon.id)
+    if raison is not None:
+        tri = memoire.tri_a_ecrire(mem, prive)
+        champs = [f"{langue.mot(langue.CHAMPS, 'reserve', lg)} : {raison}"]
+        if tri:
+            champs.append(f"{langue.mot(langue.CHAMPS, 'trie', lg)} : {tri}")
+        chemin.write_text(migration._remeta(chemin.read_text(encoding="utf-8"), ajouter=champs), encoding="utf-8")
+        return trad("`{id}` en réserve : {champs}", id=ident, champs=" · ".join(champs))
+    g = memoire.Graphe(mem)
+    if not memoire.jalons_ouverts(g):
+        return ""
+    return trad("`{id}` n'a pas de place, que le commit exige : {ranger} ; à la création, `--milestone JA-NNNN` ou "
+                "`--reserve \"<raison>\"` le font", id=ident, ranger=memoire.comment_ranger(g, prive))
 
 
 def _ajouter(chemin: Path, bloc: str, entete: str | None = None):
@@ -853,9 +914,17 @@ def cmd_archive(args) -> int:
 def cmd_close(args) -> int:
     """Clôt « fait » une entrée ouverte du backlog en un geste : statut,
     référence et rangement (ADR-0117)."""
-    from socle import archive as archivage
+    from socle import archive as archivage, memory as memoire, state as etat
 
-    return archivage.cloturer(_projet(args), args.id, args.ref)
+    projet = _projet(args)
+    code = archivage.cloturer(projet, args.id, args.ref)
+    if code == 0 and args.id.lstrip("P").startswith("B-"):
+        # Le dernier besoin d'un jalon clos, sa clôture exige la réserve
+        # retriée : le dire maintenant, avant le refus (revue de L-0056).
+        ligne = etat.jalons_a_clore(memoire.Memoire.charger(projet.racine))
+        if ligne:
+            print(ligne)
+    return code
 
 
 def cmd_handoff(args) -> int:
@@ -1105,6 +1174,11 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s.add_argument("--need", metavar="B-NNNN", help=trad("avec `task` : le besoin ouvert que la tâche sert"))
     s.add_argument("--task", metavar=trad("TITRE"), help=trad("avec `need` : crée aussi sa tâche, quand la "
                                                              "correction est évidente"))
+    place = s.add_mutually_exclusive_group()
+    place.add_argument("--milestone", metavar="JA-NNNN", help=trad("avec `need` : le range dans ce jalon ouvert, à "
+                                                                    "la fin de son `après`"))
+    place.add_argument("--reserve", metavar=trad("RAISON"), help=trad("avec `need` : le garde en réserve, hors des "
+                                                                      "jalons, avec sa raison et son tri"))
     zone = s.add_mutually_exclusive_group()
     zone.add_argument("--private", action="store_true", help=trad("dans la mémoire privée (défaut quand elle "
                                                                   "existe)"))

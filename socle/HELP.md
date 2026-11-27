@@ -147,6 +147,13 @@ Chacune dit ce qu'elle attend (`après` : une autre entrée, ou une demande
 jusqu'à sa réponse), et ses cases sont toutes cochées avant de la clore ;
 l'agent la clôt alors d'un geste, `socle close`, qui pose son statut, sa
 référence (par défaut, le commit qui la clôt) et son rangement.
+Un besoin naît rangé, dans un jalon (`socle new need "…" --milestone
+JA-NNNN`) ou dans la réserve, hors des jalons, avec sa raison et le lot
+de son tri (`--reserve "<raison>"`) : l'agent trie à la clôture d'un lot
+ceux que l'état dit à placer, sans raison ou sans tri depuis quinze lots
+clos, et retrie toute la réserve avant de clore un jalon, chaque besoin
+rejoignant un jalon à venir, gardé avec sa raison, ou proposé à
+l'abandon dans une demande.
 Il soumet chaque document en demande. Il suffit de le lui demander ;
 l'état donne ensuite le prochain jalon, le prochain lot et l'avancement
 de ses tâches, les tâches prêtes, et les besoins à découper en tâches ou
@@ -162,7 +169,7 @@ total, entre des crochets de même largeur qui alignent les titres ; seul
 le premier, l'étape suivante, est déplié en ses besoins : les clos
 comptés sur une ligne ✓, puis ▶ servi par un lot en cours, · autre (`--all` les déplie tous). **Pour toi** : ce
 qui vous revient, les gestes à faire et les demandes en attente. **En
-réserve** : les besoins d'aucun jalon, comptés. Une ligne « Attention : »
+réserve** : les besoins d'aucun jalon, comptés, et combien sont à placer. Une ligne « Attention : »
 dit une entrée bloquée, ou deux lots dont l'ordre n'est pas déduit. Un titre se lit jusqu'à son premier deux-points. Dans le
 terminal, chaque titre est suivi de son identifiant, une ligne passe à
 la suivante sous sa colonne, à la largeur d'un téléphone, et aucune

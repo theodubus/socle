@@ -110,9 +110,10 @@ class ClotureRefusee(Exception):
 
 
 # Les contrôles qui jugent une entrée close : ses critères et sa référence,
-# les tâches d'un besoin, ce qu'elle attend. La commande ne copie pas leurs
-# règles : elle les fait juger l'entrée écrite close.
-CONTROLES_DE_CLOTURE = ["memoire.backlog", "memoire.formes", "memoire.ordre"]
+# les tâches d'un besoin, ce qu'elle attend, et, pour un jalon, la réserve
+# triée (ADR-0118), que le contexte juge contre sa base. La commande ne
+# copie pas leurs règles : elle les fait juger l'entrée écrite close.
+CONTROLES_DE_CLOTURE = ["memoire.backlog", "memoire.formes", "memoire.ordre", "memoire.reserve"]
 
 
 def cloturer(projet: config.Projet, ident: str, ref: str | None = None) -> int:

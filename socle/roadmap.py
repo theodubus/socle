@@ -117,6 +117,10 @@ class Suite:
     # La première tâche prête, dans l'ordre de l'état ; de priorité basse
     # s'il n'en est pas d'autre.
     prete: memoire.Entree | None = None
+    # La réserve, les besoins ouverts d'aucun jalon ouvert, qu'il y ait des
+    # jalons ou non, et ceux d'entre eux à placer (ADR-0118).
+    reserve: list[memoire.Entree] = field(default_factory=list)
+    a_placer: list[memoire.Entree] = field(default_factory=list)
 
 
 def calculer(mem: memoire.Memoire) -> Suite:
@@ -144,7 +148,7 @@ def calculer(mem: memoire.Memoire) -> Suite:
     for i in g.dans_l_ordre(memoire.est_jalon):
         besoins = [d for d in dict.fromkeys(memoire.dependances(entrees[i])) if memoire.type_d_id(d) == "B"]
         jalons.append(Jalon(entrees[i], sum(not g.ouvert(b) for b in besoins), len(besoins)))
-    jalonnes = {d for j in jalons for d in memoire.dependances(j.entree)}
+    reserve = memoire.reserve(g)
     ouverts = [entrees[i] for i in g.ouverts]
     return Suite(
         jalons=jalons, lots=lots, courant=courant,
@@ -154,9 +158,10 @@ def calculer(mem: memoire.Memoire) -> Suite:
         bloques=[e for e in ouverts if e.statut == "bloque" and not memoire.est_tache(e)],
         pour_l_humain=[e for e in ouverts if memoire.pour_l_humain(e)],
         demandes=[e for i, e in sorted(g.demandes.items()) if g.ouvert(i)],
-        sans_jalon=[e for e in ouverts if memoire.est_besoin(e) and e.id not in jalonnes] if jalons else [],
+        sans_jalon=reserve if jalons else [],
         alertes=alertes(g, [lot.entree.id for lot in lots]),
         prete=next(iter([*o.prets, *o.basses]), None),
+        reserve=reserve, a_placer=memoire.a_placer(g),
     )
 
 
@@ -252,6 +257,8 @@ class Forme:
     prioritaires: int
     bloques: list[memoire.Entree]
     alertes: list[tuple[str, str, str]]
+    # Parmi ceux de la réserve, ceux à placer (ADR-0118).
+    a_placer: int = 0
 
 
 def forme(s: Suite, tout: bool = False) -> Forme:
@@ -284,15 +291,15 @@ def forme(s: Suite, tout: bool = False) -> Forme:
                     etape.besoins.append((SERVI if b in servis else AUTRE, e))
         etapes.append(etape)
     humain = {e.id for e in s.pour_l_humain}
-    # Les besoins ouverts qu'aucun jalon ouvert n'attend, qu'il y ait des
-    # jalons ou non : sans jalon, la réserve dit encore ce qui attend.
-    jalonnes = {b for j in s.jalons for b in besoins_du_jalon(j)}
-    reserve = [e for i, e in sorted(s.besoins.items()) if e.statut not in memoire.BACKLOG_CLOS
-               and i not in jalonnes and i not in servis and i not in humain]
+    # La réserve, qu'il y ait des jalons ou non : sans jalon, elle dit encore
+    # ce qui attend ; ce que « Maintenant » ou « Pour toi » montrent n'y est
+    # pas compté.
+    reserve = [e for e in s.reserve if e.id not in servis and e.id not in humain]
+    places = {e.id for e in s.a_placer}
     return Forme(en_cours=en_cours, prete=None if en_cours else s.prete, etapes=etapes,
                  pour_toi=list(s.pour_l_humain), demandes=list(s.demandes), reserve=len(reserve),
                  prioritaires=sum(memoire.priorite(e) == "haute" for e in reserve), bloques=list(s.bloques),
-                 alertes=list(s.alertes))
+                 alertes=list(s.alertes), a_placer=sum(e.id in places for e in reserve))
 
 
 def _nombre(n: int, formes: tuple[str, str]) -> str:
@@ -318,6 +325,8 @@ def _reserve(f: Forme) -> str | None:
     compte = _nombre(f.reserve, BESOINS)
     if f.prioritaires:
         compte += ", " + _nombre(f.prioritaires, PRIORITAIRES)
+    if f.a_placer:
+        compte += ", " + trad("{n} à placer", n=f.a_placer)
     return trad("En réserve : {compte}", compte=compte)
 
 

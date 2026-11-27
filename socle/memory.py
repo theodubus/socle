@@ -1109,6 +1109,108 @@ def ordre_de(g: Graphe) -> Ordre:
                  [entrees[i] for i in sorted(a_decouper, key=cle)], [entrees[i] for i in a_fermer])
 
 
+# --------------------------------------------------------------------------
+# La réserve (ADR-0118) : les besoins ouverts qu'aucun jalon ouvert
+# n'attend. Chacun y entre avec sa raison (`réserve`) et le plus haut lot
+# du backlog à son dernier tri (`trié`) ; récrire `trié`, c'est le trier.
+# --------------------------------------------------------------------------
+
+# Les lots clos depuis son dernier tri à partir desquels un besoin de la
+# réserve est à placer (D-0213).
+LOTS_SANS_TRI = 15
+
+
+def jalons_ouverts(g: Graphe) -> list[str]:
+    """Les jalons ouverts, dans leur ordre d'exécution."""
+    return g.dans_l_ordre(est_jalon)
+
+
+def attendus_des_jalons(g: Graphe) -> set[str]:
+    """Ce que les jalons ouverts nomment dans leur `après`."""
+    return {d for j in g.ouverts if est_jalon(g.entrees[j]) for d in dependances(g.entrees[j])}
+
+
+def reserve(g: Graphe) -> list[Entree]:
+    """Les besoins de la réserve, par identifiant : ouverts, qu'aucun jalon
+    ouvert ne nomme dans son `après`, ni sous l'identifiant public d'où
+    vient une copie privée (`depuis`). La seule définition : la feuille de
+    route, l'état et le contrôle de la réserve la lisent."""
+    attendus = attendus_des_jalons(g)
+    return [g.entrees[i] for i in g.ouverts if est_besoin(g.entrees[i]) and i not in attendus
+            and not any(d in attendus for d in g.entrees[i].depuis)]
+
+
+def raison_de_reserve(e: Entree) -> str:
+    """Pourquoi un besoin attend hors des jalons (`réserve : <raison>`) ;
+    vide sans elle."""
+    return nettoyer(e.meta.get("reserve", ""))
+
+
+def _numero_de_lot(ident: str, prive: bool) -> int | None:
+    m = ID_RE.fullmatch(nettoyer(ident))
+    if m is None or m["type"] != "L" or bool(m["prive"]) != prive or not NUM_SIMPLE.match(m["num"]):
+        return None
+    return int(m["num"])
+
+
+def tri_de(e: Entree) -> int | None:
+    """Le numéro du lot que nomme le `trié` d'un besoin, dans sa zone ;
+    `None` sans lui."""
+    return _numero_de_lot(e.meta.get("trie", ""), e.prive)
+
+
+def _lots(mem: "Memoire", prive: bool) -> dict[int, Entree]:
+    """Les lots d'une zone, archivés compris, par numéro."""
+    res: dict[int, Entree] = {}
+    for e in mem.entrees("L"):
+        n = _numero_de_lot(e.id, prive)
+        if n is not None:
+            res.setdefault(n, e)
+    return res
+
+
+def plus_haut_lot(mem: "Memoire", prive: bool = False) -> int:
+    """Le numéro du plus haut lot d'une zone, ouvert ou clos ; 0 sans lot."""
+    return max(_lots(mem, prive), default=0)
+
+
+def tri_a_ecrire(mem: "Memoire", prive: bool = False) -> str | None:
+    """Le `trié` qu'un tri écrit maintenant : le plus haut identifiant de lot
+    de la zone ; `None` sans lot."""
+    n = plus_haut_lot(mem, prive)
+    return f"{'P' if prive else ''}L-{n:04d}" if n else None
+
+
+def a_placer(g: Graphe) -> list[Entree]:
+    """Les besoins de la réserve à trier, quand un jalon est ouvert : sans
+    raison, ou avec `LOTS_SANS_TRI` lots clos ou plus d'un numéro supérieur
+    à leur `trié` (sans lui, tous les lots clos de leur zone comptent). Un
+    besoin pour l'humain ne se trie pas : « Pour toi » le montre."""
+    if not jalons_ouverts(g):
+        return []
+    clos = {p: [n for n, e in _lots(g.mem, p).items() if e.statut in BACKLOG_CLOS and not e.basculee]
+            for p in (False, True)}
+    return [e for e in reserve(g) if not pour_l_humain(e)
+            and (not raison_de_reserve(e) or sum(n > (tri_de(e) or 0) for n in clos[e.prive]) >= LOTS_SANS_TRI)]
+
+
+def comment_ranger(g: Graphe, prive: bool = False) -> str:
+    """Les deux façons de ranger un besoin de la zone `prive` : dans un jalon
+    ouvert, qu'un besoin public ne nomme que public, ou en réserve, avec sa
+    raison et le `trié` à écrire."""
+    jalons = [j for j in jalons_ouverts(g) if prive or not g.entrees[j].prive]
+    return trad("l'ajouter à l'`après` d'un jalon ouvert{jalons}, ou écrire sur sa ligne de métadonnées {champs}",
+                jalons=f" ({', '.join(jalons[:3])})" if jalons else "", champs=champs_de_reserve(g.mem, prive))
+
+
+def champs_de_reserve(mem: "Memoire", prive: bool = False) -> str:
+    """Ce qu'un tri écrit maintenant sur la ligne d'un besoin de la zone
+    `prive` gardé en réserve : sa raison, et le `trié` du plus haut lot,
+    s'il en est un."""
+    tri = tri_a_ecrire(mem, prive)
+    return trad("`réserve : <raison> · trié : {tri}`", tri=tri) if tri else trad("`réserve : <raison>`")
+
+
 # Où en est ce qu'un lot attend, tel que l'état le dit ; une tâche close ou
 # une demande répondue ne se détaille pas.
 AVANCEMENT = {"en-cours": a_traduire("en cours"), "bloque": a_traduire("bloqué"), "pret": a_traduire("prête"),
