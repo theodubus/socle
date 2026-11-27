@@ -14,6 +14,26 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-27-g — A command closes a backlog entry in one step: `socle close`, and its reference `this commit`
+
+Closing a task took about eight memory steps: a journal entry written to
+serve as the reference, the commit that does the work not existing yet,
+the status, then `socle archive` after a refusal. `socle close <ID>` now
+closes an open backlog entry of any form as “done” in one step: it sets
+the status, adds to the `ref` field the value `this commit` (`ce commit`
+in French), or the reference `--ref` gives, and files the entry among the
+closed ones, the move in the index. It checks nothing off, and refuses
+the entry that the backlog checks would refuse closed (an unchecked
+criterion, a need with a task still open, what it waits on still open),
+with their messages, changing nothing. `this commit` designates the
+commit that wrote it on the metadata line, the one that closes the
+entry: the backlog check accepts it as a reference, and `socle show`
+resolves it through the file's history. The journal entry is no longer
+required to serve as a reference; the `socle-batch` skill and the
+installed section of `AGENTS.md` say so.
+
+To do: nothing; a checked task is now closed with `socle close`.
+
 ## 2026-11-27-f — The state says at its top that a new session is behind the handoff waiting for it
 
 A new session that starts on a commit older than the waiting handoff's

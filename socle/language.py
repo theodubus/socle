@@ -71,7 +71,9 @@ STATUTS = {
 # Valeurs d'un champ qui se comparent : `pour : humain`.
 VALEURS = {"humain": {"fr": "humain", "en": "human"}, "seance": {"fr": "séance", "en": "session"},
            "jalon": {"fr": "jalon", "en": "milestone"}, "lot": {"fr": "lot", "en": "batch"},
-           "haute": {"fr": "haute", "en": "high"}, "basse": {"fr": "basse", "en": "low"}}
+           "haute": {"fr": "haute", "en": "high"}, "basse": {"fr": "basse", "en": "low"},
+           # Dans `ref` : le commit qui clôt l'entrée (ADR-0117).
+           "ce-commit": {"fr": "ce commit", "en": "this commit"}}
 
 # La section d'une tâche (et d'un lot ou d'un jalon qui en a une) qui dit ce
 # qui la rend faite (D-0064) : des cases à cocher, toutes cochées avant de la

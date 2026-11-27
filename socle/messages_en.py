@@ -4480,4 +4480,38 @@ MESSAGES: dict[str, str] = {
     "d'où part ce commit ou ce push, écarté(s) ici et laissé(s) à la CI ; seuls ceux qu'il apporte sont refusés":
         "socle — engine update in progress, not yet committed: {n} finding(s) already present in the tree this "
         "commit or push starts from, set aside here and left to CI; only those it brings are refused",
+    "refus : {raison}":
+        "refused: {raison}",
+    "`{id}` clos « fait », ref : {ref}":
+        "`{id}` closed “done”, ref: {ref}",
+    "Ensuite : le commiter avec le travail qui le fait":
+        "Next: commit it with the work that does it",
+    "`{id}` n'est pas une entrée du backlog : `socle close` ne clôt que le backlog":
+        "`{id}` is not a backlog entry: `socle close` only closes the backlog",
+    "`{id}` est basculée dans la mémoire privée : sa copie privée se clôt":
+        "`{id}` was made private: its private copy is the one to close",
+    "`{id}` est déjà clos (« {statut} »)":
+        "`{id}` is already closed (“{statut}”)",
+    "`{id}` n'a pas de ligne de métadonnées lisible":
+        "`{id}` has no readable metadata line",
+    "`{id}` ne se clôt pas, rien n'est changé ; les contrôles du backlog le refuseraient clos :":
+        "`{id}` does not close, nothing is changed; the backlog checks would refuse it closed:",
+    "clôt « fait » une entrée du backlog dont les critères sont cochés : son statut, sa référence et son "
+    "rangement, en un geste":
+        "closes a backlog entry whose criteria are checked as “done”: its status, its reference and its filing, in "
+        "one step",
+    "ce qui la clôt : une entrée du journal, une demande, `commit:<sha>` ; « ce commit » par défaut, le commit qui "
+    "la clôt":
+        "what closes it: a journal entry, a request, `commit:<sha>`; “this commit” by default, the commit that "
+        "closes it",
+    "\n--- ref « {mot} » : {commit} ---":
+        "\n--- ref “{mot}”: {commit} ---",
+    "pas encore commité, le commit à venir":
+        "not committed yet, the commit to come",
+    "tâche faite dont la `ref` n'est que de la prose, ni une référence ni « ce commit »":
+        "task done whose `ref` is only prose, neither a reference nor “this commit”",
+    "une tâche cochée close par `socle close`, sa référence « ce commit », passe le commit et la CI (ADR-0117)":
+        "a checked task closed by `socle close`, its reference “this commit”, passes the commit and CI (ADR-0117)",
+    "`{id}` ne se clôt pas : `{chemin}` existe déjà, à la place où elle se range":
+        "`{id}` does not close: `{chemin}` already exists, where it would be filed",
 }

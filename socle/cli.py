@@ -344,6 +344,12 @@ def cmd_show(args) -> int:
         # montre qu'on a lu cette version-là.
         print(f"--- {ident}@{memoire.empreinte_entree(e)} ({lieu}) ---")
         print(e.texte)
+        if memoire.ref_ce_commit(e):
+            from socle import archive as archivage
+
+            commit = archivage.commit_qui_clot(projet.racine, e)
+            print(trad("\n--- ref « {mot} » : {commit} ---", mot=memoire.ref_ce_commit(e),
+                       commit=commit or trad("pas encore commité, le commit à venir")))
         if e.type == "D":
             d = next((d for d in demandes.toutes(projet.racine) if d.id == ident), None)
             if d and d.chemin_reponse:
@@ -844,6 +850,14 @@ def cmd_archive(args) -> int:
     return archivage.archiver_backlog(_projet(args))
 
 
+def cmd_close(args) -> int:
+    """Clôt « fait » une entrée ouverte du backlog en un geste : statut,
+    référence et rangement (ADR-0117)."""
+    from socle import archive as archivage
+
+    return archivage.cloturer(_projet(args), args.id, args.ref)
+
+
 def cmd_handoff(args) -> int:
     """La passation à une session neuve (skill `socle-handoff`) : `write`
     l'écrit dans la mémoire ; `check`, sans argument, la trouve sur les
@@ -946,7 +960,7 @@ GROUPES = {
     a_traduire("pour l'humain"): ["help", "install", "init", "state", "roadmap", "consumption", "answer", "decision",
                                   "approve", "reviewed", "private install"],
     a_traduire("pour l'agent"): ["new", "show", "url", "review", "verify", "check", "next-id", "private",
-                                 "mutation-verdict", "mutation-run", "renumber", "archive", "handoff",
+                                 "mutation-verdict", "mutation-run", "renumber", "archive", "close", "handoff",
                                  "prune-branches", "checks"],
     a_traduire("internes (hooks, CI, moteur)"): ["hook", "ci", "selftest", "fingerprint"],
 }
@@ -1244,6 +1258,14 @@ def analyseur() -> tuple[argparse.ArgumentParser, dict[str, str]]:
     s = sp.add_parser("archive", help=trad("range les entrées closes du backlog à l'écart des ouvertes, et les "
                                            "consignes levées dans le journal"))
     s.set_defaults(f=cmd_archive)
+
+    s = sp.add_parser("close", help=trad("clôt « fait » une entrée du backlog dont les critères sont cochés : son "
+                                         "statut, sa référence et son rangement, en un geste"))
+    s.add_argument("id")
+    s.add_argument("--ref", metavar="REF", help=trad("ce qui la clôt : une entrée du journal, une demande, "
+                                                     "`commit:<sha>` ; « ce commit » par défaut, le commit qui "
+                                                     "la clôt"))
+    s.set_defaults(f=cmd_close)
 
     s = sp.add_parser("handoff", help=trad("la passation à une session neuve : `write` l'écrit dans la mémoire ; "
                                            "`check`, sans argument, la trouve sur les branches distantes et juge "

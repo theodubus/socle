@@ -46,8 +46,9 @@ du projet s'appliquent. Commence par : git merge --ff-only <branche de travail>
 Tâche : python3 .socle/socle show <ID>, puis <le choix déjà fait, où regarder, les pièges connus>.
 À livrer, en un commit, sans push : le modèle de menace d'un garde-fou ou
 la spécification d'une conception pas tranchée, d'abord ; le code et ses
-tests ; la documentation touchée ; une entrée de journal ; la tâche cochée
-et close si ses critères sont tenus ; python3 .socle/socle verify --fast.
+tests ; la documentation touchée ; une entrée de journal ; la tâche cochée,
+puis close par python3 .socle/socle close <ID> si ses critères sont tenus ;
+python3 .socle/socle verify --fast.
 Interdits : pousser, toucher un réveil, écrire un fichier protégé, changer
 une valeur attendue ou supprimer un test (le signaler), corriger un défaut
 voisin (un besoin au backlog).
@@ -83,7 +84,9 @@ part qu'après la correction de ses bloquants.
    fusion lance sur la branche par défaut ; le récap dit s'ils ont réussi.
 5. Le chantier actif et le journal s'écrivent avant la fusion, dans le
    dernier commit de la pull request, avec la clôture du lot : ses tâches
-   closes, il passe `fait`, puis `python3 .socle/socle archive` ; une tâche
+   closes, il se clôt, chacun d'un geste, `python3 .socle/socle close
+   <ID>`, qui pose son statut, sa référence et son rangement, puis
+   `python3 .socle/socle archive` range les consignes levées ; une tâche
    que sa revue ouvre rejoint le prochain lot dont la règle s'applique,
    sinon un lot neuf dans le jalon de son besoin ; le récap
    de la clôture colle la sortie de `python3 .socle/socle roadmap` dans un

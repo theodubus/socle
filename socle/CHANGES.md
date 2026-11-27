@@ -15,6 +15,26 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-27-g — Une commande clôt une entrée du backlog en un geste : `socle close`, et sa référence `ce commit`
+
+Clore une tâche demandait environ huit gestes de mémoire : une entrée de
+journal écrite pour servir de référence, le commit qui fait le travail
+n'existant pas encore, le statut, puis `socle archive` après un refus.
+`socle close <ID>` clôt désormais « fait » une entrée ouverte du backlog,
+de toute forme, en un geste : il pose le statut, ajoute au champ `ref` la
+valeur `ce commit` (`this commit` en anglais), ou la référence que donne
+`--ref`, et range l'entrée parmi les closes, le déplacement dans l'index.
+Il ne coche rien, et refuse l'entrée que les contrôles du backlog
+refuseraient close (un critère non coché, un besoin dont une tâche reste
+ouverte, ce qu'elle attend encore ouvert), avec leurs messages, sans rien
+changer. `ce commit` désigne le commit qui l'a écrite sur la ligne de
+métadonnées, celui qui clôt l'entrée : le contrôle du backlog l'accepte
+comme référence, et `socle show` le résout par l'historique du fichier.
+L'entrée de journal n'est plus exigée pour servir de référence ; le skill
+`socle-batch` et la section installée d'`AGENTS.md` le disent.
+
+À faire : rien ; une tâche cochée se clôt désormais par `socle close`.
+
 ## 2026-11-27-f — L'état dit en tête qu'une session neuve est en retard sur la passation qui l'attend
 
 Une session neuve qui démarre sur un commit plus ancien que celui de la

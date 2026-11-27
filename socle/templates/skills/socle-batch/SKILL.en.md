@@ -47,8 +47,9 @@ project's instructions apply. Start with: git merge --ff-only <work branch>
 Task: python3 .socle/socle show <ID>, then <the choice already made, where to look, the known traps>.
 Deliver, in one commit, without pushing: the threat model of a guardrail
 or the specification of an undecided design, first; the code and its
-tests; the documentation touched; a journal entry; the task checked and
-closed if its criteria are met; python3 .socle/socle verify --fast.
+tests; the documentation touched; a journal entry; the task checked,
+then closed by python3 .socle/socle close <ID> if its criteria are met;
+python3 .socle/socle verify --fast.
 Forbidden: pushing, touching a wake-up, writing a protected file, changing
 an expected value or deleting a test (report it), fixing a neighbouring
 defect (a need in the backlog).
@@ -84,7 +85,9 @@ agent. A batch leaves only once its blocking findings are fixed.
    starts on the default branch; the recap says whether they succeeded.
 5. The active work and the journal are written before the merge, in the
    last commit of the pull request, with the batch's closure: its tasks
-   closed, it becomes `done`, then `python3 .socle/socle archive`; a task
+   closed, it closes, each in one step, `python3 .socle/socle close
+   <ID>`, which sets its status, its reference and its filing, then
+   `python3 .socle/socle archive` files the lifted directives; a task
    its review opens joins the next batch whose rule applies, otherwise a
    new batch in its need's milestone; the closing recap pastes the output of `python3
    .socle/socle roadmap` in a code block. After the merge,

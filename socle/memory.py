@@ -242,6 +242,17 @@ def nettoyer(valeur: str) -> str:
     return valeur.strip().strip("`").strip()
 
 
+def ref_ce_commit(e: "Entree") -> str | None:
+    """La valeur `ce commit` (`this commit`) telle que le champ `ref` de
+    l'entrée l'écrit, seule ou parmi d'autres références : le commit qui
+    l'a écrite sur la ligne de métadonnées, celui qui clôt l'entrée
+    (ADR-0117) ; `None` sans elle."""
+    for morceau in re.split(r"[,;]", e.meta.get("ref", "")):
+        if langue.valeur(nettoyer(morceau)) == "ce-commit":
+            return nettoyer(morceau)
+    return None
+
+
 # La passation à une session neuve (`memory/handoff.md`) : ni entrée ni
 # identifiant, un en-tête, un titre, son estampille sur une ligne `>`, puis
 # ce qui attend. `socle handoff write` l'écrit, `socle handoff check` la lit

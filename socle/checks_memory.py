@@ -916,7 +916,8 @@ def backlog(ctx, r):
                                              "bloquant sans la forme que lit l'historique du lot, une ligne `- "
                                              "Bloquant : <sa cause>` par bloquant, ni gras, ni numéro, ni pluriel",
                                              id=e.id, ligne=texte), e.fichier, ligne)
-        if clos and not e.refs("ref"):
+        # `ce commit` désigne le commit qui la clôt (ADR-0117).
+        if clos and not e.refs("ref") and not memoire.ref_ce_commit(e):
             r.erreur("memoire.backlog", trad("`{id}` est clos (« {statut} ») sans `ref` vers ce qui l'a clos",
                                              id=e.id, statut=e.statut), e.fichier, e.ligne)
         # Une entrée close quitte les ouvertes.

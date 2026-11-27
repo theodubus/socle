@@ -35,7 +35,7 @@ read.
 | Directives | `memory/directives.md` | the human's directives, exact text unchanged; lifted by an approved request |
 | Decisions | `memory/decisions/` | one ADR per file, the project's only decision register; only its status changes afterwards |
 | Journal | `memory/journal/` | one dated entry per event; append only; no future step for the human |
-| Backlog | `@@BACKLOG@@` | four forms, each with its prefix: need `B-` (“Satisfied when”), task `T-` that names its need (“Done when”), batch `L-` of tasks, milestone `JA-` of needs; ordered by `after`, with their priority (the state computes the ready tasks); closed with a reference, then filed by `socle archive` |
+| Backlog | `@@BACKLOG@@` | four forms, each with its prefix: need `B-` (“Satisfied when”), task `T-` that names its need (“Done when”), batch `L-` of tasks, milestone `JA-` of needs; ordered by `after`, with their priority (the state computes the ready tasks); closed by `socle close`: status, reference, filing |
 | Requests | `memory/requests/` | human decisions in a queue, under the contract of the skill `socle-request` |
 
 An entry: `## F-NNNN — title`, then a line `> status : measured · proof : commit:<sha>`.

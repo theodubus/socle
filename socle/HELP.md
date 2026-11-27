@@ -144,7 +144,9 @@ demande et votre réponse, le fichier du relevé, ce qu'en montre
 (`L-`), les tâches qui touchent les mêmes fichiers, menées et relues
 ensemble ; un **jalon** (`JA-`), les besoins qui servent un même but.
 Chacune dit ce qu'elle attend (`après` : une autre entrée, ou une demande
-jusqu'à sa réponse), et ses cases sont toutes cochées avant de la clore.
+jusqu'à sa réponse), et ses cases sont toutes cochées avant de la clore ;
+l'agent la clôt alors d'un geste, `socle close`, qui pose son statut, sa
+référence (par défaut, le commit qui la clôt) et son rangement.
 Il soumet chaque document en demande. Il suffit de le lui demander ;
 l'état donne ensuite le prochain jalon, le prochain lot et l'avancement
 de ses tâches, les tâches prêtes, et les besoins à découper en tâches ou

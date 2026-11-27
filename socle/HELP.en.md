@@ -139,7 +139,9 @@ the box names: the request and your answer, the report's file, what
 same files, carried out and reviewed together; a **milestone** (`JA-`),
 the needs that serve one goal. Each says what it waits on (`after`:
 another entry, or a request until it is answered), and its boxes are all
-checked before closing it. It submits each document as a request. Just
+checked before closing it; the agent then closes it in one step, `socle
+close`, which sets its status, its reference (by default, the commit that
+closes it) and its filing. It submits each document as a request. Just
 ask it to; the state then gives the next milestone, the next batch and
 the progress of its tasks, the ready tasks, and the needs to split into
 tasks or to close. The whole roadmap, at a glance, reads in a terminal with

@@ -1685,6 +1685,12 @@ def _cas() -> list[Cas]:
         remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : fait")
         return etage_git(a, c)
 
+    @defaut("clos-ref-en-prose", "tâche faite dont la `ref` n'est que de la prose, ni une référence ni « ce "
+            "commit »", "git", "memoire.backlog")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c, statut="fait · ref : le prochain commit"))
+        return etage_git(a, c)
+
     @defaut("clos-parmi-les-ouverts", "besoin clos, avec sa référence, laissé parmi les ouverts", "git",
             "memoire.backlog")
     def _(a, c):
@@ -4101,6 +4107,15 @@ def _temoins() -> list[tuple[str, Callable]]:
         if r.returncode != 0 or not list((c / "memory/backlog/closed").glob("B-0001-*.md")):
             return r.stdout + r.stderr or "B-0001 n'est pas rangé"
         return etage_ci(a, c, "B-0001 clos et rangé")
+
+    @temoin("une tâche cochée close par `socle close`, sa référence « ce commit », passe le commit et la CI "
+            "(ADR-0117)")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c))
+        r = a.socle(c, "close", "T-0001")
+        if r.returncode != 0 or not list((c / "memory/backlog/closed").glob("T-0001-*.md")):
+            return r.stdout + r.stderr or "T-0001 n'est pas rangée"
+        return etage_git(a, c) or etage_ci(a, c)
 
     @temoin("une décision qui prouve ses lectures passe le commit")
     def _(a, c):
