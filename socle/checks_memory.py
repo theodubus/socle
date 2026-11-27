@@ -747,10 +747,30 @@ def _consignes_citees(ctx, r, mem: memoire.Memoire, base: memoire.Memoire, defs:
     toute citation, plus haut. Ce qui était là à la base, dans la même entrée
     (hors de toute entrée, dans le même fichier), ne se rejuge pas ; la
     question d'une décision prise en séance, recopiée de la conversation,
-    non plus."""
-    from socle import readings as lp
+    non plus ; ni une consigne née dans la plage jugée, que l'agent vient
+    d'écrire (B-0372). Le refus donne l'empreinte de la version actuelle."""
+    from socle import private as prive, readings as lp
 
     defs_base = base.definitions()
+    privee_base: list = []
+
+    def nee_dans_la_plage(i: str) -> bool:
+        # Une consigne renumérotée (ADR-0083), ou une copie privée d'une
+        # consigne publique (`depuis`), n'est pas neuve : son autre numéro
+        # était à la base.
+        e = defs[i][0]
+        autres = (*e.anciens, *e.depuis)
+        if not e.prive:
+            return i not in defs_base and not any(a in defs_base for a in autres)
+        # La base publique ne lit pas la zone privée à une révision : une
+        # consigne privée ne naît dans la plage que si sa base privée se lit
+        # et ne la porte pas ; illisible, jamais (revue de L-0052).
+        if not privee_base:
+            privee_base.append(prive.memoire_privee_a(ctx.projet, ctx.base) if ctx.base else None)
+        if privee_base[0] is None:
+            return False
+        defs_privees = privee_base[0].definitions()
+        return i not in defs_privees and not any(a in defs_privees or a in defs_base for a in autres)
 
     def nues_a_la_base(i: str) -> set[str]:
         return {x for x, _ in memoire.mentions_nues(defs_base[i][0].texte, ("C",))} if i in defs_base else set()
@@ -764,6 +784,8 @@ def _consignes_citees(ctx, r, mem: memoire.Memoire, base: memoire.Memoire, defs:
         for ident, ligne in nues:
             if ident not in defs or (ident, ligne) in exemptes:
                 continue  # inventée : `memoire.references` le dit
+            if nee_dans_la_plage(ident):
+                continue
             soi = lp.entree_englobante(mem, chemin, ligne)
             if soi is not None and soi.id == ident and soi.ligne == ligne:
                 continue  # sa définition
@@ -776,8 +798,9 @@ def _consignes_citees(ctx, r, mem: memoire.Memoire, base: memoire.Memoire, defs:
                 continue
             r.erreur("memoire.lectures", trad("`{ident}`, une consigne de l'humain, cité sans son empreinte : son "
                                               "texte exact se lit avant de s'appuyer sur elle, `python3 "
-                                              ".socle/socle show {ident}`, et se cite `{ident}@<empreinte>`, "
-                                              "l'empreinte affichée", ident=ident), chemin, ligne)
+                                              ".socle/socle show {ident}`, et se cite `{ident}@{h}`, l'empreinte "
+                                              "de sa version actuelle", ident=ident,
+                                              h=memoire.empreinte_entree(defs[ident][0])), chemin, ligne)
 
 
 def _mentions_de_seance(f: memoire.FichierMemoire) -> set[tuple[str, int]]:

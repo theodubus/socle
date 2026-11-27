@@ -14,6 +14,69 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-27-f — The state says at its top that a new session is behind the handoff waiting for it
+
+A new session that starts on a commit older than the waiting handoff's
+(the default branch when the handoff is on a work branch, a stale copy)
+read its earlier instructions, skills, hooks and memory, with nothing to
+say so before the guard. When the local head is a strict ancestor of the
+branch that carries the handoff, `socle state` now says so at its top,
+before everything else, with the instructions, skills and hooks files
+(`AGENTS.md`, `CLAUDE.md`, `.claude/`) that change between the two and
+the `git diff` command that shows them. The `socle-handoff` skill has the
+session read what changes, once placed, before any other work.
+
+To do: nothing.
+
+## 2026-11-27-e — A fix that touches only the documentation and the memory is no longer judged by `tests.regression`
+
+A commit whose subject follows the fix pattern ("Correction: …",
+`[regression] fix_subject`) and that changes only documentation files
+(Markdown texts outside the socle folder), with or without the memory,
+was refused as a fix outside every adapter: only a validated request
+admitted it. No test can prove the correction of a text:
+`tests.regression` now warns, "fix that touches only the documentation
+and the memory: not judged", as for a fix that touches only the memory.
+A fix that also touches another file is judged as before. The
+`commit-msg` hook no longer announces a refusal for these fixes, nor for
+those of the memory alone.
+
+
+To do: nothing.
+
+## 2026-11-27-d — A directive created in the range is cited there without a fingerprint, and three refusals give their fix
+
+A human's directive cited without its fingerprint was refused by
+`memoire.lectures`, even in the commit that creates it, and the refusal
+pointed to `socle show` without giving the fingerprint it knows. A
+directive created in the judged range (absent from its base) is now
+cited there without a fingerprint; a directive from before the range is
+still required with its own, and its refusal gives the fingerprint of
+its current version to cite. The agent's hook judges as before, and two
+of its refusals say more: a shell write to a protected file says that
+`rm <path>` only holds for a file git does not track; a writer it cannot
+read (a python script in a heredoc) that cites a protected path says
+that such a text is written with the file-writing tool.
+
+To do: nothing.
+
+## 2026-11-27-c — The links refusal gives the full path of a bare name, and the message that only fixes the links of a refused recap no longer has to repeat it
+
+A name between backticks that is not a path of the repository made the
+end of turn refused on “no path of that name in the repository”. The
+refusal now looks for the tracked files that this name designates by the
+end of their path (a bare name, or its last folders): if there is only one,
+it gives its full path to write; otherwise, it says to write the name
+without backticks. The message that fixes them also had to repeat the
+whole recap, judged on the last message alone: when the message refused
+in the same turn was refused for its links alone, and carried the recap,
+the message that follows it no longer has to repeat it, and the refusal
+says so. The end of turn knows it from what it already read, its trace
+and Claude Code's transcript, where the refusal is recorded. The socle
+section of `AGENTS.md` states the links rule in one positive sentence.
+
+To do: nothing.
+
 ## 2026-11-27-b — The roadmap in a single form: what is being done now, the steps that follow, what is up to the human
 
 `socle roadmap` now has a single form, made for the human to steer the

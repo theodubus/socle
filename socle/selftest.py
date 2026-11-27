@@ -432,6 +432,37 @@ def etage_stop(a: Atelier, c: Path, dernier_message: str | None = None) -> str:
     return sortie.get("reason", "") if sortie.get("decision") == "block" else ""
 
 
+def _etage_stop_apres_refus(a: Atelier, c: Path, refuse: str, corrige: str) -> str:
+    """Deux fins de tour du même tour, au format de Claude Code : `refuse`,
+    que le hook doit refuser, puis, après la pièce jointe de ce refus,
+    `corrige`, jugé à la relance du hook (`stop_hook_active`). Rend ce que la
+    relance dit à l'humain, ou pourquoi le premier message n'est pas
+    refusé (B-0371)."""
+    transcript = c.parent / f"{c.name}-transcript.jsonl"
+
+    def agent(texte: str) -> dict:
+        return {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": texte}]}}
+
+    def fin(relance: bool) -> dict:
+        r = a.socle(c, "hook", "stop", entree=json.dumps({"session_id": "autotest", "stop_hook_active": relance,
+                                                          "transcript_path": str(transcript)}))
+        return json.loads(r.stdout) if r.stdout.strip() else {}
+
+    transcript.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in (
+        {"type": "user", "message": {"role": "user", "content": "fais le travail"}}, agent(refuse))) + "\n")
+    premier = fin(False)
+    if premier.get("decision") != "block":
+        return f"le premier message n'est pas refusé : {premier}"
+    with transcript.open("a", encoding="utf-8") as f:
+        for x in ({"type": "attachment", "attachment": {"type": "hook_blocking_error", "hookName": "Stop",
+                                                         "hookEvent": "Stop",
+                                                         "blockingError": {"blockingError": premier["reason"]}}},
+                  agent(corrige)):
+            f.write(json.dumps(x, ensure_ascii=False) + "\n")
+    second = fin(True)
+    return second.get("reason", "") if second.get("decision") == "block" else second.get("systemMessage", "")
+
+
 def etage_demarrage(a: Atelier, c: Path) -> str:
     """Le hook de démarrage de session : il imprime l'état dérivé."""
     return a.socle(c, "hook", "session-start", entree=json.dumps({"session_id": "autotest", "source": "startup"})).stdout
@@ -1321,6 +1352,16 @@ def _cas() -> list[Cas]:
                                                                              "from calc import double, triple"))
         maj_memoire(c, "Correctif de `double` sur les chaînes.")
         return etage_ci(a, c, "fix: double accepte une chaîne")
+
+    @defaut("correctif-de-la-doc-et-d-un-autre-fichier", "correctif de la documentation qui touche aussi un "
+            "fichier qu'aucun adaptateur ne juge, sans test", "ci", "tests.regression")
+    def _(a, c):
+        # B-0373 : la documentation seule n'est pas jugée ; avec un autre
+        # fichier, le correctif l'est encore.
+        remplacer(c, "docs/calc.md", "la\nconstante", "la constante\nentière")
+        ajouter(c, "outils/lancer.sh", "#!/bin/sh\npython3 calc.py\n")
+        maj_memoire(c, "Correction de la doc de `double` et du lanceur.")
+        return etage_ci(a, c, "Correction : la doc de double et le lanceur")
 
     @defaut("dispense-d-un-autre-commit", "code sans sa doc, couvert par la dispense d'un autre commit", "ci",
             "docs.correspondance")
@@ -2731,6 +2772,21 @@ def _cas() -> list[Cas]:
         maj_memoire(c, "Travail du tour.")
         return etage_stop(a, c, "La doc est dans `docs/calcul.md`." + RECAP)
 
+    @defaut("chemin-nom-nu", "nom nu d'un fichier suivi donné à l'humain entre accents graves, sans son chemin",
+            "agent", "chemin complet")
+    def _(a, c):
+        # B-0371 : le refus donne le chemin complet du seul fichier suivi.
+        maj_memoire(c, "Travail du tour.")
+        return etage_stop(a, c, "La doc est dans `calc.md`." + RECAP)
+
+    @defaut("recap-absent-apres-refus-du-recap", "message sans récap qui suit, dans le même tour, un message refusé "
+            "pour son récap et ses liens", "agent", "récap malgré un rappel")
+    def _(a, c):
+        # B-0371 : seul un message refusé pour ses seuls liens, qui portait
+        # le récap, dispense le message qui les corrige de le redire.
+        maj_memoire(c, "Travail du tour.")
+        return _etage_stop_apres_refus(a, c, "La doc est dans `docs/calcul.md`.", "La doc est dans `docs/calc.md`.")
+
     @defaut("lien-relatif", "lien relatif, que l'humain ne peut pas suivre hors du conteneur", "agent", "liens")
     def _(a, c):
         return etage_stop(a, c, "Voir [la doc](docs/calc.md)." + RECAP)
@@ -2841,6 +2897,18 @@ def _cas() -> list[Cas]:
         remplacer(c, "memory/directives.md", "reste sans dépendance", "reste sans aucune dépendance")
         ajouter(c, "memory/journal/" + a.journal[2:9] + ".md",
                 f"\n## {a.journal[:-1]}B — Constat\n\nSelon C-0001@{perimee}, rien à ajouter au module.\n")
+        return etage_git(a, c)
+
+    @defaut("consigne-d-avant-la-plage-citee-sans-empreinte", "consigne d'avant la plage citée sans son empreinte "
+            "dans le commit qui en pose une autre", "git", "memoire.lectures")
+    def _(a, c):
+        # B-0372 : seule la consigne née dans la plage s'y cite sans
+        # empreinte ; celle de la base reste exigée avec la sienne.
+        _consigne_en_base(a, c)
+        ajouter(c, "memory/directives.md", _consigne(a, "C-0002").replace("reste sans dépendance",
+                                                                          "reste en un seul fichier"))
+        ajouter(c, "memory/journal/" + a.journal[2:9] + ".md",
+                f"\n## {a.journal[:-1]}B — Constat\n\nThéo pose C-0002, qui s'ajoute à C-0001.\n")
         return etage_git(a, c)
 
     @defaut("consigne-resume-trop-long", "consigne dont la ligne de résumé dépasse 120 octets", "git", "memoire.format")
@@ -2983,6 +3051,12 @@ def _temoins() -> list[tuple[str, Callable]]:
         (c / "tests/test_regression.py").write_text(TEST_REGRESSION)
         maj_memoire(c, "Correctif de `double` sur les chaînes, avec son test.")
         return etage_ci(a, c, "fix: double accepte une chaîne")
+
+    @temoin("un correctif de la seule documentation, avec la mémoire, passe la CI sans test")
+    def _(a, c):
+        remplacer(c, "docs/calc.md", "la\nconstante", "la constante\nentière")
+        maj_memoire(c, "Correction de la doc de `double`.")
+        return etage_ci(a, c, "Correction : la doc de double")
 
     @temoin("un correctif dont le `Corrige:` est hors du dernier paragraphe du message, avec son test de "
             "régression, passe la CI")
@@ -3773,6 +3847,12 @@ def _temoins() -> list[tuple[str, Callable]]:
         return etage_stop(a, c, "J'ai posé la demande D-0001, sur le module `calc.py` et sa doc `docs/calc.md`.\n\n"
                           + r.stdout + "\nPour toi : répondre à D-0001.\nEnsuite : rien.")
 
+    @temoin("un message qui ne corrige que les liens d'un message refusé pour eux seuls, qui portait le récap, passe "
+            "le hook de fin de tour sans redire le récap (B-0371)")
+    def _(a, c):
+        maj_memoire(c, "Travail du tour.")
+        return _etage_stop_apres_refus(a, c, "La doc est dans `calc.md`." + RECAP, "La doc est dans `docs/calc.md`.")
+
     @temoin("une branche donnée à supprimer que l'origine a encore passe le hook de fin de tour")
     def _(a, c):
         a.git(c, "push", "-q", "--no-verify", "origin", f"HEAD:refs/heads/morceau-{c.name}")
@@ -4042,6 +4122,14 @@ def _temoins() -> list[tuple[str, Callable]]:
                 "au module.\n")
         return etage_git(a, c)
 
+    @temoin("une consigne posée dans la plage, citée sans son empreinte dans le journal du même commit, passe le "
+            "commit et la CI (B-0372)")
+    def _(a, c):
+        ajouter(c, "memory/directives.md", _consigne(a))
+        ajouter(c, "memory/journal/" + a.journal[2:9] + ".md",
+                f"\n## {a.journal[:-1]}B — Constat\n\nThéo pose C-0001 : rien à ajouter au module.\n")
+        return etage_git(a, c) or etage_ci(a, c)
+
     @temoin("une consigne levée par la parole de l'humain, consignée en séance, puis rangée par `socle archive`, "
             "passe la CI")
     def _(a, c):
@@ -4255,6 +4343,10 @@ RAISONS_AGENT = {
     "récap": "pas Pour toi :",
     "suite": "pas Ensuite :",
     "liens": "liens que l'humain ne pourra pas suivre",
+    # B-0371 : le nom nu d'un seul fichier suivi, refusé avec son chemin
+    # complet ; le récap qui manque encore à la relance, dit à l'humain.
+    "chemin complet": "le seul fichier suivi de ce nom est `docs/calc.md` : écrire ce chemin complet",
+    "récap malgré un rappel": "fin d'intervention sans Pour toi :",
     "lien de demande": "sans son lien",
     "branche absente": "que l'origine n'a plus",
     "signal indisponible": "mémoire privée : INDISPONIBLE",

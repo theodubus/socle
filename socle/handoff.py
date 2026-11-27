@@ -308,11 +308,63 @@ def trouver(projet: config.Projet) -> Trouvee:
     return Trouvee(p, verdict)
 
 
-def ligne_etat(projet: config.Projet) -> str | None:
+# Ce qu'une session charge à son démarrage, et qu'elle ne relit pas quand
+# elle se place ensuite sur la passation : ses instructions, ses skills et
+# ses hooks (B-0374).
+LUS_AU_DEMARRAGE = (config.INSTRUCTIONS, "CLAUDE.md", ".claude/")
+# Les fichiers changés que l'alerte nomme, au plus.
+NOMMES_AU_PLUS = 10
+
+
+def retard(projet: config.Projet, toutes: dict[tuple[datetime, str], Connue] | None = None
+           ) -> tuple[str, str, list[str]] | None:
+    """La tête locale en retard sur la passation qui attend, d'après le clone
+    tel qu'il est (B-0374) : la branche distante qui la porte, la tête
+    locale, et les fichiers d'instructions, de skills et de hooks qui
+    changent entre les deux ; `None` quand aucune n'attend, ou que la tête
+    locale n'est pas un ancêtre strict de cette branche."""
+    c = _derniere(connues(projet) if toutes is None else toutes)
+    if c is None or c.retraits or not c.tetes:
+        return None
+    racine = projet.racine
+    voulue = f"{DISTANT}/{c.passation.branche}"
+    ref = voulue if voulue in c.tetes else sorted(c.tetes)[0]
+    tete = outils.git(racine, "rev-parse", "--verify", "-q", "HEAD^{commit}", check=False).strip()
+    if not tete:
+        return None
+    cible = outils.resoudre(racine, ref)
+    if tete == cible or not _ancetre(racine, tete, cible):
+        return None
+    changes = [f for f in outils.fichiers_changes(racine, tete, cible)
+               if f in LUS_AU_DEMARRAGE or f.startswith(tuple(p for p in LUS_AU_DEMARRAGE if p.endswith("/")))]
+    return ref, tete, changes
+
+
+def alerte_retard(projet: config.Projet, toutes: dict[tuple[datetime, str], Connue] | None = None) -> str | None:
+    """L'alerte que l'état met en tête quand la tête locale est en retard
+    sur la passation qui attend ; `None` sinon."""
+    r = retard(projet, toutes)
+    if r is None:
+        return None
+    ref, tete, changes = r
+    if changes:
+        liste = ", ".join(f"`{f}`" for f in changes[:NOMMES_AU_PLUS]) + (" …" if len(changes) > NOMMES_AU_PLUS
+                                                                           else "")
+        lus = trad("les instructions, les skills et les hooks chargés au démarrage sont ceux d'avant, et changent "
+                   "dans {liste} : avant tout travail, lire ce qui change (`git diff {tete} {ref} -- {chemins}`)",
+                   liste=liste, tete=tete[:10], ref=ref, chemins=" ".join(LUS_AU_DEMARRAGE))
+    else:
+        lus = trad("aucun fichier d'instructions, de skills ni de hooks ne change entre les deux")
+    return trad("!! LA TÊTE LOCALE ({tete}) EST EN RETARD SUR {ref}, qui porte la passation en attente : la "
+                "mémoire lue ici est celle d'avant ; {lus}. La reprise se place sur la référence que la garde nomme "
+                "(`socle handoff check`, après `git fetch`).", tete=tete[:10], ref=ref, lus=lus)
+
+
+def ligne_etat(projet: config.Projet, toutes: dict[tuple[datetime, str], Connue] | None = None) -> str | None:
     """La ligne de l'état, d'après le clone tel qu'il est : la passation qui
     attend, la plus récente que l'origine connaît, sans retrait ; `None`
     quand aucune n'attend."""
-    c = _derniere(connues(projet))
+    c = _derniere(connues(projet) if toutes is None else toutes)
     if c is None or c.retraits:
         return None
     return trad("passation : en attente sur {ref}, écrite à {heure} — une demande de reprendre (« reprends ») la "

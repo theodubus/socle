@@ -336,6 +336,22 @@ def calculer(projet: config.Projet, contenus: bool = True, supplement: list[str]
                                "de la racine du projet garde ses traces d'avant). Ni le filtre des commandes, ni les "
                                "contrôles de fin de tour, ni l'état au démarrage ne tournent. Le dire à l'humain avant "
                                "tout travail. {remede}", remede=trad(REMEDE_HOOKS)), ""]])
+    # Les passations que le clone connaît, lues une fois : l'alerte d'une
+    # tête en retard sur la passation, en tête (B-0374), puis sa ligne.
+    from socle import handoff as passation
+
+    try:
+        passations, erreur_passation = passation.connues(projet), None
+    except Exception as e:
+        passations, erreur_passation = None, e
+    if passations is not None:
+        try:
+            alerte = passation.alerte_retard(projet, passations)
+            if alerte:
+                ajouter(ACTION, [[alerte, ""]])
+        except Exception as e:
+            ajouter(ACTION, [[trad("!! passation : retard de la tête locale incalculable ({erreur})",
+                                   erreur=erreur_(e)), ""]])
     ajouter(ACTION, [[trad("== {nom} — état dérivé par `socle state`, rien de recopié ==", nom=racine.name)]])
     # Ce qui revient à l'humain : chaque calcul a son repli, et les demandes
     # en attente se disent quoi qu'il arrive aux autres.
@@ -412,9 +428,9 @@ def calculer(projet: config.Projet, contenus: bool = True, supplement: list[str]
     # La passation qui attend une session neuve, d'après le clone tel qu'il
     # est : l'état ne lance pas `git fetch`.
     try:
-        from socle import handoff as passation
-
-        ligne = passation.ligne_etat(projet)
+        if erreur_passation is not None:
+            raise erreur_passation
+        ligne = passation.ligne_etat(projet, passations)
         if ligne:
             ajouter(ACTION, [[ligne]])
     except Exception as e:

@@ -820,10 +820,12 @@ Une consigne de l'humain se cite toujours avec son empreinte, celle que
 `socle show C-NNNN` imprime avec son texte exact : une mention de `C-NNNN`
 ajoutée dans n'importe quel fichier de la mémoire, le journal et le
 chantier actif compris, sans empreinte, est refusée, comme une empreinte
-périmée ou inventée. Ce qu'une entrée citait déjà à la base ne se rejuge
-pas, ni la question d'une décision prise en séance, recopiée de la
-conversation. Hors de la mémoire, et pour les autres entrées, la règle
-ne change pas.
+périmée ou inventée ; le refus donne l'empreinte de sa version actuelle.
+Ce qu'une entrée citait déjà à la base ne se rejuge pas, ni la question
+d'une décision prise en séance, recopiée de la conversation, ni une
+consigne née dans la plage jugée, que l'agent vient d'écrire : elle s'y
+cite sans empreinte. Hors de la mémoire, et pour les autres entrées, la
+règle ne change pas.
 
 `socle new adr` et `socle new need|task|batch|milestone` affichent l'index
 concerné et posent son empreinte dans le squelette. Une citation ancienne n'est pas revérifiée

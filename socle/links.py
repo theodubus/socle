@@ -308,11 +308,30 @@ def branches_absentes(projet: config.Projet, message: str) -> tuple[list[str], l
     return [b for b in citees if b not in vivantes], []
 
 
+def _sans_chemin(racine, code: str, chemin: str, suivis: list[str]) -> str:
+    """Le refus d'un passage entre accents graves qui n'est pas un chemin du
+    dépôt, avec sa correction (B-0371) : le chemin complet du seul fichier
+    suivi qu'il désigne par la fin de son chemin (`FORMAT.md`,
+    `socle/FORMAT.md`), son numéro de ligne gardé ; faute d'un seul, l'écrire
+    sans accents graves."""
+    fin = "/" + chemin
+    candidats = [] if chemin.endswith("/") else [
+        f for f in suivis if (f == chemin or f.endswith(fin)) and (racine / f).is_file()]
+    if len(candidats) == 1:
+        ligne = LIGNE.search(code.strip())
+        return trad("`{code}` : aucun chemin de ce nom dans le dépôt, le lien qu'en fait le client mène à un 404 ; "
+                    "le seul fichier suivi de ce nom est `{complet}` : écrire ce chemin complet", code=code,
+                    complet=candidats[0] + (ligne.group(0) if ligne else ""))
+    return trad("`{code}` : aucun chemin de ce nom dans le dépôt, le lien qu'en fait le client mène à un 404 ; il "
+                "ne désigne pas un seul fichier suivi : l'écrire sans accents graves", code=code)
+
+
 def problemes(projet: config.Projet, message: str) -> tuple[list[str], list[str]]:
     """(liens morts, demandes sans lien) du message de l'agent."""
     racine = projet.racine
     texte = memoire.sans_barre(_hors_code(message))
     morts = []
+    suivis: list[str] | None = None  # lus une fois, au premier passage qui n'est pas un chemin du dépôt
     for m in LIEN_MD.finditer(texte):
         cible = m["cible"]
         if not SCHEMA.match(cible) and not cible.startswith("#"):
@@ -334,8 +353,9 @@ def problemes(projet: config.Projet, message: str) -> tuple[list[str], list[str]
                 morts.append(trad("`{code}` : présent sur le disque du conteneur mais ignoré par git, le lien "
                                   "qu'en fait le client mène à un 404 : ne pas le citer", code=m['code']))
             else:
-                morts.append(trad("`{code}` : aucun chemin de ce nom dans le dépôt, le lien qu'en fait le client "
-                                  "mène à un 404", code=m['code']))
+                if suivis is None:
+                    suivis = outils.fichiers_suivis(racine) or []
+                morts.append(_sans_chemin(racine, m["code"], chemin, suivis))
     depot = url_depot(projet)
     urls = URL.findall(texte)
     tirees = {m["numero"] for m in PULL_REQUEST.finditer(texte)}

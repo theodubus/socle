@@ -129,6 +129,11 @@ chaîne est celle de la passation plus un, réveillée par la tâche
 programmée, 0 si l'humain a demandé. Sans passation, elle fait ce que
 fait une session neuve, et le dit dans son premier message.
 
+Quand l'état dit en tête que la tête locale est en retard sur la
+passation, la session a chargé les instructions, les skills et les hooks
+d'avant : sitôt placée, elle lit ce qui en change, par la commande que
+l'état donne, avant tout autre travail, et s'y tient.
+
 ## La pull request ouverte
 
 Une session dont la garde accepte la passation, programmée ou demandée

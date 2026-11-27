@@ -398,25 +398,76 @@ def dernier_message(transcript: Path) -> str | None:
     """Le texte du dernier message de l'agent, lu dans le transcript JSONL de
     Claude Code. `None` si illisible : le format appartient à l'agent, le
     moteur ne fait que le lire."""
+    objets = _objets_du_transcript(transcript)
+    if objets is None:
+        return None
+    return next((t for t in map(_texte_de_l_agent, reversed(objets)) if t is not None), None)
+
+
+def message_refuse(transcript: Path) -> str | None:
+    """Le message de l'agent que la fin de tour a refusé en dernier, quand un
+    autre message de l'agent l'a suivi : le dernier avant le dernier refus du
+    hook `Stop` que le transcript garde (une pièce jointe
+    `hook_blocking_error`). `None` sans message après ce refus, sans refus,
+    ou si le transcript est illisible : le format appartient à l'agent
+    (B-0371)."""
+    objets = _objets_du_transcript(transcript)
+    if objets is None:
+        return None
+    suivi = refuse = False
+    for obj in reversed(objets):
+        if refuse:
+            texte = _texte_de_l_agent(obj)
+            if texte is not None:
+                return texte
+        elif _refus_de_fin_de_tour(obj):
+            if not suivi:
+                return None
+            refuse = True
+        elif _texte_de_l_agent(obj) is not None:
+            suivi = True
+    return None
+
+
+def _objets_du_transcript(transcript: Path) -> list[dict] | None:
+    """Les enregistrements du transcript JSONL de Claude Code, dans l'ordre ;
+    une ligne illisible est sautée. `None` si le fichier ne se lit pas."""
     try:
         lignes = transcript.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return None
-    for ligne in reversed(lignes):
+    objets = []
+    for ligne in lignes:
         try:
             obj = json.loads(ligne)
         except json.JSONDecodeError:
             continue
-        if obj.get("type") != "assistant":
-            continue
-        contenu = (obj.get("message") or {}).get("content")
-        if isinstance(contenu, str) and contenu.strip():
-            return contenu
-        if isinstance(contenu, list):
-            textes = [b.get("text", "") for b in contenu if isinstance(b, dict) and b.get("type") == "text"]
-            if any(t.strip() for t in textes):
-                return "\n".join(textes)
+        if isinstance(obj, dict):
+            objets.append(obj)
+    return objets
+
+
+def _texte_de_l_agent(obj: dict) -> str | None:
+    """Le texte d'un enregistrement de l'agent, `None` s'il n'en porte pas
+    (un appel d'outil seul, un message d'un autre)."""
+    if obj.get("type") != "assistant":
+        return None
+    contenu = (obj.get("message") or {}).get("content")
+    if isinstance(contenu, str) and contenu.strip():
+        return contenu
+    if isinstance(contenu, list):
+        textes = [b.get("text", "") for b in contenu if isinstance(b, dict) and b.get("type") == "text"]
+        if any(t.strip() for t in textes):
+            return "\n".join(textes)
     return None
+
+
+def _refus_de_fin_de_tour(obj: dict) -> bool:
+    """Un refus du hook `Stop`, tel que Claude Code le garde dans le
+    transcript : une pièce jointe `hook_blocking_error`."""
+    piece = obj.get("attachment") if obj.get("type") == "attachment" else None
+    return isinstance(piece, dict) and piece.get("type") == "hook_blocking_error" \
+        and piece.get("hookEvent", "Stop") == "Stop"
 
 
 def _hors_des_blocs_de_code(message: str) -> str:

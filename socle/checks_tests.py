@@ -789,6 +789,12 @@ def regression(ctx, r):
                                                "non jugé", sha=sha[:10], sujet=sujet))
             continue
         hors = hors_de_tout_adaptateur(ctx.projet, touches)
+        if hors and all(f.startswith(memoire) or est_documentation(f) for f in hors):
+            # La documentation, et la mémoire qui l'accompagne : rien qu'un
+            # test prouverait (B-0373, D-0235).
+            r.avertir("tests.regression", trad("{sha} « {sujet} » : correctif qui ne touche que la documentation "
+                                               "et la mémoire : non jugé", sha=sha[:10], sujet=sujet))
+            continue
         if hors:
             # Aucun adaptateur ne juge ses fichiers : aucun test ne peut le
             # prouver ici. Une demande validée qui le nomme l'admet (D-0088).
@@ -872,6 +878,13 @@ def hors_de_tout_adaptateur(projet, touches: list[str]) -> list[str]:
         return f.startswith((config.DOSSIER + "/", memoire)) or f.endswith(".md")
 
     return sorted(touches, key=lambda f: (accompagne(f), f))
+
+
+def est_documentation(chemin: str) -> bool:
+    """Un fichier de la documentation du projet, pour `tests.regression` :
+    un texte Markdown hors du dossier du socle, que nul test ne prouve
+    (B-0373)."""
+    return chemin.endswith(".md") and not chemin.startswith(config.DOSSIER + "/")
 
 
 def corrige_son_code(ctx, parent: str, sha: str) -> bool:

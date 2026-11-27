@@ -15,6 +15,71 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-27-f — L'état dit en tête qu'une session neuve est en retard sur la passation qui l'attend
+
+Une session neuve qui démarre sur un commit plus ancien que celui de la
+passation en attente (la branche par défaut quand la passation est sur
+une branche de travail, une copie périmée) lisait ses instructions, ses
+skills, ses hooks et sa mémoire d'avant, sans rien qui le dise avant la
+garde. Quand la tête locale est un ancêtre strict de la branche qui porte
+la passation, `socle state` le dit désormais en tête, avant tout le
+reste, avec les fichiers d'instructions, de skills et de hooks
+(`AGENTS.md`, `CLAUDE.md`, `.claude/`) qui changent entre les deux et la
+commande `git diff` qui les montre. Le skill `socle-handoff` fait lire ce
+qui change, une fois la session placée, avant tout autre travail.
+
+À faire : rien.
+
+## 2026-11-27-e — Un correctif qui ne touche que la documentation et la mémoire n'est plus jugé par `tests.regression`
+
+Un commit dont le sujet suit le motif d'un correctif (« Correction : … »,
+`[regression] fix_subject`) et qui ne change que des fichiers de
+documentation (des textes Markdown hors du dossier du socle), avec ou sans
+la mémoire, était refusé comme un correctif hors de tout adaptateur :
+seule une demande validée l'admettait. Aucun test ne peut prouver la
+correction d'un texte : `tests.regression` l'avertit désormais,
+« correctif qui ne touche que la documentation et la mémoire : non
+jugé », comme un correctif qui ne touche que la mémoire. Un correctif qui
+touche aussi un autre fichier reste jugé comme avant. Le hook `commit-msg`
+n'annonce plus de refus pour ces correctifs, ni pour ceux de la seule
+mémoire.
+
+
+À faire : rien.
+
+## 2026-11-27-d — Une consigne née dans la plage s'y cite sans empreinte, et trois refus disent leur correction
+
+Une consigne de l'humain citée sans son empreinte était refusée par
+`memoire.lectures`, même dans le commit qui la crée, et le refus
+renvoyait à `socle show` sans donner l'empreinte qu'il connaît. Une
+consigne née dans la plage jugée (absente de sa base) s'y cite désormais
+sans empreinte ; une consigne d'avant la plage reste exigée avec la
+sienne, et son refus donne l'empreinte de sa version actuelle à citer.
+Le hook de l'agent juge comme avant, et deux de ses refus en disent
+plus : l'écriture d'un fichier protégé par le shell dit que `rm <chemin>`
+ne vaut que pour un fichier que git ne suit pas ; un écrivain qu'il ne
+sait pas lire (un script de python dans un heredoc) qui cite un chemin
+protégé dit qu'un tel texte s'écrit par l'outil d'écriture.
+
+À faire : rien.
+
+## 2026-11-27-c — Le refus des liens donne le chemin complet d'un nom nu, et le message qui ne corrige que les liens d'un récap refusé n'a plus à le redire
+
+Un nom entre accents graves qui n'est pas un chemin du dépôt faisait
+refuser la fin du tour sur « aucun chemin de ce nom dans le dépôt ». Le
+refus cherche désormais les fichiers suivis que ce nom désigne par la fin
+de leur chemin (un nom seul, ou ses derniers dossiers) : s'il n'y en a qu'un, il
+donne son chemin complet à écrire ; sinon, il dit d'écrire le nom sans
+accents graves. Le message qui corrige devait aussi redire tout le récap,
+jugé sur le seul dernier message : quand le message refusé dans le même
+tour l'était pour ses seuls liens, et portait le récap, le message qui
+le suit n'a plus à le redire, et le refus le dit. La fin de tour le sait
+par ce qu'elle lisait déjà, sa trace et le transcript de Claude Code, où
+le refus se lit. La section du socle d'`AGENTS.md` dit la règle des liens
+en une phrase positive.
+
+À faire : rien.
+
 ## 2026-11-27-b — La feuille de route en une seule forme : ce qui se fait maintenant, les étapes qui suivent, ce qui revient à l'humain
 
 `socle roadmap` n'a plus qu'une forme, faite pour que l'humain pilote le

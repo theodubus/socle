@@ -127,6 +127,11 @@ it had another one; its chain is the handoff's plus one, woken by
 the scheduled task, 0 if the human asked. Without a handoff, it does
 what a new session does, and says so in its first message.
 
+When the state says at its top that the local head is behind the
+handoff, the session loaded the earlier instructions, skills and hooks:
+once placed, it reads what changes in them, by the command the state
+gives, before any other work, and keeps to it.
+
 ## The open pull request
 
 A session whose guard accepts the handoff, scheduled or asked for by the

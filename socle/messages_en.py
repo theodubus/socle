@@ -181,9 +181,11 @@ MESSAGES: dict[str, str] = {
     "{chemin}, que git trouve par la fin de son chemin, `{mot}`":
         "{chemin}, which git finds by the end of its path, `{mot}`",
     "{chemin}, cité par `{qui}`, un écrivain que le hook ne sait pas lire : il peut l'écrire ; un fichier protégé "
-    "se lit par `cat` ou par l'outil de lecture":
+    "se lit par `cat` ou par l'outil de lecture, et un texte qui cite un chemin protégé s'écrit par l'outil "
+    "d'écriture":
         "{chemin}, cited by `{qui}`, a writer the hook cannot read: it may write it; a protected file is read with "
-        "`cat` or the file-reading tool",
+        "`cat` or the file-reading tool, and a text that cites a protected path is written with the file-writing "
+        "tool",
     "`{mot}`, dont {parts}":
         "`{mot}`, including {parts}",
     "`{mot}`, dans le dossier `{dossier}`":
@@ -225,10 +227,11 @@ MESSAGES: dict[str, str] = {
         "{n} parentheses or braces open at once, beyond {max}",
     "écriture d'un fichier protégé ({cible}) par le shell : seul l'humain modifie la politique, les hooks, la CI et "
     "le moteur (relance de l'installeur). Un fichier protégé changé par erreur, hors des réglages de Claude Code, se "
-    "remet à son état du dernier commit : {formes} (D-0098).":
+    "remet à son état du dernier commit : {formes}, ce dernier pour un fichier que git ne suit pas (D-0098).":
         "write to a protected file ({cible}) through the shell: only the human changes the policy, the hooks, the CI "
         "and the engine (by running the installer again). A protected file changed by mistake, except Claude Code's "
-        "settings, is put back as it was at the last commit: {formes} (D-0098).",
+        "settings, is put back as it was at the last commit: {formes}, the last one for a file git does not track "
+        "(D-0098).",
     "remise en état d'un fichier protégé refusée ({pourquoi}). Seule passe la remise d'un fichier protégé changé par "
     "erreur, hors des réglages de Claude Code, à son état du dernier commit, chaque chemin écrit en toutes lettres : "
     "{formes}, ce dernier pour un fichier que git ne suit pas (D-0098). Le reste revient à l'humain.":
@@ -331,6 +334,8 @@ MESSAGES: dict[str, str] = {
         "GitHub, not in your container.\n{liens}\nGive a file by its permalink (`socle url <path|ID>`, after the "
         "push); only put between backticks paths that exist in this repository, and those of another repository as "
         "`repo:path`.",
+    "Ton récap, l'humain l'a lu : le message qui ne corrige que ces liens n'a pas à le redire.":
+        "The human has read your recap: the message that only fixes these links need not repeat it.",
     "Ton dernier message cite {demandes}, en attente de l'humain, sans son lien : il doit pouvoir l'ouvrir d'un "
     "clic. Ajoute la sortie de `socle url {ids}`.":
         "Your last message cites {demandes}, waiting for the human, without its link: they must be able to open it "
@@ -2284,8 +2289,14 @@ MESSAGES: dict[str, str] = {
         "version “{version}” unknown or not pushed",
     "lien relatif « {cible} » : hors du conteneur, il ne mène nulle part":
         "relative link “{cible}”: outside the container, it leads nowhere",
-    "`{code}` : aucun chemin de ce nom dans le dépôt, le lien qu'en fait le client mène à un 404":
-        "`{code}`: no path of that name in the repository, the link the client makes of it leads to a 404",
+    "`{code}` : aucun chemin de ce nom dans le dépôt, le lien qu'en fait le client mène à un 404 ; le seul fichier "
+    "suivi de ce nom est `{complet}` : écrire ce chemin complet":
+        "`{code}`: no path of that name in the repository, the link the client makes of it leads to a 404; the only "
+        "tracked file of that name is `{complet}`: write this full path",
+    "`{code}` : aucun chemin de ce nom dans le dépôt, le lien qu'en fait le client mène à un 404 ; il ne désigne pas "
+    "un seul fichier suivi : l'écrire sans accents graves":
+        "`{code}`: no path of that name in the repository, the link the client makes of it leads to a 404; it does "
+        "not name a single tracked file: write it without backticks",
     "`{code}` : présent sur le disque du conteneur mais ignoré par git, le lien qu'en fait le client mène à un 404 : ne pas le citer":
         "`{code}`: present on the container's disk but ignored by git, the link the client makes of it leads to a 404: do not cite it",
     "capacité absente : {absent}":
@@ -2819,6 +2830,8 @@ MESSAGES: dict[str, str] = {
         "fast steps longer than their one-second threshold, run by the pre-push hook",
     "correctif sans test de régression":
         "fix without a regression test",
+    "correctif de la documentation qui touche aussi un fichier qu'aucun adaptateur ne juge, sans test":
+        "fix of the documentation that also touches a file no adapter judges, without a test",
     "correctif dont le `Corrige:` est hors du dernier paragraphe du message, sans test de régression":
         "fix whose `Corrige:` is outside the last paragraph of the message, without a regression test",
     "test de régression qui échoue sur le parent faute de s'y charger":
@@ -3145,6 +3158,10 @@ MESSAGES: dict[str, str] = {
         "a new file cited by the memory, added by the same commit, passes the end of turn, the commit and the CI",
     "chemin donné à l'humain qui n'existe pas dans le dépôt":
         "path given to the human that does not exist in the repository",
+    "nom nu d'un fichier suivi donné à l'humain entre accents graves, sans son chemin":
+        "bare name of a tracked file given to the human between backticks, without its path",
+    "message sans récap qui suit, dans le même tour, un message refusé pour son récap et ses liens":
+        "message without a recap that follows, in the same turn, a message refused for its recap and its links",
     "lien relatif, que l'humain ne peut pas suivre hors du conteneur":
         "relative link, which the human cannot follow outside the container",
     "permalien vers un fichier absent de la version poussée":
@@ -3177,6 +3194,8 @@ MESSAGES: dict[str, str] = {
         "a complete change passes the end of turn, the commit and the CI",
     "un correctif avec son test de régression passe la CI":
         "a fix with its regression test passes the CI",
+    "un correctif de la seule documentation, avec la mémoire, passe la CI sans test":
+        "a fix of the documentation alone, with the memory, passes the CI without a test",
     "un correctif dont le `Corrige:` est hors du dernier paragraphe du message, avec son test de régression, passe la CI":
         "a fix whose `Corrige:` is outside the last paragraph of the message, with its regression test, passes the CI",
     "un commit sans hooks dans un dépôt jetable, hors du projet, passe le hook de l'agent":
@@ -3350,6 +3369,10 @@ MESSAGES: dict[str, str] = {
         "the end-of-turn hook",
     "des liens que l'humain peut suivre passent le hook de fin de tour":
         "links the human can follow pass the end-of-turn hook",
+    "un message qui ne corrige que les liens d'un message refusé pour eux seuls, qui portait le récap, passe le hook "
+    "de fin de tour sans redire le récap (B-0371)":
+        "a message that only fixes the links of a message refused for them alone, which carried the recap, passes "
+        "the end-of-turn hook without repeating the recap (B-0371)",
     "une branche donnée à supprimer que l'origine a encore passe le hook de fin de tour":
         "a branch given to delete that the origin still has passes the end-of-turn hook",
     "une fonction ajoutée avec le test qui la nomme passe la CI":
@@ -3656,6 +3679,8 @@ MESSAGES: dict[str, str] = {
         "{sha} “{sujet}”: fix that touches only third-party files: not judged",
     "{sha} « {sujet} » : correctif qui ne touche que la mémoire : non jugé":
         "{sha} “{sujet}”: fix that touches only the memory: not judged",
+    "{sha} « {sujet} » : correctif qui ne touche que la documentation et la mémoire : non jugé":
+        "{sha} “{sujet}”: fix that touches only the documentation and the memory: not judged",
     "{sha} « {sujet} » : correctif hors de tout adaptateur, admis sans test par {id}, une demande validée qui nomme "
     "ce commit":
         "{sha} “{sujet}”: fix outside every adapter, admitted without a test by {id}, an approved request that "
@@ -4229,6 +4254,20 @@ MESSAGES: dict[str, str] = {
         "{distant}` first",
     "passation : en attente sur {ref}, écrite à {heure} — une demande de reprendre (« reprends ») la reprend":
         "handoff: waiting on {ref}, written at {heure} — a request to resume (\"resume\") resumes it",
+    "!! passation : retard de la tête locale incalculable ({erreur})":
+        "!! handoff: lag of the local head cannot be computed ({erreur})",
+    "les instructions, les skills et les hooks chargés au démarrage sont ceux d'avant, et changent dans {liste} : "
+    "avant tout travail, lire ce qui change (`git diff {tete} {ref} -- {chemins}`)":
+        "the instructions, skills and hooks loaded at startup are the earlier ones, and change in {liste}: before "
+        "any work, read what changes (`git diff {tete} {ref} -- {chemins}`)",
+    "aucun fichier d'instructions, de skills ni de hooks ne change entre les deux":
+        "no instructions, skills or hooks file changes between the two",
+    "!! LA TÊTE LOCALE ({tete}) EST EN RETARD SUR {ref}, qui porte la passation en attente : la mémoire lue ici est "
+    "celle d'avant ; {lus}. La reprise se place sur la référence que la garde nomme (`socle handoff check`, après "
+    "`git fetch`).":
+        "!! THE LOCAL HEAD ({tete}) IS BEHIND {ref}, which carries the waiting handoff: the memory read here is the "
+        "earlier one; {lus}. The resumption moves onto the reference the guard names (`socle handoff check`, after "
+        "`git fetch`).",
     "passation : illisible ({erreur})":
         "handoff: unreadable ({erreur})",
     "--head {tete} est introuvable dans ce clone : `git fetch {distant}` d'abord ; sinon, la branche a été réécrite "
@@ -4373,9 +4412,10 @@ MESSAGES: dict[str, str] = {
         "`{id}` without the human's exact text: the body quotes it word for word, on a `>` line separated from the "
         "metadata line by a blank line",
     "`{ident}`, une consigne de l'humain, cité sans son empreinte : son texte exact se lit avant de s'appuyer sur "
-    "elle, `python3 .socle/socle show {ident}`, et se cite `{ident}@<empreinte>`, l'empreinte affichée":
+    "elle, `python3 .socle/socle show {ident}`, et se cite `{ident}@{h}`, l'empreinte de sa version actuelle":
         "`{ident}`, a directive of the human, cited without its fingerprint: its exact text is read before relying "
-        "on it, `python3 .socle/socle show {ident}`, and it is cited `{ident}@<fingerprint>`, the fingerprint shown",
+        "on it, `python3 .socle/socle show {ident}`, and it is cited `{ident}@{h}`, the fingerprint of its current "
+        "version",
     "`{id}` levée sans `levée-par : D-NNNN` — une consigne ne se lève que par la parole de l'humain : une demande "
     "qu'il a validée, en séance comme en file":
         "`{id}` lifted without `lifted-by : D-NNNN` — a directive is only lifted by the human's word: a request they "
@@ -4406,6 +4446,8 @@ MESSAGES: dict[str, str] = {
     # L'auto-test de la couche des consignes (B-0161).
     "consigne de l'humain citée dans le journal sans son empreinte":
         "human's directive cited in the journal without its fingerprint",
+    "consigne d'avant la plage citée sans son empreinte dans le commit qui en pose une autre":
+        "directive from before the range cited without its fingerprint in the commit that adds another one",
     "consigne de l'humain citée dans le journal sous une empreinte périmée":
         "human's directive cited in the journal under a stale fingerprint",
     "consigne dont la ligne de résumé dépasse 120 octets": "directive whose summary line exceeds 120 bytes",
@@ -4424,6 +4466,10 @@ MESSAGES: dict[str, str] = {
     "le commit":
         "a directive cited in the journal under the fingerprint of its current version, its summary line rewritten, "
         "passes the commit",
+    "une consigne posée dans la plage, citée sans son empreinte dans le journal du même commit, passe le commit et la "
+    "CI (B-0372)":
+        "a directive added in the range, cited without its fingerprint in the journal of the same commit, passes the "
+        "commit and the CI (B-0372)",
     "une consigne levée par la parole de l'humain, consignée en séance, puis rangée par `socle archive`, passe la CI":
         "a directive lifted by the human's word, recorded in session, then moved by `socle archive`, passes the CI",
     "une consigne nouvelle posée par `socle new directive`, sa source et le texte exact écrits, passe le commit, et "
