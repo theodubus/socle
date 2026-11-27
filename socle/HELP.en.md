@@ -738,3 +738,72 @@ judges them this way. Two limits, each with its setting:
 - the adapter's capabilities (build, tests) run as it declares them: if
   they cover the subfolder, it must build and its tests pass, or the human
   excludes it from the adapter's sources, a protected file.
+
+### Why these rules
+
+The socle section of `AGENTS.md` and the socle's skills are loaded whole
+at every use: they state the rule, and what justifies it is read here.
+
+**The socle section of `AGENTS.md`.** If the state was not injected when a
+Claude Code session started, its hooks are not loaded (the session started
+outside the project root; `socle state` says so at the top, and the
+pre-commit hook then refuses the commit). An instruction from the human is
+also written in the journal: a compaction may lose it. A decision that
+needs context is never put in the agent's question widget, where the human
+reads raw text with no links to follow (the hook refuses it). A prototype
+not meant to be merged is done on a disposable branch: the CI does not
+judge it on push. Before concluding, `python3 .socle/socle verify --fast`
+passes (the `Stop` hook checks it). The state computes what is up to the
+human; the `Stop` hook refuses to conclude without the two lines. A file
+to read, or a pull request, is given by its link: the human reads in the
+conversation or on GitHub, not in the agent's container. What the agent
+never does, hooks refuse: complete a head SHA, invent an identifier or a
+reference: the hook refuses them; bypass a hook (`--no-verify`): the
+agent's hook refuses it on the project's repository, and the CI runs
+everything; ask the human a question in the agent's question widget: the
+hook refuses it.
+
+**The `socle-batch` skill.** A batch leaves only once its blocking
+findings are fixed: once pushed, a decision and a journal entry are no
+longer rewritten. The agent waits for the CI of the pushed commit
+(`gh run list --commit <sha>`): the "CI" line of the state follows the
+head.
+
+**The `socle-resume` skill.** A usage limit of the account, over five
+hours or seven days, cuts the session off; the agent then resumes only at
+the human's next message: two wake-ups make it resume when the limit
+lifts. A wake-up is never armed in the past: it would fire at once. A
+reset read that is not more than a minute ahead belongs to a closed
+window: the wake-up is then armed at the bound. During a wait with a
+bounded time, the wake-ups remain, each pushed back after that time if it
+fell before: refused, that turn resumes when the limit lifts. A turn cut
+off or refused removes nothing: that is what makes it resume. On waking
+from work the human had interrupted, the agent says in one line that the
+end-of-turn check refuses on failing checks, without touching it or
+re-arming: relaunched on the same tree, it lets the turn conclude. The
+human stops everything by writing "stop" in the session, or deletes the
+wake-ups from the list of scheduled tasks of their account
+(claude.ai/code/routines).
+
+**The `socle-request` skill.** A request is read once the context is
+lost: it stands on its own. The lines of its cited elements that carry
+only a protected file to have approved, its path and its new fingerprint,
+need no description and do not count in the request's budget. The human's
+answer is recorded, committed and pushed at once: the human no longer sees
+it pending. An answer is only relayed to a request pushed as is: the human
+must have been able to read it. A request that the answer
+`insufficient-context` sends back is rewritten as a new request that cites
+it; the state then no longer says to rewrite it. Content the human
+approves in session is first written in the repository, and the decision
+designates it: without it, the decision keeps only the question and the
+answer, and the content is lost.
+
+**The `socle-handoff` skill.** The handoff is committed and pushed; the
+next session, from one account or another, finds it and judges its guard.
+The prompt to copy is the mode of whoever has several accounts or wants to
+keep control. The scheduled session gets the work branch for
+`outcome_branch`, without which the new session has nowhere to push. The
+created session appears at once in the human's list of sessions, under its
+title, ready for review while it waits for its wake-up. The wake-ups of
+`socle-resume` remain, in both modes: a session cut off before tidying up
+resumes when the limit lifts.

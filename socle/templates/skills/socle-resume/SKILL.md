@@ -5,11 +5,10 @@ description: Faire reprendre seul l'agent qu'une limite d'usage coupe, par deux 
 
 # La reprise après une limite d'usage
 
-Une limite d'usage, sur cinq heures ou sept jours, coupe la session
-jusqu'au message suivant de l'humain. Deux réveils, que l'agent programme
-pour sa propre session, le font reprendre à la levée, pendant un tour qui
-travaille ou une attente à heure bornée : un tour qui finit autrement que
-sur une limite ne relance jamais l'agent.
+Deux réveils, que l'agent programme pour sa propre session, le font
+reprendre à la levée d'une limite d'usage, pendant un tour qui travaille ou
+une attente à heure bornée : un tour qui finit autrement que sur une limite
+ne relance jamais l'agent.
 
 ## Quand
 
@@ -34,10 +33,10 @@ trouvé ; dans le plus récent, `rate_limit_info.unifiedWindows.five_hour.resets
 `….seven_day.resetsAt`, en secondes depuis 1970, UTC. Une heure lue plus
 tôt, encore à venir, vaut : on ne la relit pas.
 
-**Jamais dans le passé.** Il tirerait aussitôt. L'heure courante :
+**Jamais dans le passé.** L'heure courante :
 `date -u`, dans la première commande du tour, ou le `now` que rend
-`send_later`. Une remise à zéro lue à moins d'une minute dans l'avenir
-date d'une fenêtre close : le réveil s'arme à la borne, maintenant plus
+`send_later`. Une remise à zéro lue à moins d'une minute dans l'avenir :
+le réveil s'arme à la borne, maintenant plus
 cinq heures et cinq minutes, ou sept jours et cinq minutes pour la
 semaine. Un `send_later` armé avant son `now` : le retirer et le réarmer
 à la borne.
@@ -90,8 +89,7 @@ Avant la réponse finale, retirer les deux réveils (`delete_trigger`),
 sauf pendant un sous-agent, jusqu'au tour qui reçoit son résultat, ou une
 attente à heure bornée (un rappel, une commande en arrière-plan, une
 CI), jusqu'au tour de l'événement, chacun repoussé après cette heure
-s'il tombait avant : refusé, ce tour se reprend à la levée. Un tour
-coupé ou refusé ne retire rien : c'est ce qui le fait reprendre. Si le
+s'il tombait avant. Un tour coupé ou refusé ne retire rien. Si le
 tour continue après (un hook de fin de tour refuse de conclure), les
 réarmer.
 
@@ -132,7 +130,7 @@ Un message qui commence par « Reprise après limite » :
    et retirer le réveil restant, ou le laisser si un sous-agent tourne.
    Si l'humain avait interrompu le travail et que le contrôle de fin de
    tour refuse sur des contrôles en échec, le dire en une ligne, sans y
-   toucher ni réarmer : relancé sur le même arbre, il laisse conclure.
+   toucher ni réarmer.
 3. Sinon, reprendre le lot noté, à l'étape que disent la conversation,
    git, le chantier actif et les worktrees. Chaque sous-agent noté dont le
    résultat n'est pas arrivé : le poursuivre par un message
@@ -145,6 +143,6 @@ Un message qui commence par « Reprise après limite » :
 ## Ce que l'agent ne fait jamais
 
 Armer un réveil récurrent ; récrire un réveil à chaque étape ; toucher au
-réveil d'une autre session sans que l'humain le demande. L'humain arrête
-tout en écrivant « arrête » dans la session, ou supprime les réveils de
-la liste des tâches programmées de son compte (claude.ai/code/routines).
+réveil d'une autre session sans que l'humain le demande ; l'humain
+retrouve les réveils dans la liste des tâches programmées de son compte
+(claude.ai/code/routines).

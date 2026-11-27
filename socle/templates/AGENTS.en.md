@@ -17,16 +17,14 @@ lists: cite it to them in the next reply, by its identifier and its link. A firs
 ("resume"), first looks for the handoff: the `socle-handoff` skill.
 
 If the state was not injected when a Claude Code session started, its
-hooks are not loaded (the session started outside the project root;
-`socle state` says so at the top, and the pre-commit hook then refuses the
-commit): tell the human before any work, push nothing, and never write a
-Claude Code setting yourself to restore them.
+hooks are not loaded: tell the human before any work, push nothing, and
+never write a Claude Code setting yourself to restore them.
 
 An instruction from the human given in the conversation, that holds beyond
 the turn (a rule, a preference, a prohibition), is written into the memory
 before going on, in the directives (`socle new directive`), with its exact
-text, and in the journal: a compaction may lose it. Before relying on a
-directive, its exact text is read.
+text, and in the journal. Before relying on a directive, its exact text is
+read.
 
 ### The memory, in `memory/`
 
@@ -68,8 +66,7 @@ own once the context is lost, and whose link is given in the conversation.
 The human answers in the conversation; the agent records their answer word
 for word, never choosing it, and copies it into the journal. A decision that
 needs context, approving a document included, is always written as a
-request; never in the agent's question widget, where the human reads raw
-text with no links to follow (the hook refuses it). What the human settles
+request; never in the agent's question widget. What the human settles
 in the conversation, of their own accord or on a short question asked in
 the text of the answer, is recorded at once in the same way, in session.
 How: the skill `socle-request`. A need whose design is not settled first
@@ -155,26 +152,26 @@ session's pull request open asks the human to merge it first, or to let
 it continue on it; started from a handoff that its guard accepts,
 it continues on it, and that pull request becomes its own. A prototype not meant to be merged is done on a
 disposable branch, named with a prefix of `[branches] disposable` in the
-guardrails (`proto/` by default): the CI does not judge it on push.
+guardrails (`proto/` by default).
 
 ### Before concluding
 
-- `python3 .socle/socle verify --fast` passes (the `Stop` hook checks it); `verify` runs everything.
+- `python3 .socle/socle verify --fast` passes; `verify` runs everything.
 - If code changed, the memory did too: active work, journal, backlog.
 - If code tied to a doc changed (`[[docmap]]` in the guardrails), the doc changes in the same work, or the commit that changes this code carries the trailer `Waive-doc: <reason>`, which covers that commit only.
 - A fix (title `fix:` or trailer `Fixes: T-NNNN`) delivers a test that fails on the parent commit.
 - A public function added or changed is named by at least one test, or a commit waives it by name with its reason (`Waive-test: f, g — <reason>`). Existing code found without tests: the test is written right away if it is within the scope of the work, otherwise a need goes to the backlog.
 - An action only the human can take (refused by the hook, a service setting, a file they hold) goes to the backlog with `for : human`.
-- **Every intervention that acted ends with a recap, then two lines**: `For you:` — what is up to the human, pending decisions and actions to take, or "nothing" —, each item understandable without the agent's reasoning (what it is, why, what their answer changes), and `Next:` — the proposed next step (next milestone, what remains before it), and what the agent is waiting for if it is waiting for something (a CI run, a match: what, and until when). The state computes what is up to the human; the `Stop` hook refuses to conclude without the two lines.
-- **A file to read, or a pull request, is given by its link**: the human reads in the conversation or on GitHub, not in the agent's container. `python3 .socle/socle url <path|ID>` gives the permalink, once the file is pushed; a pending request cited without its link, a relative link, or a path between backticks that does not exist in the repository make the end of turn refused. A path in another repository is written `repo:path`, the repository linked in the project by its address, or declared in `[references] repos` of the guardrails.
+- **Every intervention that acted ends with a recap, then two lines**: `For you:` — what is up to the human, pending decisions and actions to take, or "nothing" —, each item understandable without the agent's reasoning (what it is, why, what their answer changes), and `Next:` — the proposed next step (next milestone, what remains before it), and what the agent is waiting for if it is waiting for something (a CI run, a match: what, and until when). The state computes what is up to the human.
+- **A file to read, or a pull request, is given by its link**: `python3 .socle/socle url <path|ID>` gives the permalink, once the file is pushed; a pending request cited without its link, a relative link, or a path between backticks that does not exist in the repository make the end of turn refused. A path in another repository is written `repo:path`, the repository linked in the project by its address, or declared in `[references] repos` of the guardrails.
 
 ### Never
 
-- complete a head SHA, invent an identifier or a reference: the hook refuses them;
+- complete a head SHA, invent an identifier or a reference;
 - write to a protected file (policy, adapter, engine lock, hooks, CI, human answers);
 - answer on the human's behalf (`socle answer` without `--relayed` and a quote), or run `socle approve` or `socle private install`, which are for the human only;
-- bypass a hook (`--no-verify`): the agent's hook refuses it on the project's repository, and the CI runs everything;
-- ask the human a question in the agent's question widget: the hook refuses it.
+- bypass a hook (`--no-verify`);
+- ask the human a question in the agent's question widget.
 
 ### What runs on its own
 

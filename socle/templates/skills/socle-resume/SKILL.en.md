@@ -5,10 +5,8 @@ description: Have the agent that a usage limit cuts off resume on its own, throu
 
 # Resuming after a usage limit
 
-A usage limit of the account, over five hours or seven days, cuts the
-session off; the agent then resumes only at the human's next message.
 Two wake-ups, messages the agent schedules for its own session, make it
-resume when the limit lifts. They live only during a turn that works or
+resume when a usage limit lifts. They live only during a turn that works or
 a wait with a bounded time: a turn that ends for another reason than a
 limit never restarts the agent.
 
@@ -34,9 +32,9 @@ argument), going back with `before_id` while nothing is found; in the most recen
 `….seven_day.resetsAt`, in seconds since 1970, UTC. A time read earlier,
 still to come, holds: it is not read again.
 
-**Never in the past.** It would fire at once. The current time: `date -u`, in the turn's first command, or the `now` that
-`send_later` returns. A reset read that is not more than a minute ahead
-belongs to a closed window: the wake-up is then armed at the bound, now
+**Never in the past.** The current time: `date -u`, in the turn's first command, or the `now` that
+`send_later` returns. A reset read that is not more than a minute ahead:
+the wake-up is then armed at the bound, now
 plus five hours and five minutes, or seven days and five minutes for the
 week. A `send_later` whose armed time precedes its `now`: remove that
 wake-up and re-arm it at the bound.
@@ -87,9 +85,8 @@ for the subagents launched together, when their ids are known.
 Before the final answer, remove both wake-ups (`delete_trigger`), except
 during a subagent, until the turn that receives its result, or a wait
 with a bounded time (a reminder, a background command, a CI), until the
-event's turn, each pushed back after that time if it fell before:
-refused, that turn resumes when the limit lifts. A turn cut off or refused removes nothing: that is what makes it
-resume. If the turn goes on after (an end-of-turn hook refuses to
+event's turn, each pushed back after that time if it fell before. A
+turn cut off or refused removes nothing. If the turn goes on after (an end-of-turn hook refuses to
 conclude), re-arm them.
 
 ## On waking: check first
@@ -129,7 +126,7 @@ A message that starts with "Resume after limit":
    and remove the remaining wake-up, or leave it if a subagent is running.
    If the human had interrupted the work and the end-of-turn check
    refuses on failing checks, say so in one line, without touching it or
-   re-arming: relaunched on the same tree, it lets the turn conclude.
+   re-arming.
 3. Otherwise, resume the noted batch, at the step the conversation, git,
    the active work and the worktrees tell. Every noted subagent whose
    result did not arrive: continue it with a message (`SendMessage`, to
@@ -142,6 +139,6 @@ A message that starts with "Resume after limit":
 ## What the agent never does
 
 Arm a recurring wake-up; rewrite a wake-up at every step; touch another
-session's wake-up without the human asking. The human stops everything by
-writing "stop" in the session, or deletes the wake-ups from the list of
-scheduled tasks of their account (claude.ai/code/routines).
+session's wake-up without the human asking; the human finds the
+wake-ups in the list of scheduled tasks of their account
+(claude.ai/code/routines).

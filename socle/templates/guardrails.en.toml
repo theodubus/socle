@@ -17,12 +17,12 @@ code = []
 "AGENTS.md" = { max_bytes = 16000 }
 "memory/canonical.md" = { max_bytes = 16000 }
 "memory/active.md" = { max_bytes = 1600 }
-"memory/directives.md" = { max_bytes = 16000 }
+"memory/directives.md" = { max_bytes = 24000 }
 "memory/backlog/*.md" = { max_bytes = 8000 }
 "memory/journal/*.md" = { max_bytes = 80000 }
 "memory/decisions/*.md" = { max_bytes = 10000 }
 "memory/requests/*.md" = { max_bytes = 12000 }
-".claude/skills/*/SKILL.md" = { max_bytes = 8000 }
+".claude/skills/*/SKILL.md" = { max_bytes = 10000 }
 
 [staleness]
 # An active work unchanged for longer is reported (warning).

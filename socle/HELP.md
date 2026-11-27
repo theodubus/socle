@@ -754,3 +754,72 @@ ainsi. Deux limites, chacune avec son réglage :
   déclare : si elles couvrent le sous-dossier, il doit compiler et ses
   tests passer, ou l'humain l'exclut des sources de l'adaptateur, fichier
   protégé.
+
+### Pourquoi ces règles
+
+La section du socle d'`AGENTS.md` et les skills du socle se chargent en
+entier à chaque usage : ils disent la règle, et ce qui la justifie se lit
+ici.
+
+**La section du socle d'`AGENTS.md`.** Si l'état n'a pas été injecté au
+démarrage d'une session de Claude Code, ses hooks ne sont pas chargés (la
+session a démarré hors de la racine du projet ; `socle state` le dit en
+tête, et le hook avant commit refuse alors le commit). Une consigne de
+l'humain s'écrit aussi au journal : un compactage peut la perdre. Une
+décision qui demande du contexte ne se pose jamais dans le widget de
+questions de l'agent, où l'humain lit un texte brut sans liens à suivre
+(le hook le refuse). Un prototype qu'on ne compte pas fusionner se fait
+sur une branche jetable : la CI ne la juge pas aux envois. Avant de
+conclure, `python3 .socle/socle verify --fast` passe (le hook `Stop` le
+vérifie). L'état calcule ce qui revient à l'humain ; le hook `Stop` refuse
+de conclure sans les deux lignes. Un fichier à lire, ou une pull request,
+se donne par son lien : l'humain lit dans la conversation ou sur GitHub,
+pas dans le conteneur de l'agent. Ce que l'agent ne fait jamais, des hooks
+le refusent : compléter un SHA de tête, inventer un identifiant ou une
+référence : le hook les refuse ; contourner un hook (`--no-verify`) : le
+hook de l'agent le refuse sur le dépôt du projet, et la CI exécute tout ;
+poser une question à l'humain dans le widget de questions de l'agent : le
+hook le refuse.
+
+**Le skill `socle-batch`.** Un lot ne part qu'après la correction de ses
+bloquants : une fois poussées, une décision et une entrée de journal ne se
+réécrivent plus. L'agent attend la CI du commit poussé
+(`gh run list --commit <sha>`) : la ligne « CI » de l'état suit la tête.
+
+**Le skill `socle-resume`.** Une limite d'usage, sur cinq heures ou sept
+jours, coupe la session jusqu'au message suivant de l'humain : deux
+réveils font reprendre l'agent à la levée. Un réveil ne s'arme jamais dans
+le passé : il tirerait aussitôt. Une remise à zéro lue à moins d'une
+minute dans l'avenir date d'une fenêtre close : le réveil s'arme à la
+borne. Pendant une attente à heure bornée, les réveils restent, chacun
+repoussé après cette heure s'il tombait avant : refusé, ce tour se reprend
+à la levée. Un tour coupé ou refusé ne retire rien : c'est ce qui le fait
+reprendre. Au réveil d'un travail que l'humain avait interrompu, l'agent
+dit en une ligne que le contrôle de fin de tour refuse sur des contrôles
+en échec, sans y toucher ni réarmer : relancé sur le même arbre, il laisse
+conclure. L'humain arrête tout en écrivant « arrête » dans la session, ou
+supprime les réveils de la liste des tâches programmées de son compte
+(claude.ai/code/routines).
+
+**Le skill `socle-request`.** Une demande est lue quand le contexte est
+perdu : elle se suffit à elle-même. Les lignes de ses éléments cités qui
+ne portent qu'un fichier protégé à faire approuver, son chemin et son
+empreinte nouvelle, n'ont pas à être décrites et ne comptent pas dans le
+budget de la demande. La réponse de l'humain se consigne, se commite et se
+pousse aussitôt : l'humain ne la voit plus en attente. Une réponse ne se
+relaie qu'à une demande poussée telle quelle : l'humain doit avoir pu la
+lire. Une demande que renvoie la réponse `contexte-insuffisant` se
+réécrit en une demande nouvelle, qui la cite ; l'état ne la dit plus alors
+à réécrire. Un contenu que l'humain valide en séance s'écrit d'abord dans
+le dépôt, et la décision le désigne : sans lui, la décision ne garde que
+la question et la réponse, et le contenu se perd.
+
+**Le skill `socle-handoff`.** La passation se commite et se pousse ; la
+session suivante, d'un compte comme d'un autre, la trouve et juge sa
+garde. Le prompt à copier est le mode de qui a plusieurs comptes ou veut
+garder la main. La session programmée reçoit la branche de travail pour
+`outcome_branch`, sans quoi la session neuve n'a pas où pousser. La
+session créée paraît aussitôt dans la liste des sessions de l'humain, sous
+son titre, prête à relire tant qu'elle attend son réveil. Les réveils de
+`socle-resume` restent, dans les deux modes : une session coupée avant
+d'avoir rangé reprend à la levée.

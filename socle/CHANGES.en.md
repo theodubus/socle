@@ -14,6 +14,51 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-27-a — The skills cap goes from 8,000 to 10,000 bytes in the guardrails template
+
+A skill is loaded whole at every use. With what justified their rules
+moved to the guide (2026-11-26-l), `socle-batch`, `socle-request` and
+`socle-resume` remained less than 600 bytes under their cap of 8,000: the
+next rule of one of them would have had the file refused. The guardrails
+template now sets `".claude/skills/*/SKILL.md" = { max_bytes = 10000 }`.
+An update keeps the project's guardrails, hence its value; the skills
+the installer lays down still hold under 8,000 bytes.
+
+To do: nothing while the project's skills stay under its cap; if one gets
+close, ask the human, in a request, to take up 10,000 bytes in
+`.socle/guardrails.toml`, which loosens a guardrail, naming the key
+`budgets.".claude/skills/*/SKILL.md".max_bytes`.
+
+## 2026-11-26-l — What justified a rule of the skills and of the socle section of AGENTS.md without stating it moves to the guide, "Why these rules"
+
+The socle's skills and the socle section of `AGENTS.md` are loaded whole
+at every use, under their cap (8,000 bytes for a skill), and several were
+touching it. What justified a rule there without stating it (the why, a
+detail that orders nothing, such as what a hook refuses) leaves them, word
+for word, for a new subsection of the guide, "Why these rules"
+(« Pourquoi ces règles »), at the end of its "Reference"; each rule stays
+in its text, intact. Touched are the socle section of `AGENTS.md` and the
+`socle-batch`, `socle-resume`, `socle-request` and `socle-handoff` skills,
+in both languages. The guide now also tells the human how to stop the
+wake-ups of the resumption after a usage limit. The socle section of
+`AGENTS.md` loses about 550 bytes; `socle-handoff` goes under 7,400 bytes,
+and so do `socle-resume` and `socle-request` in English.
+
+To do: nothing; the installer lays the changed skills and section.
+
+## 2026-11-26-k — The directives cap goes from 16,000 to 24,000 bytes in the guardrails template
+
+A directive is lifted only on the human's word: `memory/directives.md`
+only grows, and the cap of the canonical memory, which it had taken up,
+had it refused around the twenty-fifth directive. The guardrails template now
+sets `"memory/directives.md" = { max_bytes = 24000 }`. Startup is not
+affected: it loads the directives only by their summary line, within its
+own share. An update keeps the project's guardrails, hence its value.
+
+To do: nothing while `memory/directives.md` stays under the project's
+cap; if it gets close, ask the human, in a request, to take up 24,000
+bytes in `.socle/guardrails.toml`, which loosens a guardrail.
+
 ## 2026-11-26-j — A need for the human is no longer listed among the needs to split into tasks
 
 `socle state` ("needs to split into tasks") and `socle roadmap` ("Needs

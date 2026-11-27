@@ -5,8 +5,7 @@ description: Poser une demande de décision humaine, relayer la réponse de l'hu
 
 # Les demandes de décision humaine
 
-Une demande est lue quand le contexte est perdu : elle se suffit à
-elle-même. L'humain répond dans la conversation ; l'agent consigne sa
+Une demande se suffit à elle-même. L'humain répond dans la conversation ; l'agent consigne sa
 réponse mot pour mot, sans jamais la choisir.
 
 ## Poser une demande
@@ -29,8 +28,7 @@ réponse mot pour mot, sans jamais la choisir.
      une phrase`) ; jamais un identifiant seul. Un fichier protégé à
      faire approuver, ceux d'une mise à jour, s'y écrit sur sa ligne, son
      chemin et son empreinte nouvelle, rien d'autre (`python3 .socle/socle
-     check` les donne) : ces lignes n'ont pas à être décrites et ne
-     comptent pas dans le budget de la demande.
+     check` les donne) : ces lignes n'ont pas à être décrites.
    - **Où regarder** : un lien vers chaque document à lire
      (`python3 .socle/socle url <chemin>`), et ce qu'il faut y vérifier.
    - **Options** : pour chacune, l'effort, le risque, la réversibilité.
@@ -77,17 +75,16 @@ python3 .socle/socle answer D-NNNN <réponse> --relayed --by <nom> --quote-file 
 3. Recopier la réponse au journal, avec son texte exact.
 
 La réponse se consigne dès qu'elle est donnée, se commite et se pousse
-aussitôt : l'humain ne la voit plus en attente. Elle couvre le changement
+aussitôt. Elle couvre le changement
 qu'elle autorise (une valeur attendue, une clé des garde-fous, un fichier
 protégé) dans sa pull request, ou plus tard, fusionnée, tant qu'une tâche
 ouverte la cite et que ce qu'elle nomme n'a pas bougé depuis la demande :
 la tâche qui fait le changement la cite, et se clôt avec lui.
 
-Une réponse ne se relaie qu'à une demande poussée telle quelle : l'humain
-doit avoir pu la lire. Une demande répondue est gelée. La réponse
-`contexte-insuffisant` renvoie la demande : la réécrire en une demande
-nouvelle, qui la remplace et la cite dans ses éléments cités ; l'état ne
-la dit plus alors à réécrire.
+Une réponse ne se relaie qu'à une demande poussée telle quelle. Une
+demande répondue est gelée. La réponse `contexte-insuffisant` renvoie la
+demande : la réécrire en une demande nouvelle, qui la remplace et la cite
+dans ses éléments cités.
 
 Un test dont la valeur attendue change en attendant une demande qui le
 nomme peut rester changé dans l'arbre à la fin du tour ; il ne se commite
@@ -130,8 +127,7 @@ ainsi, en séance, puis la consigne passe `levée`, avec
 Un contenu montré dans la conversation que l'humain valide (un format, un
 exemple, un texte) s'écrit d'abord tel quel dans le dépôt, puis la
 décision le désigne (`--about <chemin>`), et les tâches qui en découlent
-citent ce chemin : sans lui, la décision ne garde que la question et la
-réponse, et le contenu se perd.
+citent ce chemin.
 
 **La variante légère**, pour des valeurs attendues changées
 mécaniquement, des tests qui lisent un format que l'humain vient de

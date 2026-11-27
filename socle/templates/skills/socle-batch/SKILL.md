@@ -62,8 +62,7 @@ Skill `socle-review`, sur le lot commité, et son tri des constats. Un
 bloquant retourne à qui a implémenté, s'il répond encore. Un sous-agent
 arrêté (une vérification en arrière-plan dont il n'a pas repris le fil)
 se reprend depuis sa copie isolée, par l'agent qui orchestre. Un lot ne
-part qu'après la correction de ses bloquants : une fois poussées, une décision et une
-entrée de journal ne se réécrivent plus.
+part qu'après la correction de ses bloquants.
 
 ## Intégrer, pousser, livrer
 
@@ -74,10 +73,9 @@ entrée de journal ne se réécrivent plus.
 2. Retirer la copie isolée et sa branche ;
    `python3 .socle/socle verify --fast`.
 3. Pousser ; ouvrir la pull request s'il n'y en a pas, une seule ouverte.
-   Attendre la CI du commit poussé (`gh run list --commit <sha>`) : la
-   ligne « CI » de l'état suit la tête. Une attente annoncée a son
-   réveil en session cloud (`send_later`) ; ailleurs, `Ensuite :` le dit,
-   et l'humain relance l'agent.
+   Attendre la CI du commit poussé (`gh run list --commit <sha>`). Une
+   attente annoncée a son réveil en session cloud (`send_later`) ;
+   ailleurs, `Ensuite :` le dit, et l'humain relance l'agent.
 4. Qui fusionne : par défaut l'humain, et le lot suivant s'ajoute à la
    même pull request ; l'agent, la sienne, si la politique le permet : CI
    verte sur le commit de tête, qu'il donne, revue faite, aucune demande

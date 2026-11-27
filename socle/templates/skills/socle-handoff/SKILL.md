@@ -7,8 +7,8 @@ description: Passer la main à une session neuve, à la fin d'un lot, près d'un
 
 Une session enchaîne les lots que son budget permet (skill
 `socle-batch`). Quand elle s'arrête, elle écrit sa passation dans la
-mémoire, la commite et la pousse ; la session suivante, d'un compte
-comme d'un autre, la trouve et juge sa garde. Les heures de la passation
+mémoire, la commite et la pousse ; la session suivante la trouve et
+juge sa garde. Les heures de la passation
 sont en UTC ; celles que lit l'humain, à son heure.
 
 ## Les deux modes
@@ -16,8 +16,7 @@ sont en UTC ; celles que lit l'humain, à son heure.
 - **Session programmée**, par défaut : l'agent crée la session suivante
   et programme son réveil.
 - **Prompt à copier** : le récap dit à l'humain d'ouvrir une session
-  neuve et d'y demander la reprise ; le mode de qui a plusieurs comptes
-  ou veut garder la main.
+  neuve et d'y demander la reprise.
 
 Le mode est celui que dit une consigne en vigueur ; sans elle, la
 session programmée. L'humain en change en le disant : l'agent consigne sa
@@ -94,8 +93,8 @@ La passation écrite avec `--scheduled` (plus haut, `socle-batch` rangé) :
 
 1. `create_session`, sans `prompt` : `source_url` l'adresse du dépôt ;
    `source_revision` la branche de travail, ou la branche par défaut
-   quand la fusion l'a supprimée ; `outcome_branch` la branche de travail,
-   sans quoi la session neuve n'a pas où pousser ; `model` celui de
+   quand la fusion l'a supprimée ; `outcome_branch` la branche de travail ;
+   `model` celui de
    cette session ; `effort` le sien, qui ne s'hérite pas (refusé, l'appel
    se refait sans lui) ; `title` « Passation — <lot> — part le <jour> à
    <heure de l'humain> » ; `tags` `["passation"]`.
@@ -140,9 +139,7 @@ fusionne.
 
 ## Voir et arrêter
 
-La session créée paraît aussitôt dans la liste des sessions de
-l'humain, sous son titre, prête à relire tant qu'elle attend son réveil.
-Son dernier message dit ce qu'elle a fait, pourquoi la chaîne s'arrête
+Le dernier message de la session créée dit ce qu'elle a fait, pourquoi la chaîne s'arrête
 ou ce que la garde a refusé, et ce qui revient à l'humain.
 
 L'humain l'arrête en écrivant « arrête » dans la session qui l'a
@@ -158,5 +155,4 @@ Un tour en échec ou un conteneur redémarré dans la session créée peut
 rendre un tour à celle qui l'a programmée. Elle le dit en une ligne et
 ne fait rien d'autre.
 
-Les réveils de `socle-resume` restent, dans les deux modes : une session
-coupée avant d'avoir rangé reprend à la levée.
+Les réveils de `socle-resume` restent, dans les deux modes.

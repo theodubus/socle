@@ -63,8 +63,7 @@ Skill `socle-review`, on the committed batch, and its sorting of the
 findings. A blocking finding goes back to whoever implemented, if it
 still answers. A stopped subagent (a background check whose thread it
 did not pick up) is resumed from its isolated copy, by the orchestrating
-agent. A batch leaves only once its blocking findings are fixed: once pushed, a
-decision and a journal entry are no longer rewritten.
+agent. A batch leaves only once its blocking findings are fixed.
 
 ## Integrating, pushing, delivering
 
@@ -75,10 +74,9 @@ decision and a journal entry are no longer rewritten.
 2. Remove the isolated copy and its branch;
    `python3 .socle/socle verify --fast`.
 3. Push; open the pull request if there is none, only one open. Wait for
-   the CI of the pushed commit (`gh run list --commit <sha>`): the "CI"
-   line of the state follows the head. An announced wait has its wake-up
-   in a cloud session (`send_later`); elsewhere, `Next:` says so, and the
-   human restarts the agent.
+   the CI of the pushed commit (`gh run list --commit <sha>`). An
+   announced wait has its wake-up in a cloud session (`send_later`);
+   elsewhere, `Next:` says so, and the human restarts the agent.
 4. Who merges: by default the human, and the next batch is added to the
    same pull request; the agent, its own, if the policy allows it: green
    CI on the head commit, which it gives, review done, no pending request

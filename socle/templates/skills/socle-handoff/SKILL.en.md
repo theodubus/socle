@@ -7,8 +7,7 @@ description: Hand over to a new session, at the end of a batch, near a usage lim
 
 A session chains the batches its budget allows (the `socle-batch`
 skill). When it stops, it writes its handoff in the memory, commits and
-pushes it; the next session, from one account or another, finds it and
-judges its guard. The handoff's times are in UTC; those the human reads,
+pushes it; the next session finds it and judges its guard. The handoff's times are in UTC; those the human reads,
 in their own time.
 
 ## The two modes
@@ -16,8 +15,7 @@ in their own time.
 - **Scheduled session**, by default: the agent creates the next session
   and schedules its wake-up.
 - **Prompt to copy**: the recap tells the human to open a new session
-  and ask there for the resumption; the mode of whoever has several
-  accounts or wants to keep control.
+  and ask there for the resumption.
 
 The mode is the one a directive in force states; without one, the
 scheduled session. The human changes it by saying so: the agent records
@@ -95,8 +93,7 @@ The handoff written with `--scheduled` (above, `socle-batch` tidied up):
 
 1. `create_session`, without `prompt`: `source_url` the repository's
    address; `source_revision` the work branch, or the default branch
-   when the merge deleted it; `outcome_branch` the work branch, without
-   which the new session has nowhere to push; `model` this
+   when the merge deleted it; `outcome_branch` the work branch; `model` this
    session's; `effort` its own, which is not inherited (refused, the call
    is made again without it); `title` "Handoff — <batch> — leaves on
    <day> at <human's time>"; `tags` `["passation"]`.
@@ -139,9 +136,7 @@ the conditions of `socle-batch`; otherwise the human merges it.
 
 ## Seeing and stopping
 
-The created session appears at once in the human's list of sessions,
-under its title, ready for review while it waits for its wake-up. Its
-last message says what it did, why the chain stops or what the guard
+The last message of the created session says what it did, why the chain stops or what the guard
 refused, and what is up to the human.
 
 The human stops it by writing "stop" in the session that scheduled it,
@@ -157,5 +152,4 @@ A failed turn or a restarted container in the created session may give a
 turn back to the one that scheduled it. It says so in one line and does
 nothing else.
 
-The wake-ups of `socle-resume` remain, in both modes: a session cut off
-before tidying up resumes when the limit lifts.
+The wake-ups of `socle-resume` remain, in both modes.

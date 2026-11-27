@@ -15,6 +15,54 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-27-a — Le plafond des skills passe de 8 000 à 10 000 octets dans le gabarit des garde-fous
+
+Un skill se charge en entier à chaque usage. Ce qui justifiait leurs
+règles sorti vers le guide (2026-11-26-l), `socle-batch`, `socle-request`
+et `socle-resume` restaient à moins de 600 octets de leur plafond de
+8 000 : la règle suivante de l'un d'eux aurait fait refuser le fichier.
+Le gabarit des garde-fous pose désormais
+`".claude/skills/*/SKILL.md" = { max_bytes = 10000 }`. Une mise à jour
+garde les garde-fous du projet, donc sa valeur ; les skills que pose
+l'installeur tiennent encore sous 8 000 octets.
+
+À faire : rien tant que les skills du projet tiennent sous son plafond ;
+si l'un l'approche, poser à l'humain la demande de reprendre 10 000
+octets dans `.socle/guardrails.toml`, qui assouplit un garde-fou, en
+nommant la clé `budgets.".claude/skills/*/SKILL.md".max_bytes`.
+
+## 2026-11-26-l — Ce qui justifiait une règle des skills et de la section du socle d'AGENTS.md sans la dire passe au guide, « Pourquoi ces règles »
+
+Les skills du socle et la section du socle d'`AGENTS.md` se chargent en
+entier à chaque usage, sous leur plafond (8 000 octets pour un skill), et
+plusieurs y touchaient. Ce qui y justifiait une règle sans la dire (le
+pourquoi, une précision qui n'ordonne rien, comme ce qu'un hook refuse)
+en sort, mot pour mot, vers une sous-section nouvelle du guide,
+« Pourquoi ces règles » (« Why these rules »), à la fin de sa
+« Référence » ; chaque règle reste dans son texte, intacte. Sont touchés
+la section du socle d'`AGENTS.md` et les skills `socle-batch`,
+`socle-resume`, `socle-request` et `socle-handoff`, dans les deux
+langues. Le guide dit désormais aussi à l'humain comment arrêter les
+réveils de la reprise après une limite d'usage. La section du socle
+d'`AGENTS.md` maigrit d'environ 550 octets ; `socle-handoff` passe sous
+7 400 octets, `socle-resume` et `socle-request` en anglais aussi.
+
+À faire : rien ; l'installeur pose les skills et la section changés.
+
+## 2026-11-26-k — Le plafond des consignes passe de 16 000 à 24 000 octets dans le gabarit des garde-fous
+
+Une consigne ne se lève que sur la parole de l'humain : `memory/directives.md`
+ne fait que croître, et le plafond de la mémoire canonique, qu'il avait
+repris, le faisait refuser vers la vingt-cinquième consigne. Le gabarit des
+garde-fous pose désormais `"memory/directives.md" = { max_bytes = 24000 }`.
+Le démarrage n'est pas touché : il ne charge les consignes que par leur
+ligne de résumé, sous sa propre part. Une mise à jour garde les garde-fous
+du projet, donc sa valeur.
+
+À faire : rien tant que `memory/directives.md` tient sous le plafond du
+projet ; s'il l'approche, poser à l'humain la demande de reprendre 24 000
+octets dans `.socle/guardrails.toml`, qui assouplit un garde-fou.
+
 ## 2026-11-26-j — Un besoin pour l'humain n'est plus listé parmi les besoins à découper en tâches
 
 `socle state` (« besoins à découper en tâches ») et `socle roadmap`
