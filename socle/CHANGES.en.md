@@ -14,6 +14,48 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-27-j — The request contract says to name the key or the test a request covers
+
+An approved request authorizes only the guardrail key or the test function
+it names in its text: a request that relaxed a cap by citing only the
+guardrails file covered nothing, and the human answered twice. The
+contract that `socle new request` prints when a request is written now
+says so, in one line, with the form of a key
+(`budgets."<file>".max_bytes`).
+
+To do: nothing.
+
+## 2026-11-27-i — The human's word is filed by its nature: a rule as a directive, a decision as a decision, an expectation as a blocked need
+
+The installed section of `AGENTS.md` sent every word of the human that
+holds beyond the turn to the directives, which every start injects and
+only their word lifts: a project decision and an expectation ended up
+there too. It now says that a decision is written as a decision and an
+expectation as a `blocked` need, and the `socle-request` skill details it
+in a new section, "Filing the human's word by its nature"; the decision
+the human gives of their own accord no longer has a rule as its example.
+The guide says why.
+
+To do: nothing; a directive already written that is a decision or an
+expectation stays in force until the human lifts it.
+
+## 2026-11-27-h — The resume wake-ups remain from one turn to the next
+
+The `socle-resume` skill had the two resume wake-ups armed at the start
+of every turn that acts and removed at its end: about one tool call in
+ten of a sitting, for a safety net that only serves a usage limit. The
+wake-ups now remain from one turn to the next: a turn that finds them at
+the right time calls no wake-up tool, and they are removed only when a
+session that hands over tidies up, or when the human says to stop. A
+wake-up that fires with nothing to resume, after a turn that ended for
+another reason than a limit, is checked and told in one line, without
+resuming the work or re-arming. Without the `list_events` tool, the time
+of the window that `rateLimitType` names is read in `get_session`, when
+it gives it; a wake-up at the bound is no longer pushed back to it at
+every turn. The guide says why.
+
+To do: nothing; the installer lays down the changed skill.
+
 ## 2026-11-27-g — A command closes a backlog entry in one step: `socle close`, and its reference `this commit`
 
 Closing a task took about eight memory steps: a journal entry written to

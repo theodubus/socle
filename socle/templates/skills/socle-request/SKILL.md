@@ -1,6 +1,6 @@
 ---
 name: socle-request
-description: Poser une demande de décision humaine, relayer la réponse de l'humain, ou consigner une décision prise en séance. À utiliser quand une décision revient à l'humain (politique d'autonomie, points 1 à 4, 7 et 8), quand il répond à une demande, ou quand il tranche une question dans la conversation.
+description: Poser une demande de décision humaine, relayer la réponse de l'humain, ou consigner une décision prise en séance. À utiliser quand une décision revient à l'humain (politique d'autonomie, points 1 à 4, 7 et 8), quand il répond à une demande, quand il tranche une question dans la conversation, ou quand une de ses paroles vaut au-delà du tour.
 ---
 
 # Les demandes de décision humaine
@@ -100,6 +100,19 @@ font dans le même lot, la spécification d'abord. Ce qui reste coûteux à
 défaire va ensuite en demande, courte ; le reste, l'agent le décide et
 l'écrit en décision.
 
+## Ranger la parole de l'humain selon sa nature
+
+Une parole de l'humain qui vaut au-delà du tour s'écrit avant de
+continuer, son texte exact gardé, et au journal, selon sa nature :
+
+- une règle de travail de l'agent (une préférence, une interdiction, une
+  façon de faire) : une consigne (`socle new directive`), que chaque
+  démarrage injecte ;
+- une décision sur le projet (un choix, une priorité, une autorisation) :
+  une décision, consignée en séance comme ci-dessous ;
+- une attente (« pas avant que X soit fait ») : un besoin au statut
+  `bloqué`, qui dit ce qu'il attend ; il se lève en se fermant.
+
 ## Consigner une décision prise en séance
 
 Ce que l'humain tranche dans la conversation, de lui-même ou sur une question
@@ -111,7 +124,7 @@ python3 .socle/socle decision "<question>" <réponse> --relayed --by <nom> --quo
 ```
 
 Une décision que l'humain donne de lui-même, sans qu'on la lui ait
-demandée (une règle, une interdiction, « supprime ce test »), se consigne
+demandée (un choix, une autorisation, « supprime ce test »), se consigne
 sans question inventée ni réponse à choisir : son texte exact, sous un
 titre qui la dit en une phrase sans rien nommer qu'il ne nomme. Elle est
 validée, et autorise ce qu'elle nomme comme une demande validée :

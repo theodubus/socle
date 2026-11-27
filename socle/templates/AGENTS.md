@@ -26,7 +26,8 @@ rétablir.
 Une consigne de l'humain donnée dans la conversation, qui vaut au-delà du tour
 (une règle, une préférence, une interdiction), s'écrit dans la mémoire avant de
 continuer, dans les consignes (`socle new directive`), avec son texte exact, et
-au journal. Avant de s'appuyer sur une consigne, son texte exact se lit.
+au journal ; une décision s'écrit en décision, une attente en besoin `bloqué`.
+Avant de s'appuyer sur une consigne, son texte exact se lit.
 
 ### La mémoire, dans `memory/`
 
@@ -105,8 +106,8 @@ refusée ; il faut relire l'entrée. `socle new` pose l'empreinte de l'index.
 Une procédure rare se lit dans son skill, que l'agent charge sur sa
 description : `socle-request` (les demandes, une décision en séance),
 `socle-private-memory` (la mémoire privée), `socle-batch` (mener un lot),
-`socle-handoff` (passer la main à une session neuve, programmée ou
-demandée par l'humain), `socle-review` (la revue d'un lot, avant sa livraison) et `socle-resume`
+`socle-handoff` (passer la main à une session neuve), `socle-review`
+(la revue d'un lot) et `socle-resume`
 (en session cloud, à chaque tour qui agit : reprendre après une limite
 d'usage), dans `.claude/skills/`, posés par l'installeur et protégés ; un
 autre agent lit leur `SKILL.md` à ce chemin.

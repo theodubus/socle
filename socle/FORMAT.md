@@ -510,7 +510,10 @@ révélée impossible à trancher pour l'humain.
 - `socle new request` imprime ce contrat sous l'identifiant, avec les
   seuils du lint et le budget du projet : il se lit avant d'écrire la
   demande, pas au refus du lint. Avec `--questions`, il dit aussi la
-  section « Questions » de ce gabarit et sa réponse libre.
+  section « Questions » de ce gabarit et sa réponse libre. Il rappelle
+  qu'une demande qui assouplit un garde-fou ou change une valeur attendue
+  nomme la clé des garde-fous ou la fonction de test qu'elle couvre : sa
+  validation n'autorise que ce qu'elle nomme.
 - « Options » dit l'effort, le risque et la réversibilité ; « Conséquences »
   ce qui se passe si l'humain valide, refuse, ne répond pas ;
   « Recommandation » sépare le vérifié du supposé.

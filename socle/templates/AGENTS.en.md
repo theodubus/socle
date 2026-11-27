@@ -23,8 +23,9 @@ never write a Claude Code setting yourself to restore them.
 An instruction from the human given in the conversation, that holds beyond
 the turn (a rule, a preference, a prohibition), is written into the memory
 before going on, in the directives (`socle new directive`), with its exact
-text, and in the journal. Before relying on a directive, its exact text is
-read.
+text, and in the journal; a decision is written as a decision, an
+expectation as a `blocked` need. Before relying on a directive, its exact
+text is read.
 
 ### The memory, in `memory/`
 
@@ -101,8 +102,8 @@ must be read again. `socle new` puts in the index fingerprint.
 A rare procedure is read in its skill, which the agent loads on its
 description: `socle-request` (requests, a decision taken in session),
 `socle-private-memory` (the private memory), `socle-batch` (running a
-batch), `socle-handoff` (handing over to a new session, scheduled or by a
-prompt to copy), `socle-review` (the review of a batch, before its delivery) and
+batch), `socle-handoff` (handing over to a new session), `socle-review`
+(the review of a batch) and
 `socle-resume` (in a cloud session, at every turn that acts: resuming
 after a usage limit), in `.claude/skills/`, laid by the installer and
 protected; another agent reads their `SKILL.md` at that path.

@@ -15,6 +15,48 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-27-j — Le contrat des demandes dit de nommer la clé ou le test qu'une demande couvre
+
+Une demande validée n'autorise que la clé des garde-fous ou la fonction de
+test qu'elle nomme dans son texte : une demande qui assouplissait un
+plafond en ne citant que le fichier des garde-fous ne couvrait rien, et
+l'humain répondait deux fois. Le contrat que `socle new request` imprime à
+l'écriture d'une demande le dit désormais, en une ligne, avec la forme
+d'une clé (`budgets."<fichier>".max_bytes`).
+
+À faire : rien.
+
+## 2026-11-27-i — La parole de l'humain se range selon sa nature : une règle en consigne, une décision en décision, une attente en besoin bloqué
+
+La section installée d'`AGENTS.md` envoyait toute parole de l'humain qui
+vaut au-delà du tour dans les consignes, que chaque démarrage injecte et
+que seule sa parole lève : une décision de projet et une attente y
+finissaient aussi. Elle dit désormais qu'une décision s'écrit en décision
+et une attente en besoin `bloqué`, et le skill `socle-request` le
+détaille dans une section nouvelle, « Ranger la parole de l'humain selon
+sa nature » ; la décision que l'humain donne de lui-même n'y a plus pour
+exemple une règle. Le guide dit pourquoi.
+
+À faire : rien ; une consigne déjà écrite qui est une décision ou une
+attente reste en vigueur jusqu'à ce que l'humain la lève.
+
+## 2026-11-27-h — Les réveils de reprise restent d'un tour à l'autre
+
+Le skill `socle-resume` faisait armer les deux réveils de reprise au début
+de chaque tour qui agit et les retirer à sa fin : environ un appel d'outil
+sur dix d'une séance, pour un filet qui ne sert qu'à une limite d'usage.
+Les réveils restent désormais d'un tour à l'autre : un tour qui les trouve
+à la bonne heure n'appelle aucun outil de réveil, et ils ne se retirent
+qu'au rangement d'une session qui passe la main, ou quand l'humain dit
+d'arrêter. Un réveil qui tire sans objet, après un tour fini autrement
+que sur une limite, se vérifie et se dit en une ligne, sans reprendre le
+travail ni réarmer. Sans l'outil `list_events`, l'heure de la fenêtre que
+nomme `rateLimitType` se lit dans `get_session`, quand il la donne ; un
+réveil à la borne ne s'y repousse plus à chaque tour. Le guide dit
+pourquoi.
+
+À faire : rien ; l'installeur pose le skill changé.
+
 ## 2026-11-27-g — Une commande clôt une entrée du backlog en un geste : `socle close`, et sa référence `ce commit`
 
 Clore une tâche demandait environ huit gestes de mémoire : une entrée de

@@ -1,22 +1,23 @@
 ---
 name: socle-resume
-description: Faire reprendre seul l'agent qu'une limite d'usage coupe, par deux réveils sur sa propre session, sans jamais relancer un agent que rien n'a coupé. À utiliser en session cloud de Claude Code, au début et à la fin de chaque tour où l'agent agit, au lancement d'un sous-agent, et quand un message commence par « Reprise après limite ».
+description: Faire reprendre seul l'agent qu'une limite d'usage coupe, par deux réveils sur sa propre session, sans jamais relancer un agent que rien n'a coupé. À utiliser en session cloud de Claude Code, au début de chaque tour où l'agent agit, au lancement d'un sous-agent, et quand un message commence par « Reprise après limite ».
 ---
 
 # La reprise après une limite d'usage
 
 Deux réveils, que l'agent programme pour sa propre session, le font
-reprendre à la levée d'une limite d'usage, pendant un tour qui travaille ou
-une attente à heure bornée : un tour qui finit autrement que sur une limite
+reprendre à la levée d'une limite d'usage. Ils restent d'un tour à
+l'autre : un réveil qui tire sans objet, après un tour fini autrement que
+sur une limite, se vérifie et se dit en une ligne ; il
 ne relance jamais l'agent.
 
 ## Quand
 
 Dans une session cloud de Claude Code seulement, où existent `send_later`,
 `update_trigger`, `delete_trigger`, `list_triggers` et `get_session` ;
-ailleurs, ce skill ne s'applique pas. Une réponse en texte seul n'arme
-rien, et retire les réveils laissés ; un tour qui lance une commande,
-écrit un fichier ou lance un sous-agent arme.
+ailleurs, ce skill ne s'applique pas. Une réponse en texte seul ne touche
+à aucun réveil ; un tour qui lance une commande, écrit un fichier ou lance
+un sous-agent arme celui qui manque.
 Un sous-agent ne touche à aucun réveil : ni armer, ni déplacer, ni retirer.
 
 ## Les deux réveils
@@ -41,9 +42,11 @@ cinq heures et cinq minutes, ou sept jours et cinq minutes pour la
 semaine. Un `send_later` armé avant son `now` : le retirer et le réarmer
 à la borne.
 
-**Sans l'outil `list_events`**, chaque réveil s'arme à la borne, et
-celui de cinq heures s'y repousse au début de chaque tour qui agit et au
-lancement d'un sous-agent (`run_once_at`, dans l'appel prévu).
+**Sans l'outil `list_events`**, `get_session` sans argument donne, quand
+il porte `rate_limit_info`, l'heure de la seule fenêtre que nomme
+`rateLimitType` (`resetsAt`) ; l'autre réveil s'arme à la borne. Un
+réveil à la borne ne s'y repousse ni au début d'un tour ni au lancement
+d'un sous-agent : tiré sans objet, il coûte une vérification.
 `list_triggers` retrouve les réveils.
 
 Leur texte porte le lot et les sous-agents en cours :
@@ -69,10 +72,12 @@ Une fois, avant ou avec sa première action :
    demande. Une passation qui attend (« Passation — <dépôt> ») de même.
    Le tour qui s'ouvre, sur un message de l'humain comme sur un réveil,
    fait siens les réveils laissés ; celui qui a tiré, éteint,
-   manque. Celui qu'il faut déplacer reçoit, dans un seul appel,
-   l'heure de ce tour et le texte de son lot (`update_trigger`, avec
-   `run_once_at` et `prompt`) ; celui dont l'heure est bonne ne reçoit le
-   texte, du même appel, que si le lot a changé.
+   manque. Un réveil laissé à la bonne heure, pour le même lot, ne se
+   touche pas : le tour n'appelle aucun outil de réveil. Celui dont
+   l'heure change reçoit, dans un seul appel, sa nouvelle heure et le
+   texte de son lot (`update_trigger`, avec `run_once_at` et `prompt`) ;
+   celui dont l'heure est bonne ne reçoit le texte que si le lot a
+   changé.
 2. Le réveil qui manque s'arme : `send_later`, avec `at` (la remise à
    zéro plus cinq minutes, jamais dans le passé), `name` et `message`.
    Jamais deux réveils de la même fenêtre.
@@ -85,13 +90,12 @@ connus.
 
 ## À la fin de chaque tour
 
-Avant la réponse finale, retirer les deux réveils (`delete_trigger`),
-sauf pendant un sous-agent, jusqu'au tour qui reçoit son résultat, ou une
+Les réveils restent : la fin d'un tour n'en retire aucun. Pendant une
 attente à heure bornée (un rappel, une commande en arrière-plan, une
-CI), jusqu'au tour de l'événement, chacun repoussé après cette heure
-s'il tombait avant. Un tour coupé ou refusé ne retire rien. Si le
-tour continue après (un hook de fin de tour refuse de conclure), les
-réarmer.
+CI), jusqu'au tour de l'événement, chacun est repoussé après cette
+heure s'il tombait avant. Un tour coupé ou refusé ne retire rien. Ils ne
+se retirent (`delete_trigger`) qu'au rangement d'une session qui passe la
+main, ou quand l'humain dit d'arrêter.
 
 ## Au réveil : vérifier d'abord
 
@@ -120,14 +124,15 @@ Un message qui commence par « Reprise après limite » :
    - si le tour d'avant n'a pas fini sur une limite (l'humain l'a
      interrompu, ou il a fini normalement) ;
    - si l'humain a écrit pendant la limite : répondre à son message, qui
-     prime ; s'il dit d'arrêter, s'arrêter ;
+     prime ; s'il dit d'arrêter, s'arrêter, les réveils retirés ;
    - si la garde refuse : `git fetch`, puis `python3 .socle/socle handoff
      check --ref origin/<branche> --head <sa tête avant le fetch> --since
      <la coupure, si connue>` ;
    - si la pull request de la branche a été fusionnée ou fermée depuis.
 
-   Répondre alors brièvement pourquoi, avec les lignes de fin du projet,
-   et retirer le réveil restant, ou le laisser si un sous-agent tourne.
+   Répondre alors pourquoi en une ligne, puis les lignes de fin du
+   projet, sans reprendre le travail : le réveil restant reste, et cette
+   réponse n'arme rien.
    Si l'humain avait interrompu le travail et que le contrôle de fin de
    tour refuse sur des contrôles en échec, le dire en une ligne, sans y
    toucher ni réarmer.

@@ -1,6 +1,6 @@
 ---
 name: socle-request
-description: Write a request for a human decision, relay the human's answer, or record a decision taken in session. Use when a decision belongs to the human (autonomy policy, points 1 to 4, 7 and 8), when they answer a request, or when they settle a question in the conversation.
+description: Write a request for a human decision, relay the human's answer, or record a decision taken in session. Use when a decision belongs to the human (autonomy policy, points 1 to 4, 7 and 8), when they answer a request, when they settle a question in the conversation, or when a word of theirs holds beyond the turn.
 ---
 
 # Requests for a human decision
@@ -99,6 +99,18 @@ same batch, the specification first. What remains costly to undo then
 goes into a request, a short one; the rest, the agent decides and writes
 as a decision.
 
+## Filing the human's word by its nature
+
+A word of the human that holds beyond the turn is written before going
+on, its exact text kept, and in the journal, by its nature:
+
+- a working rule for the agent (a preference, a prohibition, a way of
+  doing): a directive (`socle new directive`), which every start injects;
+- a decision about the project (a choice, a priority, an authorization):
+  a decision, recorded in session as below;
+- an expectation ("not before X is done"): a need with the status
+  `blocked`, which says what it waits for; it is lifted by closing it.
+
 ## Recording a decision taken in session
 
 What the human settles in the
@@ -111,7 +123,7 @@ python3 .socle/socle decision "<question>" <answer> --relayed --by <name> --quot
 ```
 
 A decision the human gives of their own accord, without being asked (a
-rule, a prohibition, "delete this test"), is recorded with no invented
+choice, an authorization, "delete this test"), is recorded with no invented
 question and no answer to choose: their exact text, under a title that
 states it in one sentence and names nothing they do not name. It is
 approved, and authorizes what it names as an approved request does:

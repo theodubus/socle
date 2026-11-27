@@ -1144,6 +1144,11 @@ MESSAGES: dict[str, str] = {
         "- “Where to look” gives a link; “Options” states the effort, the risk and the reversibility of each; "
         "“Consequences”, what happens if the human approves, if they reject, without an answer; “Recommendation” "
         "separates what is verified from what is assumed;",
+    "- une demande qui assouplit un garde-fou ou change une valeur attendue nomme, dans son texte, chaque clé des "
+    "garde-fous (`budgets.\"<fichier>\".max_bytes`) ou fonction de test qu'elle couvre : sa validation n'autorise "
+    "que ce qu'elle nomme ;":
+        "- a request that relaxes a guardrail or changes an expected value names, in its text, each guardrail key "
+        "(`budgets.\"<file>\".max_bytes`) or test function it covers: its approval authorizes only what it names;",
     "- « Réponses possibles » propose les réponses de base : {reponses}.":
         "- “Possible answers” offers the base answers: {reponses}.",
     "Son budget : {budget} octets, les lignes d'empreinte mises à part.":

@@ -402,6 +402,9 @@ dites-le : l'agent consigne votre parole en séance, puis note la consigne
 « levée », avec la décision qui la lève (`levée-par`) ; seule votre parole
 la lève, et `socle archive` la range ensuite dans le journal. Une consigne
 que vous changez en devient une nouvelle, et votre parole lève l'ancienne.
+Une décision sur le projet s'écrit en décision, une attente en besoin
+`bloqué` (skill `socle-request`) : rangée en consigne, elle pèserait sur
+chaque démarrage, et ne se lèverait que par une parole de plus.
 
 **La question d'intention.** Quand la conception d'un besoin n'est pas
 tranchée, l'agent vous pose d'abord, dans la conversation, en quelques
@@ -782,7 +785,11 @@ minute dans l'avenir date d'une fenêtre close : le réveil s'arme à la
 borne. Pendant une attente à heure bornée, les réveils restent, chacun
 repoussé après cette heure s'il tombait avant : refusé, ce tour se reprend
 à la levée. Un tour coupé ou refusé ne retire rien : c'est ce qui le fait
-reprendre. Au réveil d'un travail que l'humain avait interrompu, l'agent
+reprendre. Les réveils restent d'un tour à l'autre : les armer au début de
+chaque tour et les retirer à sa fin coûtait environ un appel d'outil sur
+dix d'une séance ; un réveil qui tire sans objet coûte moins, une
+vérification et une ligne, et la vérification au réveil le rend sans
+danger. Au réveil d'un travail que l'humain avait interrompu, l'agent
 dit en une ligne que le contrôle de fin de tour refuse sur des contrôles
 en échec, sans y toucher ni réarmer : relancé sur le même arbre, il laisse
 conclure. L'humain arrête tout en écrivant « arrête » dans la session, ou

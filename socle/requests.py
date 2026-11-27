@@ -267,6 +267,9 @@ def contrat(projet: config.Projet, chemin: str, questions: bool = False) -> str:
               trad("- « Où regarder » donne un lien ; « Options » dit l'effort, le risque et la réversibilité de "
                    "chacune ; « Conséquences », ce qui se passe si l'humain valide, s'il refuse, sans réponse ; « "
                    "Recommandation » sépare le vérifié du supposé ;"),
+              trad("- une demande qui assouplit un garde-fou ou change une valeur attendue nomme, dans son texte, "
+                   "chaque clé des garde-fous (`budgets.\"<fichier>\".max_bytes`) ou fonction de test qu'elle "
+                   "couvre : sa validation n'autorise que ce qu'elle nomme ;"),
               trad("- « Réponses possibles » propose les réponses de base : {reponses}.",
                    reponses=", ".join(f"`{langue.mot(langue.REPONSES, r, lg)}`" for r in langue.REPONSES))]
     if questions:

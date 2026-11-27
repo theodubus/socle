@@ -388,7 +388,10 @@ the memory proves it by its fingerprint. To lift one, say so: the agent
 records your word in session, then marks the directive "lifted", with the
 decision that lifts it (`lifted-by`); only your word lifts it, and
 `socle archive` then moves it to the journal. A directive you change
-becomes a new one, and your word lifts the old one.
+becomes a new one, and your word lifts the old one. A decision about the
+project is written as a decision, an expectation as a `blocked` need
+(`socle-request` skill): filed as a directive, it would weigh on every
+start, and would only be lifted by one more word.
 
 **The question of intent.** When a need's design is not settled, the
 agent first asks you, in the conversation, in a few lines, the need as it
@@ -762,7 +765,11 @@ reset read that is not more than a minute ahead belongs to a closed
 window: the wake-up is then armed at the bound. During a wait with a
 bounded time, the wake-ups remain, each pushed back after that time if it
 fell before: refused, that turn resumes when the limit lifts. A turn cut
-off or refused removes nothing: that is what makes it resume. On waking
+off or refused removes nothing: that is what makes it resume. The
+wake-ups remain from one turn to the next: arming them at the start of
+every turn and removing them at its end cost about one tool call in ten
+of a sitting; a wake-up that fires with nothing to resume costs less, one
+check and one line, and the check on waking makes it harmless. On waking
 from work the human had interrupted, the agent says in one line that the
 end-of-turn check refuses on failing checks, without touching it or
 re-arming: relaunched on the same tree, it lets the turn conclude. The
