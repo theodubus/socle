@@ -1850,7 +1850,15 @@ def _cas() -> list[Cas]:
         remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : abandonné · ref : fichier:calc.py")
         return etage_git(a, c)
 
-    @defaut("besoin-fait-sans-tache-faite", "besoin fait sans aucune tâche faite", "git", "memoire.formes")
+    @defaut("besoin-fait-sans-tache-faite", "besoin fait dont la seule tâche est abandonnée", "git",
+            "memoire.formes")
+    def _(a, c):
+        ajouter_sujet(c, tache_essai(a, c, statut="abandonné · ref : fichier:calc.py"))
+        remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : fait · ref : fichier:calc.py")
+        return etage_git(a, c)
+
+    @defaut("besoin-fait-sans-tache-ni-case", "besoin fait sans tâche ni case de « Satisfait quand » (ADR-0119)",
+            "git", "memoire.formes")
     def _(a, c):
         remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : fait · ref : fichier:calc.py")
         return etage_git(a, c)
@@ -4172,6 +4180,16 @@ def _temoins() -> list[tuple[str, Callable]]:
         if r.returncode != 0 or not list((c / "memory/backlog/closed").glob("B-0001-*.md")):
             return r.stdout + r.stderr or "B-0001 n'est pas rangé"
         return etage_ci(a, c, "B-0001 clos et rangé")
+
+    @temoin("un besoin pour l'humain sans tâche, ses cases cochées, clos par `socle close`, passe le commit et "
+            "la CI (ADR-0119)")
+    def _(a, c):
+        remplacer(c, _sujet(c, "B-0001"), "> statut : ouvert", "> statut : ouvert · pour : humain")
+        ajouter(c, _sujet(c, "B-0001"), "\n## Satisfait quand\n\n- [x] triple existe\n")
+        r = a.socle(c, "close", "B-0001")
+        if r.returncode != 0 or not list((c / "memory/backlog/closed").glob("B-0001-*.md")):
+            return r.stdout + r.stderr or "B-0001 n'est pas rangé"
+        return etage_git(a, c) or etage_ci(a, c)
 
     @temoin("une tâche cochée close par `socle close`, sa référence « ce commit », passe le commit et la CI "
             "(ADR-0117)")

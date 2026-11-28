@@ -14,6 +14,28 @@ asks nothing: of such an entry, the installer prints only the title,
 under a line that names this file. Any other form (“nothing, unless …”,
 “nothing in the project …”, an action) is printed in full, before them.
 
+## 2026-11-28-a — A need that never had a task closes “done” on its checked boxes, and the state calls “to close” only what `socle close` accepts
+
+The socle gives rise to two kinds of needs without tasks: the wait, filed
+as a `blocked` need that is lifted by closing it (note `2026-11-27-i`),
+and the `for : human` need, closed on the human's word without a task
+(note `2026-11-26-j`). `memoire.formes` nevertheless refused any “done”
+need without a done task, and `socle close` with it: closing a lifted
+wait cost a task written after the fact. From now on, a need that never
+had a task closes “done” through `socle close`, on its “Satisfied when”
+section, which has at least one box and all of them checked. A need that
+had tasks keeps the earlier rule: closed, at least one of them done; all
+abandoned, it is abandoned. A need without a task or a box is still
+refused. `socle state` calls “to close” only a need that `socle close`
+would accept: a need whose tasks are closed but with an empty box leaves
+that list, and is again “to split”, or waits if it is blocked.
+
+To do: a need without a task that you kept open for lack of a way to
+close it, a lifted wait or a need for the human, its boxes checked,
+closes with `python3 .socle/socle close B-NNNN`, in one step. A wait that
+nothing lifts yet stays `blocked`, which takes it out of the needs to
+split.
+
 ## 2026-11-27-l — The skills the installer lays down are back under 8,000 bytes, the cap that a project installed before 27 November keeps
 
 An update keeps the project's guardrails, hence the cap of its skills,

@@ -997,7 +997,8 @@ def formes(ctx, r):
     que ce qu'elle attend, par son identifiant actuel ; un besoin porte
     « Satisfait quand », une tâche « Fait quand », et l'entrée nouvelle sa
     section ; un besoin ne se clôt qu'une fois ses tâches closes, et « fait »
-    que si l'une l'est. Ce qui est clos avant la migration reste tel quel :
+    que si l'une l'est, ou, sans tâche, sur ses cases (ADR-0119). Ce qui est
+    clos avant la migration reste tel quel :
     la forme se juge sur les entrées ouvertes, la clôture sur une clôture
     nouvelle."""
     mem, base = ctx.memoire, ctx.memoire_base
@@ -1086,9 +1087,15 @@ def formes(ctx, r):
                 r.erreur("memoire.formes", trad("`{id}` est clos (« {statut} ») avec une tâche ouverte : {taches}",
                                                 id=e.id, statut=e.statut, taches=", ".join(ouvertes)),
                          e.fichier, e.ligne)
-            elif e.statut == "fait" and not any(t.statut == "fait" for t in siennes):
-                r.erreur("memoire.formes", trad("`{id}` est fait sans tâche faite : un besoin se ferme quand ses "
-                                                "tâches sont closes, l'une au moins faite ; sinon il s'abandonne",
+            elif e.statut == "fait" and siennes and not any(t.statut == "fait" for t in siennes):
+                r.erreur("memoire.formes", trad("`{id}` est fait sans tâche faite : un besoin qui a eu des tâches "
+                                                "se ferme quand elles sont closes, l'une au moins faite ; toutes "
+                                                "abandonnées, il s'abandonne", id=e.id), e.fichier, e.ligne)
+            elif e.statut == "fait" and not siennes and not memoire.criteres(e):
+                # Sans tâche, le besoin se ferme sur ses cases (ADR-0119) ;
+                # `memoire.backlog` refuse celui dont une case reste vide.
+                r.erreur("memoire.formes", trad("`{id}` est fait sans tâche ni case : un besoin sans tâche se ferme "
+                                                "sur sa section « Satisfait quand », cochée ; sinon il s'abandonne",
                                                 id=e.id), e.fichier, e.ligne)
 
 

@@ -3837,8 +3837,10 @@ MESSAGES: dict[str, str] = {
         '`{id}` is closed “done” with an unchecked “{section}” criterion: {criteres}',
     '`{id}` est dans {n} lots ({lots}) : une tâche est dans un lot au plus':
         '`{id}` is in {n} batches ({lots}): a task is in one batch at most',
-    "`{id}` est fait sans tâche faite : un besoin se ferme quand ses tâches sont closes, l'une au moins faite ; sinon il s'abandonne":
-        '`{id}` is done without a done task: a need closes when its tasks are closed, at least one of them done; otherwise it is abandoned',
+    "`{id}` est fait sans tâche faite : un besoin qui a eu des tâches se ferme quand elles sont closes, l'une au moins faite ; toutes abandonnées, il s'abandonne":
+        '`{id}` is done without a done task: a need that had tasks closes when they are closed, at least one of them done; all abandoned, it is abandoned',
+    "`{id}` est fait sans tâche ni case : un besoin sans tâche se ferme sur sa section « Satisfait quand », cochée ; sinon il s'abandonne":
+        '`{id}` is done without a task or a box: a need without tasks closes on its “Satisfied when” section, checked; otherwise it is abandoned',
     "`{id}` est rangé parmi les entrées closes alors qu'il est « {statut} » : `python3 .socle/socle archive` le remet parmi les ouvertes":
         '`{id}` is filed among the closed entries while it is “{statut}”: `python3 .socle/socle archive` puts it back among the open ones',
     "`{id}` est un besoin : sa section est « Satisfait quand », un résultat ; « Fait quand » est celle d'une tâche":
@@ -3871,8 +3873,10 @@ MESSAGES: dict[str, str] = {
         'need',
     'besoin abandonné avec sa tâche encore ouverte':
         'need abandoned with its task still open',
-    'besoin fait sans aucune tâche faite':
-        'need done without any done task',
+    'besoin fait dont la seule tâche est abandonnée':
+        'need done whose only task is abandoned',
+    'besoin fait sans tâche ni case de « Satisfait quand » (ADR-0119)':
+        'need done without a task or a “Satisfied when” box (ADR-0119)',
     'besoin fait, sa tâche faite, avec un critère de « Satisfait quand » non coché':
         'need done, its task done, with an unchecked “Satisfied when” criterion',
     'besoin nouveau sans sa section « Satisfait quand »':
@@ -4586,6 +4590,8 @@ MESSAGES: dict[str, str] = {
         "not committed yet, the commit to come",
     "tâche faite dont la `ref` n'est que de la prose, ni une référence ni « ce commit »":
         "task done whose `ref` is only prose, neither a reference nor “this commit”",
+    "un besoin pour l'humain sans tâche, ses cases cochées, clos par `socle close`, passe le commit et la CI (ADR-0119)":
+        "a need for the human without a task, its boxes checked, closed by `socle close`, passes the commit and CI (ADR-0119)",
     "une tâche cochée close par `socle close`, sa référence « ce commit », passe le commit et la CI (ADR-0117)":
         "a checked task closed by `socle close`, its reference “this commit”, passes the commit and CI (ADR-0117)",
     "`{id}` ne se clôt pas : `{chemin}` existe déjà, à la place où elle se range":

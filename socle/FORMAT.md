@@ -356,8 +356,8 @@ qui est en cours d'abord, et où en est chacune de ses tâches et de ses
 demandes ; les tâches prêtes, ouvertes et pas encore en cours, dont tout
 ce qu'elles attendent est clos ou répondu, celles des besoins du prochain
 jalon d'abord, puis par priorité ; à part, les prêtes de priorité basse,
-que l'agent prend quand c'est commode ; les besoins à fermer, dont les
-tâches sont closes, l'une au moins faite ; les besoins à découper, sans
+que l'agent prend quand c'est commode ; les besoins à fermer, ceux que
+`socle close` accepterait (ADR-0119) ; les besoins à découper, sans
 tâche ouverte ni rien d'ouvert qu'ils attendent, hors ceux `pour : humain` ; et le nombre d'entrées
 qui attendent encore, selon ce qu'elles attendent : une entrée du backlog,
 une demande sans réponse, ou les deux. Le rappel de fin de tour le redonne.
@@ -381,9 +381,12 @@ pas déduit, il est choisi par leur identifiant. Les besoins à découper et
 à fermer restent à l'état.
 
 Une tâche est faite quand sa section `## Fait quand` est cochée ; un
-besoin, quand ses tâches sont closes, l'une au moins faite, et sa section
-`## Satisfait quand` cochée ; un lot, quand ses tâches sont closes ; un
-jalon, quand ses besoins le sont. Abandonnée, une entrée laisse ses cases.
+besoin, quand sa section `## Satisfait quand` est cochée et ses tâches
+closes, l'une au moins faite, toutes abandonnées, il s'abandonne ; un
+besoin qui n'a jamais eu de tâche, une attente levée ou un besoin `pour :
+humain`, sur sa section seule, qui a au moins une case (ADR-0119) ; un
+lot, quand ses tâches sont closes ; un jalon, quand ses besoins le sont.
+Abandonnée, une entrée laisse ses cases.
 Une tâche qui se révèle un besoin s'abandonne, en renvoyant au besoin
 ouvert. Un constat de revue devient une tâche si sa correction est claire,
 un besoin sinon.
@@ -400,8 +403,8 @@ une tâche sans besoin ou dans deux lots, un `après` que sa forme n'attend
 pas ou qui nomme un ancien numéro, « Fait quand » dans un besoin et
 « Satisfait quand » dans une tâche ; sur une entrée nouvelle, un besoin ou
 une tâche sans sa section ; sur une clôture nouvelle, un besoin clos avec
-une tâche ouverte, ou fait sans tâche faite. Ce qui est clos avant la
-migration reste tel quel.
+une tâche ouverte, ou fait, ses tâches toutes abandonnées, ou sans tâche
+ni case (ADR-0119). Ce qui est clos avant la migration reste tel quel.
 
 Une entrée renumérotée garde son ancien numéro (`ancien : B-0235`) :
 `socle show`, `socle url`, les contrôles des références et la lecture

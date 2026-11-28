@@ -15,6 +15,29 @@ titre, sous une ligne qui nomme ce fichier. Toute autre forme (« rien,
 sauf si … », « rien dans le projet … », une action) s'imprime en entier,
 avant elles.
 
+## 2026-11-28-a — Un besoin qui n'a jamais eu de tâche se clôt « fait » sur ses cases cochées, et l'état ne dit « à fermer » que ce que `socle close` accepte
+
+Le socle fait naître deux sortes de besoins sans tâche : l'attente,
+rangée en besoin `bloqué` qui se lève en se fermant (note
+`2026-11-27-i`), et le besoin `pour : humain`, fermé sur la parole de
+l'humain sans tâche (note `2026-11-26-j`). `memoire.formes` refusait
+pourtant tout besoin « fait » sans tâche faite, et `socle close` avec
+lui : clore une attente levée coûtait une tâche écrite après coup.
+Désormais, un besoin qui n'a jamais eu de tâche se clôt « fait » par
+`socle close`, sur sa section « Satisfait quand », qui a au moins une
+case et les a toutes cochées. Un besoin qui a eu des tâches garde la
+règle d'avant : closes, l'une au moins faite ; toutes abandonnées, il
+s'abandonne. Un besoin sans tâche ni case reste refusé. `socle state`
+ne dit plus « à fermer » qu'un besoin que `socle close` accepterait : un
+besoin aux tâches closes dont une case reste vide en sort, et redevient
+« à découper », ou attend s'il est bloqué.
+
+À faire : un besoin sans tâche que tu gardais ouvert faute de pouvoir le
+clore, une attente levée ou un besoin pour l'humain, ses cases cochées,
+se clôt par `python3 .socle/socle close B-NNNN`, en un geste. Une
+attente que rien ne lève encore reste au statut `bloqué`, qui la sort
+des besoins à découper.
+
 ## 2026-11-27-l — Les skills que pose l'installeur repassent sous 8 000 octets, le plafond que garde un projet installé avant le 27 novembre
 
 Une mise à jour garde les garde-fous du projet, donc le plafond de ses

@@ -820,6 +820,17 @@ def criteres(e: Entree, section: re.Pattern | None = None) -> list[tuple[bool, s
     return res
 
 
+def se_ferme(besoin: Entree, taches: list[Entree]) -> bool:
+    """Vrai quand le besoin, ses tâches toutes closes, se ferme « fait »
+    (ADR-0119) : sa section cochée, et l'une de ses tâches faite, ou, s'il
+    n'en a jamais eu, une case au moins. Ce qu'il attend encore se juge à
+    part."""
+    cases = criteres(besoin)
+    if not all(coche for coche, _ in cases):
+        return False
+    return any(t.statut == "fait" for t in taches) if taches else bool(cases)
+
+
 # --------------------------------------------------------------------------
 # Les revues d'un lot (ADR-0084, ADR-0100) : sa section « Revues », une
 # passe par dossier de `socle review`, chacune ses bloquants.
@@ -952,7 +963,7 @@ class Ordre:
     attendent_une_entree: int = 0
     attendent_une_demande: int = 0
     # Les besoins sans tâche ouverte ni rien d'ouvert qu'ils attendent, et
-    # ceux dont les tâches sont closes, l'une au moins faite (ADR-0083).
+    # ceux que `socle close` accepterait (ADR-0083, ADR-0119).
     a_decouper: list[Entree] = field(default_factory=list)
     a_fermer: list[Entree] = field(default_factory=list)
 
@@ -1075,10 +1086,10 @@ def ordre_de(g: Graphe) -> Ordre:
     prets = sorted((i for i in a_prendre if not g.attend(i)), key=cle)
     basses = [i for i in prets if priorite_effective(entrees[i], entrees) == "basse"]
     prets = [i for i in prets if i not in basses]
-    # Les besoins : ceux qui n'ont plus de tâche ouverte sont à fermer, si
-    # l'une est faite, ou à découper, s'ils n'attendent plus rien. Un besoin
-    # pour l'humain ne se découpe pas : l'humain le mène, l'agent le ferme
-    # sur sa parole (B-0363).
+    # Les besoins : ceux qui n'ont plus de tâche ouverte sont à fermer quand
+    # `socle close` les accepterait (ADR-0119), ou à découper, s'ils
+    # n'attendent plus rien. Un besoin pour l'humain ne se découpe pas :
+    # l'humain le mène, l'agent le ferme sur sa parole (B-0363).
     taches: dict[str, list[Entree]] = {}
     for e in entrees.values():
         if est_tache(e) and besoin_de(e):
@@ -1090,7 +1101,7 @@ def ordre_de(g: Graphe) -> Ordre:
         siennes = taches.get(i, [])
         if any(t.statut not in BACKLOG_CLOS for t in siennes):
             continue
-        if any(t.statut == "fait" for t in siennes):
+        if se_ferme(entrees[i], siennes) and not g.attend(i):
             a_fermer.append(i)
         elif g.attend(i):
             attendent.append(i)
